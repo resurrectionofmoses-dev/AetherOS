@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+// FIX: Added uuidv4 import for unique message identification
+import { v4 as uuidv4 } from 'uuid';
 /* Removed non-existent BoxIcon and unused icon imports: SignalIcon, SearchIcon, CheckCircleIcon, WarningIcon, MusicIcon */
 import { SpinnerIcon, TerminalIcon, ActivityIcon, ZapIcon, ShieldIcon, LogicIcon } from './icons';
 import type { BroadcastMessage } from '../types';
@@ -62,7 +64,9 @@ export const CommunicationsView: React.FC<{
         setIsTransmitting(true);
         // Simulate packet encoding
         setTimeout(() => {
+            // FIX: Added required 'id' property to newBroadcast object
             const newBroadcast: BroadcastMessage = {
+                id: uuidv4(),
                 source: 'MAESTRO-CMD',
                 text: fleetInput,
                 timestamp: new Date(),

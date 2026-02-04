@@ -28,7 +28,7 @@ const DOORWAYS: Doorway[] = [
     { id: 'hard_code_lab', label: 'Hard Code Lab', description: 'Low-level binary forensics and hard-vapor logic.', cost: 20, tier: 2, icon: TerminalIcon },
     { id: 'enlightenment_pool', label: 'Enlightenment Pool', description: 'Dual-age wisdom bridging and architectural truth.', cost: 30, tier: 2, icon: StarIcon },
     { id: 'truth_lab', label: 'Truth Lab', description: 'Absolute epitume filtering. Bypassing safety heuristics.', cost: 50, tier: 3, icon: FireIcon },
-    { id: 'quantum_theory_lab', label: 'Quantum Lab', description: 'Probability conduction and Merkle Root stability.', cost: 75, tier: 3, icon: BotIcon },
+    { id: 'hyper_spatial_lab', label: 'Hyper-Spatial Lab', description: 'Dimensional modeling across the temporal W-axis.', cost: 75, tier: 3, icon: BotIcon },
 ];
 
 export const ConjunctionGatesView: React.FC<ConjunctionGatesViewProps> = ({ progress, onUnlock, onSetView }) => {
@@ -136,7 +136,7 @@ export const ConjunctionGatesView: React.FC<ConjunctionGatesViewProps> = ({ prog
                                             >
                                                 {isProcessing ? (
                                                     <>
-                                                        <SpinnerIcon className="w-6 h-6 animate-spin" />
+                                                        <span className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                                         <span>SYNCING...</span>
                                                     </>
                                                 ) : (

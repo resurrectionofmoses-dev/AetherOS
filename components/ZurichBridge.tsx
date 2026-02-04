@@ -20,9 +20,10 @@ export const ZurichBridge: React.FC = () => {
     const [maestroCommentary, setMaestroCommentary] = useState<string>("Conduct the telemetry flow to begin healing...");
     const [isAnalyzingLive, setIsAnalyzingLive] = useState(false);
     const [isStressTesting, setIsStressTesting] = useState(false);
-    const [isAutonomousHealingEnabled, setIsAutonomousHealingEnabled] = useState(false); // New state for autonomous healing
+    const [isAutonomousHealingEnabled, setIsAutonomousHealingEnabled] = useState(false);
 
     const logEndRef = useRef<HTMLDivElement>(null);
+    const lastAnalysisTimeRef = useRef<number>(0);
 
     const addLog = useCallback((msg: string, color: string = 'text-gray-600 italic opacity-80') => {
         setHealingLogs(prev => [`[${new Date().toLocaleTimeString()}] <span style="color:${color};">${msg}</span>`, ...prev].slice(0, 30));
@@ -46,34 +47,41 @@ export const ZurichBridge: React.FC = () => {
         setIsHealing(true);
         addLog(`Invoking God Logic for code ${code} (${selectedOEM})...`, 'text-amber-400');
         
-        const result = await queryDetailedDiagnostic(code, selectedOEM);
-        if (result) {
-            setDiagnosticResult(result);
-            addLog(`Healing knowledge found. Dissecting the root agony of ${code}.`, 'text-green-400');
-        } else {
-            addLog(`Error: The Conjunction bridge failed to find specific healing for ${code}.`, 'text-red-600');
+        try {
+            const result = await queryDetailedDiagnostic(code, selectedOEM);
+            if (result) {
+                setDiagnosticResult(result);
+                addLog(`Healing knowledge found. Dissecting the root agony of ${code}.`, 'text-green-400');
+            } else {
+                addLog(`Error: The Conjunction bridge failed to find specific healing for ${code}.`, 'text-red-600');
+            }
+        } catch (e) {
+            addLog("Healing bridge collapsed due to neural congestion (429/500).", 'text-red-500');
+        } finally {
+            setIsHealing(false);
         }
-        setIsHealing(false);
     };
 
     const analyzeLiveData = useCallback(async () => {
-        if (telemetryHistory.length < 5 || isAnalyzingLive) return;
+        const now = Date.now();
+        // Throttle: Max one analysis every 10 seconds to prevent 429
+        if (telemetryHistory.length < 5 || isAnalyzingLive || now - lastAnalysisTimeRef.current < 10000) return;
+        
         setIsAnalyzingLive(true);
+        lastAnalysisTimeRef.current = now;
         setMaestroCommentary("Maestro is listening to the engine's rhythm...");
         
         try {
             let fullText = "";
-            // Pass recent history to AI for trend analysis
             const stream = interpretLiveTelemetry(telemetryHistory.slice(-15), selectedOEM);
             for await (const chunk of stream) {
                 fullText += chunk;
                 setMaestroCommentary(fullText);
             }
             
-            // Check for critical interpretation that might warrant a healing suggestion
             if (isAutonomousHealingEnabled && (fullText.toLowerCase().includes("misfire") || fullText.toLowerCase().includes("overheat") || fullText.toLowerCase().includes("critical"))) {
                 addLog("⚠ CRITICAL: Maestro detected anomaly. Auto-invoking healing protocol!", 'text-red-500');
-                handleHeal("CRITICAL_SYSTEM_FAULT"); // Autonomous healing for a generic critical fault
+                handleHeal("CRITICAL_SYSTEM_FAULT");
             } else if (fullText.toLowerCase().includes("misfire") || fullText.toLowerCase().includes("overheat") || fullText.toLowerCase().includes("critical")) {
                 addLog("Maestro detected a structural anomaly in the live stream. Consider manual healing.", 'text-red-400');
             } else {
@@ -84,14 +92,13 @@ export const ZurichBridge: React.FC = () => {
         } finally {
             setIsAnalyzingLive(false);
         }
-    }, [telemetryHistory, selectedOEM, isAnalyzingLive, addLog, isAutonomousHealingEnabled]); // Added isAutonomousHealingEnabled
+    }, [telemetryHistory, selectedOEM, isAnalyzingLive, addLog, isAutonomousHealingEnabled]);
 
     useEffect(() => {
         if (status === 'CONNECTED') {
             const interval = setInterval(() => {
                 const newFrame: LiveTelemetryFrame = {
                     timestamp: Date.now(),
-                    // If stress testing, values drift dangerously
                     rpm: isStressTesting 
                         ? 4500 + Math.floor(Math.random() * 1000) 
                         : 750 + Math.floor(Math.random() * 4500),
@@ -107,12 +114,8 @@ export const ZurichBridge: React.FC = () => {
                 };
 
                 setLiveFrame(newFrame);
-                setTelemetryHistory(prev => {
-                    const next = [...prev.slice(-49), newFrame];
-                    return next;
-                });
+                setTelemetryHistory(prev => [...prev.slice(-49), newFrame]);
 
-                // Auto-detect anomalies during live stream (for stress test visualization)
                 if (isStressTesting && Math.random() > 0.95) {
                    addLog("⚠ CRITICAL: High-temperature logic bleed detected!", 'text-red-500');
                 }
@@ -121,10 +124,10 @@ export const ZurichBridge: React.FC = () => {
         }
     }, [status, isStressTesting, addLog]);
 
-    // Periodically analyze live data or trigger on stress test start
     useEffect(() => {
         if (status === 'CONNECTED' && telemetryHistory.length > 0) {
-            if (telemetryHistory.length % 20 === 0 || (isStressTesting && telemetryHistory.length % 10 === 0)) {
+            const mod = isStressTesting ? 20 : 40; // Frequency of analysis
+            if (telemetryHistory.length % mod === 0) {
                 analyzeLiveData();
             }
         }
@@ -143,7 +146,6 @@ export const ZurichBridge: React.FC = () => {
 
     return (
         <div className={`h-full flex flex-col transition-colors duration-1000 font-mono p-4 sm:p-6 space-y-6 overflow-hidden ${isStressTesting ? 'bg-[#0a0202]' : 'bg-[#01030a]'}`}>
-            {/* Header: Link Signature */}
             <div className={`flex flex-col sm:flex-row justify-between items-center bg-black/80 p-5 rounded-3xl border-4 aero-panel gap-4 shadow-[10px_10px_0_0_#000] transition-colors duration-500 ${isStressTesting ? 'border-red-900 shadow-red-900/20' : 'border-black'}`}>
                 <div className="flex items-center gap-4">
                     <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-500 ${isStressTesting ? 'bg-red-500/10 border-4 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.4)]' : 'bg-green-500/10 border-4 border-green-500 shadow-[0_0_20px_rgba(34,197,94,0.3)]'}`}>
@@ -197,10 +199,7 @@ export const ZurichBridge: React.FC = () => {
             </div>
 
             <div className="flex-1 flex flex-col lg:flex-row gap-6 overflow-hidden">
-                {/* Left side: Telemetry & Entry */}
                 <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2">
-                    
-                    {/* Live Telemetry Display */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         {[
                             { label: 'RPM', val: liveFrame.rpm, unit: '', color: isStressTesting && liveFrame.rpm > 5000 ? 'text-red-500' : 'text-cyan-400', icon: GaugeIcon },
@@ -212,16 +211,10 @@ export const ZurichBridge: React.FC = () => {
                                 <item.icon className={`absolute -right-3 -bottom-3 w-20 h-20 opacity-5 ${item.color}`} />
                                 <p className="text-[10px] text-gray-500 font-black uppercase mb-1 tracking-widest leading-none">{item.label}</p>
                                 <p className={`text-5xl font-comic-header ${item.color} wisdom-glow`}>{status === 'CONNECTED' ? item.val : '--'}<span className="text-xs ml-0.5">{item.unit}</span></p>
-                                {status === 'CONNECTED' && item.color === 'text-red-500' && (
-                                    <div className="absolute top-2 right-2 flex gap-1">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
-                                    </div>
-                                )}
                             </div>
                         ))}
                     </div>
 
-                    {/* Maestro Telemetry Insight */}
                     <div className={`aero-panel p-8 bg-black/40 border-4 border-black transition-all duration-1000 shadow-[8px_8px_0_0_#000] relative overflow-hidden ${status !== 'CONNECTED' ? 'opacity-20' : ''}`}>
                          <div className={`absolute top-0 right-0 p-2 text-[9px] font-black uppercase rotate-3 translate-x-4 -translate-y-2 shadow-xl ${isAnalyzingLive ? 'bg-amber-500 text-black animate-pulse' : 'bg-green-500 text-black'}`}>
                             {isAnalyzingLive ? 'CONDUCTING...' : 'LIVE AI INSIGHT'}
@@ -245,7 +238,6 @@ export const ZurichBridge: React.FC = () => {
                          </div>
                     </div>
 
-                    {/* Diagnostic Input Section */}
                     <div className="aero-panel p-8 border-4 border-black bg-slate-900/60 shadow-[10px_10px_0_0_#000]">
                         <div className="flex items-center gap-3 mb-6">
                             <SearchIcon className="w-7 h-7 text-amber-500" />
@@ -271,7 +263,6 @@ export const ZurichBridge: React.FC = () => {
                             </button>
                         </div>
 
-                        {/* Detailed Diagnostic View */}
                         {diagnosticResult && (
                             <div className="space-y-8 animate-in zoom-in-95 duration-700">
                                 <div className="p-8 bg-black/80 rounded-[3rem] border-8 border-black relative shadow-[25px_25px_80px_rgba(0,0,0,1)]">
@@ -336,7 +327,6 @@ export const ZurichBridge: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Right side: Healing Logs & Real-Time Stream */}
                 <div className="lg:w-[400px] flex flex-col gap-6">
                     <div className="aero-panel bg-black/90 border-4 border-black flex flex-col overflow-hidden h-[500px] shadow-[10px_10px_0_0_#000]">
                         <div className="p-5 border-b-4 border-black flex items-center justify-between bg-white/5">

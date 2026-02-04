@@ -1,0 +1,89 @@
+
+/* AetherOS Terminal Mode: High Contrast / Low Resource */
+:root {
+  --os-green: #00ff00; /* The Color of Order */
+  --os-black: #000000;
+}
+
+.terminal-mode {
+  background-color: var(--os-black) !important;
+  color: var(--os-green) !important;
+  font-family: 'Courier New', Courier, monospace !important;
+}
+
+.terminal-mode * {
+  border-color: var(--os-green) !important;
+  box-shadow: none !important;
+  background-image: none !important;
+  text-shadow: none !important;
+}
+
+.terminal-mode .aero-panel, 
+.terminal-mode .comic-panel,
+.terminal-mode aside,
+.terminal-mode main,
+.terminal-mode .bg-slate-900,
+.terminal-mode .bg-black {
+  background-color: var(--os-black) !important;
+  border: 1px solid var(--os-green) !important;
+  border-radius: 0 !important;
+}
+
+.terminal-lab {
+  background-color: var(--os-black);
+  color: var(--os-green);
+  font-family: 'Courier New', Courier, monospace;
+  border: 1px solid var(--os-green);
+  padding: 10px;
+  text-transform: uppercase;
+}
+
+/* Sophisticated Tool Grid for Legacy Era Monitors */
+.terminal-mode .tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 5px;
+}
+
+.terminal-mode button,
+.terminal-mode .tool-button {
+  border: 1px solid var(--os-green) !important;
+  background: transparent !important;
+  color: var(--os-green) !important;
+  cursor: pointer;
+  border-radius: 0 !important;
+  text-transform: uppercase !important;
+  font-weight: bold !important;
+}
+
+.terminal-mode button:hover {
+  background: var(--os-green) !important;
+  color: var(--os-black) !important;
+}
+
+.terminal-mode input,
+.terminal-mode textarea,
+.terminal-mode select {
+  background: var(--os-black) !important;
+  color: var(--os-green) !important;
+  border: 1px solid var(--os-green) !important;
+  border-radius: 0 !important;
+}
+
+.terminal-mode .wisdom-glow {
+  text-shadow: 0 0 5px var(--os-green) !important;
+}
+
+.terminal-mode .animate-pulse,
+.terminal-mode .animate-ping,
+.terminal-mode .animate-bounce {
+  animation: none !important;
+}
+
+.terminal-mode .bg-red-600,
+.terminal-mode .bg-blue-600,
+.terminal-mode .bg-amber-600 {
+    background-color: transparent !important;
+    border: 1px solid var(--os-green) !important;
+    color: var(--os-green) !important;
+}

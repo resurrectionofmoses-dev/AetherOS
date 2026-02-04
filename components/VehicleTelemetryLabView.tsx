@@ -7,7 +7,7 @@ import {
 } from './icons';
 import type { LabComponentProps } from '../types';
 
-const SCHEMA_DEFINITION = `{
+const INITIAL_SCHEMA = `{
   "vdm_frame": {
     "obd_pid": "0x0C",
     "label": "Engine RPM",
@@ -21,9 +21,10 @@ const SCHEMA_DEFINITION = `{
     "unit": "C",
     "scaling": "X-40"
   },
-  "misery_index": {
-    "source": "logic_core",
-    "formula": "sum(reedles) / PB_S"
+  "conjunction_metadata": {
+    "source": "Maestro_Logic_Core",
+    "formula": "sum(reedles) / PB_S",
+    "purity_threshold": 0.99
   }
 }`;
 
@@ -39,6 +40,8 @@ export const VehicleTelemetryLabView: React.FC<LabComponentProps> = ({
   const [isAcquiring, setIsAcquiring] = useState(false);
   const [linkStatus, setLinkStatus] = useState<'DISCONNECTED' | 'HANDSHAKING' | 'CONNECTED'>('DISCONNECTED');
   const [packets, setPackets] = useState<string[]>([]);
+  const [schemaText, setSchemaText] = useState(INITIAL_SCHEMA);
+  const [isCompiling, setIsCompiling] = useState(false);
   
   const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -53,7 +56,7 @@ export const VehicleTelemetryLabView: React.FC<LabComponentProps> = ({
         const hexAddr = "0x" + Math.floor(Math.random() * 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
         const hexVal = Math.floor(Math.random() * 0xFF).toString(16).toUpperCase().padStart(2, '0');
         setPackets(prev => [`[OBD] ${hexAddr}: DATA_BYTE_${hexVal} [ACK]`, ...prev].slice(0, 10));
-      }, 500);
+      }, 400);
     }
     return () => clearInterval(interval);
   }, [isAcquiring, linkStatus]);
@@ -66,10 +69,21 @@ export const VehicleTelemetryLabView: React.FC<LabComponentProps> = ({
       setSpeed(0);
     } else {
       setLinkStatus('HANDSHAKING');
+      setPackets(prev => [`[HANDSHAKE] Initializing ISO 15765-4 CAN...`, ...prev]);
       setTimeout(() => {
         setLinkStatus('CONNECTED');
+        setPackets(prev => [`[SUCCESS] ELM327 Interface Found. Sig: 0x03E2`, ...prev]);
       }, 1500);
     }
+  };
+
+  const handleCompileSchema = () => {
+      setIsCompiling(true);
+      setPackets(prev => [`[SCHEMA] Validating Forensic Shards...`, ...prev]);
+      setTimeout(() => {
+          setIsCompiling(false);
+          setPackets(prev => [`[OK] Schema Linked to Conjunction Hub.`, ...prev]);
+      }, 1000);
   };
 
   return (
@@ -189,17 +203,24 @@ export const VehicleTelemetryLabView: React.FC<LabComponentProps> = ({
         <div className="lg:col-span-4 space-y-8">
             <div className="aero-panel bg-slate-900 p-6 border-4 border-black shadow-[8px_8px_0_0_#000] flex flex-col">
                 <h3 className="font-comic-header text-3xl text-amber-500 uppercase italic mb-6 border-b border-white/10 pb-2 flex items-center gap-2">
-                    <LogicIcon className="w-6 h-6" /> Data Schema
+                    <LogicIcon className="w-6 h-6" /> Forensic Schema
                 </h3>
                 <div className="flex-1 bg-black/60 rounded-xl border-2 border-black p-4 font-mono text-[10px] text-amber-600 overflow-hidden relative group">
                     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <SearchIcon className="w-4 h-4 text-amber-900" />
                     </div>
-                    <pre className="custom-scrollbar overflow-y-auto h-64 leading-relaxed">
-                        {SCHEMA_DEFINITION}
-                    </pre>
+                    <textarea 
+                        value={schemaText}
+                        onChange={e => setSchemaText(e.target.value)}
+                        className="w-full bg-transparent border-none focus:ring-0 outline-none h-64 custom-scrollbar leading-relaxed resize-none"
+                    />
                 </div>
-                <button className="mt-4 w-full py-3 bg-amber-600/10 hover:bg-amber-600 border border-amber-600/30 text-amber-500 hover:text-black font-black uppercase text-[10px] tracking-widest rounded-xl transition-all">
+                <button 
+                    onClick={handleCompileSchema}
+                    disabled={isCompiling}
+                    className="mt-4 w-full py-3 bg-amber-600/10 hover:bg-amber-600 border border-amber-600/30 text-amber-500 hover:text-black font-black uppercase text-[10px] tracking-widest rounded-xl transition-all flex items-center justify-center gap-2"
+                >
+                    {isCompiling ? <SpinnerIcon className="w-3 h-3 animate-spin" /> : <ZapIcon className="w-3 h-3" />}
                     Compile Epitume Schema
                 </button>
             </div>

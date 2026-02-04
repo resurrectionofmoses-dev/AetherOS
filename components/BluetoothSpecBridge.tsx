@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { SignalIcon, ZapIcon, ShieldIcon, TerminalIcon, SpinnerIcon, SearchIcon, CodeIcon, ActivityIcon, FireIcon, BrainIcon, BookOpenIcon, LogicIcon, WarningIcon, CheckCircleIcon, ChevronDownIcon, PackageIcon, StarIcon, XIcon, ClockIcon } from './icons';
+import { SignalIcon, ZapIcon, ShieldIcon, TerminalIcon, SpinnerIcon, SearchIcon, CodeIcon, ActivityIcon, FireIcon, BrainIcon, BookOpenIcon, LogicIcon, WarningIcon, CheckCircleIcon, ChevronDownIcon, PackageIcon, StarIcon, XIcon, ClockIcon, GaugeIcon } from './icons';
 import { generateBluetoothBlueprint, adaptBluetoothProtocol } from '../services/geminiService';
+import { BluetoothMaximus } from '../services/bluetoothMaximus';
 import type { BluetoothProtocol, BluetoothBlueprint, ProtocolAdaptation } from '../types';
 
 const PROTOCOLS: BluetoothProtocol[] = [
@@ -11,17 +12,23 @@ const PROTOCOLS: BluetoothProtocol[] = [
         category: 'Core', 
         status: 'Stable',
         lifecycle: 'Full-Scale',
-        description: 'The foundation of modern IoT. Introduces Periodic Advertising with Responses (PAwR) and Encrypted Advertising Data (EAD) for high-integrity bidirectional broadcast.', 
+        description: 'The definitive standard for secure, low-power wireless communication. Version 5.4 introduces Periodic Advertising with Responses (PAwR) and Encrypted Advertising Data (EAD). It optimizes bidirectional communication for massive retail environments via Electronic Shelf Labels (ESL) while enforcing high-integrity encryption and precise timing windows for low-latency synchronization.', 
         commonUUIDDetails: [
-            { uuid: '0x1800', meaning: 'Generic Access Profile (GAP) - Manages device discovery and link maintenance.' },
-            { uuid: '0x1801', meaning: 'Generic Attribute Profile (GATT) - Orchestrates the hierarchical data structure.' },
-            { uuid: '0x2A00', meaning: 'Device Name - UTF-8 identity string signature.' },
-            { uuid: '0x2A01', meaning: 'Appearance - 16-bit mapping of physical node type.' },
-            { uuid: '0x1857', meaning: 'ESL Service - Heartbeat of PAwR synchronization logic.' },
-            { uuid: '0x2B84', meaning: 'ESL Address Characteristic - Unique logical index for the shard within the array.' },
-            { uuid: '0x2B86', meaning: 'ESL Response Characteristic - Real-time response packet for confirming updates.' },
+            { uuid: '0x1800', meaning: 'Generic Access Profile (GAP) - Orchestrates device discovery and connection interval management.' },
+            { uuid: '0x1801', meaning: 'Generic Attribute Profile (GATT) - Manages the hierarchical structure of services and characteristics.' },
+            { uuid: '0x2A00', meaning: 'Device Name Characteristic - Identifies the logical node to the central conductor.' },
+            { uuid: '0x2A01', meaning: 'Appearance Characteristic - Maps the node to a specific hardware category (e.g., PADD, Sensor).' },
+            { uuid: '0x1857', meaning: 'ESL Service - Specialized service for Electronic Shelf Label synchronization.' },
+            { uuid: '0x2B84', meaning: 'ESL Address Characteristic - Provides unique logical indexing for shards within a PAwR sub-event.' },
+            { uuid: '0x2B86', meaning: 'ESL Response Characteristic - Real-time response packet for confirming state transitions.' },
         ],
-        designConstraints: ['Encryption Mandatory', 'Latency < 10ms', 'PAwR Sub-event Compliance', 'LE Security Mode 1 Level 4'] 
+        designConstraints: [
+            'Encryption Mandatory (AES-CCM / EAD)', 
+            'Latency < 10ms (Deterministic Timing)', 
+            'PAwR Sub-event Compliance', 
+            'LE Security Mode 1 Level 4 (FIPS)',
+            'Maximum Stride Velocity: 1.2 PB/s'
+        ] 
     },
     { 
         id: 'p2', 
@@ -103,20 +110,15 @@ export const BluetoothSpecBridge: React.FC = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [logs, setLogs] = useState<string[]>(["[SIG_BRIDGE] Initialized via epitume.", "[READY] Spectrum scanners calibrated."]);
     const [spectrumPulse, setSpectrumPulse] = useState(0);
-    const [isSimulatingDrift, setIsSimulatingDrift] = useState(false);
-    const [currentDrift, setCurrentDrift] = useState(0); 
-    const [interference, setInterference] = useState(0); 
     const [isAdapting, setIsAdapting] = useState(false);
     const [adaptationResult, setAdaptationResult] = useState<ProtocolAdaptation | null>(null);
+    const [isMaximusEngaged, setIsMaximusEngaged] = useState(false);
+    const [maximusStatus, setMaximusStatus] = useState<string | null>(null);
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
     const [filterCategory, setFilterCategory] = useState<string>('All');
     const [filterStatus, setFilterStatus] = useState<string>('All');
-
-    // UI state for collapsing sections
-    const [showUuidDetails, setShowUuidDetails] = useState(false);
-    const [showConductionLayers, setShowConductionLayers] = useState(false);
 
     const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -141,11 +143,6 @@ export const BluetoothSpecBridge: React.FC = () => {
         if (selectedProtocol.status === 'Stable') return 100;
         if (selectedProtocol.status === 'Beta') return 65;
         return 35;
-    }, [selectedProtocol]);
-
-    const readinessIndex = useMemo(() => {
-        const levels: Record<string, number> = { 'Discovery': 20, 'PoC': 40, 'MVP': 60, 'Full-Scale': 90, 'Hypercare': 100 };
-        return (levels[selectedProtocol.lifecycle]) || 0;
     }, [selectedProtocol]);
 
     const addLog = useCallback((msg: string, color: string = 'text-gray-400') => {
@@ -183,7 +180,7 @@ export const BluetoothSpecBridge: React.FC = () => {
         addLog(`[EPITUME_REQ] Adapting protocol via reedles in da ass...`, 'text-amber-400');
         
         try {
-            const result = await adaptBluetoothProtocol(blueprint, { simulatedDrift: currentDrift, interferenceLevel: interference });
+            const result = await adaptBluetoothProtocol(blueprint, { simulatedDrift: 0.02, interferenceLevel: 10 });
             if (result) {
                 setAdaptationResult(result);
                 addLog(`[SUCCESS] Adaptive directives received. Epitume stability: ${result.predictedStability}%`, 'text-green-400');
@@ -192,6 +189,24 @@ export const BluetoothSpecBridge: React.FC = () => {
             addLog(`[CRITICAL] Epitume adaptation engine stalled.`, 'text-red-600');
         } finally {
             setIsAdapting(false);
+        }
+    };
+
+    const handleEngageMaximus = async () => {
+        setIsMaximusEngaged(true);
+        addLog("[MAXIMUS] Initiating 100MBPS High-Frequency Push...", "text-red-500 font-bold");
+        
+        try {
+            const result = await BluetoothMaximus.engageHighFrequency((err) => {
+                addLog(`[FRACTURE] ${err.message}`, "text-red-600 animate-pulse");
+            });
+            setMaximusStatus(`${result.status}: ${result.throughput}`);
+            addLog(`[MAXIMUS_SUCCESS] Station Status: HEALED. Link Solidified.`, "text-green-500 font-black");
+        } catch (e) {
+            addLog("[MAXIMUS_FAIL] High-Frequency Push Failed.", "text-red-600 font-black");
+            setMaximusStatus("FRACTURED");
+        } finally {
+            setIsMaximusEngaged(false);
         }
     };
 
@@ -275,19 +290,23 @@ export const BluetoothSpecBridge: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Status Gauges */}
-                        <div className="space-y-4">
-                            <div className="aero-panel p-6 bg-black/60 border-white/5 shadow-lg">
-                                <div className="flex justify-between items-center mb-3">
-                                    <h4 className="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
-                                        <ActivityIcon className="w-3.5 h-3.5" /> Stability
-                                    </h4>
-                                    <span className={`text-[10px] font-black ${selectedProtocol.status === 'Stable' ? 'text-green-500' : 'text-amber-500'}`}>{stabilityRating}%</span>
-                                </div>
-                                <div className="h-2 w-full bg-gray-950 rounded-full border-2 border-black overflow-hidden p-0.5">
-                                    <div className={`h-full rounded-full transition-all duration-1000 ${selectedProtocol.status === 'Stable' ? 'bg-green-500' : 'bg-amber-500'}`} style={{ width: `${stabilityRating}%` }} />
-                                </div>
+                        {/* Bluetooth Maximus Control */}
+                        <div className="aero-panel p-6 bg-red-950/20 border-red-600/30 shadow-2xl space-y-4">
+                            <div className="flex justify-between items-center">
+                                <h3 className="font-comic-header text-2xl text-red-500 uppercase italic tracking-tight flex items-center gap-2">
+                                    <FireIcon className="w-5 h-5 animate-pulse" /> Bluetooth Maximus
+                                </h3>
+                                {maximusStatus && <span className="text-[8px] font-black text-red-400 bg-black px-2 py-0.5 rounded border border-red-900/50">{maximusStatus}</span>}
                             </div>
+                            <p className="text-[9px] text-gray-400 italic">High-Frequency 100MBPS Push Protocol for 4D Buffer Overflow Mitigation.</p>
+                            <button 
+                                onClick={handleEngageMaximus}
+                                disabled={isMaximusEngaged}
+                                className={`vista-button w-full py-4 bg-red-600 hover:bg-red-500 text-black font-black uppercase text-xs tracking-widest rounded-xl transition-all shadow-[6px_6px_0_0_#000] flex items-center justify-center gap-3 ${isMaximusEngaged ? 'animate-pulse opacity-50' : ''}`}
+                            >
+                                {isMaximusEngaged ? <SpinnerIcon className="w-4 h-4 animate-spin" /> : <ZapIcon className="w-4 h-4" />}
+                                <span>ENGAGE 100MBPS PUSH</span>
+                            </button>
                         </div>
                     </div>
 
@@ -350,9 +369,9 @@ export const BluetoothSpecBridge: React.FC = () => {
                                     </h4>
                                     <div className="space-y-2">
                                         {selectedProtocol.designConstraints.map((constraint, i) => (
-                                            <div key={i} className={`p-3 bg-black/40 border-2 rounded-xl flex items-center gap-3 ${constraint === 'Encryption Mandatory' ? 'border-red-600 bg-red-950/10' : 'border-white/5'}`}>
-                                                {constraint === 'Encryption Mandatory' ? <ZapIcon className="w-4 h-4 text-red-500" /> : <CheckCircleIcon className="w-4 h-4 text-amber-600" />}
-                                                <span className={`text-[10px] font-black uppercase ${constraint === 'Encryption Mandatory' ? 'text-red-500' : 'text-gray-300'}`}>{constraint}</span>
+                                            <div key={i} className={`p-3 bg-black/40 border-2 rounded-xl flex items-center gap-3 ${constraint.includes('Mandatory') || constraint.includes('< 10ms') ? 'border-red-600 bg-red-950/10' : 'border-white/5'}`}>
+                                                {constraint.includes('Mandatory') ? <ZapIcon className="w-4 h-4 text-red-500" /> : <CheckCircleIcon className="w-4 h-4 text-amber-600" />}
+                                                <span className={`text-[10px] font-black uppercase ${constraint.includes('Mandatory') ? 'text-red-500' : 'text-gray-300'}`}>{constraint}</span>
                                             </div>
                                         ))}
                                     </div>

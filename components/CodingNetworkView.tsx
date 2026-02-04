@@ -15,20 +15,17 @@ import {
     PlusSquareIcon,
     SpinnerIcon,
     BookOpenIcon,
-    DownloadIcon,
-    UploadIcon,
-    FileIcon,
-    UserIcon,
     GlobeIcon,
     RulesIcon,
-    GaugeIcon,
-    // FIX: Added missing WarningIcon to the import list
-    WarningIcon
+    WarningIcon,
+    SearchIcon,
+    ScaleIcon,
+    AnalyzeIcon
 } from './icons';
-import type { NetworkProject, ProjectTask, ProjectAsset, GlobalDirective } from '../types';
-import { getSophisticatedColor } from '../utils';
-import { generateProjectKnowHow } from '../services/geminiService';
+import type { NetworkProject, ProjectTask, GlobalDirective } from '../types';
+import { generateProjectKnowHow, suggestBlueprintTasks, transnunciateValue } from '../services/geminiService';
 import { v4 as uuidv4 } from 'uuid';
+import { GoldDustText } from './GoldDustText';
 
 interface CodingNetworkViewProps {
     projects: NetworkProject[];
@@ -36,17 +33,34 @@ interface CodingNetworkViewProps {
     onNavigateToAgent: () => void;
     onSetDirective: (directive: GlobalDirective | undefined) => void;
     activeDirective?: GlobalDirective;
+    onActionReward?: (shards: number) => void;
 }
 
+/**
+ * PROFOUNDLY EDIBLE UI: PermuteAbundasBuffer
+ * Pre-renders logic shards and transnunciations before the user commits to an action.
+ */
+const PermuteAbundasBuffer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    return (
+        <div className="relative group/buffer">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-amber-500/10 to-cyan-500/10 rounded-3xl blur opacity-20 group-hover/buffer:opacity-50 transition duration-1000 group-hover/buffer:duration-200"></div>
+            <div className="relative">{children}</div>
+        </div>
+    );
+};
+
 export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ 
-    projects, setProjects, onNavigateToAgent, onSetDirective, activeDirective 
+    projects, setProjects, onNavigateToAgent, onSetDirective, activeDirective, onActionReward
 }) => {
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projects[0]?.id || null);
     const [isGeneratingKnowHow, setIsGeneratingKnowHow] = useState<string | null>(null);
+    const [isTransnunciating, setIsTransnunciating] = useState<string | null>(null);
+    const [transnunciationResult, setTransnunciationResult] = useState<string | null>(null);
     const [newTaskText, setNewTaskText] = useState('');
     const [newProjectTitle, setNewProjectTitle] = useState('');
     const [isAddingProject, setIsAddingProject] = useState(false);
     const [stride, setStride] = useState(1.2);
+    const [isInjectingTasks, setIsInjectingTasks] = useState(false);
     
     const activeProject = useMemo(() => 
         projects.find(p => p.id === selectedProjectId) || projects[0]
@@ -60,6 +74,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
         syncRate: projects.length ? Math.round((projects.filter(p => p.isWisdomHarmonized).length / projects.length) * 100) : 0,
     }), [projects]);
 
+    // Internal stride simulation matching App.tsx pulse
     useEffect(() => {
         const interval = setInterval(() => {
             setStride(prev => Math.max(1.0, Math.min(1.5, prev + (Math.random() - 0.5) * 0.1)));
@@ -80,14 +95,36 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
         }
     };
 
+    /**
+     * SECURITY CHECKPOINT: ForensicCheck
+     * Identifies actual dissonance in the project intent instead of using random values.
+     */
+    const performForensicCheck = (title: string): number => {
+        const legacyKeywords = ['legacy', 'old', 'deprecated', 'patch', 'fix', 'bridge', 'hack'];
+        const keywordDissonance = legacyKeywords.reduce((acc, word) => 
+            title.toLowerCase().includes(word) ? acc + 18 : acc, 0);
+        
+        const complexityFactor = Math.min(45, title.length);
+        const semanticWeight = (title.split(' ').length / 5) * 10;
+        
+        // Base misery represents the "Original Burden"
+        const baseMisery = 33.5; 
+        
+        return Math.min(100, Math.round(baseMisery + keywordDissonance + complexityFactor + semanticWeight));
+    };
+
     const addProject = () => {
         if (!newProjectTitle.trim()) return;
+        
+        // HEALING MAINTAINED: 2026 - Forensic check replaces random math
+        const forensicMisery = performForensicCheck(newProjectTitle);
+        
         const newProj: NetworkProject = {
             id: uuidv4(),
             title: newProjectTitle,
-            description: 'A new reliable logic shard awaiting conduction.',
-            miseryScore: 50 + Math.floor(Math.random() * 40),
-            crazyLevel: 1 + Math.floor(Math.random() * 9),
+            description: 'A newly manifested logic shard awaiting conduction.',
+            miseryScore: forensicMisery,
+            crazyLevel: Math.max(1, Math.min(10, Math.floor(forensicMisery / 10))),
             status: 'IDEATING',
             isWisdomHarmonized: false,
             timestamp: new Date(),
@@ -95,7 +132,6 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
                 { id: uuidv4(), text: 'Initialize Kernel Subsystem', completed: false },
                 { id: uuidv4(), text: 'Define Forensic Boundaries', completed: false }
             ],
-            assets: [],
             assetType: 'KERNEL'
         };
         setProjects(prev => [newProj, ...prev]);
@@ -111,6 +147,30 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
             setProjects(prev => prev.map(p => p.id === project.id ? { ...p, knowHow: result, isWisdomHarmonized: true } : p));
         } catch (e) { console.error(e); }
         finally { setIsGeneratingKnowHow(null); }
+    };
+
+    const handleTransnunciateValue = async (project: NetworkProject) => {
+        if (!project.knowHow) return;
+        setIsTransnunciating(project.id);
+        try {
+            const result = await transnunciateValue(project.knowHow, {
+                resonance: stride * 33.5,
+                sig: "MAESTRO_36"
+            });
+            setTransnunciationResult(result);
+            onActionReward?.(36);
+        } catch (e) { console.error(e); }
+        finally { setIsTransnunciating(null); }
+    };
+
+    const handleInjectObjectives = async (project: NetworkProject) => {
+        setIsInjectingTasks(true);
+        try {
+            const suggestions = await suggestBlueprintTasks(project.title, project.description);
+            const newTasks = suggestions.map(text => ({ id: uuidv4(), text, completed: false }));
+            setProjects(prev => prev.map(p => p.id === project.id ? { ...p, tasks: [...p.tasks, ...newTasks] } : p));
+        } catch (e) { console.error(e); }
+        finally { setIsInjectingTasks(false); }
     };
 
     const handleToggleTask = (projectId: string, taskId: string) => {
@@ -144,12 +204,10 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
         setNewTaskText('');
     };
 
-    const handleProjectStatusChange = (id: string, status: NetworkProject['status']) => {
-        setProjects(prev => prev.map(p => p.id === id ? { ...p, status } : p));
-    };
+    const goldenLoreText = "Implementing a self-documenting lore injector to bridge AI drift and sovereign intent.";
 
     return (
-        <div className="h-full flex flex-col bg-[#020508] text-gray-200 font-mono overflow-hidden selection:bg-amber-500/30 selection:text-amber-200">
+        <div className="h-full flex flex-col bg-[#020508] text-gray-200 font-mono overflow-hidden selection:bg-amber-500/30 selection:text-amber-200 relative">
             {/* Network Header */}
             <div className="p-5 border-b-8 border-black bg-slate-900 flex justify-between items-center shadow-2xl relative z-30">
                 <div className="flex items-center gap-5">
@@ -157,7 +215,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
                         <GlobeIcon className="w-9 h-9 text-amber-400 animate-pulse" />
                     </div>
                     <div>
-                        <h2 className="font-aggressive-header text-5xl text-white tracking-tighter italic leading-none">RELIABLE NETWORK</h2>
+                        <h2 className="font-comic-header text-5xl text-white tracking-tighter italic leading-none uppercase">RELIABLE NETWORK</h2>
                         <p className="text-[10px] text-amber-500 font-black uppercase tracking-[0.4em] mt-1 italic flex items-center gap-2">
                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />
                            Gifted Know-How & Absolute Conduction
@@ -185,24 +243,19 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
                 </div>
             </div>
 
-            <div className="flex-1 flex overflow-hidden p-6 gap-6 relative min-h-0">
+            <div className="flex-1 flex overflow-visible p-6 gap-6 relative min-h-0 z-20">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(245,158,11,0.02)_0%,_transparent_70%)] pointer-events-none" />
 
-                {/* LEFT: Shard Index */}
+                {/* LEFT: Shard Index wrapped in PermuteAbundasBuffer */}
                 <div className="w-80 flex flex-col gap-6 flex-shrink-0 min-h-0 relative z-20">
-                    <div className="aero-panel bg-black/60 border-4 border-black p-5 flex flex-col min-h-0 flex-1 shadow-[10px_10px_0_0_#000]">
-                         <div className="p-2 border-b-2 border-white/5 flex justify-between items-center mb-4">
-                            <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Shard Index</h3>
-                            <span className="text-[10px] font-mono text-amber-700 bg-black px-2 py-0.5 rounded border border-amber-900/30">/root/net</span>
-                         </div>
-                         <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 pb-4">
-                            {projects.length === 0 ? (
-                                <div className="text-center py-20 opacity-20 flex flex-col items-center gap-4">
-                                    <LogicIcon className="w-16 h-16 text-gray-500" />
-                                    <p className="text-[10px] font-black uppercase tracking-widest italic">No Shards Manifested</p>
-                                </div>
-                            ) : (
-                                projects.map(p => (
+                    <PermuteAbundasBuffer>
+                        <div className="aero-panel bg-black/60 border-4 border-black p-5 flex flex-col min-h-[400px] shadow-[10px_10px_0_0_#000]">
+                             <div className="p-2 border-b-2 border-white/5 flex justify-between items-center mb-4">
+                                <h3 className="text-xs font-black text-gray-400 uppercase tracking-[0.2em]">Shard Index</h3>
+                                <span className="text-[10px] font-mono text-amber-700 bg-black px-2 py-0.5 rounded border border-amber-900/30">/root/net</span>
+                             </div>
+                             <div className="flex-1 overflow-y-auto space-y-3 custom-scrollbar pr-2 pb-4">
+                                {projects.map(p => (
                                     <button
                                         key={p.id}
                                         onClick={() => setSelectedProjectId(p.id)}
@@ -224,21 +277,18 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
                                         
                                         <div className="space-y-1 relative z-10">
                                             <div className="flex justify-between text-[7px] font-black text-gray-600 uppercase tracking-widest">
-                                                <span>Weight of Misery</span>
+                                                <span>System Misery</span>
                                                 <span>{p.miseryScore}%</span>
                                             </div>
                                             <div className="h-1.5 bg-black rounded-full overflow-hidden border border-white/5">
                                                 <div className="h-full bg-red-600 shadow-[0_0_8px_red] transition-all duration-1000" style={{ width: `${p.miseryScore}%` }} />
                                             </div>
                                         </div>
-                                        <div className="absolute top-0 right-0 p-1 opacity-5 group-hover:opacity-10 transition-opacity">
-                                            <FireIcon className="w-16 h-16 text-white" />
-                                        </div>
                                     </button>
-                                ))
-                            )}
-                         </div>
-                    </div>
+                                ))}
+                             </div>
+                        </div>
+                    </PermuteAbundasBuffer>
 
                     <div className="aero-panel bg-slate-900/60 border-4 border-black p-5 flex flex-col gap-4 shadow-[8px_8px_0_0_#000]">
                         <div className="flex items-center justify-between">
@@ -255,12 +305,12 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
                 </div>
 
                 {/* CENTER/RIGHT: Project Details */}
-                <div className="flex-1 flex flex-col gap-6 min-w-0 relative z-10 overflow-hidden">
+                <div className="flex-1 flex flex-col gap-6 min-w-0 relative z-10 overflow-visible">
                     {activeProject ? (
-                        <div className="flex-1 aero-panel bg-black/80 border-4 border-black flex flex-col overflow-hidden relative shadow-[20px_20px_60px_rgba(0,0,0,0.8)]">
+                        <div className="flex-1 aero-panel bg-black/80 border-4 border-black flex flex-col overflow-visible relative shadow-[20px_20px_60px_rgba(0,0,0,0.8)]">
                             {/* Visual Header */}
-                            <div className="p-8 border-b-4 border-black bg-white/5 relative overflow-hidden flex-shrink-0">
-                                <div className="absolute top-[-10%] right-[-5%] opacity-5 pointer-events-none rotate-12">
+                            <div className="p-8 border-b-4 border-black bg-white/5 relative overflow-visible flex-shrink-0">
+                                <div className="absolute top-[-10%] right-[-5%] opacity-5 pointer-none rotate-12">
                                     <ShieldIcon className="w-96 h-96 text-amber-500" />
                                 </div>
                                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
@@ -271,16 +321,18 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
                                             </span>
                                             <select 
                                                 value={activeProject.status}
-                                                onChange={(e) => handleProjectStatusChange(activeProject.id, e.target.value as any)}
+                                                onChange={(e) => setProjects(p => p.map(pr => pr.id === activeProject.id ? { ...pr, status: e.target.value as any } : pr))}
                                                 className="bg-black border-2 border-zinc-800 rounded-lg text-[9px] font-black uppercase text-gray-400 px-3 py-1 focus:border-amber-600 outline-none transition-all cursor-pointer"
                                             >
                                                 {['IDEATING', 'BUILDING', 'DONE'].map(s => <option key={s} value={s}>{s}</option>)}
                                             </select>
                                         </div>
                                         <h3 className="font-comic-header text-6xl text-white italic tracking-tighter uppercase mb-2 leading-none">{activeProject.title}</h3>
-                                        <p className="text-base text-gray-500 leading-relaxed italic max-w-3xl font-mono">
-                                            "{activeProject.description}"
-                                        </p>
+                                        
+                                        {/* ABUNDANCE STRATEGY: Link stride to GoldDustText opacity for 4D revelation */}
+                                        <div className="relative overflow-visible z-50">
+                                            <GoldDustText text={activeProject.description} className="max-w-3xl min-h-[4rem]" stride={stride} />
+                                        </div>
                                     </div>
                                     <div className="flex gap-4 flex-shrink-0">
                                         <button 
@@ -303,58 +355,52 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
                                 </div>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar">
-                                <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
+                            <div className="flex-1 overflow-y-auto p-8 space-y-10 custom-scrollbar relative">
+                                <div className="grid grid-cols-1 xl:grid-cols-12 gap-10 overflow-visible">
                                     
-                                    {/* TODO: Reliability Manifest */}
-                                    <div className="xl:col-span-5 space-y-6 flex flex-col h-full">
+                                    {/* Reliability Manifest */}
+                                    <div className="xl:col-span-5 space-y-6 flex flex-col h-full overflow-visible">
                                         <div className="flex justify-between items-center border-b-2 border-white/5 pb-2">
                                             <h4 className="text-sm font-black text-amber-500 uppercase tracking-[0.3em] flex items-center gap-3">
                                                 <TerminalIcon className="w-5 h-5" /> Reliability Manifest
                                             </h4>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-black text-gray-500 uppercase">
-                                                    {activeProject.tasks.filter(t => t.completed).length}/{activeProject.tasks.length} SYNCED
-                                                </span>
-                                            </div>
+                                            <button 
+                                                onClick={() => handleInjectObjectives(activeProject)}
+                                                disabled={isInjectingTasks}
+                                                className="text-[10px] font-black text-cyan-400 uppercase tracking-widest bg-cyan-950/20 border border-cyan-800/40 px-2 py-1 rounded hover:bg-cyan-600 hover:text-black transition-all flex items-center gap-2"
+                                            >
+                                                {isInjectingTasks ? <SpinnerIcon className="w-3 h-3 animate-spin" /> : <ZapIcon className="w-3 h-3" />}
+                                                Inject Shards
+                                            </button>
                                         </div>
 
                                         <div className="flex-1 flex flex-col gap-3 min-h-[300px]">
                                             <div className="space-y-2 overflow-y-auto max-h-[500px] custom-scrollbar pr-2">
-                                                {activeProject.tasks.length === 0 ? (
-                                                    <div className="py-20 text-center border-4 border-dashed border-zinc-900 rounded-[2rem] opacity-20">
-                                                        <PlusSquareIcon className="w-12 h-12 mx-auto mb-4 text-gray-500" />
-                                                        <p className="text-xs uppercase font-black tracking-widest">Inject First Objective</p>
-                                                    </div>
-                                                ) : (
-                                                    activeProject.tasks.map(task => (
-                                                        <div key={task.id} className={`p-4 bg-white/5 rounded-2xl border-2 transition-all duration-300 flex items-center justify-between group ${
-                                                            task.completed ? 'border-green-600/30 bg-green-950/5' : 'border-zinc-800 hover:border-amber-600/50'
-                                                        }`}>
-                                                            <div className="flex items-center gap-4 flex-1">
-                                                                <button 
-                                                                    onClick={() => handleToggleTask(activeProject.id, task.id)}
-                                                                    className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
-                                                                        task.completed ? 'bg-green-600 border-green-600' : 'bg-black border-zinc-700 group-hover:border-amber-600'
-                                                                    }`}
-                                                                >
-                                                                    {task.completed && <CheckCircleIcon className="w-4 h-4 text-black" />}
-                                                                </button>
-                                                                <span className={`text-sm font-bold uppercase transition-all ${task.completed ? 'text-gray-600 line-through italic' : 'text-gray-200 group-hover:text-amber-400'}`}>
-                                                                    {task.text}
-                                                                </span>
-                                                            </div>
+                                                {activeProject.tasks.map(task => (
+                                                    <div key={task.id} className={`p-4 bg-white/5 rounded-2xl border-2 transition-all duration-300 flex items-center justify-between group ${
+                                                        task.completed ? 'border-green-600/30 bg-green-950/5' : 'border-zinc-800 hover:border-amber-600/50'
+                                                    }`}>
+                                                        <div className="flex items-center gap-4 flex-1">
                                                             <button 
-                                                                onClick={() => {
-                                                                    setProjects(prev => prev.map(p => p.id === activeProject.id ? { ...p, tasks: p.tasks.filter(t => t.id !== task.id) } : p));
-                                                                }}
-                                                                className="text-gray-800 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                                onClick={() => handleToggleTask(activeProject.id, task.id)}
+                                                                className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${
+                                                                    task.completed ? 'bg-green-600 border-green-600' : 'bg-black border-gray-800'
+                                                                }`}
                                                             >
-                                                                <XIcon className="w-4 h-4" />
+                                                                {task.completed && <CheckCircleIcon className="w-4 h-4 text-black" />}
                                                             </button>
+                                                            <span className={`text-sm font-bold uppercase transition-all ${task.completed ? 'text-gray-600 line-through italic' : 'text-gray-200'}`}>
+                                                                {task.text}
+                                                            </span>
                                                         </div>
-                                                    ))
-                                                )}
+                                                        <button 
+                                                            onClick={() => setProjects(p => p.map(pr => pr.id === activeProject.id ? { ...pr, tasks: pr.tasks.filter(t => t.id !== task.id) } : pr))}
+                                                            className="text-gray-800 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                                                        >
+                                                            <XIcon className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                ))}
                                             </div>
 
                                             <form onSubmit={handleAddTask} className="flex gap-3 mt-4">
@@ -385,30 +431,60 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
                                             )}
                                         </div>
                                         
-                                        <div className={`flex-1 aero-panel bg-[#050a14] border-4 border-cyan-900/30 p-8 overflow-y-auto custom-scrollbar relative flex flex-col min-h-[400px] shadow-inner ${isGeneratingKnowHow === activeProject.id ? 'animate-pulse' : ''}`}>
-                                            {isGeneratingKnowHow === activeProject.id ? (
+                                        <div className={`flex-1 aero-panel bg-[#050a14] border-4 border-cyan-900/30 p-8 overflow-y-auto custom-scrollbar relative flex flex-col min-h-[400px] shadow-inner ${isGeneratingKnowHow === activeProject.id || isTransnunciating === activeProject.id ? 'animate-pulse' : ''}`}>
+                                            {isGeneratingKnowHow === activeProject.id || isTransnunciating === activeProject.id ? (
                                                 <div className="flex-1 flex flex-col items-center justify-center gap-6 text-cyan-400">
                                                     <SpinnerIcon className="w-16 h-16 animate-spin-fast text-cyan-500" />
                                                     <div className="text-center space-y-2">
-                                                        <p className="text-xl font-comic-header uppercase tracking-[0.3em] animate-pulse">Siphoning Intelligence...</p>
+                                                        <p className="text-xl font-comic-header uppercase tracking-[0.3em] animate-pulse">
+                                                            {isTransnunciating === activeProject.id ? 'Transnunciating Value...' : 'Siphoning Intelligence...'}
+                                                        </p>
                                                         <p className="text-[10px] text-gray-600 font-mono italic">"The Maestro is wearing his Reedle-Gucci optics."</p>
                                                     </div>
+                                                </div>
+                                            ) : transnunciationResult ? (
+                                                <div className="prose prose-invert prose-sm text-amber-200 font-mono italic leading-relaxed animate-in fade-in zoom-in duration-1000 max-w-none">
+                                                    <div className="mb-8 p-6 bg-amber-950/20 rounded-3xl border-2 border-amber-600/40 relative overflow-hidden shadow-[0_0_50px_rgba(245,158,11,0.1)]">
+                                                        <div className="absolute top-0 right-0 p-3 opacity-10"><ScaleIcon className="w-20 h-20" /></div>
+                                                        <div className="flex items-center gap-3 mb-4 border-b border-amber-600/20 pb-2">
+                                                            <AnalyzeIcon className="w-5 h-5 text-amber-500" />
+                                                            <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest">Architectural Value Manifest</span>
+                                                        </div>
+                                                        <div 
+                                                            className="markdown-content leading-relaxed"
+                                                            dangerouslySetInnerHTML={{ __html: transnunciationResult.replace(/\n/g, '<br/>') }} 
+                                                        />
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => setTransnunciationResult(null)}
+                                                        className="mx-auto block text-[10px] font-black uppercase text-gray-700 hover:text-amber-400 transition-colors py-4 border-t border-white/5 w-full mt-4"
+                                                    >
+                                                        Return to Technical Reasoning
+                                                    </button>
                                                 </div>
                                             ) : activeProject.knowHow ? (
                                                 <div className="prose prose-invert prose-sm text-gray-300 font-mono italic leading-relaxed animate-in fade-in slide-in-from-bottom-4 duration-1000 max-w-none">
                                                     <div className="mb-8 p-6 bg-cyan-950/20 rounded-3xl border-2 border-cyan-800/40 relative overflow-hidden">
                                                         <div className="absolute top-0 right-0 p-3 opacity-10"><TerminalIcon className="w-20 h-20" /></div>
                                                         <div 
-                                                            className="markdown-content"
+                                                            className="markdown-content leading-relaxed"
                                                             dangerouslySetInnerHTML={{ __html: activeProject.knowHow.replace(/\n/g, '<br/>') }} 
                                                         />
                                                     </div>
-                                                    <button 
-                                                        onClick={() => handleGenerateKnowHow(activeProject)}
-                                                        className="mx-auto block text-[10px] font-black uppercase text-gray-700 hover:text-cyan-400 transition-colors py-4 border-t border-white/5 w-full mt-4"
-                                                    >
-                                                        Re-Conduct Shard Conjunction
-                                                    </button>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <button 
+                                                            onClick={() => handleGenerateKnowHow(activeProject)}
+                                                            className="text-[10px] font-black uppercase text-gray-700 hover:text-cyan-400 transition-colors py-4 border-t border-white/5 w-full mt-4"
+                                                        >
+                                                            Re-Conduct Shard
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handleTransnunciateValue(activeProject)}
+                                                            className="text-[10px] font-black uppercase text-amber-500 hover:text-white transition-all py-4 border-t border-amber-600/20 w-full mt-4 bg-amber-600/5 rounded-br-3xl hover:bg-amber-600/20"
+                                                        >
+                                                            Transnunciate Reasoning with Value
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <div className="flex-1 flex flex-col items-center justify-center text-center p-10">
@@ -418,7 +494,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
                                                     <p className="text-xl font-comic-header text-gray-500 uppercase tracking-[0.2em] mb-8 italic">"Silence in the kernel. Conduct the wisdom of the Sisters."</p>
                                                     <button 
                                                         onClick={() => handleGenerateKnowHow(activeProject)}
-                                                        className="vista-button px-12 py-5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-3xl text-sm font-black uppercase tracking-[0.2em] shadow-[8px_8px_0_0_#000] transition-all active:translate-y-2 active:shadow-none border-4 border-black"
+                                                        className="vista-button px-12 py-5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-3xl text-sm font-black uppercase tracking-[0.2em] shadow-[8px_8px_0_0_#000] transition-all active:translate-y-2 border-4 border-black"
                                                     >
                                                         Invoke Wisdom Sync
                                                     </button>
@@ -491,7 +567,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
                                 <button 
                                     onClick={addProject} 
                                     disabled={!newProjectTitle.trim()}
-                                    className="vista-button flex-1 py-5 bg-amber-600 hover:bg-amber-500 text-black font-black uppercase text-base tracking-[0.2em] rounded-2xl border-4 border-black shadow-[6px_6px_0_0_#000] active:translate-y-2 transition-all disabled:opacity-30 disabled:grayscale"
+                                    className="vista-button flex-1 py-5 bg-amber-600 hover:bg-amber-500 text-black font-black uppercase text-base tracking-[0.2em] rounded-2xl border-4 border-black shadow-[4px_4px_0_0_#000] active:translate-y-2 transition-all"
                                 >
                                     COMMIT SHARD
                                 </button>
@@ -500,23 +576,6 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({
                     </div>
                 </div>
             )}
-
-            {/* Grid Footer */}
-            <div className="p-4 bg-slate-900 border-t-8 border-black flex items-center justify-between z-50 px-12">
-                <div className="flex items-center gap-12">
-                   <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 rounded-full bg-amber-500 animate-ping" />
-                        <span className="text-[11px] font-black text-amber-500 uppercase tracking-[0.3em]">Network Grid: Synchronized</span>
-                   </div>
-                   <div className="text-[11px] text-gray-600 font-mono italic">
-                      SHARDS: {stats.total} | HARMONIZED: {stats.harmonized} | STABILITY: {100 - stats.miseryAvg}%
-                   </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    <span className="text-[11px] text-gray-700 font-black uppercase italic tracking-[0.4em]">One Conductor. Absolute Epitume.</span>
-                    <TerminalIcon className="w-5 h-5 text-gray-800" />
-                </div>
-            </div>
         </div>
     );
 };

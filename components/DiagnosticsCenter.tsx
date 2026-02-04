@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { DIAGNOSTIC_TROUBLE_CODES } from '../constants';
 import type { VehicleSystem, MainView } from '../types';
-import { WarningIcon, ZapIcon, SignalIcon } from './icons';
+import { WarningIcon, ZapIcon, SignalIcon, FireIcon } from './icons';
 
 const systemFilters: (VehicleSystem | 'All')[] = ['All', 'Engine', 'Battery', 'Navigation', 'Infotainment'];
 
@@ -27,13 +27,22 @@ export const DiagnosticsCenter: React.FC<DiagnosticsCenterProps> = ({ onSetView 
             <h2 className="font-comic-header text-3xl text-white">Diagnostics Center</h2>
             <p className="text-gray-400 -mt-1">Vehicle Diagnostic Trouble Codes (DTC)</p>
         </div>
-        <button 
-            onClick={() => onSetView('zurich')}
-            className="vista-button px-4 py-2 bg-green-600 hover:bg-green-500 text-black font-black uppercase text-[10px] rounded-xl flex items-center gap-2"
-        >
-            <SignalIcon className="w-4 h-4" />
-            <span>Open Healing Bridge</span>
-        </button>
+        <div className="flex gap-4">
+            <button 
+                onClick={() => onSetView('healing_matrix')}
+                className="vista-button px-6 py-2 bg-red-600 hover:bg-red-500 text-white font-black uppercase text-[10px] rounded-xl flex items-center gap-2 shadow-[4px_4px_0_0_#000]"
+            >
+                <FireIcon className="w-4 h-4" />
+                <span>SYSTEM HEAL</span>
+            </button>
+            <button 
+                onClick={() => onSetView('zurich')}
+                className="vista-button px-4 py-2 bg-green-600 hover:bg-green-500 text-black font-black uppercase text-[10px] rounded-xl flex items-center gap-2"
+            >
+                <SignalIcon className="w-4 h-4" />
+                <span>Open Healing Bridge</span>
+            </button>
+        </div>
       </div>
 
       <div className="p-4 border-b-4 border-black">

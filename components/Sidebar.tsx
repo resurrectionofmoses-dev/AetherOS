@@ -11,7 +11,8 @@ import {
     GemIcon, ShirtIcon, ConceptIcon, CleanIcon, GavelIcon, TruthIcon,
     TestTubeIcon, WindowsIcon, LinuxIcon, AppleIcon, MissionIcon, PhoneIcon,
     ScaleIcon, BookIcon, MovieIcon, ClockIcon, GlobeIcon, ChevronDownIcon,
-    CalendarIcon, FlagIcon, BrainIcon, ShieldIcon, HomeIcon, VaultIcon
+    CalendarIcon, FlagIcon, BrainIcon, ShieldIcon, HomeIcon, VaultIcon,
+    TerminalIcon, MessageCircleIcon, GemIcon as StoreIcon, FireIcon
 } from './icons';
 
 interface SidebarProps {
@@ -23,6 +24,8 @@ interface SidebarProps {
   timeFormat: '12hr' | '24hr';
   onToggleTimeFormat: () => void;
   unlockedViews: MainView[];
+  onToggleTerminal: () => void;
+  isTerminal: boolean;
 }
 
 interface NavSection {
@@ -31,7 +34,11 @@ interface NavSection {
     items: { view: MainView; text: string; icon: React.FC<{className?: string}> }[];
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ systemStatus, currentView, onSetView, currentDateTime, timeFormat, onToggleTimeFormat, unlockedViews }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ 
+  systemStatus, currentView, onSetView, currentDateTime, 
+  timeFormat, onToggleTimeFormat, unlockedViews, 
+  onToggleTerminal, isTerminal 
+}) => {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const toggleSection = (title: string) => {
@@ -43,7 +50,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ systemStatus, currentView, onS
         title: 'Net Folder (Root)',
         path: 'root://coding_network',
         items: [
+            { view: 'chat', text: 'NEURAL NEXUS', icon: BrainIcon },
             { view: 'coding_network', text: 'NET DIRECTIVES', icon: GlobeIcon },
+            { view: 'gold_conjunction', text: 'GOLD CONJUNCTION', icon: GemIcon },
+            { view: 'shard_store', text: 'SHARD STORE', icon: StoreIcon },
             { view: 'conjunction_gates', text: 'CONJUNCTION GATES', icon: SignalIcon },
             { view: 'projects', text: 'CRAZY PROJECTS', icon: CodeIcon },
             { view: 'forge', text: 'BLUEPRINT FORGE', icon: ForgeIcon },
@@ -55,7 +65,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ systemStatus, currentView, onS
         title: 'Core Systems',
         path: 'root://os/kernel',
         items: [
+            { view: 'unified_chain', text: 'UNIFIED CHAIN', icon: ShieldIcon },
             { view: 'vault', text: 'CONJUNCTION HUB', icon: VaultIcon },
+            { view: 'healing_matrix', text: 'HEALING MATRIX', icon: FireIcon },
+            { view: 'omni_builder', text: 'OMNI BUILDER', icon: ForgeIcon },
             { view: 'singularity_engine', text: 'SINGULARITY', icon: ActivityIcon },
             { view: 'diagnostics', text: 'FORENSIC AUDIT', icon: WrenchIcon },
             { view: 'communications', text: 'SIGNAL BRIDGE', icon: BroadcastIcon },
@@ -63,12 +76,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ systemStatus, currentView, onS
             { view: 'device_link', text: 'DEVICE LINK', icon: ShareIcon },
             { view: 'bluetooth_bridge', text: 'BLUETOOTH SIG', icon: SignalIcon },
             { view: 'launch_center', text: 'LAUNCH CENTER', icon: FlagIcon },
+            { view: 'eliza_terminal', text: 'ELIZA LOGIC', icon: MessageCircleIcon },
         ]
     },
     {
         title: 'Logic Shards (Labs)',
         path: 'root://labs/dev',
         items: [
+            { view: 'hyper_spatial_lab', text: 'HYPER-SPATIAL', icon: SignalIcon },
             { view: 'engineering_lab', text: 'ENGINEERING', icon: BuildIcon },
             { view: 'hard_code_lab', text: 'HARD CODE', icon: CodeIcon },
             { view: 'truth_lab', text: 'TRUTH LAB', icon: TruthIcon },
@@ -78,7 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ systemStatus, currentView, onS
             { view: 'chemistry_lab', text: 'CHEMISTRY', icon: FlaskIcon },
             { view: 'race_lab', text: 'RACE LAB', icon: FlagIcon },
             { view: 'paleontology_lab', text: 'PALEONTOLOGY', icon: DinoIcon },
-            { view: 'raw_mineral_lab', text: 'RAW MINERAL', icon: GemIcon },
+            { view: 'raw_mineral_lab', text: 'RAW MINERAL', icon: StoreIcon },
             { view: 'clothing_lab', text: 'CLOTHING', icon: ShirtIcon },
             { view: 'concepts_lab', text: 'CONCEPTS', icon: ConceptIcon },
             { view: 'sanitization_lab', text: 'SANITIZATION', icon: CleanIcon },
@@ -144,6 +159,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ systemStatus, currentView, onS
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 custom-scrollbar space-y-5 pb-10">
+            {/* Terminal Mode Toggle Injection */}
+            <div className="px-1 mb-4">
+                <button 
+                    onClick={onToggleTerminal}
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl border-2 transition-all ${isTerminal ? 'bg-green-600 text-black border-white' : 'bg-black text-green-500 border-green-900/40 hover:border-green-500'}`}
+                >
+                    <TerminalIcon className="w-5 h-5" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">{isTerminal ? 'EXIT TERMINAL' : 'TERMINAL MODE'}</span>
+                </button>
+            </div>
+
             {navigationSections.map(section => {
                 const isSectionCollapsed = collapsed[section.title];
                 return (
@@ -167,7 +193,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ systemStatus, currentView, onS
                                             onClick={() => onSetView(view)}
                                             className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl sidebar-button transition-all text-left group ${isActive ? 'active scale-[1.02]' : (isLocked ? 'opacity-30 grayscale cursor-not-allowed' : 'opacity-60 hover:opacity-100 hover:bg-white/5')}`}
                                         >
-                                            <div className={`p-1.5 rounded-lg border-2 ${isActive ? 'bg-red-500 border-red-400 shadow-[0_0_12px_rgba(239,68,68,0.5)]' : 'bg-black border-white/5 group-hover:border-white/20'}`}>
+                                            <div className={`p-1.5 rounded-lg border-2 ${isActive ? 'bg-red-500 border-red-400 shadow-[0_0_12px_rgba(239,68,68,0.25)]' : 'bg-black border-white/5 group-hover:border-white/20'}`}>
                                                 {isLocked ? <ShieldIcon className="w-4 h-4 text-red-900" /> : <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-insight-sapphire'}`} />}
                                             </div>
                                             <span className={`text-[10px] font-black uppercase tracking-tighter ${isActive ? 'text-white' : (isLocked ? 'text-gray-700' : 'text-gray-400')}`}>

@@ -167,24 +167,20 @@ export const SingularityEngineView: React.FC<SingularityEngineViewProps> = ({
 
     const handlePasteFileContent = async () => {
         try {
-            // Check if API exists
             if (!navigator.clipboard || !navigator.clipboard.readText) {
-                throw new Error("Clipboard API not available.");
+                throw new Error("UNAVAILABLE");
             }
-            
-            // Check for permission if possible (not all browsers support 'clipboard-read')
             const text = await navigator.clipboard.readText();
             if (text) {
                 setFileContent(text);
                 setFileName('pasted_epitume_shard.txt');
                 return;
             }
-            throw new Error("Clipboard empty or blocked.");
-        } catch (err) {
-            console.warn('Programmatic clipboard access rejected. Falling back to manual paste.');
-            // Fallback: Focus the textarea and inform user
+        } catch (err: any) {
+            console.warn('[AetherOS] Clipboard access failed:', err.name || err.message);
+            // Fallback for SecurityError or other API blocks
             textareaRef.current?.focus();
-            setResultText("[SYSTEM_LOG] Clipboard read operation restricted by browser security. Please use standard manual paste (Ctrl+V / Cmd+V) directly into the Staging Buffer.");
+            setResultText("[SYSTEM_LOG] Clipboard read restricted by browser security policies. FALLBACK: Use manual paste (Ctrl+V / Cmd+V) directly into the logic buffer input field below.");
         }
     };
 

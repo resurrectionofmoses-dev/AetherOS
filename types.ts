@@ -4,7 +4,147 @@ import { Chat } from '@google/genai';
 export type Mode = 'aetheros';
 export type AccessTier = 'USER' | 'ROOT';
 
-export type MainView = 'chat' | 'diagnostics' | 'prompts' | 'workshop' | 'communications' | 'vault' | 'room_of_play' | 'command_deck' | 'strategic_overview' | 'device_link' | 'system_archives' | 'forge' | 'singularity_engine' | 'up_north' | 'code_agent' | 'projects' | 'nexus' | 'zurich' | 'enlightenment_pool' | 'pseudorole_testing' | 'integrity_network' | 'launch_center' | 'network_sentinel' | 'bluetooth_bridge' | 'packaging_suite' | 'coding_network' | 'covenant' | 'fcc_network' | 'timeline' | 'collaborative_playlist' | 'engineering_lab' | 'kinetics_lab' | 'quantum_theory_lab' | 'race_lab' | 'chemistry_lab' | 'paleontology_lab' | 'raw_mineral_lab' | 'clothing_lab' | 'concepts_lab' | 'sanitization_lab' | 'laws_justice_lab' | 'truth_lab' | 'testing_lab' | 'windows_lab' | 'linux_lab' | 'mac_os_lab' | 'apple_lab' | 'mission_lab' | 'coding_network_teachers' | 'cell_phone_lab' | 'sampling_lab' | 'hard_code_lab' | 'library_view' | 'pornography_studio' | 'verification_gates' | 'vehicle_telemetry_lab' | 'conjunction_gates';
+export type MainView = 'chat' | 'diagnostics' | 'prompts' | 'workshop' | 'communications' | 'vault' | 'room_of_play' | 'command_deck' | 'strategic_overview' | 'device_link' | 'system_archives' | 'forge' | 'singularity_engine' | 'up_north' | 'code_agent' | 'projects' | 'nexus' | 'zurich' | 'enlightenment_pool' | 'pseudorole_testing' | 'integrity_network' | 'launch_center' | 'network_sentinel' | 'bluetooth_bridge' | 'packaging_suite' | 'coding_network' | 'covenant' | 'fcc_network' | 'timeline' | 'collaborative_playlist' | 'engineering_lab' | 'kinetics_lab' | 'quantum_theory_lab' | 'race_lab' | 'chemistry_lab' | 'paleontology_lab' | 'raw_mineral_lab' | 'clothing_lab' | 'concepts_lab' | 'sanitization_lab' | 'laws_justice_lab' | 'truth_lab' | 'testing_lab' | 'windows_lab' | 'linux_lab' | 'mac_os_lab' | 'apple_lab' | 'mission_lab' | 'coding_network_teachers' | 'cell_phone_lab' | 'sampling_lab' | 'hard_code_lab' | 'library_view' | 'pornography_studio' | 'verification_gates' | 'vehicle_telemetry_lab' | 'conjunction_gates' | 'unified_chain' | 'hyper_spatial_lab' | 'eliza_terminal' | 'shard_store' | 'omni_builder' | 'gold_conjunction' | 'healing_matrix';
+
+export interface GoldShard {
+  id: string;
+  originalIntent: string;
+  goldTranslation: string;
+  valueClass: 1 | 2 | 3;
+  weight: number;
+  timestamp: number;
+}
+
+export interface UnfilledNeed {
+  signature: string;
+  count: number;
+  lastOccurrence: number;
+  description: string;
+}
+
+export interface DreamedSchema {
+  id: string;
+  intent: string;
+  blueprint: string;
+  evolutionaryCode: string;
+  dimension: '3D' | '4D' | '5D';
+  purity: number;
+}
+
+export interface StoreItem {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;
+  icon: React.FC<{ className?: string }>;
+  category: 'NEURAL' | 'SISTER' | 'GEAR';
+  unlocked?: boolean;
+}
+
+export interface Vector4D {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+}
+
+export interface Vector3D {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface DominanceStats {
+  level: number;
+  score: number;
+  hasWonWinter: boolean;
+  terrorStreak: number;
+}
+
+export interface LineageEntry {
+  id: string;
+  parent: string;
+  content: string;
+  type: 'WOUND' | 'CURE' | 'THOUGHT' | 'DIRECTIVE';
+  timestamp: number;
+  integrityHash: string;
+  sealedAt?: number;
+  encrypted?: boolean;
+  securityLevel?: 'PUBLIC' | 'RESTRICTED' | 'TERRORGATE';
+  weatherInterference?: number;
+}
+
+export interface SystemEnvironment {
+  isWinter: boolean;
+  novaScotiaDominance: number;
+  terrorGateActive: boolean;
+  iceSaturation: number;
+}
+
+export interface ScoringAuditResult {
+  id: string;
+  label: string;
+  totalScore: number;
+  factors: {
+    intent: number;
+    recency: number;
+                dependency: number;
+  };
+  signature: string;
+}
+
+export interface Checkpoint {
+  id: string;
+  parent_id: string;
+  summary: string;
+  level: number;
+  provenance: string;
+  original_hash: string;
+  timestamp: number;
+}
+
+export interface LedgerEntry {
+  turn_id: string;
+  in: number;
+  out: number;
+  cumulative: number;
+}
+
+export interface SessionStats {
+  budget: number;
+  entries: LedgerEntry[];
+  cumulative: number;
+  exhausted: boolean;
+  generation: number;
+}
+
+export interface ScoredItem {
+  id: string;
+  raw_text: string;
+  intent_vector: number[];
+  timestamp: number;
+  dependency_count: number;
+  user_flag: boolean;
+  tokens: number;
+  score?: number;
+}
+
+export interface SimpleSummary {
+  text: string;
+  tokens: number;
+  level: number;
+}
+
+export interface UCOState {
+  isDiagnosticsPaused: boolean;
+  dissonanceLevel: number;
+  merkleRoot: string;
+  isCompositionMode: boolean;
+  completionPercentage: number;
+  ledgerEntries: string[];
+  sessionBudgetUsed: number;
+  lastAlignment: number;
+}
 
 export interface ConjunctionProgress {
   shards: number;
@@ -13,8 +153,8 @@ export interface ConjunctionProgress {
   level: number;
 }
 
-export type VehicleSystem = 'Engine' | 'Battery' | 'Navigation' | 'Infotainment' | 'Handling';
 export type SystemState = 'OK' | 'Warning' | 'Error';
+export type VehicleSystem = 'Engine' | 'Battery' | 'Navigation' | 'Infotainment' | 'Handling';
 export type SystemStatus = Record<VehicleSystem, SystemState>;
 
 export interface AlchemyVirtues {
@@ -44,9 +184,11 @@ export interface SquadMember {
   id: string;
   name: string;
   type: 'EPYC' | 'XEON' | 'FPGA';
-  status: 'STABLE' | 'BUSY' | 'GHOST';
+  status: 'STABLE' | 'BUSY' | 'GHOST' | 'PROCESSING';
   load: number;
   temp: number;
+  autonomy?: number;
+  task?: string;
 }
 
 export interface GhostHardwareNode {
@@ -193,6 +335,7 @@ export interface ChatMessage {
   attachedFiles?: string[];
   groundingSources?: GroundingSource[];
   interactionPrompt?: InteractionPrompt;
+  tokens?: number;
 }
 
 export interface AttachedFile {
@@ -239,6 +382,7 @@ export interface ChatSession {
   messages: ChatMessage[];
   chat: Chat;
   name: string;
+  totalTokens: number;
 }
 
 export interface EvoLibrary {
@@ -260,8 +404,10 @@ export interface EvoCategory {
 }
 
 export interface BroadcastMessage {
+  id: string;
   source: string;
   text: string;
+  type?: string;
   timestamp: Date;
   color: string;
 }
@@ -459,4 +605,9 @@ export interface FinancialForensicAudit {
   financialFlowStatus: 'SECURE' | 'AUDIT_REQUIRED' | 'FLAGGED';
   redFlags: string[];
   signature: string;
+}
+
+export interface ElizaResponse {
+  text: string;
+  pattern: string;
 }

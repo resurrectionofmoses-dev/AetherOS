@@ -1,4 +1,3 @@
-
 export const BINARY_EXTENSIONS = [
   '.dll', '.exe', '.com', '.msi', '.sys', '.scr',
   '.so', '.bin', '.out', '.dylib', '.jar', '.pyd',
@@ -13,6 +12,85 @@ export const extractVersionFromFile = (fileName:string): string | null => {
     const versionRegex = /(?:v|ver|version)?[_-]?(\d+\.\d+(?:\.\d+){0,2})/i;
     const match = fileName.match(versionRegex);
     return match ? match[1] : null;
+};
+
+/**
+ * Robustly extracts and parses JSON from a string that might contain 
+ * markdown markers or other surrounding text.
+ */
+export const extractJSON = <T>(text: string, fallback: T): T => {
+  if (!text || !text.trim()) return fallback;
+  
+  try {
+    // Attempt direct parse first
+    return JSON.parse(text.trim());
+  } catch (e) {
+    // Attempt to find JSON block in markdown
+    const match = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (match && match[1]) {
+      try {
+        return JSON.parse(match[1].trim());
+      } catch (e2) {
+        console.warn("[AetherOS] Failed to parse JSON from markdown block.");
+      }
+    }
+    
+    // Fallback to finding first { and last }
+    const firstBrace = text.indexOf('{');
+    const lastBrace = text.lastIndexOf('}');
+    const firstBracket = text.indexOf('[');
+    const lastBracket = text.lastIndexOf(']');
+    
+    let start = -1;
+    let end = -1;
+    
+    if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+      start = firstBrace;
+      end = lastBrace;
+    } else if (firstBracket !== -1) {
+      start = firstBracket;
+      end = lastBracket;
+    }
+    
+    if (start !== -1 && end !== -1 && end > start) {
+      try {
+        return JSON.parse(text.substring(start, end + 1).trim());
+      } catch (e3) {
+        console.warn("[AetherOS] Failed to parse extracted JSON substring.");
+      }
+    }
+    
+    return fallback;
+  }
+};
+
+/**
+ * Measures the alignment between the User's Intent (IP) and the 
+ * Architect's Output. Ensures the 'Healed' state is maintained.
+ */
+export const cosineSimilarity = (vecA: number[], vecB: number[]): number => {
+  if (!vecA.length || !vecB.length) return 0;
+  let dotProduct = 0;
+  let mA = 0;
+  let mB = 0;
+  const len = Math.min(vecA.length, vecB.length);
+  for (let i = 0; i < len; i++) {
+    dotProduct += vecA[i] * vecB[i];
+    mA += vecA[i] * vecA[i];
+    mB += vecB[i] * vecB[i];
+  }
+  mA = Math.sqrt(mA);
+  mB = Math.sqrt(mB);
+  // Adding epsilon (1e-12) to prevent division by zero; maintaining protocol integrity.
+  return dotProduct / (mA * mB + 1e-12);
+};
+
+/**
+ * Forensic estimation of block weight to manage the 'Session Budget'.
+ */
+export const estimateTokens = (text: string): number => {
+  if (!text) return 0;
+  return Math.max(1, text.trim().split(/\s+/).length);
 };
 
 export const getDeviceCompat = (): any => {
@@ -72,11 +150,16 @@ export async function callWithRetry<T>(
     try {
       return await fn();
     } catch (error: any) {
-      const isQuotaError = error.message?.includes('429') || error.status === 429 || error.message?.includes('RESOURCE_EXHAUSTED');
-      if (isQuotaError && retries < maxRetries) {
+      const errorMsg = error?.message || "";
+      const status = error?.status || error?.code || 0;
+      
+      const isQuotaError = status === 429 || errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED');
+      const isTransientError = status >= 500 || errorMsg.includes('Rpc failed') || errorMsg.includes('UNKNOWN') || errorMsg.includes('xhr error');
+
+      if ((isQuotaError || isTransientError) && retries < maxRetries) {
         retries++;
-        const delay = initialDelay * Math.pow(2, retries - 1);
-        console.warn(`Quota exceeded. Retrying in ${delay}ms...`);
+        const delay = initialDelay * Math.pow(2, retries - 1) + Math.random() * 1000;
+        console.warn(`[AetherOS] API Congestion Detected (${status}). Retrying conduction (${retries}/${maxRetries}) in ${Math.round(delay)}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
