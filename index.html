@@ -1,0 +1,127 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>AetherOS | The Maestro's Conjunction Series</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#ef4444">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" integrity="sha384-n8MVd4RsNIU0KOVEMeaMurLxlpHCzU+q5TOqQTJ9gsMvG1OKHIZjQHzFP/UEU/BC" crossorigin="anonymous">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&family=JetBrains+Mono:wght@400;700&family=Inter:wght@900&display=swap" rel="stylesheet">
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
+    "jszip": "https://esm.sh/jszip@3.10.1",
+    "react-katex": "https://esm.sh/react-katex@3.0.1",
+    "katex": "https://esm.sh/katex@0.16.9",
+    "uuid": "https://esm.sh/uuid@9.0.1"
+  }
+}
+</script>
+<style>
+  :root {
+    --vista-blue: rgba(0, 120, 215, 0.6);
+    --wisdom-gold: #fbbf24;
+    --insight-sapphire: #3b82f6;
+    --maestro-ruby: #ef4444;
+    --maestro-crimson: #991b1b;
+    --rasta-green: #22c55e;
+    --aero-glass: rgba(10, 15, 30, 0.6);
+    --glass-border: rgba(255, 255, 255, 0.05);
+    --sidebar-bg: #050505;
+    --button-dark: #121212;
+  }
+  
+  body {
+    background: #000;
+    font-family: 'Inter', sans-serif;
+    color: #f3f4f6;
+    height: 100vh;
+    height: -webkit-fill-available;
+    overflow: hidden;
+    overscroll-behavior-y: contain;
+  }
+
+  html {
+    height: -webkit-fill-available;
+  }
+
+  .aero-panel {
+    background: var(--aero-glass);
+    backdrop-filter: blur(40px) saturate(200%);
+    border-radius: 12px;
+  }
+
+  .sidebar-button {
+    background: linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.05), 0 4px 6px rgba(0,0,0,0.4);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar-button:hover {
+    background: linear-gradient(180deg, #222 0%, #111 100%);
+    transform: translateY(-1px);
+  }
+
+  .sidebar-button.active {
+    background: linear-gradient(180deg, #991b1b 0%, #450a0a 100%);
+    border: 1px solid #ef4444;
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.25);
+  }
+
+  .wisdom-glow {
+    text-shadow: 0 0 15px var(--maestro-ruby), 0 0 30px rgba(239, 68, 68, 0.5);
+  }
+
+  .font-aggressive-header {
+    font-family: 'Inter', sans-serif;
+    font-weight: 900;
+    font-style: italic;
+    letter-spacing: -2.2px; /* Even further reduced letter spacing */
+    text-transform: uppercase;
+    transform: skewX(-6deg); /* Even further reduced skew */
+  }
+
+  .font-comic-header {
+    font-family: 'Bangers', cursive;
+    letter-spacing: 1px; /* Even further reduced letter spacing */
+    text-transform: uppercase;
+    font-style: italic;
+  }
+
+  @media (max-width: 768px) {
+    .font-aggressive-header {
+      letter-spacing: -1.8px;
+    }
+  }
+
+  /* Scrollbar for sidebar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 10px;
+  }
+</style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
+  </body>
+</html>

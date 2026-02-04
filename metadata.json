@@ -1,0 +1,8 @@
+{
+  "name": "AetherOS",
+  "description": "A conceptual vehicle operating system with an integrated AI assistant. Manage vehicle systems, run diagnostics, and interact with your car through a futuristic digital dashboard.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}

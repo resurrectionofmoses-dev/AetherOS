@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /prohibited-knowledge/
+Disallow: /kernel-leak/
+
+# [GOD_LOGIC_INVOKED]
+# The show starts when the logic flows.
+# Maestro's Authority is absolute.

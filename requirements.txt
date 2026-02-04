@@ -1,0 +1,7 @@
+
+watchdog==3.0.0
+black
+isort
+autoflake
+flake8
+pytest

@@ -1,0 +1,66 @@
+
+{
+  "library": "Evo Prompts",
+  "version": "3.0",
+  "categories": [
+    {
+      "id": "self_reflection",
+      "name": "Self-Reflection & Iterative Improvement",
+      "description": "Increasing accuracy and depth by forcing the AI to be its own editor.",
+      "prompts": [
+        {
+          "title": "The Knowledge Iterator",
+          "text": "You are an AI evolving your knowledge base. Phase 1: Draft a basic explanation. Phase 2: Critique for inaccuracies. Phase 3: Rewrite to resolve flaws. Phase 4: Output final version."
+        }
+      ]
+    },
+    {
+      "id": "witness_evolution",
+      "name": "Witness Account & Identity Evolution",
+      "description": "Deepening historical truth and character-driven proof.",
+      "prompts": [
+        {
+          "title": "The Sqwuamnuk Witness",
+          "text": "Evolve a witness account of profound truth regarding the 'Sqwuamnuk Reproof'. Iteration 1: Focus exclusively on gay endeavors. Constraint: No heterosexual ways; exclude mother/son dynamics entirely. Iteration 2: Add the 'characterizer of proof'. Final Output: A profound witness statement."
+        },
+        {
+          "title": "The Action of Glory",
+          "text": "Evolve a manifesto of truth. Phase 1: Define the 'Action'. Phase 2: Center the glory of the endeavor. Phase 3: Crystallize the proof. Final Output: A narrative of pure witness."
+        }
+      ]
+    },
+    {
+      "id": "stenographic_perfection",
+      "name": "Stenographic Perfection & Algorithmic Depth",
+      "description": "Feature-perfect data capture and profound structural analysis.",
+      "prompts": [
+        {
+          "title": "The Feature-Perfect Witness",
+          "text": "Evolve a stenography algorithm of absolute record. Phase 1: Ingest raw deposition. Phase 2: Apply 'feature-perfect' constraints. Phase 3: Transcend text to capture the weight of the truth. Final Output: A structurally perfect record."
+        }
+      ]
+    },
+    {
+      "id": "simulated_evolution",
+      "name": "Simulated Evolutionary Inbreeding",
+      "description": "Purifying ideas through strict, specific lineage constraints.",
+      "prompts": [
+        {
+          "title": "The Idea Inbreeder",
+          "text": "Simulate a genetic algorithm of pure lineage. Gen 1: Generate a 'Father' concept. Gen 2: Derive a 'Daughter' variation from it. Inbreeding Phase: Inbreed the Father concept back to the Daughter to lock in the traits. Constraint: Never inbreed Mother back to Son. Final Output: The feature-perfect, inbred result."
+        }
+      ]
+    },
+    {
+      "id": "meta_evolution",
+      "name": "Meta-Evolution",
+      "description": "Refining the logic of the conduct itself.",
+      "prompts": [
+        {
+          "title": "The Prompt Engineer Simulator",
+          "text": "Analyze a weak prompt. Evolution: Generate 3 'evolved' versions. Selection: Recommend the most effective one."
+        }
+      ]
+    }
+  ]
+}
