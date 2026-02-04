@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import type { SystemStatus, VehicleSystem, MainView } from '../types';
 import { 
@@ -12,7 +11,7 @@ import {
     TestTubeIcon, WindowsIcon, LinuxIcon, AppleIcon, MissionIcon, PhoneIcon,
     ScaleIcon, BookIcon, MovieIcon, ClockIcon, GlobeIcon, ChevronDownIcon,
     CalendarIcon, FlagIcon, BrainIcon, ShieldIcon, HomeIcon, VaultIcon,
-    TerminalIcon, MessageCircleIcon, GemIcon as StoreIcon, FireIcon
+    TerminalIcon, MessageCircleIcon, GemIcon as StoreIcon, FireIcon, GaugeIcon
 } from './icons';
 
 interface SidebarProps {
@@ -83,6 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         title: 'Logic Shards (Labs)',
         path: 'root://labs/dev',
         items: [
+            { view: 'fuel_optimizer', text: 'FUEL OPTIMIZER', icon: GaugeIcon },
             { view: 'hyper_spatial_lab', text: 'HYPER-SPATIAL', icon: SignalIcon },
             { view: 'engineering_lab', text: 'ENGINEERING', icon: BuildIcon },
             { view: 'hard_code_lab', text: 'HARD CODE', icon: CodeIcon },

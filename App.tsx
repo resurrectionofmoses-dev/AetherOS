@@ -60,10 +60,11 @@ import { UnifiedChainView } from './components/UnifiedChainView';
 import { InputBar } from './components/InputBar';
 import { ChatView } from './components/ChatView';
 import { ChatHeader } from './components/ChatHeader';
+import { FuelEfficiencyOptimizer } from './components/FuelEfficiencyOptimizer';
 
 import { 
     CodeIcon, SignalIcon, ZapIcon, FireIcon, BuildIcon, VaultIcon, UserIcon, GlobeIcon, 
-    SteeringWheelIcon, ForgeIcon, ShieldIcon
+    SteeringWheelIcon, ForgeIcon, ShieldIcon, GaugeIcon
 } from './components/icons';
 
 // --- LocalStorage Keys ---
@@ -124,7 +125,7 @@ const App: React.FC = () => {
     return extractJSON<ConjunctionProgress>(saved || '', {
         shards: 0,
         globalMisery: 12,
-        unlockedViews: ['vault', 'diagnostics', 'communications', 'library_view', 'coding_network', 'conjunction_gates', 'unified_chain', 'hyper_spatial_lab', 'forge', 'eliza_terminal', 'shard_store', 'omni_builder', 'gold_conjunction', 'healing_matrix', 'chat'],
+        unlockedViews: ['vault', 'diagnostics', 'communications', 'library_view', 'coding_network', 'conjunction_gates', 'unified_chain', 'hyper_spatial_lab', 'forge', 'eliza_terminal', 'shard_store', 'omni_builder', 'gold_conjunction', 'healing_matrix', 'chat', 'fuel_optimizer'],
         level: 1
     });
   });
@@ -519,9 +520,10 @@ const App: React.FC = () => {
         case 'coding_network': return <CodingNetworkView projects={networkProjects} setProjects={setNetworkProjects} onNavigateToAgent={() => setCurrentView('coding_network_teachers')} onSetDirective={setGlobalDirective} activeDirective={globalDirective} onActionReward={labProps.onActionReward} />;
         case 'forge': return <ForgeView blueprints={blueprints} onAddBlueprint={(t, d, p, tasks = []) => setBlueprints(prev => [...prev, { id: uuidv4(), title: t, description: d, status: 'Pending', priority: p, timestamp: new Date(), tasks: tasks.map(text => ({ id: uuidv4(), text, completed: false })) }])} onUpdateBlueprintStatus={(id, s) => setBlueprints(p => p.map(bp => bp.id === id ? { ...bp, status: s } : bp))} onDeleteBlueprint={id => setBlueprints(p => p.filter(bp => bp.id !== id))} onAddTask={(id, t) => setBlueprints(p => p.map(bp => bp.id === id ? { ...bp, tasks: [...bp.tasks, { id: uuidv4(), text: t, completed: false }] } : bp))} onAddTasks={(id, ts) => setBlueprints(p => p.map(bp => bp.id === id ? { ...bp, tasks: [...bp.tasks, ...ts.map(text => ({ id: uuidv4(), text, completed: false }))] } : bp))} onToggleTask={(id, tid) => setBlueprints(p => p.map(bp => bp.id === id ? { ...bp, tasks: bp.tasks.map(t => t.id === tid ? { ...t, completed: !t.completed } : t) } : bp))} onDeleteTask={(id, tid) => setBlueprints(p => p.map(bp => bp.id === id ? { ...bp, tasks: bp.tasks.filter(t => t.id !== tid) } : bp))} />;
         case 'eliza_terminal': return <ElizaTerminal />;
-        case 'omni_builder': return <OmniBuilderUI />;
+        case 'omni_builder': return <OmniBuilderUI shards={progress.shards} />;
         case 'gold_conjunction': return <GoldConjunction />;
         case 'healing_matrix': return <HealingMatrix />;
+        case 'fuel_optimizer': return <FuelEfficiencyOptimizer systemStatus={systemStatus} />;
         case 'vault': return <OperationsVault onSetView={setCurrentView} systemStatus={systemStatus} evoLibrary={evoLibrary} lastBroadcast={lastBroadcast} lastMessage={session?.messages[session.messages.length - 1] || { sender: 'model', content: 'Awaiting signal.', timestamp: new Date() }} savedModulesCount={savedModules.length} savedCommandsCount={customCommands.length} pinnedItems={pinnedItems} onTogglePin={() => {}} onExecuteCommand={handleSendMessage} activeDirective={globalDirective} dominance={dominance} />;
         case 'engineering_lab': return <EngineeringLabView {...labProps} onGenerate={generateSoftwareModule} labName="ENGINEERING LAB" labIcon={BuildIcon} labColor="text-amber-400" />;
         case 'hard_code_lab': return <HardCodeLabView {...labProps} labName="HARD CODE LAB" labIcon={CodeIcon} labColor="text-red-800" />;

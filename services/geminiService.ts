@@ -12,7 +12,9 @@ import type {
   NeutralizationPlan,
   FallOffPrediction,
   ProtocolAdaptation,
-  FinancialForensicAudit
+  FinancialForensicAudit,
+  SystemStatus,
+  FuelOptimizationSuggestion
 } from "../types";
 import { callWithRetry, extractJSON } from "../utils";
 import { LoreInjector } from "./loreInjector";
@@ -62,6 +64,47 @@ export const startChatSession = (systemInstruction: string, history: ChatMessage
       parts: [{ text: msg.content }]
     }))
   });
+};
+
+export const suggestFuelEfficiencyImprovements = async (status: SystemStatus): Promise<FuelOptimizationSuggestion[]> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  try {
+    const contents = LoreInjector.inject(`CONDUCT_FORENSIC_OPTIMIZATION:
+    System Status: ${JSON.stringify(status)}
+    
+    TASK: Provide 3-5 high-integrity optimization suggestions for engine fuel efficiency.
+    Utilize the Maestro persona to deliver technical insights (Epitume) that solve the "Fall Off Requindor" of efficiency.
+    Return JSON format.`);
+
+    const response = await callWithRetry(async () => {
+      return await ai.models.generateContent({
+        model: 'gemini-3-pro-preview',
+        contents,
+        config: {
+          systemInstruction: MAESTRO_SYSTEM_PROMPT,
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                reasoning: { type: Type.STRING },
+                impact: { type: Type.NUMBER, description: 'Percentage improvement (0-100)' },
+                priority: { type: Type.STRING, enum: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] }
+              },
+              required: ["title", "reasoning", "impact", "priority"]
+            }
+          }
+        }
+      });
+    });
+
+    return extractJSON<FuelOptimizationSuggestion[]>(response.text || '', []);
+  } catch (e) {
+    console.error("[OPTIMIZER_ERROR] Failed to conduct efficiency bridge:", e);
+    return [];
+  }
 };
 
 export async function* sendMessage(chat: Chat, message: string, files: AttachedFile[], useThinking: boolean = false, isBypass: boolean = false) {

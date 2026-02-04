@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { SignalIcon, ZapIcon, ShieldIcon, TerminalIcon, SpinnerIcon, SearchIcon, CodeIcon, ActivityIcon, FireIcon, BrainIcon, BookOpenIcon, LogicIcon, WarningIcon, CheckCircleIcon, ChevronDownIcon, PackageIcon, StarIcon, XIcon, ClockIcon, GaugeIcon } from './icons';
 import { generateBluetoothBlueprint, adaptBluetoothProtocol } from '../services/geminiService';
@@ -8,26 +7,25 @@ import type { BluetoothProtocol, BluetoothBlueprint, ProtocolAdaptation } from '
 const PROTOCOLS: BluetoothProtocol[] = [
     { 
         id: 'p1', 
-        name: 'Core Spec 5.4', 
+        name: 'Core Spec 5.4 (PAwR & EAD)', 
         category: 'Core', 
         status: 'Stable',
         lifecycle: 'Full-Scale',
-        description: 'The definitive standard for secure, low-power wireless communication. Version 5.4 introduces Periodic Advertising with Responses (PAwR) and Encrypted Advertising Data (EAD). It optimizes bidirectional communication for massive retail environments via Electronic Shelf Labels (ESL) while enforcing high-integrity encryption and precise timing windows for low-latency synchronization.', 
+        description: 'The definitive standard for bi-directional periodic advertising. Version 5.4 introduces Periodic Advertising with Responses (PAwR) and Encrypted Advertising Data (EAD). It enables massive-scale node synchronization (up to 32,767 nodes) using sub-event slotting, optimized for ultra-low power retail and industrial sensing environments.', 
         commonUUIDDetails: [
-            { uuid: '0x1800', meaning: 'Generic Access Profile (GAP) - Orchestrates device discovery and connection interval management.' },
-            { uuid: '0x1801', meaning: 'Generic Attribute Profile (GATT) - Manages the hierarchical structure of services and characteristics.' },
-            { uuid: '0x2A00', meaning: 'Device Name Characteristic - Identifies the logical node to the central conductor.' },
-            { uuid: '0x2A01', meaning: 'Appearance Characteristic - Maps the node to a specific hardware category (e.g., PADD, Sensor).' },
-            { uuid: '0x1857', meaning: 'ESL Service - Specialized service for Electronic Shelf Label synchronization.' },
-            { uuid: '0x2B84', meaning: 'ESL Address Characteristic - Provides unique logical indexing for shards within a PAwR sub-event.' },
-            { uuid: '0x2B86', meaning: 'ESL Response Characteristic - Real-time response packet for confirming state transitions.' },
+            { uuid: '0x1857', meaning: 'Electronic Shelf Label (ESL) Service - Primary retail orchestration root.' },
+            { uuid: '0x2B84', meaning: 'ESL Address (UINT8) - Unique logical index for node addressing in PAwR sub-events.' },
+            { uuid: '0x2B85', meaning: 'ESL Control Point (OPCODE) - Write-only conduit for state transitions and image updates.' },
+            { uuid: '0x2B86', meaning: 'ESL Response (BITFIELD) - Real-time feedback shard containing battery and sensor telemetry.' },
+            { uuid: '0x2B88', meaning: 'ESL Current Time (UINT32) - Synchronized epoch for scheduled price/content updates.' },
+            { uuid: '0x2B87', meaning: 'EAD Key Material (OPAQUE) - Forensic entropy for Encrypted Advertising Data (v5.4).' },
         ],
         designConstraints: [
             'Encryption Mandatory (AES-CCM / EAD)', 
-            'Latency < 10ms (Deterministic Timing)', 
-            'PAwR Sub-event Compliance', 
+            'PAwR Sub-event Latency < 15ms', 
+            'Sub-event Synchronization (T_GAP)', 
             'LE Security Mode 1 Level 4 (FIPS)',
-            'Maximum Stride Velocity: 1.2 PB/s'
+            'GATT Database Caching Required'
         ] 
     },
     { 
@@ -40,7 +38,7 @@ const PROTOCOLS: BluetoothProtocol[] = [
         commonUUIDDetails: [
             { uuid: '0x184B', meaning: 'Basic Audio Profile Service - Root audio conduction pipe.' },
             { uuid: '0x184E', meaning: 'Published Audio Capabilities Service - Node intake profile.' },
-            { uuid: '0x2BDE', meaning: 'Audio Stream Control - Real-time conduction management.' },
+            { uuid: '0x2BDE', meaning: 'Audio Stream Control (GATT) - Real-time conduction management.' },
             { uuid: '0x2BDF', meaning: 'Broadcast Audio Scan - Spectrum crawler for Auracast nodes.' },
         ],
         designConstraints: ['Encryption Mandatory', 'LC3 Compliance', 'QoS Synchronization', 'Multi-stream Support'] 
@@ -54,7 +52,7 @@ const PROTOCOLS: BluetoothProtocol[] = [
         description: 'Universal status reporting for node longevity and fuel management.', 
         commonUUIDDetails: [
             { uuid: '0x180F', meaning: 'Battery Service - Node energy status monitor.' },
-            { uuid: '0x2A19', meaning: 'Battery Level Characteristic - 0-100% fuel readout.' },
+            { uuid: '0x2A19', meaning: 'Battery Level (UINT8, 0-100) - 0x64 represents 100% capacity.' },
         ],
         designConstraints: ['Encryption Mandatory', 'Read-only', 'Low frequency updates', 'Minimal Power Drain'] 
     },
@@ -80,23 +78,25 @@ const PROTOCOLS: BluetoothProtocol[] = [
         description: 'Low-latency human interface conduit for peripherals and conductor tools.', 
         commonUUIDDetails: [
             { uuid: '0x1812', meaning: 'Human Interface Device Service - Standard Maestro tool interface.' },
-            { uuid: '0x2A4A', meaning: 'HID Information - Hardware metadata and capability map.' },
-            { uuid: '0x2A4B', meaning: 'Report Map - Blueprint for input stream interpretation.' },
+            { uuid: '0x2A4A', meaning: 'HID Information (6-bit field) - Hardware metadata and capability map.' },
+            { uuid: '0x2A4B', meaning: 'Report Map (OPAQUE) - Blueprint for input stream interpretation.' },
         ],
         designConstraints: ['Encryption Mandatory', 'Critical timing', 'High throughput', 'Input Latency: RIGID'] 
     },
     { 
         id: 'p6', 
-        name: 'Classic BR/EDR Audio', 
-        category: 'Traditional', 
+        name: 'Device Information Service', 
+        category: 'GATT', 
         status: 'Stable',
         lifecycle: 'Hypercare',
-        description: 'Legacy high-throughput audio for legacy conductors and standard headset profiles (HFP/A2DP).', 
+        description: 'The foundation of node identity. Contains manufacture, model, and firmware revisions.', 
         commonUUIDDetails: [
-            { uuid: '0x110B', meaning: 'Audio Source - Outbound sonic conduction.' },
-            { uuid: '0x110C', meaning: 'A/V Remote Control - Legacy command set.' },
+            { uuid: '0x180A', meaning: 'Device Info Service - Static hardware identity root.' },
+            { uuid: '0x2A29', meaning: 'Manufacturer Name (UTF8-S) - Identifies the origin architect.' },
+            { uuid: '0x2A24', meaning: 'Model Number (UTF8-S) - Forensic node classification.' },
+            { uuid: '0x2A26', meaning: 'Firmware Revision (UTF8-S) - Conduction logic version string.' },
         ],
-        designConstraints: ['Encryption Mandatory', 'SBC Codec Standard', 'High Power Consumption', 'Point-to-Point Only'] 
+        designConstraints: ['Public Access Allowed', 'Read-Only', 'Constant Value', 'Mandatory for SIG Compliance'] 
     },
 ];
 
@@ -138,12 +138,6 @@ export const BluetoothSpecBridge: React.FC = () => {
             }
         }
     }, [filteredProtocols, selectedProtocol]);
-
-    const stabilityRating = useMemo(() => {
-        if (selectedProtocol.status === 'Stable') return 100;
-        if (selectedProtocol.status === 'Beta') return 65;
-        return 35;
-    }, [selectedProtocol]);
 
     const addLog = useCallback((msg: string, color: string = 'text-gray-400') => {
         setLogs(prev => [...prev, `<span class="${color}">${msg}</span>`].slice(-100));
@@ -352,13 +346,16 @@ export const BluetoothSpecBridge: React.FC = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div className="space-y-4">
                                     <h4 className="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2">
-                                        <LogicIcon className="w-4 h-4" /> Common Signatures
+                                        <LogicIcon className="w-4 h-4" /> GATT Shard Inventory
                                     </h4>
                                     <div className="space-y-2">
                                         {selectedProtocol.commonUUIDDetails.map((uuid, i) => (
                                             <div key={i} className="p-3 bg-black/40 border border-white/5 rounded-xl group hover:border-cyan-500/30 transition-all">
-                                                <p className="text-[10px] font-black text-cyan-500 mb-0.5">{uuid.uuid}</p>
-                                                <p className="text-[9px] text-gray-400 italic line-clamp-2">{uuid.meaning}</p>
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <p className="text-[10px] font-black text-cyan-500">{uuid.uuid}</p>
+                                                    <span className="text-[7px] text-gray-700 font-mono">0x03E2_ALIGNED</span>
+                                                </div>
+                                                <p className="text-[9px] text-gray-400 italic leading-snug">{uuid.meaning}</p>
                                             </div>
                                         ))}
                                     </div>
@@ -369,7 +366,7 @@ export const BluetoothSpecBridge: React.FC = () => {
                                     </h4>
                                     <div className="space-y-2">
                                         {selectedProtocol.designConstraints.map((constraint, i) => (
-                                            <div key={i} className={`p-3 bg-black/40 border-2 rounded-xl flex items-center gap-3 ${constraint.includes('Mandatory') || constraint.includes('< 10ms') ? 'border-red-600 bg-red-950/10' : 'border-white/5'}`}>
+                                            <div key={i} className={`p-3 bg-black/40 border-2 rounded-xl flex items-center gap-3 ${constraint.includes('Mandatory') || constraint.includes('< 15ms') ? 'border-red-600 bg-red-950/10' : 'border-white/5'}`}>
                                                 {constraint.includes('Mandatory') ? <ZapIcon className="w-4 h-4 text-red-500" /> : <CheckCircleIcon className="w-4 h-4 text-amber-600" />}
                                                 <span className={`text-[10px] font-black uppercase ${constraint.includes('Mandatory') ? 'text-red-500' : 'text-gray-300'}`}>{constraint}</span>
                                             </div>

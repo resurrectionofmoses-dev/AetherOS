@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { OmniBuilder } from '../services/omniBuilder';
 import { 
     ForgeIcon, ZapIcon, SpinnerIcon, BrainIcon, ShieldIcon, 
@@ -9,7 +8,75 @@ import type { DreamedSchema, LineageEntry } from '../types';
 import { safeStorage } from '../services/safeStorage';
 import { extractJSON } from '../utils';
 
-export const OmniBuilderUI: React.FC = () => {
+/**
+ * CHAOS_GRAPH: The Visual "Crazy Me" Signature
+ * Renders a dynamic, interconnected node-web that mimics the chaotic structure drawn in the screenshot.
+ */
+const ChaosGraph: React.FC = () => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        let animationFrame: number;
+        const nodes: { x: number; y: number; vx: number; vy: number }[] = Array(15).fill(0).map(() => ({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            vx: (Math.random() - 0.5) * 2,
+            vy: (Math.random() - 0.5) * 2
+        }));
+
+        const render = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw connections with chaotic intensity
+            ctx.strokeStyle = 'rgba(59, 130, 246, 0.15)';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const dx = nodes[i].x - nodes[j].x;
+                    const dy = nodes[i].y - nodes[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 300) {
+                        ctx.beginPath();
+                        ctx.moveTo(nodes[i].x, nodes[i].y);
+                        ctx.lineTo(nodes[j].x, nodes[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            // Draw nodes
+            nodes.forEach(node => {
+                node.x += node.vx;
+                node.y += node.vy;
+                if (node.x < 0 || node.x > canvas.width) node.vx *= -1;
+                if (node.y < 0 || node.y > canvas.height) node.vy *= -1;
+
+                ctx.fillStyle = 'rgba(59, 130, 246, 0.4)';
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            animationFrame = requestAnimationFrame(render);
+        };
+
+        render();
+        return () => cancelAnimationFrame(animationFrame);
+    }, []);
+
+    return <canvas ref={canvasRef} className="absolute inset-0 z-0 pointer-events-none opacity-40" width={800} height={600} />;
+};
+
+interface OmniBuilderUIProps {
+    shards?: number;
+}
+
+export const OmniBuilderUI: React.FC<OmniBuilderUIProps> = ({ shards = 0 }) => {
     const [seed, setSeed] = useState('');
     const [isDreaming, setIsDreaming] = useState(false);
     const [isThinking, setIsThinking] = useState(false);
@@ -80,7 +147,7 @@ export const OmniBuilderUI: React.FC = () => {
 
                 {/* Left Side: Recursive Seed Input */}
                 <div className="lg:w-[450px] flex flex-col gap-8 flex-shrink-0 relative z-20">
-                    <form onSubmit={handleSynthesizeSeed} className="aero-panel bg-slate-900/80 p-8 border-amber-600/30 shadow-[15px_15px_0_0_#000] hover:scale-[1.01] transition-transform">
+                    <form onSubmit={handleSynthesizeSeed} className="aero-panel bg-slate-900/80 p-8 border-amber-600/30 border-4 shadow-[15px_15px_0_0_#000] hover:scale-[1.01] transition-transform">
                         <h3 className="font-comic-header text-3xl text-white uppercase italic tracking-tight mb-8 flex items-center gap-4">
                             <BrainIcon className="w-8 h-8 text-amber-500" /> Recursive Seed
                         </h3>
@@ -109,31 +176,29 @@ export const OmniBuilderUI: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Right Side: Manifestation Output */}
+                {/* Right Side: Manifestation Output (The "Unlimited Thought Manifest" area from screenshot) */}
                 <div className="flex-1 flex flex-col bg-black border-4 border-black rounded-3xl overflow-hidden relative shadow-[20px_20px_100px_rgba(0,0,0,0.8)]">
-                    {/* Floating Gold Background for Manifesting */}
-                    {(isThinking || isDreaming) && (
-                        <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
-                            {Array(40).fill(0).map((_, i) => (
-                                <div 
-                                    key={i} 
-                                    className="absolute w-1 h-1 bg-amber-500 rounded-full animate-float-offscreen opacity-30"
-                                    style={{ 
-                                        left: `${Math.random() * 100}%`, 
-                                        top: `${Math.random() * 100}%`,
-                                        animationDelay: `${Math.random() * 5}s`,
-                                        animationDuration: `${5 + Math.random() * 10}s`
-                                    }}
-                                />
-                            ))}
-                        </div>
-                    )}
-
+                    
+                    {/* Panel Top Bar matches screenshot cursor look */}
                     <div className="p-6 border-b-4 border-black bg-white/5 flex items-center justify-between relative z-20">
                         <div className="flex items-center gap-4">
-                            <TerminalIcon className="w-6 h-6 text-cyan-500" />
-                            <span className="text-xs font-black uppercase text-gray-500 tracking-[0.2em]">Unlimited Thought Manifest</span>
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-cyan-400 font-black text-xl animate-pulse tracking-tighter">&gt;_</span>
+                                <span className="text-xs font-black uppercase text-gray-500 tracking-[0.2em] ml-2">Unlimited Thought Manifest</span>
+                            </div>
                         </div>
+
+                        {/* SHARDS Box matches screenshot position and style */}
+                        <div className="absolute top-4 right-4 z-30">
+                            <div className="bg-black/60 border-2 border-amber-600/50 p-1.5 rounded-md flex items-center gap-2 backdrop-blur-sm shadow-xl">
+                                <ZapIcon className="w-3 h-3 text-amber-500 animate-pulse" />
+                                <div className="flex flex-col">
+                                    <span className="text-[6px] text-gray-500 font-black uppercase tracking-widest leading-none">Shards</span>
+                                    <span className="text-xs font-black text-amber-500 leading-none">{shards}</span>
+                                </div>
+                            </div>
+                        </div>
+
                         {(isThinking || isDreaming) && (
                             <div className="flex items-center gap-3">
                                 <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
@@ -143,6 +208,24 @@ export const OmniBuilderUI: React.FC = () => {
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-10 custom-scrollbar font-mono space-y-8 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] relative z-20">
+                        {/* Floating Gold Background for Manifesting */}
+                        {(isThinking || isDreaming) && (
+                            <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
+                                {Array(40).fill(0).map((_, i) => (
+                                    <div 
+                                        key={i} 
+                                        className="absolute w-1 h-1 bg-amber-500 rounded-full animate-float-offscreen opacity-30"
+                                        style={{ 
+                                            left: `${Math.random() * 100}%`, 
+                                            top: `${Math.random() * 100}%`,
+                                            animationDelay: `${Math.random() * 5}s`,
+                                            animationDuration: `${5 + Math.random() * 10}s`
+                                        }}
+                                    />
+                                ))}
+                            </div>
+                        )}
+
                         {currentDream ? (
                             <div className="animate-in fade-in zoom-in-95 duration-1000">
                                 <div className="flex justify-between items-start mb-8">
@@ -198,18 +281,36 @@ export const OmniBuilderUI: React.FC = () => {
                                 </div>
                             </div>
                         ) : (
-                            <div className="h-full flex flex-col items-center justify-center opacity-10 space-y-8 py-20">
-                                <StarIcon className="w-48 h-48 animate-spin-slow" />
-                                <p className="font-comic-header text-5xl uppercase tracking-[0.3em] text-center max-w-lg italic">
-                                    "Provide the seed. Watch the architecture grow."
-                                </p>
+                            <div className="h-full flex flex-col items-center justify-center relative py-20">
+                                {/* The "Crazy Me" Network Visualization */}
+                                <ChaosGraph />
+                                
+                                {/* Background Watermark Text matches screenshot */}
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-10">
+                                    <div className="text-center transform -rotate-2 opacity-[0.04]">
+                                        <p className="font-comic-header text-[7.5rem] leading-[0.85] uppercase italic font-black text-white">
+                                            "PROVIDE THE SEED. WATCH THE ARCHITECTURE GROW."
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="relative z-10 flex flex-col items-center opacity-10 space-y-6">
+                                    <StarIcon className="w-40 h-40 animate-spin-slow" />
+                                </div>
                             </div>
                         )}
                     </div>
 
-                    <div className="p-4 bg-white/5 border-t-2 border-black/40 flex justify-between items-center text-[8px] font-black uppercase text-gray-700 tracking-widest relative z-20">
-                        <span>Status: {isThinking || isDreaming ? 'SYNTHESIZING' : 'STABLE'}</span>
-                        <span>Stride: 1.2 PB/s | Mode: Abundance</span>
+                    {/* Footer Status Bar matches screenshot look */}
+                    <div className="p-4 bg-white/5 border-t-2 border-white/10 flex justify-between items-center text-[8px] font-black uppercase text-gray-500 tracking-widest relative z-20">
+                        <div className="flex gap-4">
+                            <span>Status: <span className="text-green-500">STABLE</span></span>
+                        </div>
+                        <div className="flex gap-4">
+                            <span>Stride: 1.2 PB/S</span>
+                            <span className="text-white/20">|</span>
+                            <span>Mode: <span className="text-amber-500">ABUNDANCE</span></span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -222,6 +323,13 @@ export const OmniBuilderUI: React.FC = () => {
                 }
                 .animate-float-offscreen {
                     animation: float-offscreen 10s linear infinite;
+                }
+                @keyframes spin-slow {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                .animate-spin-slow {
+                    animation: spin-slow 15s linear infinite;
                 }
             `}</style>
         </div>

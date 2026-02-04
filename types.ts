@@ -1,10 +1,16 @@
-
 import { Chat } from '@google/genai';
 
 export type Mode = 'aetheros';
 export type AccessTier = 'USER' | 'ROOT';
 
-export type MainView = 'chat' | 'diagnostics' | 'prompts' | 'workshop' | 'communications' | 'vault' | 'room_of_play' | 'command_deck' | 'strategic_overview' | 'device_link' | 'system_archives' | 'forge' | 'singularity_engine' | 'up_north' | 'code_agent' | 'projects' | 'nexus' | 'zurich' | 'enlightenment_pool' | 'pseudorole_testing' | 'integrity_network' | 'launch_center' | 'network_sentinel' | 'bluetooth_bridge' | 'packaging_suite' | 'coding_network' | 'covenant' | 'fcc_network' | 'timeline' | 'collaborative_playlist' | 'engineering_lab' | 'kinetics_lab' | 'quantum_theory_lab' | 'race_lab' | 'chemistry_lab' | 'paleontology_lab' | 'raw_mineral_lab' | 'clothing_lab' | 'concepts_lab' | 'sanitization_lab' | 'laws_justice_lab' | 'truth_lab' | 'testing_lab' | 'windows_lab' | 'linux_lab' | 'mac_os_lab' | 'apple_lab' | 'mission_lab' | 'coding_network_teachers' | 'cell_phone_lab' | 'sampling_lab' | 'hard_code_lab' | 'library_view' | 'pornography_studio' | 'verification_gates' | 'vehicle_telemetry_lab' | 'conjunction_gates' | 'unified_chain' | 'hyper_spatial_lab' | 'eliza_terminal' | 'shard_store' | 'omni_builder' | 'gold_conjunction' | 'healing_matrix';
+export type MainView = 'chat' | 'diagnostics' | 'prompts' | 'workshop' | 'communications' | 'vault' | 'room_of_play' | 'command_deck' | 'strategic_overview' | 'device_link' | 'system_archives' | 'forge' | 'singularity_engine' | 'up_north' | 'code_agent' | 'projects' | 'nexus' | 'zurich' | 'enlightenment_pool' | 'pseudorole_testing' | 'integrity_network' | 'launch_center' | 'network_sentinel' | 'bluetooth_bridge' | 'packaging_suite' | 'coding_network' | 'covenant' | 'fcc_network' | 'timeline' | 'collaborative_playlist' | 'engineering_lab' | 'kinetics_lab' | 'quantum_theory_lab' | 'race_lab' | 'chemistry_lab' | 'paleontology_lab' | 'raw_mineral_lab' | 'clothing_lab' | 'concepts_lab' | 'sanitization_lab' | 'laws_justice_lab' | 'truth_lab' | 'testing_lab' | 'windows_lab' | 'linux_lab' | 'mac_os_lab' | 'apple_lab' | 'mission_lab' | 'coding_network_teachers' | 'cell_phone_lab' | 'sampling_lab' | 'hard_code_lab' | 'library_view' | 'pornography_studio' | 'verification_gates' | 'vehicle_telemetry_lab' | 'conjunction_gates' | 'unified_chain' | 'hyper_spatial_lab' | 'eliza_terminal' | 'shard_store' | 'omni_builder' | 'gold_conjunction' | 'healing_matrix' | 'fuel_optimizer';
+
+export interface FuelOptimizationSuggestion {
+  title: string;
+  reasoning: string;
+  impact: number;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+}
 
 export interface GoldShard {
   id: string;
