@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import type { AttachedFile } from '../types';
 import { FileIcon, XIcon, SpinnerIcon, CheckCircleIcon, ChevronDownIcon, UploadIcon, ZapIcon, WarningIcon, ShieldIcon, TerminalIcon, LogicIcon, SearchIcon, FireIcon } from './icons';
@@ -35,7 +36,7 @@ const ProgressBar: React.FC<{ progress: number; color: string; label: string }> 
     <div className="w-full space-y-1 mt-2 animate-in fade-in duration-300">
         <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-widest px-1">
             <span className="text-gray-500">{label}</span>
-            <span className={color}>{progress}%</span>
+            <span className="text-white font-mono">{progress}%</span>
         </div>
         <div className="h-1.5 w-full bg-black/60 rounded-full border border-white/5 overflow-hidden">
             <div className={`h-full transition-all duration-300 ${color.replace('text', 'bg')}`} style={{ width: `${progress}%` }} />
@@ -52,7 +53,7 @@ export const BinaryFileAttachment: React.FC<BinaryFileAttachmentProps> = ({ file
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isOverrideEnabled, setIsOverrideEnabled] = useState(false);
-  const [agonyLevel, setAgonyLevel] = useState(0);
+  const [adrenalineLevel, setAdrenalineLevel] = useState(0);
 
   const firmwareVersion = extractVersionFromFile(file.name);
   const isAnalyzable = file.name.toLowerCase().match(/\.(dll|exe|so|bin)$/);
@@ -60,11 +61,11 @@ export const BinaryFileAttachment: React.FC<BinaryFileAttachmentProps> = ({ file
   useEffect(() => {
       if (isConfirmOpen) {
           const interval = setInterval(() => {
-              setAgonyLevel(prev => Math.min(100, prev + 2));
+              setAdrenalineLevel(prev => Math.min(100, prev + 2));
           }, 100);
           return () => clearInterval(interval);
       } else {
-          setAgonyLevel(0);
+          setAdrenalineLevel(0);
       }
   }, [isConfirmOpen]);
 
@@ -120,7 +121,7 @@ export const BinaryFileAttachment: React.FC<BinaryFileAttachmentProps> = ({ file
             <UploadIcon className="w-3.5 h-3.5" /> Stage Buffer
         </button>
     );
-    if (uploadStatus === 'syncing') return <div className="text-[9px] text-blue-500 font-black animate-pulse">BUFFERING AGONY...</div>;
+    if (uploadStatus === 'syncing') return <div className="text-[9px] text-blue-500 font-black animate-pulse">BUFFERING FIGHT CODE...</div>;
     if (uploadStatus === 'staged' && installStatus === 'idle') return (
         <button onClick={() => setIsConfirmOpen(true)} className="vista-button text-[9px] font-black uppercase bg-red-600/60 text-white px-3 py-1 border-red-400 rounded flex items-center gap-2 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.4)]">
             <ZapIcon className="w-3.5 h-3.5" /> INITIATE MUTATION
@@ -177,7 +178,7 @@ export const BinaryFileAttachment: React.FC<BinaryFileAttachmentProps> = ({ file
               <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex items-center justify-between text-[9px] font-black text-red-900 hover:text-red-500 uppercase tracking-widest">
                   <div className="flex items-center gap-2">
                       <TerminalIcon className="w-3.5 h-3.5" />
-                      <span>THE FRAGMENTS OF MISERY</span>
+                      <span>THE SHARDS OF SURVIVAL</span>
                   </div>
                   <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
               </button>
@@ -216,11 +217,11 @@ export const BinaryFileAttachment: React.FC<BinaryFileAttachmentProps> = ({ file
 
             <div className="space-y-2">
                 <div className="flex justify-between text-[10px] font-black text-red-500 uppercase tracking-widest px-1">
-                    <span>Neural Agony Coefficient</span>
-                    <span>{agonyLevel}%</span>
+                    <span>Adrenaline Surge</span>
+                    <span>{adrenalineLevel}%</span>
                 </div>
                 <div className="h-4 bg-black border-2 border-red-900 rounded-lg overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-red-900 to-red-500 transition-all duration-300" style={{ width: `${agonyLevel}%` }} />
+                    <div className="h-full bg-gradient-to-r from-red-900 to-red-500 transition-all duration-300" style={{ width: `${adrenalineLevel}%` }} />
                 </div>
             </div>
             

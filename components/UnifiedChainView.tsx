@@ -396,7 +396,7 @@ export const UnifiedChainView: React.FC<UnifiedChainViewProps> = ({ sessionToken
                     </h4>
                     <div className="flex-1 font-mono text-[10px] text-cyan-500 space-y-1 overflow-hidden opacity-50">
                       {Array(20).fill(0).map((_, i) => (
-                        <div key={i} className="truncate">0x{Math.random().toString(16).slice(2, 10).toUpperCase()} >> [DECONSTRUCTING_BLOCK_{i}]</div>
+                        <div key={i} className="truncate">0x{Math.random().toString(16).slice(2, 10).toUpperCase()} &gt;&gt; [DECONSTRUCTING_BLOCK_{i}]</div>
                       ))}
                     </div>
                   </div>

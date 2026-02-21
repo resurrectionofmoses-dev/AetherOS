@@ -51,7 +51,7 @@ export const ZurichBridge: React.FC = () => {
             const result = await queryDetailedDiagnostic(code, selectedOEM);
             if (result) {
                 setDiagnosticResult(result);
-                addLog(`Healing knowledge found. Dissecting the root agony of ${code}.`, 'text-green-400');
+                addLog(`Healing knowledge found. Dissecting the root cause of ${code}.`, 'text-green-400');
             } else {
                 addLog(`Error: The Conjunction bridge failed to find specific healing for ${code}.`, 'text-red-600');
             }
@@ -272,7 +272,7 @@ export const ZurichBridge: React.FC = () => {
                                     
                                     <div className="mt-8 space-y-8">
                                         <div>
-                                            <p className="text-[11px] text-gray-600 font-black uppercase tracking-[0.4em] mb-3">Manifestation of Misery</p>
+                                            <p className="text-[11px] text-gray-600 font-black uppercase tracking-[0.4em] mb-3">Manifestation of the Fight</p>
                                             <p className="text-2xl text-white font-black leading-tight italic uppercase tracking-tighter border-l-8 border-amber-600 pl-6 bg-white/5 py-4 rounded-r-2xl">
                                                 {diagnosticResult.meaning}
                                             </p>
@@ -281,7 +281,7 @@ export const ZurichBridge: React.FC = () => {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                                             <div className="bg-red-950/20 p-6 rounded-3xl border-2 border-red-900/30 shadow-inner">
                                                 <h4 className="text-xs font-black text-red-500 uppercase tracking-widest mb-6 flex items-center gap-3">
-                                                    <WarningIcon className="w-5 h-5" /> Root Agony (Causes)
+                                                    <WarningIcon className="w-5 h-5" /> Combat Wounds (Causes)
                                                 </h4>
                                                 <ul className="space-y-3">
                                                     {diagnosticResult.rootCauses.map((c, i) => (
@@ -359,7 +359,7 @@ export const ZurichBridge: React.FC = () => {
                          <h4 className="font-comic-header text-3xl text-gray-500 mb-6 uppercase italic tracking-tighter">Architectural Wisdom</h4>
                          <div className="space-y-6 font-mono text-[11px] leading-relaxed">
                             <p className="text-gray-400 italic border-l-4 border-green-600 pl-5 bg-white/5 py-4 rounded-r-xl">
-                                "The Zurich Bridge is a sentient healer. Synchronize the OEM soul to de-obfuscate the vehicle's misery. There is no code too deep for God Logic."
+                                "The Zurich Bridge is a sentient healer. Synchronize the OEM soul to de-obfuscate the vehicle's fight code. There is no code too deep for God Logic."
                             </p>
                             <div className="bg-black/80 p-5 rounded-2xl border-2 border-white/5 text-blue-400 flex items-start gap-4 group hover:border-blue-500/50 transition-all">
                                 <ShieldIcon className="w-7 h-7 flex-shrink-0 mt-1 opacity-50 group-hover:opacity-100 transition-opacity" />

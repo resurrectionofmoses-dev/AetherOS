@@ -1,10 +1,8 @@
-
 import React, { useState } from 'react';
 import { ImplementationResult } from './ImplementationResult';
 import type { ImplementationResponse, LabComponentProps } from '../types';
-import { BuildIcon, SpinnerIcon, PackageIcon, CodeIcon, ZapIcon, TerminalIcon, FireIcon, CheckCircleIcon } from './icons';
+import { BuildIcon, SpinnerIcon, PackageIcon, CodeIcon, TerminalIcon, FireIcon, CheckCircleIcon } from './icons';
 import { PopularLanguages } from './PopularLanguages';
-import { NetworkDirectiveIntake } from './NetworkDirectiveIntake';
 
 interface EngineeringLabViewProps {
   onGenerate: (logic: string) => Promise<ImplementationResponse | null>;
@@ -45,12 +43,6 @@ export const EngineeringLabView: React.FC<EngineeringLabViewProps & LabComponent
     }
   };
 
-  const toolSimulation = [
-    { name: 'exiv2', desc: 'Metadata Extraction', color: 'text-cyan-400' },
-    { name: 'gphoto2', desc: 'Digital Capture Interface', color: 'text-emerald-400' },
-    { name: 'pulseaudio-utils', desc: 'Sonic Signal Conduction', color: 'text-fuchsia-400' }
-  ];
-
   return (
     <div className="h-full flex flex-col bg-[#050510] overflow-hidden">
       <div className="p-6 border-b-8 border-black bg-slate-900 flex justify-between items-center shadow-xl">
@@ -63,12 +55,6 @@ export const EngineeringLabView: React.FC<EngineeringLabViewProps & LabComponent
                 <p className="text-[9px] text-gray-500 font-black uppercase tracking-[0.4em] mt-1 italic">{description}</p>
             </div>
         </div>
-        <div className="flex flex-col items-end gap-2">
-            <div className="px-5 py-2 bg-black border-4 border-black rounded-xl text-amber-500 text-[10px] font-black uppercase tracking-widest shadow-[4px_4px_0_0_#000]">
-                DIR_SYNC: {globalDirective ? 'ACTIVE' : 'IDLE'}
-            </div>
-            <div className="text-[7px] text-gray-600 font-mono uppercase">path://root/labs/engineering</div>
-        </div>
       </div>
 
       <div className="flex-1 flex flex-col lg:flex-row gap-8 p-8 overflow-hidden">
@@ -79,22 +65,16 @@ export const EngineeringLabView: React.FC<EngineeringLabViewProps & LabComponent
                     <TerminalIcon className="w-6 h-6 text-amber-500" />
                     <h3 className="font-comic-header text-3xl text-white uppercase italic">Logic Input Portal</h3>
                 </div>
-                {globalDirective && (
-                    <div className="flex items-center gap-2 bg-amber-500/10 px-3 py-1 rounded-lg border border-amber-500/30 animate-pulse">
-                        <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest">Net Folder Task:</span>
-                        <span className="text-[9px] text-white font-bold">{globalDirective.activeTask || 'Awaiting Task Identification'}</span>
-                    </div>
-                )}
               </div>
               <textarea
                 value={logic}
                 onChange={(e) => setLogic(e.target.value)}
-                placeholder={globalDirective ? `Align logic with [${globalDirective.title}]...` : "Describe the module logic..."}
-                className="w-full h-44 bg-gray-900/60 border-4 border-black rounded-[2rem] p-6 resize-none focus:outline-none focus:border-amber-600 transition-all text-amber-400 font-mono text-sm leading-relaxed shadow-inner"
+                placeholder="Describe the module logic..."
+                className="w-full h-44 bg-gray-900/60 border-4 border-black rounded-[2rem] p-6 resize-none focus:outline-none focus:border-amber-600 transition-all text-amber-400 font-mono text-sm leading-relaxed"
                 required
                 disabled={isLoading}
               />
-              <button type="submit" disabled={!logic.trim() || isLoading} className="vista-button py-5 w-full mt-8 bg-amber-600 hover:bg-amber-500 text-black font-black uppercase text-xl tracking-[0.2em] shadow-[6px_6px_0_0_#000] active:translate-y-1 transition-all rounded-3xl flex items-center justify-center gap-4">
+              <button type="submit" disabled={!logic.trim() || isLoading} className="vista-button py-5 w-full mt-8 bg-amber-600 hover:bg-amber-500 text-black font-black uppercase text-xl tracking-[0.2em] rounded-3xl flex items-center justify-center gap-4">
                 {isLoading ? (
                   <>
                     <SpinnerIcon className="w-8 h-8 animate-spin" />
@@ -120,9 +100,9 @@ export const EngineeringLabView: React.FC<EngineeringLabViewProps & LabComponent
                     
                     {generatedModule ? (
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-                             <div className="flex items-center gap-3 mb-6 p-4 bg-green-950/20 border-2 border-green-600/30 rounded-2xl">
+                             <div className="flex items-center gap-2 mb-6 p-4 bg-green-950/20 border-2 border-green-600/30 rounded-2xl">
                                 <CheckCircleIcon className="w-6 h-6 text-green-500" />
-                                <span className="text-sm font-black text-green-400 uppercase tracking-widest">Shard Harmonized Successfully</span>
+                                <span className="text-sm font-black text-green-400 uppercase tracking-widest">Shard Harmonized</span>
                              </div>
                             <ImplementationResult response={generatedModule} />
                         </div>
@@ -138,28 +118,10 @@ export const EngineeringLabView: React.FC<EngineeringLabViewProps & LabComponent
 
         <div className="lg:w-1/3 overflow-y-auto custom-scrollbar flex flex-col gap-8">
             <div className="aero-panel bg-slate-900/40 border-4 border-black p-6 shadow-[6px_6px_0_0_#000]">
-                <h3 className="font-comic-header text-2xl text-cyan-400 mb-6 uppercase italic flex items-center gap-3">
-                    <ZapIcon className="w-6 h-6" /> Reliable Tools
-                </h3>
-                <div className="space-y-4">
-                    {toolSimulation.map(tool => (
-                        <div key={tool.name} className="p-4 bg-black/60 rounded-xl border border-white/5 group hover:border-cyan-500/30 transition-all">
-                            <p className={`text-lg font-black uppercase tracking-tighter ${tool.color}`}>{tool.name}</p>
-                            <p className="text-[10px] text-gray-500 font-mono italic mt-1">{tool.desc}</p>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            <div className="aero-panel bg-slate-900/40 border-4 border-black p-6 shadow-[6px_6px_0_0_#000]">
                 <h3 className="font-comic-header text-2xl text-violet-400 mb-6 uppercase italic flex items-center gap-3">
-                    <PackageIcon className="w-6 h-6" /> Target Langs
+                    <PackageIcon className="w-6 h-6 text-violet-400" /> Target Langs
                 </h3>
                 <PopularLanguages />
-            </div>
-            
-            <div className="mt-auto p-6 bg-red-950/10 border-4 border-red-900/20 rounded-[2rem] italic text-red-400/60 text-[10px] leading-relaxed font-mono">
-                "Every letter generated in this lab is signed by root://net_folder. Absolute reliability confirmed."
             </div>
         </div>
       </div>

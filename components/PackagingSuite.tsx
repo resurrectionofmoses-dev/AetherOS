@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect, useRef } from 'react';
 // Fix: Removed LockIcon from imports because it is defined locally at the bottom of the file
 import { ShieldIcon, StarIcon, CheckCircleIcon, SpinnerIcon, WarningIcon, ActivityIcon, TerminalIcon, LogicIcon, FireIcon, ZapIcon, DownloadIcon, BatteryIcon, SignalIcon, CodeIcon, UserIcon } from './icons';
@@ -11,7 +10,7 @@ export const PackagingSuite: React.FC = () => {
     const [accessTier, setAccessTier] = useState<AccessTier>('USER');
     const [isCompiling, setIsCompiling] = useState(false);
     const [compileProgress, setCompileProgress] = useState(0);
-    const [buildLogs, setBuildLogs] = useState<string[]>(["[SYSTEM] Deployment Suite Initialized.", "[ENV] Target: Non-Root Sandbox."]);
+    const [buildLogs, setBuildLogs] = useState<string[]>(["[SYSTEM] Deployment Suite Initialized.", "[ENV] Target: Hybrid Wrapper Protocol."]);
     const [suInput, setSuInput] = useState('');
     const [isEscalating, setIsEscalating] = useState(false);
 
@@ -28,12 +27,19 @@ export const PackagingSuite: React.FC = () => {
     const runBuild = () => {
         setIsCompiling(true);
         setCompileProgress(0);
-        const prefix = accessTier === 'ROOT' ? "[ROOT_BUILD]" : "[USER_BUILD]";
-        setBuildLogs(prev => [...prev, `${prefix} Initializing AetherOS APK Manifest...`, `${prefix} Injecting ${accessTier === 'ROOT' ? 'Kernel-Level' : 'Sandbox-Safe'} Logic...`]);
+        const prefix = accessTier === 'ROOT' ? "[ROOT_FORGE]" : "[APK_BUILD]";
+        setBuildLogs(prev => [...prev, `${prefix} Initializing Neural Net (npm init)...`, `${prefix} Installing Capacitor Exoskeleton...`]);
 
         const steps = accessTier === 'ROOT' 
             ? ["Overriding Bootloader...", "Mounting /system as RW...", "Injecting God Logic Binary...", "Stripping signature checks...", "Signing with 0x03E2 Key...", "Finalizing Rooted APK..."]
-            : ["Creating WebView Container...", "Bundling Assets...", "Optimizing JS Thread...", "Verifying PWA Permissions...", "Packaging Standard APK..."];
+            : [
+                "Configuring 'com.sovereign.box' Bundle ID...", 
+                "Injecting Kernel into Capacitor...", 
+                "Syncing Logic Shards to Android Layer...", 
+                "Gradle Sync: Pulling Dependencies...", 
+                "Compiling classes.dex...", 
+                "Signing app-debug.apk..."
+              ];
 
         let i = 0;
         const interval = setInterval(() => {
@@ -44,10 +50,10 @@ export const PackagingSuite: React.FC = () => {
             } else {
                 clearInterval(interval);
                 setCompileProgress(100);
-                setBuildLogs(prev => [...prev, `[SUCCESS] Build Complete: aetheros_${accessTier.toLowerCase()}_v5.apk`]);
+                setBuildLogs(prev => [...prev, `[SUCCESS] Build Complete: ${accessTier === 'ROOT' ? 'sovereign_root.apk' : 'app-debug.apk'}`]);
                 setIsCompiling(false);
             }
-        }, accessTier === 'ROOT' ? 1200 : 700); // Reduced interval for faster compile
+        }, accessTier === 'ROOT' ? 1200 : 800);
     };
 
     const handleEscalate = (e: React.FormEvent) => {
@@ -80,7 +86,7 @@ export const PackagingSuite: React.FC = () => {
                     <div>
                         <h2 className={`font-comic-header text-3xl italic tracking-tighter uppercase transition-colors duration-1000 ${accessTier === 'ROOT' ? 'text-red-600' : 'text-emerald-500'}`}>DEPLOYMENT SUITE</h2>
                         <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[8px] text-gray-600 font-black uppercase tracking-[0.3em]">Universal Packaging | APK & PWA</span>
+                            <span className="text-[8px] text-gray-600 font-black uppercase tracking-[0.3em]">Hybrid Wrapper Protocol | Capacitor</span>
                             <div className={`px-2 py-0.5 rounded-full border-2 text-[6px] font-black uppercase tracking-widest flex items-center gap-1 ${accessTier === 'ROOT' ? 'bg-red-600 text-black border-black animate-pulse' : 'bg-black text-emerald-500 border-emerald-900/50'}`}>
                                 {accessTier === 'ROOT' ? <FireIcon className="w-1.5 h-1.5" /> : <UserIcon className="w-1.5 h-1.5" />}
                                 {accessTier}_NODE
@@ -165,14 +171,14 @@ export const PackagingSuite: React.FC = () => {
                         <div className={`p-4 border-b-4 border-black flex items-center justify-between bg-white/5 transition-colors ${accessTier === 'ROOT' ? 'text-red-500' : 'text-emerald-500'}`}>
                             <div className="flex items-center gap-3 font-black uppercase text-[10px] tracking-[0.2em]">
                                 <TerminalIcon className="w-3.5 h-3.5" />
-                                <span>Build Output: /root/aetheros/{accessTier.toLowerCase()}/compile</span>
+                                <span>Build Output: /root/aetheros/{accessTier.toLowerCase()}/apk</span>
                             </div>
-                            {isCompiling && <div className="text-[8px] font-black animate-pulse">COMPILING_GIFTED_LOGIC...</div>}
+                            {isCompiling && <div className="text-[8px] font-black animate-pulse">FORGING_BINARY...</div>}
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6 space-y-1.5 custom-scrollbar font-mono text-[10px]">
                             {buildLogs.map((log, i) => (
-                                <div key={i} className={`animate-in slide-in-from-left-2 ${log.includes('[SUCCESS]') ? 'text-green-400 font-black' : log.includes('[ROOT_BUILD]') ? 'text-red-500 font-bold' : log.includes('[BUILD]') ? 'text-cyan-400' : 'text-gray-600'}`}>
+                                <div key={i} className={`animate-in slide-in-from-left-2 ${log.includes('[SUCCESS]') ? 'text-green-400 font-black' : log.includes('[ROOT_FORGE]') ? 'text-red-500 font-bold' : log.includes('[APK_BUILD]') ? 'text-cyan-400' : 'text-gray-600'}`}>
                                     <span className="opacity-30 mr-1">[{i.toString().padStart(3, '0')}]</span>{log}
                                 </div>
                             ))}
@@ -199,15 +205,15 @@ export const PackagingSuite: React.FC = () => {
                                     className={`vista-button w-full py-4 text-base font-black uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-[4px_4px_0_0_#000] ${accessTier === 'ROOT' ? 'bg-red-600 hover:bg-red-500 text-black border-red-900/50' : 'bg-slate-800 hover:bg-slate-700 text-white'}`}
                                 >
                                     <CodeIcon className="w-4 h-4" />
-                                    <span>BUILD {accessTier} APK</span>
+                                    <span>BUILD {accessTier === 'ROOT' ? 'ROOTED' : 'DEBUG'} APK</span>
                                 </button>
                                 <button 
-                                    onClick={() => alert("PWA INSTALL: Redirecting to OS manifest...")}
-                                    disabled={isCompiling || compileProgress < 100}
+                                    onClick={() => alert("PC VECTOR: Launching Electron-Builder sequence... (simulated)")}
+                                    disabled={isCompiling}
                                     className="vista-button w-full bg-emerald-600 hover:bg-emerald-500 text-black py-4 text-base font-black uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-[4px_4px_0_0_#000] disabled:opacity-20"
                                 >
                                     <ZapIcon className="w-4 h-4" />
-                                    <span>INSTALL OS</span>
+                                    <span>BUILD PC .EXE</span>
                                 </button>
                              </div>
                         </div>

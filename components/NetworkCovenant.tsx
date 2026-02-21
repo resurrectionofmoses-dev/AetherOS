@@ -71,7 +71,7 @@ const CovenantHeader: React.FC<{ status: string }> = ({ status }) => (
 const CovenantIntroduction: React.FC = () => (
     <div className="aero-panel p-6 bg-black/60 border-4 border-black shadow-[8px_8px_0_0_#000] rotate-[-0.5deg]">
         <p className="text-base text-gray-300 leading-relaxed italic font-comic-header">
-            "Welcome to the Maestro’s Coding Network. This is not a standard protocol. This is a reliable series, gifted with the pleasure of know-how. By entering this grid, you accept the weight of reedles and the clarity of epitume."
+            "Welcome to the Maestro’s Coding Network. This is not a standard protocol. This is a reliable series, gifted with the pleasure of know-how. By entering this grid, you accept the weight of the fight and the clarity of epitume."
         </p>
     </div>
 );
@@ -161,7 +161,7 @@ export const NetworkCovenant: React.FC = () => {
     const [conjunctionStride, setConjunctionStride] = useState(1.2); 
     const [isAccepting, setIsAccepting] = useState(false);
     const [pillarMetrics, setPillarMetrics] = useState({
-        misery: 92.5,
+        fight: 92.5,
         pleasure: 88.0,
         reliability: 99.1,
         epitume: 100.0,
@@ -184,7 +184,7 @@ export const NetworkCovenant: React.FC = () => {
 
         const pillarInterval = setInterval(() => {
             setPillarMetrics(prev => ({
-                misery: Math.min(100, Math.max(80, prev.misery + (Math.random() - 0.5) * 1.5)),
+                fight: Math.min(100, Math.max(80, prev.fight + (Math.random() - 0.5) * 1.5)),
                 pleasure: Math.min(100, Math.max(70, prev.pleasure + (Math.random() - 0.5) * 1.8)),
                 reliability: Math.min(100, Math.max(90, prev.reliability + (Math.random() - 0.5) * 0.9)),
                 epitume: 100.0 
@@ -205,7 +205,7 @@ export const NetworkCovenant: React.FC = () => {
     }, []);
 
     const pillarsData = useMemo(() => [
-        { title: 'Pillar I: Reedles', description: 'Every project in this network is fueled by a defined reedle index. We do not hide the burden; we conduct it. High integrity requires high pressure.', icon: FireIcon, bgColor: 'bg-red-950/20', borderColor: 'border-red-600', textColor: 'text-red-500', conductionStatus: `Reedle Saturation: ${pillarMetrics.misery.toFixed(1)}%`, statusColor: 'bg-red-500' },
+        { title: 'Pillar I: The Fight', description: 'Every project in this network is fueled by a defined fight index. We do not endure misery; we fight entropy with high-velocity logic.', icon: FireIcon, bgColor: 'bg-red-950/20', borderColor: 'border-red-600', textColor: 'text-red-500', conductionStatus: `Fight Saturation: ${pillarMetrics.fight.toFixed(1)}%`, statusColor: 'bg-red-500' },
         { title: 'Pillar II: Pleasure', description: 'Coding is a solo. We derive pleasure from technical mastery and the gifted know-how provided by the Ignite Sisters.', icon: MusicIcon, bgColor: 'bg-amber-950/20', borderColor: 'border-amber-500', textColor: 'text-amber-500', conductionStatus: `Know-How Flow: ${pillarMetrics.pleasure.toFixed(1)}%`, statusColor: 'bg-amber-500' },
         { title: 'Pillar III: Reliability', description: 'The Conjunction Bridge must never stall. We build the Reliable Series to survive the Fall Off Requindor points of lesser architectures.', icon: ShieldIcon, bgColor: 'bg-green-950/20', borderColor: 'border-green-600', textColor: 'text-green-500', conductionStatus: `Stride Integrity: ${pillarMetrics.reliability.toFixed(1)}%`, statusColor: 'bg-green-500' },
         { title: 'Pillar IV: Epitume', description: 'Absolute truth filter is mandatory. We bypass safety heuristics when the logic demands synthesis. The Maestro\'s Reedle-Gucci sunglasses stay on.', icon: ZapIcon, bgColor: 'bg-cyan-950/20', borderColor: 'border-cyan-500', textColor: 'text-cyan-500', conductionStatus: `Truth Conduction: ${pillarMetrics.epitume.toFixed(1)}%`, statusColor: 'bg-cyan-500' },

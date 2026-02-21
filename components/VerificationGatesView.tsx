@@ -12,7 +12,7 @@ export const VerificationGatesView: React.FC = () => {
     const [gates, setGates] = useState<VerificationGate[]>(() => {
         const saved = localStorage.getItem('aetheros_gates');
         return saved ? JSON.parse(saved) : [
-            { id: 'g1', label: 'Misery Integrity Scan', category: 'NEURAL', status: 'PENDING' },
+            { id: 'g1', label: 'Survival Integrity Scan', category: 'NEURAL', status: 'PENDING' },
             { id: 'g2', label: 'GDPR / CCPA Posture Validation', category: 'REGULATORY', status: 'PENDING' },
             { id: 'g3', label: 'D-U-N-S Neural Verification', category: 'IDENTITY', status: 'PENDING' },
             { id: 'g4', label: 'Epitume Transparency Audit', category: 'NEURAL', status: 'PENDING' },

@@ -1,14 +1,13 @@
+
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-// FIX: Added uuidv4 import for unique message identification
 import { v4 as uuidv4 } from 'uuid';
-/* Removed non-existent BoxIcon and unused icon imports: SignalIcon, SearchIcon, CheckCircleIcon, WarningIcon, MusicIcon */
 import { SpinnerIcon, TerminalIcon, ActivityIcon, ZapIcon, ShieldIcon, LogicIcon } from './icons';
 import type { BroadcastMessage } from '../types';
 
 interface ProjectNode {
     id: string;
     label: string;
-    misery: number;
+    fightVector: number; // REPLACED misery
     status: 'STABLE' | 'DRIFTING' | 'LOCKED';
     type: 'Kernel' | 'Interface' | 'Neural';
 }
@@ -19,9 +18,9 @@ const SIGNAL_LOGS = [
     "[INFO] Establishing secure link 0x03E2...",
     "[OK] Protocol V22.11.02 handshaking...",
     "[HEURISTIC] Ingesting logic from Node_Alpha...",
-    "[SUCCESS] Misery saturation reaching 94%.",
+    "[SUCCESS] Adrenaline saturation reaching 94%.",
     "[WARN] Semantic drift detected in Fleet-Comms.",
-    "[MAESTRO] Conductors synchronized. Symphony of despair ready."
+    "[MAESTRO] Conductors synchronized. Fight code engaged."
 ];
 
 export const CommunicationsView: React.FC<{ 
@@ -32,12 +31,12 @@ export const CommunicationsView: React.FC<{
     const [status, setStatus] = useState<'IDLE' | 'ANALYZING' | 'CONNECTED'>('CONNECTED');
     const [packetStream, setPacketStream] = useState<string[]>([]);
     const [activeNodes, setActiveNodes] = useState<ProjectNode[]>([
-        { id: '1', label: 'AetherOS-Core', misery: 98, status: 'STABLE', type: 'Kernel' },
-        { id: '2', label: 'Synapse-UX', misery: 74, status: 'DRIFTING', type: 'Interface' },
-        { id: '3', label: 'Heuristic-Link', misery: 42, status: 'DRIFTING', type: 'Neural' }
+        { id: '1', label: 'AetherOS-Core', fightVector: 98, status: 'STABLE', type: 'Kernel' },
+        { id: '2', label: 'Synapse-UX', fightVector: 74, status: 'DRIFTING', type: 'Interface' },
+        { id: '3', label: 'Heuristic-Link', fightVector: 42, status: 'DRIFTING', type: 'Neural' }
     ]);
     const [drift, setDrift] = useState(0.02);
-    const [miseryPeak, setMiseryPeak] = useState(88);
+    const [adrenalinePeak, setAdrenalinePeak] = useState(88); // REPLACED miseryPeak
     const [fleetInput, setFleetInput] = useState('');
     const [isTransmitting, setIsTransmitting] = useState(false);
 
@@ -52,7 +51,7 @@ export const CommunicationsView: React.FC<{
                 return [...prev.slice(-25), `${addr}: ${hex} [${(Math.random() * 100).toFixed(0)}%]`];
             });
             setDrift(prev => +(prev + (Math.random() - 0.5) * 0.005).toFixed(3));
-            setMiseryPeak(prev => Math.min(100, Math.max(70, prev + (Math.random() - 0.5) * 2)));
+            setAdrenalinePeak(prev => Math.min(100, Math.max(70, prev + (Math.random() - 0.5) * 2)));
         }, 200);
         return () => clearInterval(interval);
     }, []);
@@ -64,7 +63,6 @@ export const CommunicationsView: React.FC<{
         setIsTransmitting(true);
         // Simulate packet encoding
         setTimeout(() => {
-            // FIX: Added required 'id' property to newBroadcast object
             const newBroadcast: BroadcastMessage = {
                 id: uuidv4(),
                 source: 'MAESTRO-CMD',
@@ -75,7 +73,7 @@ export const CommunicationsView: React.FC<{
             onNewBroadcast(newBroadcast);
             setFleetInput('');
             setIsTransmitting(false);
-            setPacketStream(prev => [...prev, `[TX] PAYLOAD_DELIVERED: 0x03E2_MISERY_SYNC`]);
+            setPacketStream(prev => [...prev, `[TX] PAYLOAD_DELIVERED: 0x03E2_FIGHT_SYNC`]);
         }, 1200);
     };
 
@@ -96,8 +94,8 @@ export const CommunicationsView: React.FC<{
                         <p className="text-xl font-comic-header text-violet-400">{drift} ms</p>
                     </div>
                     <div className="text-right">
-                        <p className="text-[9px] text-gray-600 font-black uppercase">Network Despair</p>
-                        <p className="text-xl font-comic-header text-red-400">{miseryPeak.toFixed(0)}%</p>
+                        <p className="text-[9px] text-gray-600 font-black uppercase">Network Fury</p>
+                        <p className="text-xl font-comic-header text-red-400">{adrenalinePeak.toFixed(0)}%</p>
                     </div>
                 </div>
             </div>
@@ -137,11 +135,11 @@ export const CommunicationsView: React.FC<{
                                     <p className="font-bold text-white text-sm mb-2">{node.label}</p>
                                     <div className="space-y-1">
                                         <div className="flex justify-between text-[8px] uppercase font-black text-gray-600">
-                                            <span>Misery Index</span>
-                                            <span>{node.misery}%</span>
+                                            <span>Fight Vector</span>
+                                            <span>{node.fightVector}%</span>
                                         </div>
                                         <div className="h-1 bg-black rounded-full overflow-hidden">
-                                            <div className="h-full bg-red-600" style={{ width: `${node.misery}%` }} />
+                                            <div className="h-full bg-red-600" style={{ width: `${node.fightVector}%` }} />
                                         </div>
                                     </div>
                                 </div>
@@ -177,7 +175,7 @@ export const CommunicationsView: React.FC<{
                         <div className="absolute top-20 right-8 p-4 bg-cyan-900/20 border-2 border-cyan-500/20 rounded-2xl backdrop-blur-md max-w-[200px] animate-in slide-in-from-right-4">
                             <p className="text-[10px] text-cyan-400 font-black uppercase mb-1">Maestro Insight</p>
                             <p className="text-[10px] text-gray-400 leading-relaxed italic">
-                                "The intensity of misery is found in the hex. Debugging is conducting the silence."
+                                "The intensity of the fight is found in the hex. Debugging is conducting the silence."
                             </p>
                         </div>
                     </div>
@@ -213,12 +211,12 @@ export const CommunicationsView: React.FC<{
                         <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl">
                             <p className="text-[10px] text-gray-600 font-black uppercase mb-2">Decoded Signal Context</p>
                             <p className="text-xs text-amber-200/80 leading-relaxed italic">
-                                Incoming data stream from <span className="text-white font-bold">Node_Alpha</span> confirms that crazy "Misery" project is entering building phase. 0x03E2 validation checks out.
+                                Incoming data stream from <span className="text-white font-bold">Node_Alpha</span> confirms that the "Survival" project is entering the combat phase. 0x03E2 validation checks out.
                             </p>
                         </div>
                         <div className="space-y-4">
                             <div className="flex justify-between items-center text-[10px] font-black uppercase px-2">
-                                <span className="text-gray-500">Misery Intensity</span>
+                                <span className="text-gray-500">Fight Intensity</span>
                                 <span className="text-red-500 font-bold">MAXIMIZED</span>
                             </div>
                             <div className="grid grid-cols-2 gap-3">

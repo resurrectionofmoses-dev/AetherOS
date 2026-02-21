@@ -176,10 +176,9 @@ export const OmniBuilderUI: React.FC<OmniBuilderUIProps> = ({ shards = 0 }) => {
                     </div>
                 </div>
 
-                {/* Right Side: Manifestation Output (The "Unlimited Thought Manifest" area from screenshot) */}
-                <div className="flex-1 flex flex-col bg-black border-4 border-black rounded-3xl overflow-hidden relative shadow-[20px_20px_100px_rgba(0,0,0,0.8)]">
+                {/* Right Side: Manifestation Output */}
+                <div className="flex-1 flex flex-col bg-black border-4 border-black rounded-3xl overflow-hidden relative shadow-[20px_20px_100px_rgba(0,0,0,1)]">
                     
-                    {/* Panel Top Bar matches screenshot cursor look */}
                     <div className="p-6 border-b-4 border-black bg-white/5 flex items-center justify-between relative z-20">
                         <div className="flex items-center gap-4">
                             <div className="flex items-center gap-1.5">
@@ -188,7 +187,6 @@ export const OmniBuilderUI: React.FC<OmniBuilderUIProps> = ({ shards = 0 }) => {
                             </div>
                         </div>
 
-                        {/* SHARDS Box matches screenshot position and style */}
                         <div className="absolute top-4 right-4 z-30">
                             <div className="bg-black/60 border-2 border-amber-600/50 p-1.5 rounded-md flex items-center gap-2 backdrop-blur-sm shadow-xl">
                                 <ZapIcon className="w-3 h-3 text-amber-500 animate-pulse" />
@@ -208,7 +206,6 @@ export const OmniBuilderUI: React.FC<OmniBuilderUIProps> = ({ shards = 0 }) => {
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-10 custom-scrollbar font-mono space-y-8 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] relative z-20">
-                        {/* Floating Gold Background for Manifesting */}
                         {(isThinking || isDreaming) && (
                             <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden">
                                 {Array(40).fill(0).map((_, i) => (
@@ -282,10 +279,8 @@ export const OmniBuilderUI: React.FC<OmniBuilderUIProps> = ({ shards = 0 }) => {
                             </div>
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center relative py-20">
-                                {/* The "Crazy Me" Network Visualization */}
                                 <ChaosGraph />
                                 
-                                {/* Background Watermark Text matches screenshot */}
                                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none px-10">
                                     <div className="text-center transform -rotate-2 opacity-[0.04]">
                                         <p className="font-comic-header text-[7.5rem] leading-[0.85] uppercase italic font-black text-white">
@@ -301,7 +296,6 @@ export const OmniBuilderUI: React.FC<OmniBuilderUIProps> = ({ shards = 0 }) => {
                         )}
                     </div>
 
-                    {/* Footer Status Bar matches screenshot look */}
                     <div className="p-4 bg-white/5 border-t-2 border-white/10 flex justify-between items-center text-[8px] font-black uppercase text-gray-500 tracking-widest relative z-20">
                         <div className="flex gap-4">
                             <span>Status: <span className="text-green-500">STABLE</span></span>

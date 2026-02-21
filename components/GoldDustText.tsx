@@ -9,13 +9,7 @@ interface GoldDustTextProps {
 export const GoldDustText: React.FC<GoldDustTextProps> = ({ text, className, stride = 1.2 }) => {
   const words = useMemo(() => text.split(' '), [text]);
   
-  /**
-   * ABUNDANCE STRATEGY: Zero-Latency Revelation
-   * Stride ranges from 1.0 to 1.5 (The 33 1/2 Curve).
-   * Opacity scales to 1.0 as stride hits 1.5.
-   */
   const resonanceOpacity = useMemo(() => {
-    // Normalize stride 1.0-1.5 to 0.1-1.0
     return Math.max(0.1, (stride - 1.0) / 0.5);
   }, [stride]);
 

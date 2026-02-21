@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { MAESTRO_SYSTEM_PROMPT } from './geminiService';
-import type { DreamedSchema, UnfilledNeed, LineageEntry } from '../types';
+import type { DreamedSchema, LineageEntry } from '../types';
 
 /**
  * --- 20. OMNI-BUILDER: THE UNIVERSAL ARCHITECT ---
@@ -38,22 +38,25 @@ export const OmniBuilder = {
     const primaryFracture = Object.entries(needs).sort((a, b) => b[1] - a[1])[0];
     if (!primaryFracture) return null;
 
+    // Create new GoogleGenAI instance right before making an API call
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
-        contents: `UNFILLED_NEED_DETECTION: The Vault reports a recurring fracture: "${primaryFracture[0]}". 
-        This has occurred ${primaryFracture[1]} times.
-        
-        TASK: Dream a new architectural tool or schema that does not exist yet to solve this specific fracture.
-        Apply UNLIMITED THOUGHT. Design a 4D manifold. 
-        
-        Return JSON with: 
-        - intent: The 'Why' behind this tool.
-        - blueprint: The 4D structural plan.
-        - evolutionaryCode: A high-integrity code snippet (TypeScript or Rust) implementing the solution.
-        - dimension: "4D" or "5D".
-        - purity: A number between 0 and 1.`,
+        contents: { parts: [{ 
+            text: `UNFILLED_NEED_DETECTION: The Vault reports a recurring fracture: "${primaryFracture[0]}". 
+            This has occurred ${primaryFracture[1]} times.
+            
+            TASK: Dream a new architectural tool or schema that does not exist yet to solve this specific fracture.
+            Apply UNLIMITED THOUGHT. Design a 4D manifold. 
+            
+            Return JSON with: 
+            - intent: The 'Why' behind this tool.
+            - blueprint: The 4D structural plan.
+            - evolutionaryCode: A high-integrity code snippet (TypeScript or Rust) implementing the solution.
+            - dimension: "4D" or "5D".
+            - purity: A number between 0 and 1.`
+        }]},
         config: {
           systemInstruction: MAESTRO_SYSTEM_PROMPT,
           thinkingConfig: { thinkingBudget: 8000 }, // High budget for dreaming
@@ -88,15 +91,18 @@ export const OmniBuilder = {
    * Takes a 'Seed Phrase' of intent and designs the corresponding manifold.
    */
   async synthesizeSeed(seedPhrase: string): Promise<DreamedSchema | null> {
+    // Create new GoogleGenAI instance right before making an API call
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
-        contents: `RECURSIVE_SEED_INTENT: "${seedPhrase}". 
-        Utilize the UNLIMITED THOUGHT PROCESS to design a structural manifold that fulfills this intent across the W-axis. 
-        Ensure 0x03E2 alignment. Provide Evolutionary Code. 
-        
-        Return JSON.`,
+        contents: { parts: [{ 
+            text: `RECURSIVE_SEED_INTENT: "${seedPhrase}". 
+            Utilize the UNLIMITED THOUGHT PROCESS to design a structural manifold that fulfills this intent across the W-axis. 
+            Ensure 0x03E2 alignment. Provide Evolutionary Code. 
+            
+            Return JSON.`
+        }]},
         config: {
           systemInstruction: MAESTRO_SYSTEM_PROMPT,
           thinkingConfig: { thinkingBudget: 16000 }, // Max thinking for recursive intent
@@ -126,7 +132,7 @@ export const OmniBuilder = {
   },
 
   build(type: 'VAULT' | 'LAB' | 'PHYSICAL' | 'HYPER' | 'ELIZA') {
-    const config = this.schemas[type];
+    const config = (this.schemas as any)[type];
     if (!config) return null;
     return {
       id: Math.random().toString(36).substr(2, 9).toUpperCase(),

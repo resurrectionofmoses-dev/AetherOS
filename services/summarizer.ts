@@ -1,24 +1,23 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { estimateTokens } from '../utils';
 import type { ScoredItem, SimpleSummary } from '../types';
 import { MAESTRO_SYSTEM_PROMPT } from './geminiService';
 
 export class Summarizer {
-  private ai: GoogleGenAI;
-
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   }
 
   /**
    * Converts thought to vector. 
-   * Ensures the 'Technical Foundation' is a high-precision numeric array.
    */
   public async embed(text: string): Promise<number[]> {
+    // Create new GoogleGenAI instance right before making an API call
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
-      const response = await this.ai.models.embedContent({
+      const response = await ai.models.embedContent({
         model: 'text-embedding-004',
-        contents: text,
+        content: { parts: [{ text: text }] },
       });
       return Array.from(response.embeddings[0].values);
     } catch (e) {
@@ -27,13 +26,8 @@ export class Summarizer {
     }
   }
 
-  /**
-   * Level 1: Healing the text by removing redundant sentences.
-   * Maintains the structure while reducing the 'Token Tax'.
-   */
   public compressLevel1(text: string): string {
     if (!text) return "";
-    // Improved split to avoid breaking on abbreviations, matching refined Python logic
     const sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(s => s.length > 0);
     const seen = new Set<string>();
     const out: string[] = [];
@@ -48,15 +42,13 @@ export class Summarizer {
     return out.join(" ") + (out.length > 0 && !out[out.length-1].match(/[.!?]$/) ? "." : "");
   }
 
-  /**
-   * Level 2: Intent-focused distillation (Lossy).
-   * 4 concise lines preserving the core architectural intent.
-   */
-  public async compressLevel2(text: string): Promise<string> {
+  public async compressLevel2(textInput: string): Promise<string> {
+    // Create new GoogleGenAI instance right before making an API call
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Summarize into 4 concise lines preserving intent: ${text}`,
+        contents: { parts: [{ text: `Summarize into 4 concise lines preserving intent: ${textInput}` }] },
         config: {
           systemInstruction: MAESTRO_SYSTEM_PROMPT,
           maxOutputTokens: 120,
@@ -65,19 +57,17 @@ export class Summarizer {
       });
       return response.text?.trim() || "";
     } catch (e) {
-      return this.compressLevel1(text).slice(0, 500) + "... [STALLED]";
+      return this.compressLevel1(textInput).slice(0, 500) + "... [STALLED]";
     }
   }
 
-  /**
-   * Level 3: Forensic Checkpoint summary (Deep Compression).
-   * 1-2 lines capturing core intent and key facts for the Absolute Ledger.
-   */
-  public async compressLevel3(text: string): Promise<string> {
+  public async compressLevel3(textInput: string): Promise<string> {
+    // Create new GoogleGenAI instance right before making an API call
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     try {
-      const response = await this.ai.models.generateContent({
+      const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: `Distill into 1-2 lines capturing core intent and key facts: ${text}`,
+        contents: { parts: [{ text: `Distill into 1-2 lines capturing core intent and key facts: ${textInput}` }] },
         config: {
           systemInstruction: MAESTRO_SYSTEM_PROMPT,
           maxOutputTokens: 60,
@@ -90,10 +80,6 @@ export class Summarizer {
     }
   }
 
-  /**
-   * Logic for 'Thermostat' adjustment of the session budget.
-   * Dynamically selects compression level based on available block space.
-   */
   public chooseLevel(availableTokens: number, originalTokens: number): number {
     if (availableTokens >= originalTokens) return 0;
     if (availableTokens >= originalTokens * 0.6) return 1;
@@ -101,25 +87,21 @@ export class Summarizer {
     return 3;
   }
 
-  /**
-   * Orchestrates the compression of a logic shard based on the targeted level.
-   * Ensures the "Healed" state is manifest in the final summary output.
-   */
   public async compress(item: ScoredItem, targetLevel: number): Promise<SimpleSummary> {
     const original = item.raw_text;
     if (targetLevel === 0) {
       return { text: original, tokens: item.tokens, level: 0 };
     }
 
-    let text = "";
+    let finalStr = "";
     if (targetLevel === 1) {
-      text = this.compressLevel1(original);
+      finalStr = this.compressLevel1(original);
     } else if (targetLevel === 2) {
-      text = await this.compressLevel2(original);
+      finalStr = await this.compressLevel2(original);
     } else {
-      text = await this.compressLevel3(original);
+      finalStr = await this.compressLevel3(original);
     }
 
-    return { text, tokens: estimateTokens(text), level: targetLevel };
+    return { text: finalStr, tokens: estimateTokens(finalStr), level: targetLevel };
   }
 }

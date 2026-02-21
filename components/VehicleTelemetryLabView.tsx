@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
     SteeringWheelIcon, ActivityIcon, ZapIcon, GaugeIcon, SpinnerIcon, 
     ShieldIcon, TerminalIcon, LogicIcon, CheckCircleIcon, WarningIcon, 
-    SignalIcon, FireIcon, SearchIcon 
+    SignalIcon, FireIcon, SearchIcon, CodeIcon
 } from './icons';
 import type { LabComponentProps } from '../types';
 
@@ -201,6 +201,32 @@ export const VehicleTelemetryLabView: React.FC<LabComponentProps> = ({
 
         {/* Sidebar: Schema & Tools */}
         <div className="lg:col-span-4 space-y-8">
+            {/* Linked Forge Shards - NEW RELIABILITY PANEL */}
+            <div className="aero-panel bg-amber-950/20 border-4 border-amber-600/40 p-6 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-2 opacity-5"><CodeIcon className="w-20 h-20" /></div>
+                <h3 className="font-comic-header text-xl text-amber-500 uppercase italic mb-4 flex items-center gap-2">
+                    <TerminalIcon className="w-4 h-4" /> Linked Forge Shards
+                </h3>
+                <div className="space-y-3 relative z-10">
+                    <div className="p-3 bg-black/60 rounded-xl border-2 border-amber-600/40 group hover:border-amber-400 transition-all">
+                        <div className="flex justify-between items-center mb-1">
+                            <span className="text-[7px] font-black text-amber-600 uppercase">Task_ID: 0xRPM_01</span>
+                            {rpm > 0 && <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />}
+                        </div>
+                        <p className="text-[9px] font-bold text-white uppercase leading-tight">
+                            Track Engine RPM. Schema: &#123; value: number, unit: 'RPM' &#125;. 
+                        </p>
+                        <p className="text-[8px] text-gray-500 italic mt-1 leading-snug">
+                            "Real-time acquisition of rotational velocity."
+                        </p>
+                        <div className="mt-2 flex items-center gap-2">
+                            <div className="px-2 py-0.5 bg-amber-600 text-black text-[6px] font-black rounded uppercase">Active_Conduct</div>
+                            <span className="text-[7px] text-amber-900 font-mono">0x03E2_HARMONY</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div className="aero-panel bg-slate-900 p-6 border-4 border-black shadow-[8px_8px_0_0_#000] flex flex-col">
                 <h3 className="font-comic-header text-3xl text-amber-500 uppercase italic mb-6 border-b border-white/10 pb-2 flex items-center gap-2">
                     <LogicIcon className="w-6 h-6" /> Forensic Schema

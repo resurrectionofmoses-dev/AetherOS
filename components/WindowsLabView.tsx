@@ -33,7 +33,7 @@ export const WindowsLabView: React.FC<LabComponentProps> = ({
                 <h3 className="font-comic-header text-3xl text-white uppercase italic">Active Processes</h3>
             </div>
             <div className="space-y-3">
-                {['aetheros_core.exe', 'god_logic_filter.sys', 'conjunction_bridge.dll', 'misery_sync.com'].map(proc => (
+                {['aetheros_core.exe', 'god_logic_filter.sys', 'conjunction_bridge.dll', 'fight_sync.com'].map(proc => (
                     <div key={proc} className="p-4 bg-sky-950/20 border border-sky-800 rounded-xl flex justify-between items-center group hover:bg-sky-600/10 transition-all">
                         <span className="text-sm font-bold text-sky-300">{proc}</span>
                         <div className="flex items-center gap-4">

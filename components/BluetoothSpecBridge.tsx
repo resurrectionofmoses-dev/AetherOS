@@ -13,17 +13,18 @@ const PROTOCOLS: BluetoothProtocol[] = [
         lifecycle: 'Full-Scale',
         description: 'The definitive standard for bi-directional periodic advertising. Version 5.4 introduces Periodic Advertising with Responses (PAwR) and Encrypted Advertising Data (EAD). It enables massive-scale node synchronization (up to 32,767 nodes) using sub-event slotting, optimized for ultra-low power retail and industrial sensing environments.', 
         commonUUIDDetails: [
-            { uuid: '0x1857', meaning: 'Electronic Shelf Label (ESL) Service - Primary retail orchestration root.' },
+            { uuid: '0x1800', meaning: 'Generic Access Service - Essential root service for device discovery and connection parameters.' },
+            { uuid: '0x1801', meaning: 'Generic Attribute Service - Foundation service for GATT server configuration and indication management.' },
+            { uuid: '0x2A00', meaning: 'Device Name Characteristic - String representation of the conduction node identity.' },
+            { uuid: '0x2A01', meaning: 'Appearance Characteristic - Defines the forensic profile of the hardware (e.g., Sensor, Gateway).' },
+            { uuid: '0x1857', meaning: 'Electronic Shelf Label (ESL) Service - Primary retail orchestration root for 5.4 logic shards.' },
             { uuid: '0x2B84', meaning: 'ESL Address (UINT8) - Unique logical index for node addressing in PAwR sub-events.' },
-            { uuid: '0x2B85', meaning: 'ESL Control Point (OPCODE) - Write-only conduit for state transitions and image updates.' },
-            { uuid: '0x2B86', meaning: 'ESL Response (BITFIELD) - Real-time feedback shard containing battery and sensor telemetry.' },
-            { uuid: '0x2B88', meaning: 'ESL Current Time (UINT32) - Synchronized epoch for scheduled price/content updates.' },
-            { uuid: '0x2B87', meaning: 'EAD Key Material (OPAQUE) - Forensic entropy for Encrypted Advertising Data (v5.4).' },
+            { uuid: '0x2B85', meaning: 'ESL Control Point (OPCODE) - Write-only conduit for state transitions.' },
         ],
         designConstraints: [
             'Encryption Mandatory (AES-CCM / EAD)', 
+            'Connection Latency < 10ms (Rigid Constraint)', 
             'PAwR Sub-event Latency < 15ms', 
-            'Sub-event Synchronization (T_GAP)', 
             'LE Security Mode 1 Level 4 (FIPS)',
             'GATT Database Caching Required'
         ] 
@@ -366,7 +367,7 @@ export const BluetoothSpecBridge: React.FC = () => {
                                     </h4>
                                     <div className="space-y-2">
                                         {selectedProtocol.designConstraints.map((constraint, i) => (
-                                            <div key={i} className={`p-3 bg-black/40 border-2 rounded-xl flex items-center gap-3 ${constraint.includes('Mandatory') || constraint.includes('< 15ms') ? 'border-red-600 bg-red-950/10' : 'border-white/5'}`}>
+                                            <div key={i} className={`p-3 bg-black/40 border-2 rounded-xl flex items-center gap-3 ${constraint.includes('Mandatory') || constraint.includes('< 10ms') || constraint.includes('< 15ms') ? 'border-red-600 bg-red-950/10' : 'border-white/5'}`}>
                                                 {constraint.includes('Mandatory') ? <ZapIcon className="w-4 h-4 text-red-500" /> : <CheckCircleIcon className="w-4 h-4 text-amber-600" />}
                                                 <span className={`text-[10px] font-black uppercase ${constraint.includes('Mandatory') ? 'text-red-500' : 'text-gray-300'}`}>{constraint}</span>
                                             </div>

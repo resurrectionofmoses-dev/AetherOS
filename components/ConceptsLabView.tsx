@@ -37,7 +37,7 @@ export const ConceptsLabView: React.FC<LabComponentProps> = ({
             <div className="aero-panel bg-indigo-950/10 p-8 border-2 border-indigo-900/30 flex-1">
                 <h4 className="font-comic-header text-3xl text-indigo-400 uppercase italic mb-6">Future Logic Shards</h4>
                 <div className="space-y-4">
-                    {['Neural Harmony v2', 'Predictive Misery Scanners', 'Ecstasy Buffer Overdrive'].map(shard => (
+                    {['Neural Harmony v2', 'Predictive Survival Scanners', 'Ecstasy Buffer Overdrive'].map(shard => (
                         <div key={shard} className="p-4 bg-black/40 border border-white/5 rounded-2xl flex items-center gap-4 group hover:border-indigo-500 transition-all cursor-pointer">
                             <ZapIcon className="w-5 h-5 text-indigo-700 group-hover:text-indigo-400" />
                             <span className="text-sm font-bold text-indigo-200">{shard}</span>

@@ -1,12 +1,8 @@
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { SavedModule, PinnedItem, PinType, ModuleMix } from '../types';
 import { ImplementationFileBlock } from './ImplementationFileBlock';
-// Fixed CheckCircleIcon, FlaskIcon and ZapIcon imports
 import { PackageIcon, XIcon, PinIcon, ActivityIcon, SpinnerIcon, SearchIcon, ZapIcon, MusicIcon, FlaskIcon, CodeIcon, ChevronDownIcon, PlusIcon, CheckCircleIcon } from './icons';
-import { generateSoftwareModule } from '../services/geminiService';
 import { v4 as uuidv4 } from 'uuid';
-// Added GoogleGenAI import
 import { GoogleGenAI } from "@google/genai";
 
 interface SimulationTerminalProps {
@@ -109,7 +105,7 @@ export const RoomOfPlayView: React.FC<RoomOfPlayViewProps> = ({ modules, onDelet
 
   const handleToggleMixMode = () => {
     setMixMode(prev => {
-        if (prev) { // Exiting mix mode, clear selections
+        if (prev) {
             setSelectedMixModules([]);
             setMixResultText('');
         }
@@ -133,18 +129,17 @@ export const RoomOfPlayView: React.FC<RoomOfPlayViewProps> = ({ modules, onDelet
     setIsMixing(true);
     setMixResultText('Synthesizing new neural blend...');
 
-    const prompt = `Mix the functionalities of these two software modules:
+    const promptText = `Mix the functionalities of these two software modules:
     Module 1: Name: ${selectedMixModules[0].name}, Code: \`${selectedMixModules[0].files[0]?.code || 'N/A'}\`
     Module 2: Name: ${selectedMixModules[1].name}, Code: \`${selectedMixModules[1].files[0]?.code || 'N/A'}\`
     
     Describe the synergistic outcome and potential new capabilities of this blended module. Provide a conceptual name for the mixed module. Max 200 words.`;
 
     try {
-        // Initialize ai with proper config
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
             model: 'gemini-3-flash-preview',
-            contents: prompt,
+            contents: promptText,
             config: {
                 systemInstruction: "You are the Aether Maestro. Provide creative, conceptual descriptions of mixed software modules, focusing on synergy and new features. Use vivid, evocative language.",
                 temperature: 0.8,

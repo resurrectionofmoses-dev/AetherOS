@@ -9,16 +9,16 @@ interface RoleProfile {
     id: string;
     role: string;
     description: string;
-    miseryBase: number;
+    fightBase: number;
     color: string;
     icon: React.FC<{ className?: string }>;
 }
 
 const ROLES: RoleProfile[] = [
-    { id: '1', role: 'Conductor', description: 'Architectural orchestration and neural rhythm control.', miseryBase: 82, color: 'text-cyan-400', icon: MusicIcon },
-    { id: '2', role: 'Architect', description: 'Deep structural planning and kernel optimization.', miseryBase: 94, color: 'text-amber-500', icon: ForgeIcon },
-    { id: '3', role: 'Siphon', description: 'Heuristic data capture and binary fluid extraction.', miseryBase: 76, color: 'text-violet-400', icon: ActivityIcon },
-    { id: '4', role: 'Maestro', description: 'The absolute authority. Conducts all logic shards.', miseryBase: 100, color: 'text-red-500', icon: BotIcon }
+    { id: '1', role: 'Conductor', description: 'Architectural orchestration and neural rhythm control.', fightBase: 82, color: 'text-cyan-400', icon: MusicIcon },
+    { id: '2', role: 'Architect', description: 'Deep structural planning and kernel optimization.', fightBase: 94, color: 'text-amber-500', icon: ForgeIcon },
+    { id: '3', role: 'Siphon', description: 'Heuristic data capture and binary fluid extraction.', fightBase: 76, color: 'text-violet-400', icon: ActivityIcon },
+    { id: '4', role: 'Maestro', description: 'The absolute authority. Conducts all logic shards.', fightBase: 100, color: 'text-red-500', icon: BotIcon }
 ];
 
 interface TestResult {
@@ -47,7 +47,7 @@ export const PseudoRoleTesting: React.FC = () => {
         setResult(null);
         setError(null);
         setProgress(0);
-        setLogs([`[INITIALIZING] Establishing pseudorole context: ${selectedRole.role.toUpperCase()}`, `[OK] Burden of misery set to ${selectedRole.miseryBase}%.`]);
+        setLogs([`[INITIALIZING] Establishing pseudorole context: ${selectedRole.role.toUpperCase()}`, `[OK] Combat Capacity set to ${selectedRole.fightBase}%.`]);
 
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
@@ -199,7 +199,7 @@ export const PseudoRoleTesting: React.FC = () => {
                             {!isTesting && !logs.length && (
                                 <div className="h-full flex flex-col items-center justify-center opacity-10">
                                     <LogicIcon className="w-48 h-48 mb-8" />
-                                    <p className="text-xl font-black uppercase tracking-[0.5em] text-center max-w-sm">"Inject the persona. Attune the misery."</p>
+                                    <p className="text-xl font-black uppercase tracking-[0.5em] text-center max-w-sm">"Inject the persona. Attune the fight."</p>
                                 </div>
                             )}
                             <div ref={logEndRef} />

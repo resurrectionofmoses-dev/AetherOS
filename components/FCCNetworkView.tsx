@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
     StarIcon, 
@@ -40,7 +38,7 @@ export const FCCNetworkView: React.FC<FCCNetworkViewProps> = ({ projects, setPro
     const globalStats = useMemo(() => ({
         total: projects.length,
         harmonized: projects.filter(p => p.isWisdomHarmonized).length,
-        avgMisery: projects.length ? Math.round(projects.reduce((acc, p) => acc + p.miseryScore, 0) / projects.length) : 0,
+        avgFight: projects.length ? Math.round(projects.reduce((acc, p) => acc + p.fightVector, 0) / projects.length) : 0,
         stride: 1.2
     }), [projects]);
 
@@ -71,7 +69,7 @@ export const FCCNetworkView: React.FC<FCCNetworkViewProps> = ({ projects, setPro
             id: uuidv4(),
             title: newTitle,
             description: 'A newly manifested logic shard in the FCC command grid.',
-            miseryScore: 65,
+            fightVector: 65,
             crazyLevel: 8,
             status: 'IDEATING',
             isWisdomHarmonized: false,
@@ -111,12 +109,12 @@ export const FCCNetworkView: React.FC<FCCNetworkViewProps> = ({ projects, setPro
 
                 <div className="flex gap-3.5 items-center">
                     <div className="text-right">
-                        <p className="text-[6px] text-gray-600 font-black uppercase mb-0.5">Global Misery Index</p>
+                        <p className="text-[6px] text-gray-600 font-black uppercase mb-0.5">Global Fight Index</p>
                         <div className="flex items-center gap-1">
                              <div className="w-20 h-0.5 bg-gray-800 rounded-full overflow-hidden border border-black">
-                                <div className="h-full bg-red-600 shadow-[0_0_4px_red]" style={{ width: `${globalStats.avgMisery}%` }} />
+                                <div className="h-full bg-red-600 shadow-[0_0_4px_red]" style={{ width: `${globalStats.avgFight}%` }} />
                              </div>
-                             <span className="text-red-500 font-black text-[10px]">{globalStats.avgMisery}%</span>
+                             <span className="text-red-500 font-black text-[10px]">{globalStats.avgFight}%</span>
                         </div>
                     </div>
                     <button onClick={() => setIsAdding(true)} className="vista-button px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-black rounded-md font-black uppercase text-xs tracking-widest flex items-center gap-1 shadow-[2px_2px_0_0_#000] transition-all active:translate-y-0.5">
@@ -153,11 +151,11 @@ export const FCCNetworkView: React.FC<FCCNetworkViewProps> = ({ projects, setPro
                                     </div>
                                     <p className="font-bold text-white text-[11px] truncate uppercase tracking-tight">{p.title}</p>
                                     <div className="mt-2 flex justify-between items-center text-[5px] font-black uppercase text-gray-600">
-                                        <span>Reliability</span>
-                                        <span>{p.miseryScore}%</span>
+                                        <span>Survival</span>
+                                        <span>{p.fightVector}%</span>
                                     </div>
                                     <div className="h-0.5 bg-gray-950 rounded-full mt-0.5 overflow-hidden">
-                                        <div className="h-full bg-amber-600 transition-all duration-500" style={{ width: `${p.miseryScore}%` }} />
+                                        <div className="h-full bg-amber-600 transition-all duration-500" style={{ width: `${p.fightVector}%` }} />
                                     </div>
                                 </button>
                             ))}

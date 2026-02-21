@@ -1,5 +1,6 @@
+
 import React, { useMemo, useState } from 'react';
-import type { SystemStatus, VehicleSystem, MainView } from '../types';
+import type { SystemStatus, MainView, SystemState, SystemGovernance, SoundscapeType } from '../types';
 import { 
     EngineIcon, BatteryIcon, NavigationIcon, InfotainmentIcon, 
     WrenchIcon, ServerIcon, ZapIcon, SignalIcon, MusicIcon, 
@@ -11,8 +12,15 @@ import {
     TestTubeIcon, WindowsIcon, LinuxIcon, AppleIcon, MissionIcon, PhoneIcon,
     ScaleIcon, BookIcon, MovieIcon, ClockIcon, GlobeIcon, ChevronDownIcon,
     CalendarIcon, FlagIcon, BrainIcon, ShieldIcon, HomeIcon, VaultIcon,
-    TerminalIcon, MessageCircleIcon, GemIcon as StoreIcon, FireIcon, GaugeIcon
+    TerminalIcon, MessageCircleIcon, EyeIcon, OptimizerIcon,
+    FireIcon, GaugeIcon, LockIcon, SpeakerIcon
 } from './icons';
+
+const GridIcon: React.FC<{className?: string}> = ({className}) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z" /><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5" />
+    </svg>
+);
 
 interface SidebarProps {
   systemStatus: SystemStatus;
@@ -25,6 +33,9 @@ interface SidebarProps {
   unlockedViews: MainView[];
   onToggleTerminal: () => void;
   isTerminal: boolean;
+  governance?: SystemGovernance;
+  soundscape?: SoundscapeType;
+  onSetSoundscape?: (type: SoundscapeType) => void;
 }
 
 interface NavSection {
@@ -33,93 +44,76 @@ interface NavSection {
     items: { view: MainView; text: string; icon: React.FC<{className?: string}> }[];
 }
 
+const navigationSections: NavSection[] = [
+  {
+      title: 'Net Folder (Root)',
+      path: 'root://coding_network',
+      items: [
+          { view: 'chat', text: 'NEURAL NEXUS', icon: BrainIcon },
+          { view: 'constraints_audit' as any, text: 'CONSTRAINTS AUDIT', icon: SearchIcon },
+          { view: 'voice_authority' as any, text: 'VOICE AUTHORITY', icon: SpeakerIcon },
+          { view: 'quantum_ledger' as any, text: 'QUANTUM AUDIT', icon: ScaleIcon },
+          { view: 'cellular_grid' as any, text: 'CELLULAR GRID', icon: ActivityIcon },
+          { view: 'absolute_reliability_network', text: 'RELIABILITY NET', icon: ShieldIcon },
+          { view: 'coding_network', text: 'NET DIRECTIVES', icon: GlobeIcon },
+          { view: 'universal_search', text: 'UNIVERSAL SEARCH', icon: SearchIcon },
+          { view: 'gold_conjunction', text: 'GOLD CONJUNCTION', icon: GemIcon },
+          { view: 'shard_store', text: 'SHARD STORE', icon: GemIcon },
+          { view: 'conjunction_gates', text: 'CONJUNCTION GATES', icon: SignalIcon },
+          { view: 'projects', text: 'CRAZY PROJECTS', icon: CodeIcon },
+          { view: 'forge', text: 'BLUEPRINT FORGE', icon: ForgeIcon },
+          { view: 'covenant', text: 'NETWORK COVENANT', icon: RulesIcon },
+          { view: 'verification_gates', text: 'VERIFICATION GATES', icon: ShieldIcon },
+      ]
+  },
+  {
+      title: 'Core Systems',
+      path: 'root://os/kernel',
+      items: [
+          { view: 'system_exhaustion', text: 'TOTAL EXHAUSTION', icon: FireIcon },
+          { view: 'project_chronos', text: 'PROJECT CHRONOS', icon: ClockIcon },
+          { view: 'build_logs', text: 'BUILD LOGS', icon: TerminalIcon },
+          { view: 'rt_ipc_lab', text: 'RT-IPC LAB', icon: SignalIcon },
+          { view: 'sovereign_shield', text: 'SOVEREIGN SHIELD', icon: ShieldIcon },
+          { view: 'spectre_browser', text: 'SPECTRE BROWSER', icon: EyeIcon },
+          { view: 'unified_chain', text: 'UNIFIED CHAIN', icon: ShieldIcon },
+          { view: 'fuel_optimizer', text: 'FUEL OPTIMIZER', icon: OptimizerIcon },
+          { view: 'vault', text: 'CONJUNCTION HUB', icon: VaultIcon },
+          { view: 'healing_matrix', text: 'HEALING MATRIX', icon: FireIcon },
+          { view: 'laws_justice_lab', text: 'LAWS & JUSTICE', icon: GavelIcon },
+          { view: 'requindor_scroll', text: 'REQUINDOR SCROLL', icon: ActivityIcon },
+          { view: 'omni_builder', text: 'OMNI BUILDER', icon: ForgeIcon },
+          { view: 'singularity_engine', text: 'SINGULARITY', icon: ActivityIcon },
+          { view: 'diagnostics', text: 'FORENSIC AUDIT', icon: WrenchIcon },
+          { view: 'communications', text: 'SIGNAL BRIDGE', icon: BroadcastIcon },
+          { view: 'up_north', text: 'UP NORTH PROTOCOL', icon: ShieldIcon },
+          { view: 'device_link', text: 'DEVICE LINK', icon: ShareIcon },
+          { view: 'bluetooth_bridge', text: 'BLUETOOTH SIG', icon: SignalIcon },
+          { view: 'launch_center', text: 'LAUNCH CENTER', icon: FlagIcon },
+          { view: 'eliza_terminal', text: 'ELIZA LOGIC', icon: MessageCircleIcon },
+      ]
+  }
+];
+
 export const Sidebar: React.FC<SidebarProps> = ({ 
-  systemStatus, currentView, onSetView, currentDateTime, 
-  timeFormat, onToggleTimeFormat, unlockedViews, 
-  onToggleTerminal, isTerminal 
+  systemStatus, 
+  currentView, 
+  onSetView, 
+  currentDateTime, 
+  timeFormat, 
+  onToggleTimeFormat, 
+  unlockedViews, 
+  onToggleTerminal, 
+  isTerminal, 
+  governance,
+  soundscape, 
+  onSetSoundscape
 }) => {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const toggleSection = (title: string) => {
       setCollapsed(prev => ({ ...prev, [title]: !prev[title] }));
   };
-
-  const navigationSections: NavSection[] = [
-    {
-        title: 'Net Folder (Root)',
-        path: 'root://coding_network',
-        items: [
-            { view: 'chat', text: 'NEURAL NEXUS', icon: BrainIcon },
-            { view: 'coding_network', text: 'NET DIRECTIVES', icon: GlobeIcon },
-            { view: 'gold_conjunction', text: 'GOLD CONJUNCTION', icon: GemIcon },
-            { view: 'shard_store', text: 'SHARD STORE', icon: StoreIcon },
-            { view: 'conjunction_gates', text: 'CONJUNCTION GATES', icon: SignalIcon },
-            { view: 'projects', text: 'CRAZY PROJECTS', icon: CodeIcon },
-            { view: 'forge', text: 'BLUEPRINT FORGE', icon: ForgeIcon },
-            { view: 'covenant', text: 'NETWORK COVENANT', icon: RulesIcon },
-            { view: 'verification_gates', text: 'VERIFICATION GATES', icon: ShieldIcon },
-        ]
-    },
-    {
-        title: 'Core Systems',
-        path: 'root://os/kernel',
-        items: [
-            { view: 'unified_chain', text: 'UNIFIED CHAIN', icon: ShieldIcon },
-            { view: 'vault', text: 'CONJUNCTION HUB', icon: VaultIcon },
-            { view: 'healing_matrix', text: 'HEALING MATRIX', icon: FireIcon },
-            { view: 'omni_builder', text: 'OMNI BUILDER', icon: ForgeIcon },
-            { view: 'singularity_engine', text: 'SINGULARITY', icon: ActivityIcon },
-            { view: 'diagnostics', text: 'FORENSIC AUDIT', icon: WrenchIcon },
-            { view: 'communications', text: 'SIGNAL BRIDGE', icon: BroadcastIcon },
-            { view: 'up_north', text: 'UP NORTH PROTOCOL', icon: ShieldIcon },
-            { view: 'device_link', text: 'DEVICE LINK', icon: ShareIcon },
-            { view: 'bluetooth_bridge', text: 'BLUETOOTH SIG', icon: SignalIcon },
-            { view: 'launch_center', text: 'LAUNCH CENTER', icon: FlagIcon },
-            { view: 'eliza_terminal', text: 'ELIZA LOGIC', icon: MessageCircleIcon },
-        ]
-    },
-    {
-        title: 'Logic Shards (Labs)',
-        path: 'root://labs/dev',
-        items: [
-            { view: 'fuel_optimizer', text: 'FUEL OPTIMIZER', icon: GaugeIcon },
-            { view: 'hyper_spatial_lab', text: 'HYPER-SPATIAL', icon: SignalIcon },
-            { view: 'engineering_lab', text: 'ENGINEERING', icon: BuildIcon },
-            { view: 'hard_code_lab', text: 'HARD CODE', icon: CodeIcon },
-            { view: 'truth_lab', text: 'TRUTH LAB', icon: TruthIcon },
-            { view: 'testing_lab', text: 'STRESS TESTING', icon: TestTubeIcon },
-            { view: 'kinetics_lab', text: 'KINETICS', icon: ThermometerIcon },
-            { view: 'quantum_theory_lab', text: 'QUANTUM', icon: AtomIcon },
-            { view: 'chemistry_lab', text: 'CHEMISTRY', icon: FlaskIcon },
-            { view: 'race_lab', text: 'RACE LAB', icon: FlagIcon },
-            { view: 'paleontology_lab', text: 'PALEONTOLOGY', icon: DinoIcon },
-            { view: 'raw_mineral_lab', text: 'RAW MINERAL', icon: StoreIcon },
-            { view: 'clothing_lab', text: 'CLOTHING', icon: ShirtIcon },
-            { view: 'concepts_lab', text: 'CONCEPTS', icon: ConceptIcon },
-            { view: 'sanitization_lab', text: 'SANITIZATION', icon: CleanIcon },
-            { view: 'laws_justice_lab', text: 'LAWS & JUSTICE', icon: GavelIcon },
-            { view: 'windows_lab', text: 'WINDOWS OS', icon: WindowsIcon },
-            { view: 'linux_lab', text: 'LINUX OS', icon: LinuxIcon },
-            { view: 'mac_os_lab', text: 'MAC OS', icon: AppleIcon },
-            { view: 'apple_lab', text: 'APPLE SYSTEM', icon: AppleIcon },
-            { view: 'mission_lab', text: 'MISSION OPS', icon: MissionIcon },
-            { view: 'cell_phone_lab', text: 'CELL PHONE', icon: PhoneIcon },
-            { view: 'sampling_lab', text: 'SAMPLING', icon: ScaleIcon },
-            { view: 'pornography_studio', text: 'PORN STUDIO', icon: MovieIcon },
-            { view: 'vehicle_telemetry_lab', text: 'VEHICLE TELEMETRY', icon: SteeringWheelIcon },
-        ]
-    },
-    {
-        title: 'Mentorship & Wisdom',
-        path: 'root://users/wisdom',
-        items: [
-            { view: 'coding_network_teachers', text: 'FACULTY HUB', icon: UserIcon },
-            { view: 'enlightenment_pool', text: 'ENLIGHTENMENT', icon: BrainIcon },
-            { view: 'library_view', text: 'ARCHIVE LIBRARY', icon: BookOpenIcon },
-            { view: 'timeline', text: 'RESILIENCE ROADMAP', icon: ClockIcon },
-        ]
-    }
-  ];
 
   const formattedTime = useMemo(() => {
     const options: Intl.DateTimeFormatOptions = timeFormat === '12hr'
@@ -128,22 +122,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return currentDateTime.toLocaleTimeString('en-US', options);
   }, [currentDateTime, timeFormat]);
 
-  const currentPath = useMemo(() => {
-      const section = navigationSections.find(s => s.items.some(i => i.view === currentView));
-      return section ? section.path : 'root://aetheros';
-  }, [currentView]);
-
   return (
     <aside className="w-60 h-full flex-shrink-0 flex flex-col bg-[#050505] border-r-4 border-black z-50">
       <div className="p-3 bg-slate-900 border-b-4 border-black flex flex-col">
           <div className="flex items-center justify-between">
             <h2 className="font-comic-header text-2xl text-red-500 wisdom-glow italic tracking-tighter">AetherOS</h2>
             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping shadow-[0_0_8px_green]" />
-          </div>
-          <div className="bg-black/60 rounded px-2 py-1 mt-2 border border-white/5 overflow-hidden">
-              <span className="text-[7px] font-mono text-cyan-500 uppercase whitespace-nowrap block animate-marquee">
-                {currentPath}
-              </span>
           </div>
       </div>
       
@@ -159,7 +143,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 custom-scrollbar space-y-5 pb-10">
-            {/* Terminal Mode Toggle Injection */}
             <div className="px-1 mb-4">
                 <button 
                     onClick={onToggleTerminal}
@@ -187,6 +170,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 {section.items.map(({ view, text, icon: Icon }) => {
                                     const isActive = currentView === view;
                                     const isLocked = !unlockedViews.includes(view);
+                                    if (!Icon) return null;
                                     return (
                                         <button
                                             key={view}
@@ -199,9 +183,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                             <span className={`text-[10px] font-black uppercase tracking-tighter ${isActive ? 'text-white' : (isLocked ? 'text-gray-700' : 'text-gray-400')}`}>
                                                 {isLocked ? 'REDACTED' : text}
                                             </span>
-                                            {isActive && (
-                                                <div className="ml-auto w-1 h-1 rounded-full bg-white animate-pulse" />
-                                            )}
                                         </button>
                                     );
                                 })}
@@ -210,18 +191,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     </div>
                 );
             })}
-      </div>
-
-      <div className="p-4 bg-black border-t-2 border-white/5 space-y-3">
-          <p className="text-[7px] font-black text-gray-700 uppercase tracking-[0.3em] text-center">Root Command Relay</p>
-          <div className="flex justify-center gap-2">
-            {['OS', 'NET', 'LAB', 'USR'].map(s => (
-                <div key={s} className="flex flex-col items-center gap-1">
-                    <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse shadow-[0_0_6px_red]" />
-                    <span className="text-[5px] text-gray-800 font-bold uppercase">{s}</span>
-                </div>
-            ))}
-          </div>
       </div>
     </aside>
   );

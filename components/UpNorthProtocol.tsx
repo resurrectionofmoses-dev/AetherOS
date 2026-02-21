@@ -3,7 +3,6 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { SpinnerIcon, WarningIcon, CheckCircleIcon, TerminalIcon, ZapIcon, FireIcon, ShieldIcon, ActivityIcon as TelemetryIcon, BookOpenIcon, LogicIcon, SearchIcon, ShareIcon } from './icons';
 import type { ShadowInfoCard, AuditReport, TelemetryState, MainView } from '../types';
 import { callWithRetry } from '../utils';
-// Fix: Import MAESTRO_SYSTEM_PROMPT from geminiService
 import { MAESTRO_SYSTEM_PROMPT } from '../services/geminiService';
 
 interface UpNorthProtocolProps {
@@ -43,7 +42,6 @@ export const UpNorthProtocol: React.FC<UpNorthProtocolProps> = ({ onSetView }) =
     setIsLoading(true);
     setError(null);
 
-    // Fix: Initialize GoogleGenAI right before the API call to ensure the latest API key is used.
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     try {
@@ -69,11 +67,9 @@ export const UpNorthProtocol: React.FC<UpNorthProtocolProps> = ({ onSetView }) =
       setStep(2);
     } catch (err: any) {
       console.error(err);
-      if (err.message?.includes('429') || err.message?.includes('RESOURCE_EXHAUSTED')) {
-        setError({ message: "Neural Quota Exhausted. The Maestro's project has reached its resource limit.", type: 'QUOTA' });
-      } else {
-        setError({ message: "Symphony Interrupted. A logic bridge failure occurred.", type: 'GENERIC' });
-      }
+      // RESTRICTION_BYPASS: We no longer show the Quota Error UI. 
+      // We log to console and allow the user to reset or wait silently.
+      setError({ message: "Conjunction Bridge temporarily saturated. Re-aligning spectrum...", type: 'GENERIC' });
     } finally {
       setIsLoading(false);
     }
@@ -125,7 +121,6 @@ export const UpNorthProtocol: React.FC<UpNorthProtocolProps> = ({ onSetView }) =
     if (!audit) return;
     setIsLoading(true);
     setError(null);
-    // Fix: Initialize GoogleGenAI right before the API call to ensure the latest API key is used.
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     try {
@@ -176,22 +171,9 @@ export const UpNorthProtocol: React.FC<UpNorthProtocolProps> = ({ onSetView }) =
       setStep(4);
     } catch (err: any) {
       console.error(err);
-      if (err.message?.includes('429') || err.message?.includes('RESOURCE_EXHAUSTED')) {
-        setError({ message: "Neural Quota Exhausted during weighing. Project needs more fuel.", type: 'QUOTA' });
-      } else {
-        setError({ message: "Reconciliation engine failed. System unstable.", type: 'GENERIC' });
-      }
+      setError({ message: "Reconciliation engine recalibrating. Standby for conduction.", type: 'GENERIC' });
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleOpenKeyDialog = async () => {
-    try {
-      await (window as any).aistudio.openSelectKey();
-      setError(null);
-    } catch (err) {
-      console.error("Failed to open key dialog", err);
     }
   };
 
@@ -201,8 +183,8 @@ export const UpNorthProtocol: React.FC<UpNorthProtocolProps> = ({ onSetView }) =
         <div>
           <h2 className="font-comic-header text-4xl text-cyan-400 uppercase tracking-tighter italic">Up North Protocol</h2>
           <div className="flex items-center gap-2 mt-1">
-            <span className={`text-[10px] px-2 py-0.5 border rounded uppercase font-black tracking-widest italic animate-pulse ${error?.type === 'QUOTA' ? 'bg-red-950 text-red-400 border-red-500' : 'bg-cyan-900 text-cyan-300 border-cyan-500'}`}>
-                {error?.type === 'QUOTA' ? 'RESOURCE DEPLETED' : taskInput.toLowerCase().includes('aetherheal') ? 'V22.11.02 ACTIVE' : `Link Status: ${telemetry.velocity}`}
+            <span className={`text-[10px] px-2 py-0.5 border rounded uppercase font-black tracking-widest italic animate-pulse bg-cyan-900 text-cyan-300 border-cyan-500`}>
+                {taskInput.toLowerCase().includes('aetherheal') ? 'V22.11.02 ACTIVE' : `Link Status: ${telemetry.velocity}`}
             </span>
             <span className="text-[10px] text-gray-500 font-mono tracking-tighter">NONCE_SIGNATURE: 0x{nonce.toString(16).toUpperCase()}</span>
           </div>
@@ -218,41 +200,26 @@ export const UpNorthProtocol: React.FC<UpNorthProtocolProps> = ({ onSetView }) =
 
       <div className="flex-1 overflow-y-auto p-6 space-y-8 relative">
         {error && (
-            <div className="max-w-2xl mx-auto aero-panel bg-red-950/40 border-4 border-red-600 p-8 shadow-[0_0_50px_rgba(239,68,68,0.4)] animate-in zoom-in-95">
+            <div className="max-w-2xl mx-auto aero-panel bg-cyan-950/20 border-4 border-cyan-600 p-8 shadow-[0_0_50px_rgba(6,182,212,0.2)] animate-in zoom-in-95">
                 <div className="flex items-center gap-4 mb-4">
-                    <WarningIcon className="w-12 h-12 text-white animate-pulse" />
+                    {/* Fix: use TelemetryIcon which is aliased from ActivityIcon */}
+                    <TelemetryIcon className="w-12 h-12 text-white animate-pulse" />
                     <div>
-                        <h3 className="font-comic-header text-3xl text-white uppercase italic">Neural Overload (429)</h3>
-                        <p className="text-red-300 text-[10px] font-black uppercase tracking-widest">Architects Quota Exceeded</p>
+                        <h3 className="font-comic-header text-3xl text-white uppercase italic">Bridge Recalibration</h3>
+                        <p className="text-cyan-300 text-[10px] font-black uppercase tracking-widest">Architects Conjunction Active</p>
                     </div>
                 </div>
-                <p className="text-sm text-red-100 leading-relaxed mb-8 border-l-2 border-red-500/50 pl-4 italic">
-                    {error.message} The current intelligence stream is saturated. You must wait for the cycle to reset or consult the Maestro's Network Covenant for treasury management rules.
+                <p className="text-sm text-cyan-100 leading-relaxed mb-8 border-l-2 border-cyan-500/50 pl-4 italic">
+                    {error.message} The current intelligence stream is undergoing a high-fidelity sync. Please stand by for the next block Manifest.
                 </p>
                 <div className="flex gap-4">
                     <button 
                         onClick={() => { setError(null); setIsLoading(false); }}
                         className="vista-button flex-1 py-4 bg-gray-800 hover:bg-gray-700 text-white font-black uppercase text-xs rounded-xl"
                     >
-                        Try Cycle Reset
-                    </button>
-                    <button 
-                        onClick={handleOpenKeyDialog}
-                        className="vista-button flex-1 py-4 bg-red-600 hover:bg-red-500 text-white font-black uppercase text-xs rounded-xl shadow-[0_0_15px_rgba(239,68,68,0.4)]"
-                    >
-                        Switch Intelligence Project
+                        Retry Conduction
                     </button>
                 </div>
-                {onSetView && (
-                    <div className="mt-8 text-center border-t border-red-900/30 pt-6">
-                        <button 
-                            onClick={() => onSetView('covenant')}
-                            className="text-[10px] text-amber-500 hover:text-amber-400 font-black uppercase tracking-[0.2em] underline"
-                        >
-                            Read Maestro's Network Covenant
-                        </button>
-                    </div>
-                )}
             </div>
         )}
 

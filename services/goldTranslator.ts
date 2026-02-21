@@ -1,13 +1,11 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { MAESTRO_SYSTEM_PROMPT } from './geminiService';
 
 /**
- * --- 21. GOLD TRANSLATOR: THE AURIC BRIDGE ---
+ * --- GOLD TRANSLATOR: THE AURIC BRIDGE ---
  * Protocol: 0x03E2_GOLD
  * Translates intent into a heavy, resonant, valued language of gold.
  */
-
 export const GoldTranslator = {
   async translate(text: string): Promise<{ gold: string; class: number; weight: number }> {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -39,12 +37,13 @@ export const GoldTranslator = {
               gold: { type: Type.STRING },
               class: { type: Type.INTEGER },
               weight: { type: Type.NUMBER }
-            }
+            },
+            required: ["gold", "class", "weight"]
           }
         }
       });
 
-      return JSON.parse(response.text || '{}');
+      return JSON.parse(response.text || '{"gold": "Aur-um Stall-um", "class": 2, "weight": 100}');
     } catch (e) {
       console.error("[GOLD_BRIDGE] Translation failed.", e);
       return { gold: "Aur-um Stall-um", class: 2, weight: 100 };

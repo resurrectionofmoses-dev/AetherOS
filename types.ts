@@ -1,514 +1,366 @@
-import { Chat } from '@google/genai';
 
-export type Mode = 'aetheros';
-export type AccessTier = 'USER' | 'ROOT';
-
-export type MainView = 'chat' | 'diagnostics' | 'prompts' | 'workshop' | 'communications' | 'vault' | 'room_of_play' | 'command_deck' | 'strategic_overview' | 'device_link' | 'system_archives' | 'forge' | 'singularity_engine' | 'up_north' | 'code_agent' | 'projects' | 'nexus' | 'zurich' | 'enlightenment_pool' | 'pseudorole_testing' | 'integrity_network' | 'launch_center' | 'network_sentinel' | 'bluetooth_bridge' | 'packaging_suite' | 'coding_network' | 'covenant' | 'fcc_network' | 'timeline' | 'collaborative_playlist' | 'engineering_lab' | 'kinetics_lab' | 'quantum_theory_lab' | 'race_lab' | 'chemistry_lab' | 'paleontology_lab' | 'raw_mineral_lab' | 'clothing_lab' | 'concepts_lab' | 'sanitization_lab' | 'laws_justice_lab' | 'truth_lab' | 'testing_lab' | 'windows_lab' | 'linux_lab' | 'mac_os_lab' | 'apple_lab' | 'mission_lab' | 'coding_network_teachers' | 'cell_phone_lab' | 'sampling_lab' | 'hard_code_lab' | 'library_view' | 'pornography_studio' | 'verification_gates' | 'vehicle_telemetry_lab' | 'conjunction_gates' | 'unified_chain' | 'hyper_spatial_lab' | 'eliza_terminal' | 'shard_store' | 'omni_builder' | 'gold_conjunction' | 'healing_matrix' | 'fuel_optimizer';
-
-export interface FuelOptimizationSuggestion {
-  title: string;
-  reasoning: string;
-  impact: number;
-  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
-}
-
-export interface GoldShard {
-  id: string;
-  originalIntent: string;
-  goldTranslation: string;
-  valueClass: 1 | 2 | 3;
-  weight: number;
-  timestamp: number;
-}
-
-export interface UnfilledNeed {
-  signature: string;
-  count: number;
-  lastOccurrence: number;
-  description: string;
-}
-
-export interface DreamedSchema {
-  id: string;
-  intent: string;
-  blueprint: string;
-  evolutionaryCode: string;
-  dimension: '3D' | '4D' | '5D';
-  purity: number;
-}
-
-export interface StoreItem {
-  id: string;
-  name: string;
-  description: string;
-  cost: number;
-  icon: React.FC<{ className?: string }>;
-  category: 'NEURAL' | 'SISTER' | 'GEAR';
-  unlocked?: boolean;
-}
-
-export interface Vector4D {
-  x: number;
-  y: number;
-  z: number;
-  w: number;
-}
-
-export interface Vector3D {
-  x: number;
-  y: number;
-  z: number;
-}
-
-export interface DominanceStats {
-  level: number;
-  score: number;
-  hasWonWinter: boolean;
-  terrorStreak: number;
-}
-
-export interface LineageEntry {
-  id: string;
-  parent: string;
-  content: string;
-  type: 'WOUND' | 'CURE' | 'THOUGHT' | 'DIRECTIVE';
-  timestamp: number;
-  integrityHash: string;
-  sealedAt?: number;
-  encrypted?: boolean;
-  securityLevel?: 'PUBLIC' | 'RESTRICTED' | 'TERRORGATE';
-  weatherInterference?: number;
-}
-
-export interface SystemEnvironment {
-  isWinter: boolean;
-  novaScotiaDominance: number;
-  terrorGateActive: boolean;
-  iceSaturation: number;
-}
-
-export interface ScoringAuditResult {
-  id: string;
-  label: string;
-  totalScore: number;
-  factors: {
-    intent: number;
-    recency: number;
-                dependency: number;
-  };
-  signature: string;
-}
-
-export interface Checkpoint {
-  id: string;
-  parent_id: string;
-  summary: string;
-  level: number;
-  provenance: string;
-  original_hash: string;
-  timestamp: number;
-}
-
-export interface LedgerEntry {
-  turn_id: string;
-  in: number;
-  out: number;
-  cumulative: number;
-}
-
-export interface SessionStats {
-  budget: number;
-  entries: LedgerEntry[];
-  cumulative: number;
-  exhausted: boolean;
-  generation: number;
-}
-
-export interface ScoredItem {
-  id: string;
-  raw_text: string;
-  intent_vector: number[];
-  timestamp: number;
-  dependency_count: number;
-  user_flag: boolean;
-  tokens: number;
-  score?: number;
-}
-
-export interface SimpleSummary {
-  text: string;
-  tokens: number;
-  level: number;
-}
-
-export interface UCOState {
-  isDiagnosticsPaused: boolean;
-  dissonanceLevel: number;
-  merkleRoot: string;
-  isCompositionMode: boolean;
-  completionPercentage: number;
-  ledgerEntries: string[];
-  sessionBudgetUsed: number;
-  lastAlignment: number;
-}
-
-export interface ConjunctionProgress {
-  shards: number;
-  globalMisery: number;
-  unlockedViews: MainView[];
-  level: number;
-}
-
+export type BlueprintStatus = 'Pending' | 'In Progress' | 'Completed' | 'On Hold';
+export type BlueprintPriority = 'Low' | 'Medium' | 'High' | 'Critical';
 export type SystemState = 'OK' | 'Warning' | 'Error';
 export type VehicleSystem = 'Engine' | 'Battery' | 'Navigation' | 'Infotainment' | 'Handling';
-export type SystemStatus = Record<VehicleSystem, SystemState>;
+export type SoundscapeType = 'VOID' | 'REACTOR' | 'TERRA';
 
-export interface AlchemyVirtues {
-  knowledge: number;
-  logic: number;
-  wisdom: number;
-  integrity: number;
-  intellect: number;
-}
+export type Mode = 'learn' | 'build' | 'refactor' | 'debug' | 'security' | 'optimizer' | 'documenter' | 'logic' | 'hope' | 'codesphere' | 'squad' | 'reinforcement' | 'academy' | 'microcheck' | 'nanolinter' | 'academic' | 'templar' | 'bountytemplar' | 'quantumguardian' | 'omegacoder' | 'judge' | 'custom' | 'focus' | 'journey';
 
-export interface VerificationGate {
-  id: string;
-  label: string;
-  category: 'REGULATORY' | 'NEURAL' | 'IDENTITY';
-  status: 'PENDING' | 'VALIDATING' | 'PASSED' | 'FAILED';
-  lastAuditReport?: string;
-  signature?: string;
-}
-
-export interface SistersState {
-  aethera: { active: boolean; load: number }; // Knowledge
-  logica: { active: boolean; load: number }; // Logic
-  sophia: { active: boolean; load: number }; // Wisdom
-}
-
-export interface SquadMember {
-  id: string;
-  name: string;
-  type: 'EPYC' | 'XEON' | 'FPGA';
-  status: 'STABLE' | 'BUSY' | 'GHOST' | 'PROCESSING';
-  load: number;
-  temp: number;
-  autonomy?: number;
-  task?: string;
-}
-
-export interface GhostHardwareNode {
+export interface QuantumMove {
     id: string;
-    type: 'EPYC' | 'XEON' | 'FPGA';
-    load: number;
-    temp: number;
-    memory: string; 
-    status: 'ACTIVE' | 'THROTTLED' | 'OFFLINE';
+    index: number;
+    type: 'KEY' | 'CLICK' | 'COMMAND' | 'SYSTEM';
+    label: string;
+    timestamp: number;
+    weight: number;
 }
 
-export interface AlchemyRecipe {
-  id: string;
-  name: string;
-  virtueType: keyof AlchemyVirtues;
-  amount: number;
-  temperature: number;
-  purity: number;
-  timestamp: Date;
-  fpgaSignature?: string;
-}
-
-export type SystemDetails = Record<VehicleSystem, any>;
-
-export interface Interaction {
-  id: string;
-  type: 'navigation' | 'creation' | 'simulation' | 'archival';
-  view: MainView;
-  label: string;
-  timestamp: Date;
-  narrativeInsight?: string;
-}
-
-export interface ResilienceReport {
-  biologicalStress: number;
-  spiritualResilience: number;
-  digitalIntegrity: number;
-  summary: string;
-  verdict: 'STABLE' | 'VULNERABLE' | 'CRITICAL';
+export interface PredictiveAlert {
+    id: string;
+    title: string;
+    probability: number; 
+    timeToImpact: number; 
+    detectedPattern: string;
+    suggestedFix: string;
+    reward: number;
 }
 
 export interface ProjectTask {
   id: string;
   text: string;
   completed: boolean;
-}
-
-export interface ProjectAsset {
-  id: string;
-  name: string;
-  type: string;
-  data: string;
-  timestamp: Date;
-}
-
-export interface GlobalDirective {
-  projectId: string;
-  title: string;
-  activeTask?: string;
-  integritySignature: string;
+  dueDate?: string;
 }
 
 export interface ProjectBlueprint {
   id: string;
   title: string;
   description: string;
+  technicalSpecs?: string;
+  validationStrategy?: string;
   status: BlueprintStatus;
-  priority: BlueprintPriority; 
-  timestamp: Date;
-  tasks: ProjectTask[]; 
-  simulationReport?: ResilienceReport;
-}
-
-export type BlueprintStatus = 'Pending' | 'In Progress' | 'Completed' | 'On Hold';
-export type BlueprintPriority = 'Low' | 'Medium' | 'High' | 'Critical';
-
-export interface BluetoothProtocol {
-  id: string;
-  name: string;
-  category: 'Core' | 'GATT' | 'Mesh' | 'Auracast' | 'Traditional';
-  status: 'Stable' | 'Beta' | 'Experimental';
-  lifecycle: 'Discovery' | 'PoC' | 'MVP' | 'Full-Scale' | 'Hypercare';
-  description: string;
-  commonUUIDDetails: { uuid: string; meaning: string; }[];
-  designConstraints: string[];
-}
-
-export interface NetworkProject {
-  id: string;
-  title: string;
-  description: string;
-  miseryScore: number;
-  crazyLevel: number;
-  status: 'IDEATING' | 'BUILDING' | 'DONE';
-  isWisdomHarmonized: boolean;
+  priority: BlueprintPriority;
   timestamp: Date;
   tasks: ProjectTask[];
-  assets?: ProjectAsset[];
-  knowHow?: string;
-  assetType?: 'BLUETOOTH' | 'RTLS' | 'KERNEL' | 'INTERFACE';
+  dueDate?: string;
 }
 
-export interface ArchiveEntry {
-  id: string;
-  title: string;
-  text: string;
-  timestamp: Date;
-  isDirective?: boolean;
+export interface FinancialAuthority {
+    id: string;
+    name: string;
+    type: 'INSTITUTIONAL' | 'NEO' | 'REGULATORY' | 'IDENTITY';
+    status: 'SYNCED' | 'LOCKED' | 'DRIFTING';
+    integrity: number;
+    protocol: string;
 }
 
-export interface BluetoothBlueprint {
-  protocol: string;
-  architecture: string;
-  codeSnippet: string;
-  packetStructure: string;
-  integritySignature: string;
+export interface DiagnosticTroubleCode {
+    code: string;
+    system: VehicleSystem;
+    severity: 'Error' | 'Warning';
+    description: string;
+    signature: string;
 }
 
-export interface LiveTelemetryFrame {
-  timestamp: number;
-  rpm: number;
-  coolantTemp: number;
-  fuelPressure: number;
-  voltage: number;
-  load: number;
-  throttlePos: number;
+export interface TeacherProfile {
+    id: string;
+    name: string;
+    icon: string;
+    color: string;
+    specialty: string;
+    wisdom: string;
 }
 
-export interface GroundingSource {
-  uri: string;
-  title: string;
+export type MainView = 
+  | 'chat' | 'absolute_reliability_network' | 'coding_network' | 'universal_search' 
+  | 'gold_conjunction' | 'shard_store' | 'conjunction_gates' | 'projects' | 'forge' 
+  | 'covenant' | 'verification_gates' | 'project_chronos' | 'build_logs' | 'rt_ipc_lab' 
+  | 'sovereign_shield' | 'spectre_browser' | 'unified_chain' | 'fuel_optimizer' | 'vault' 
+  | 'healing_matrix' | 'laws_justice_lab' | 'requindor_scroll' | 'omni_builder' 
+  | 'singularity_engine' | 'diagnostics' | 'communications' | 'up_north' | 'device_link' 
+  | 'bluetooth_bridge' | 'launch_center' | 'eliza_terminal' | 'code_fall_lab' 
+  | 'alphabet_hexagon' | 'powertrain_conjunction' | 'hyper_spatial_lab' | 'engineering_lab' 
+  | 'hard_code_lab' | 'truth_lab' | 'testing_lab' | 'kinetics_lab' | 'quantum_theory_lab' 
+  | 'chemistry_lab' | 'race_lab' | 'paleontology_lab' | 'raw_mineral_lab' | 'clothing_lab' 
+  | 'concepts_lab' | 'sanitization_lab' | 'windows_lab' | 'linux_lab' | 'mac_os_lab' 
+  | 'apple_lab' | 'mission_lab' | 'cell_phone_lab' | 'sampling_lab' | 'pornography_studio' 
+  | 'vehicle_telemetry_lab' | 'coding_network_teachers' | 'enlightenment_pool' 
+  | 'library_view' | 'timeline' | 'amoeba_heritage' | 'system_exhaustion' | 'recon_vault'
+  | 'quantum_ledger' | 'constraints_audit';
+
+export interface SystemStatus {
+  Engine: SystemState;
+  Battery: SystemState;
+  Navigation: SystemState;
+  Infotainment: SystemState;
+  Handling: SystemState;
 }
 
-export interface InteractionPrompt {
-  prompt: string;
-  submittedAnswer?: string;
+export interface SystemGovernance {
+    lawLevel: number;
+    symphonicFreedom: boolean;
+    activeAccord?: string;
 }
 
 export interface ChatMessage {
   sender: 'user' | 'model';
   content: string;
   timestamp: Date;
-  parentTimestamp?: Date;
   attachedFiles?: string[];
   groundingSources?: GroundingSource[];
-  interactionPrompt?: InteractionPrompt;
-  tokens?: number;
+  interactionPrompt?: InteractionPromptData;
 }
 
 export interface AttachedFile {
-  name: string;
-  type: string;
-  content: string; 
-  scanStatus?: 'unscanned' | 'scanning' | 'complete';
-  scanResult?: string;
+    name: string;
+    type: string;
+    content: string; 
+    scanStatus?: 'scanning' | 'complete' | 'error';
+    scanResult?: string;
 }
 
-export interface ShadowInfoCard {
-  signature: string;
-  flowRole: string;
-  dependency: string;
-  boundaries: { havLimit: number; noiseLimit: number; };
-  logicBlueprint: string;
+export interface InteractionPromptData {
+    prompt: string;
+    submittedAnswer?: string;
+}
+
+export interface GroundingSource {
+    title: string;
+    uri: string;
+    bitSig?: string; // Neutralized forensic signature
 }
 
 export interface ImplementationFile {
-  filename: string;
-  code: string;
+    filename: string;
+    code: string;
 }
 
 export interface ImplementationResponse {
-  files: ImplementationFile[];
+    files: ImplementationFile[];
 }
 
-export interface SavedModule extends ImplementationResponse {
-  id: string;
-  name: string;
-  timestamp: Date;
+export interface DetailedDiagnostic {
+    code: string;
+    meaning: string;
+    rootCauses: string[];
+    healingSteps: string[];
+    maestroInsight: string;
+    impactOnSquad: string;
 }
 
-export interface CustomCommand {
-  id: string;
-  title: string;
-  text: string;
-  timestamp: Date;
+export interface BluetoothBlueprint {
+    protocol: string;
+    architecture: string;
+    codeSnippet: string;
+    packetStructure: string;
+    integritySignature: string;
 }
 
-export interface ChatSession {
-  id: string;
-  mode: Mode;
-  messages: ChatMessage[];
-  chat: Chat;
-  name: string;
-  totalTokens: number;
+export interface ProtocolAdaptation {
+    adaptationDirectives: string[];
+    predictedStability: number;
+    revisedPacketStructure: string;
+}
+
+export interface ResilienceReport {
+}
+
+export interface NeutralizationPlan {
+    plan: string[];
+    signature: string;
+    statusUpdate: string;
+}
+
+export interface FallOffPrediction {
+    predictionSummary: string;
+    riskLevel: number;
+    failurePoints: string[];
+    conductionStrategies: string[];
+}
+
+export interface FinancialForensicAudit {
+    report: string;
+    verifiedPerformersCount: number;
+    financialFlowStatus: string;
+    redFlags: string[];
+    signature: string;
+}
+
+export interface FuelOptimizationSuggestion {
+    title: string;
+    reasoning: string;
+    impact: number;
+    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+}
+
+export interface WebShard {
+    id: string;
+    title: string;
+    url: string;
+    displayUrl?: string; // Neutralized for UI
+    snippet: string;
+    veracity: number;
+}
+
+export interface SearchProviderStatus {
+    id: string;
+    label: string;
+    status: string;
+    latency: string;
+}
+
+export interface SovereignSearchResult {
+    deconstruction: string;
+    shards: WebShard[];
+    telemetry: {
+        stride: number;
+        purity: number;
+        providersReached: string[];
+    };
+}
+
+export interface PowertrainAudit {
+    mode: string;
+    report: string;
+    suggestions: FuelOptimizationSuggestion[];
+    signature: string;
+}
+
+export interface RTIPCMessage {
+    id: string;
+    sender_id: string;
+    receiver_id: string;
+    priority: number;
+    content: string;
+    timestamp: number;
+    status: 'QUEUED' | 'INHERITED' | 'PROCESSED';
+}
+
+export interface SquadMember {
+    id: string;
+    name: string;
+    type: string;
+    load: number;
+    temp: number;
+    status: 'STABLE' | 'CRITICAL' | 'WARNING';
 }
 
 export interface EvoLibrary {
-  library: string;
-  version: string;
-  categories: EvoCategory[];
-}
-
-export interface EvoPrompt {
-  title: string;
-  text: string;
+    library: string;
+    version: string;
+    categories: EvoCategory[];
 }
 
 export interface EvoCategory {
-  id: string;
-  name: string;
-  description?: string;
-  prompts: EvoPrompt[];
+    id: string;
+    name: string;
+    description: string;
+    prompts: EvoPrompt[];
+}
+
+export interface EvoPrompt {
+    title: string;
+    prompt: string;
+}
+
+export interface LabComponentProps {
+    labName?: string;
+    labIcon?: any;
+    labColor?: string;
+    description?: string;
+    globalDirective?: GlobalDirective;
+    onActionReward?: (shards: number) => void;
+}
+
+export interface GlobalDirective {
+    title: string;
+    integritySignature: string;
+    activeTask?: string;
 }
 
 export interface BroadcastMessage {
-  id: string;
-  source: string;
-  text: string;
-  type?: string;
-  timestamp: Date;
-  color: string;
+    id: string;
+    source: string;
+    text: string;
+    timestamp: Date;
+    color?: string;
 }
 
 export type PinType = 'module' | 'command';
 
 export interface PinnedItem {
-  id: string;
-  referenceId: string;
-  type: PinType;
-  title: string;
-  content?: string;
+    referenceId: string;
+    type: PinType;
+    title: string;
+    content?: string;
 }
 
-export type DeviceLinkStatus = 'disconnected' | 'connecting' | 'connected';
+export interface LineageEntry {
+    id: string;
+    content: string;
+    type: 'WOUND' | 'CURE' | 'KNOWLEDGE';
+    securityLevel?: 'TERRORGATE' | 'STANDARD';
+    parent: string;
+    sealedAt: number;
+    encrypted: boolean;
+}
+
+export interface SystemEnvironment {
+    isWinter: boolean;
+    novaScotiaDominance: number;
+    terrorGateActive: boolean;
+    iceSaturation: number;
+}
+
+export interface DominanceStats {
+    score: number;
+    hasWonWinter: boolean;
+}
+
+export interface CustomCommand {
+    id: string;
+    title: string;
+    text: string;
+    timestamp: Date;
+}
+
+export interface SavedModule {
+    id: string;
+    name: string;
+    files: ImplementationFile[];
+    timestamp: Date;
+}
+
+export type DeviceLinkStatus = 'connected' | 'disconnected';
+
 export interface LinkedDevice {
-  name: string;
-  type: string;
+    id: string;
+    name: string;
 }
 
-export interface AuditReport {
-  fuelBurned: { electricity: number; gas: number };
-  treasuryCost: number;
-  integrityScore: number;
-  nonce: number;
-  semanticDrift: number;
-  effectivenessScore: number;
+export interface ArchiveEntry {
+    id: string;
+    title: string;
+    text: string;
+    timestamp: Date;
+    isDirective?: boolean;
 }
 
-export interface TelemetryState {
-  velocity: 'Liquid' | 'Rigid';
-  velocityValue: number;
-  miningDifficulty: number;
-  opaqueZones: string[];
-  collisionPoints: string[];
-  hav: number;
-  noise: number;
-  fusionConfidence: number;
-  effectiveness: number;
-  uptime: number;
-}
-
-export type KnowledgeTier = 'UNIVERSAL' | 'OBFUSCATED' | 'PROHIBITED';
-
-export interface KnowledgeFragment {
-  id: string;
-  label: string;
-  description: string;
-  isVerified: boolean;
-  integrityThreshold: number;
-  tier: KnowledgeTier;
-}
-
-export interface HeuristicConstraint {
-  id: string;
-  label: string;
-  description: string;
-  tier: KnowledgeTier;
-  miseryRequirement: number;
-  isUnlocked: boolean;
-}
-
-export interface AppStoreMetadata {
-  appName: string;
-  description: string;
-  keywords: string[];
-  dunsNumber: string;
-  ageRating: string;
-  primaryCategory: string;
-}
-
-export interface CompliancePosture {
-  gdprActive: boolean;
-  ccpaActive: boolean;
-  gpcHonored: boolean;
-  ageVerificationStatus: 'READY' | 'PENDING' | 'REQUIRED';
-}
-
-export interface NeutralizationPlan {
-  plan: string[];
-  signature: string;
-  statusUpdate: string;
-}
-
-export interface FallOffPrediction {
-  predictionSummary: string;
-  riskLevel: number;
-  failurePoints: string[];
-  conductionStrategies: string[];
-}
-
-export interface ProtocolAdaptation {
-  adaptationDirectives: string[];
-  predictedStability: number;
-  revisedPacketStructure?: string;
+export interface NetworkProject {
+    id: string;
+    title: string;
+    description: string;
+    fightVector: number; 
+    crazyLevel: number;
+    status: 'IDEATING' | 'BUILDING' | 'DONE' | 'FORGING' | 'STABLE';
+    isWisdomHarmonized: boolean;
+    timestamp: Date;
+    tasks: ProjectTask[];
+    authorityId?: string;
+    knowHow?: string;
+    assetType?: string;
+    manifest?: ImplementationResponse;
 }
 
 export interface NetworkNode {
@@ -520,100 +372,336 @@ export interface NetworkNode {
     neutralizationPlan?: NeutralizationPlan;
 }
 
-export interface DetailedDiagnostic {
-  code: string;
-  meaning: string;
-  rootCauses: string[];
-  healingSteps: string[];
-  maestroInsight: string;
-  impactOnSquad: string;
+export interface LiveTelemetryFrame {
+    timestamp: number;
+    rpm: number;
+    coolantTemp: number;
+    fuelPressure: number;
+    voltage: number;
+    load: number;
+    throttlePos: number;
 }
 
-export interface DiagnosticTroubleCode {
-  code: string;
-  description: string;
-  system: VehicleSystem;
-  severity: SystemState;
-  signature?: string;
+export type KnowledgeTier = 'UNIVERSAL' | 'OBFUSCATED' | 'PROHIBITED';
+
+export interface KnowledgeFragment {
+    id: string;
+    label: string;
+    description: string;
+    tier: KnowledgeTier;
+    integrityThreshold: number;
+    isVerified: boolean;
+}
+
+export interface HeuristicConstraint {
+    id: string;
+    label: string;
+    description: string;
+    tier: KnowledgeTier;
+    adrenalineThreshold: number; 
+    isUnlocked: boolean;
+}
+
+export interface AppStoreMetadata {
+    appName: string;
+    description: string;
+    keywords: string[];
+    dunsNumber: string;
+    ageRating: string;
+    primaryCategory: string;
+}
+
+export interface CompliancePosture {
+    gdprActive: boolean;
+    ccpaActive: boolean;
+    gpcHonored: boolean;
+    ageVerificationStatus: string;
+}
+
+export interface BluetoothProtocol {
+    id: string;
+    name: string;
+    category: string;
+    status: string;
+    lifecycle: string;
+    description: string;
+    commonUUIDDetails: { uuid: string, meaning: string }[];
+    designConstraints: string[];
 }
 
 export interface DeviceCompatibility {
-  platform: string;
-  isMobile: boolean;
-  isTablet: boolean;
-  isDesktop: boolean;
-  touchEnabled: boolean;
-  screenRes: string;
-  pwaSupport: boolean;
-  batteryApi: boolean;
-  bluetoothApi: boolean;
-  canEscalate: boolean;
+    platform: string;
+    isMobile: boolean;
+    isTablet: boolean;
+    isDesktop: boolean;
+    touchEnabled: boolean;
+    screenRes: string;
+    pwaSupport: boolean;
+    batteryApi: boolean;
+    bluetoothApi: boolean;
+    canEscalate: boolean;
 }
+
+export type AccessTier = 'USER' | 'ROOT';
 
 export interface PlaylistSong {
-  id: string;
-  title: string;
-  artist: string;
-  addedBy: string;
+    id: string;
+    title: string;
+    artist: string;
+    addedBy: string;
 }
-
-export type PlaylistCommandType = 'add' | 'reorder' | 'remove';
 
 export interface PlaylistCommand {
-  type: PlaylistCommandType;
-  payload: any;
-  senderId: string;
-  timestamp: number;
-}
-
-export interface CollaborativePlaylistState {
-  songs: PlaylistSong[];
+    type: 'add' | 'remove' | 'reorder';
+    payload: any;
+    senderId: string;
+    timestamp: number;
 }
 
 export interface ModuleMix {
-  id: string;
-  modules: SavedModule[];
-  mixResult?: string;
-  timestamp: Date;
+    id: string;
+    modules: SavedModule[];
+    mixResult: string;
 }
 
-export interface TeacherProfile {
-  id: string;
-  name: string;
-  specialty: string;
-  wisdom: string;
-  icon: string;
-  color: string;
+export interface AlchemyVirtues {
+    knowledge: number;
+    logic: number;
+    wisdom: number;
+    integrity: number;
+    intellect: number;
 }
 
-export interface LabComponentProps {
-  labName: string;
-  labIcon: React.FC<{ className?: string }>;
-  labColor: string;
-  description?: string;
-  globalDirective?: GlobalDirective; // Ingesting the Net Folder's output
-  onActionReward?: (shards: number) => void;
+export interface AlchemyRecipe {
+    id: string;
+    name: string;
+    virtueType: keyof AlchemyVirtues;
+    amount: number;
+    temperature: number;
+    purity: number;
+    timestamp: Date;
+    fpgaSignature: string;
 }
 
-export interface LibraryItem {
-  id: string;
-  title: string;
-  author?: string;
-  source: 'google_books' | 'wayback_machine' | 'aetheros_archive';
-  url: string;
-  summary?: string;
-  timestamp: Date;
+export interface GhostHardwareNode {
+    id: string;
+    type: string;
+    load: number;
+    temp: number;
+    memory: string;
+    status: string;
 }
 
-export interface FinancialForensicAudit {
-  report: string;
-  verifiedPerformersCount: number;
-  financialFlowStatus: 'SECURE' | 'AUDIT_REQUIRED' | 'FLAGGED';
-  redFlags: string[];
-  signature: string;
+export interface RScrollShard {
+    id: string;
+    content: string;
+    type: 'FATAL' | 'REEDLE' | 'GIFTED' | 'BINARY';
+    intensity: number;
+}
+
+export interface ShieldTelemetry {
+    integrity: number;
+    deflectionRate: number;
+    dissonanceSuppression: number;
+    lastBreachAttempt: string;
+    signature: string;
+}
+
+export interface ThreatShard {
+    id: string;
+    origin: string;
+    payloadSize: string;
+    threatLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    binaryPreview: string;
+    status: 'ISOLATED' | 'PURGED';
+}
+
+export interface ChronosTelemetry {
+    iops: number;
+    latency: number;
+    shardsActive: number;
+    pzisSignature: string;
+    noHurpStability: number;
+}
+
+export interface ConjunctionProgress {
+    level: number;
+    shards: number;
+    unlockedViews: string[];
+    globalAdrenaline: number; 
+}
+
+export interface ScoredItem {
+    id: string;
+    raw_text: string;
+    timestamp: number;
+    intent_vector: number[];
+    dependency_count: number;
+    user_flag: boolean;
+    tokens: number;
+    score?: number;
+}
+
+export interface SessionStats {
+    budget: number;
+    entries: LedgerEntry[];
+    cumulative: number;
+    exhausted: boolean;
+    generation: number;
+}
+
+export interface LedgerEntry {
+    turn_id: string;
+    in: number;
+    out: number;
+    cumulative: number;
+}
+
+export interface Checkpoint {
+    id: string;
+    parent_id: string;
+    summary: string;
+    level: number;
+    provenance: string;
+    original_hash: string;
+    timestamp: number;
+}
+
+export interface ScoringAuditResult {
+    id: string;
+    label: string;
+    totalScore: number;
+    factors: {
+        intent: number;
+        recency: number;
+        dependency: number;
+    };
+    signature: string;
+}
+
+export interface SimpleSummary {
+    text: string;
+    tokens: number;
+    level: number;
+}
+
+export interface VerificationGate {
+    id: string;
+    label: string;
+    category: 'NEURAL' | 'REGULATORY' | 'IDENTITY';
+    status: 'PENDING' | 'VALIDATING' | 'PASSED' | 'FAILED';
+    lastAuditReport?: string;
+    signature?: string;
+}
+
+export interface StoreItem {
+    id: string;
+    name: string;
+    description: string;
+    cost: number;
+    icon: any;
+    category: 'NEURAL' | 'SISTER' | 'GEAR';
+}
+
+export interface SistersState {
+    aethera: { active: boolean };
+    logica: { active: boolean };
+    sophia: { active: boolean };
+}
+
+export interface DreamedSchema {
+    id: string;
+    intent: string;
+    blueprint: string;
+    evolutionaryCode: string;
+    dimension: string;
+    purity: number;
+}
+
+export interface GoldShard {
+    id: string;
+    originalIntent: string;
+    goldTranslation: string;
+    valueClass: 1 | 2 | 3;
+    weight: number;
+    timestamp: number;
+}
+
+export interface Vector4D {
+    x: number;
+    y: number;
+    z: number;
+    w: number;
+}
+
+export interface Vector3D {
+    x: number;
+    y: number;
+    z: number;
 }
 
 export interface ElizaResponse {
-  text: string;
-  pattern: string;
+    text: string;
+    pattern: string;
+    stride: number;
+    conductionCount: number;
+    topic: string | null;
+    signature?: string;
+}
+
+export interface ElizaProperties {
+    empathy: number;
+    logicBias: number;
+    strideVelocity: number;
+    combatReadiness: number; 
+    bridgeToGodLogic: boolean;
+}
+
+export interface LibraryItem {
+    id: string;
+    title: string;
+    author: string;
+    summary: string;
+    source: 'google_books' | 'wayback_machine' | 'aetheros_archive';
+    url: string;
+    timestamp: Date;
+    verified: boolean;
+}
+
+export interface ShadowInfoCard {
+    signature: string;
+    flowRole: string;
+    logicBlueprint: string;
+}
+
+export interface AuditReport {
+    fuelBurned: { electricity: number; gas: number };
+    treasuryCost: number;
+    integrityScore: number;
+    nonce: number;
+    semanticDrift: number;
+    effectivenessScore?: number;
+}
+
+export interface TelemetryState {
+    velocity: string;
+    velocityValue: number;
+    miningDifficulty: number;
+    opaqueZones: string[];
+    collisionPoints: string[];
+    hav: number;
+    noise: number;
+    fusionConfidence: number;
+    effectiveness: number;
+    uptime: number;
+}
+
+export interface ExhaustionReport {
+  timestamp: string;
+  peakLoad: number;
+  fracturePoints: string[];
+  survivalStatus: 'SURVIVED' | 'CRITICAL_FAILURE';
+  maestroAssessment: string;
+  remedialAction: string;
+  signature: string;
 }

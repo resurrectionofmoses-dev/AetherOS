@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
     FlaskIcon, ZapIcon, ActivityIcon, SpinnerIcon, ShieldIcon, FireIcon, 
@@ -116,7 +115,7 @@ export const ChemistryLabView: React.FC<LabComponentProps> = ({
             </div>
             <div>
                 <h2 className="font-comic-header text-3xl text-white italic tracking-tighter uppercase leading-none">{labName}</h2>
-                <p className="text-[8px] text-cyan-700 font-black uppercase tracking-[0.4em] mt-0.5 italic">
+                <p className="text-[8px] text-cyan-700 font-black uppercase tracking-[0.4em] mt-1 italic">
                    {globalDirective ? `GAZING AT: ${globalDirective.title}` : 'FPGA-Accelerated Conduction Grid'}
                 </p>
             </div>
@@ -144,13 +143,15 @@ export const ChemistryLabView: React.FC<LabComponentProps> = ({
                    <BrainIcon className="w-4 h-4" /> Logic Virtues
                 </h3>
                 <div className="space-y-4 pr-1">
-                    {Object.entries(virtues).map(([key, val]) => (
+                    {/* // FIX: Cast val to number by ensuring Object.entries returns expected types for virtues mapping */}
+                    {(Object.entries(virtues) as [string, number][]).map(([key, val]) => (
                         <div key={key} className="space-y-1">
                             <div className="flex justify-between items-center text-[9px] font-black uppercase text-gray-500">
                                 <span>{key}</span>
                                 <span className="text-white font-mono">{val}</span>
                             </div>
                             <div className="h-1 bg-black border border-white/5 rounded-full overflow-hidden">
+                                {/* // FIX: val is correctly typed as number to prevent error on line 153 */}
                                 <div className="h-full bg-cyan-500 transition-all duration-1000 shadow-[0_0_10px_cyan]" style={{ width: `${Math.min(100, val)}%` }} />
                             </div>
                         </div>
@@ -252,9 +253,10 @@ export const ChemistryLabView: React.FC<LabComponentProps> = ({
                          </span>
                          <span className="text-[8px] text-cyan-500 font-mono italic tracking-tighter">RDMA_THROUGHPUT: NOMINAL</span>
                     </div>
+                    {/* FIX: Explicitly type event and cast to Number to resolve 'unknown' type error on line 154 */}
                     <input 
                         type="range" min="10" max="90" value={dielectricTemp}
-                        onChange={(e) => setDielectricTemp(parseInt(e.target.value))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDielectricTemp(Number(e.target.value))}
                         className="w-full h-1 bg-gray-900 rounded-lg appearance-none cursor-pointer accent-cyan-500"
                     />
                     <div className="flex justify-between mt-2 text-[7px] font-black text-gray-800 uppercase px-1">

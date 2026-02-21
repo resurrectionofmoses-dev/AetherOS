@@ -1,4 +1,3 @@
-
 import { CONTINUITY_CONFIG } from '../constants';
 import type { SessionStats, LedgerEntry } from '../types';
 import { provenanceVault } from './checkpointStore';
@@ -22,10 +21,10 @@ export class TokenLedger {
   /**
    * Initializing the 'Genesis Block' for our session.
    */
-  public startSession(sessionId: string, budget: number = CONTINUITY_CONFIG.DEFAULT_SESSION_BUDGET): void {
+  public startSession(sessionId: string, budgetValue: number = CONTINUITY_CONFIG.DEFAULT_SESSION_BUDGET): void {
     if (!this.sessions[sessionId]) {
       this.sessions[sessionId] = {
-        budget,
+        budget: budgetValue,
         entries: [],
         cumulative: 0,
         exhausted: false,

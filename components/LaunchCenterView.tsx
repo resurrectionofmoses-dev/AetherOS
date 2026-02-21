@@ -31,7 +31,7 @@ export const LaunchCenterView: React.FC = () => {
     const [isLaunching, setIsLaunching] = useState(false);
     const [launchProgress, setLaunchProgress] = useState(0);
     const [checks, setChecks] = useState<PreFlightCheck[]>([
-        { id: '1', label: 'Misery Integrity Scan', status: 'PENDING' },
+        { id: '1', label: 'Fight Integrity Scan', status: 'PENDING' },
         { id: '2', label: 'GDPR / CCPA Posture Validation', status: 'PENDING' },
         { id: '3', label: 'D-U-N-S Neural Verification', status: 'PENDING' },
         { id: '4', label: 'God Logic Transparency Audit', status: 'PENDING' },

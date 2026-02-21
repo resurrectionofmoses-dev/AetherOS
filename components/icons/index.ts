@@ -1,124 +1,120 @@
 
 import React from 'react';
 
-// Re-exporting from existing individual icon files
-export * from './SpeakerIcon';
-export * from './SpeakerOffIcon';
-export * from './UserIcon';
-export * from './BotIcon';
-export * from './ClipboardIcon';
-export * from './PaperclipIcon';
-export * from './XIcon';
-export * from './FileIcon';
-export * from './DownloadIcon';
-export * from './ChevronDownIcon';
-export * from './CheckCircleIcon';
-export * from './AetherOSIcon';
-export * from './MicrophoneIcon';
-export * from './AnalyzeIcon';
-export * from './EngineIcon';
-export * from './BatteryIcon';
-export * from './NavigationIcon';
-export * from './InfotainmentIcon';
-export * from './WarningIcon';
-export * from './WrenchIcon';
-export * from './MessageCircleIcon';
-export * from './TerminalIcon';
-export * from './FireIcon';
-export * from './ServerIcon';
-export * from './PinIcon';
-export * from './ShareIcon';
-export * from './ArchiveIcon';
-export * from './LearnIcon';
-export * from './CodeIcon';
-export * from './SteeringWheelIcon';
-export * from './SuspensionIcon';
-export * from './TractionIcon';
-export * from './RefactorIcon';
-export * from './ForgeIcon';
-export * from './ActivityIcon';
-export * from './SearchIcon';
-export * from './ZapIcon';
-export * from './ShieldIcon';
-export * from './ThermometerIcon';
-export * from './SignalIcon';
-export * from './MusicIcon';
-export * from './BookOpenIcon';
-export * from './BuildIcon';
-export * from './BroadcastIcon';
-export * from './UploadIcon';
-export * from './InstallIcon';
-export * from './PlusIcon';
-export * from './PlusSquareIcon';
-export * from './CheckSquareIcon';
-export * from './CustomIcon';
-export * from './EditIcon';
-export * from './LogicIcon';
-export * from './GaugeIcon';
-export * from './BrainIcon';
-export * from './StarIcon';
-export * from './RulesIcon';
-export * from './DebugIcon';
-export * from './FocusIcon';
-export * from './GitBranchIcon';
-export * from './VaultIcon';
-export * from './DoveIcon';
-export * from './HomeIcon';
-export * from './OptimizerIcon';
-export * from './ChevronUpIcon';
-export * from './GavelIcon';
-export * from './EyeIcon';
+// --- NAMED RE-EXPORTS FROM INDIVIDUAL FILES ---
+export { LearnIcon, PackageIcon } from './LearnIcon';
+export { BuildIcon } from './BuildIcon';
+export { RefactorIcon } from './RefactorIcon';
+export { UserIcon } from './UserIcon';
+export { BotIcon } from './BotIcon';
+export { ClipboardIcon } from './ClipboardIcon';
+export { CustomIcon } from './CustomIcon';
+export { EditIcon } from './EditIcon';
+export { LogicIcon } from './LogicIcon';
+export { ChevronDownIcon } from './ChevronDownIcon';
+export { SpeakerIcon } from './SpeakerIcon';
+export { SpeakerOffIcon } from './SpeakerOffIcon';
+export { MicrophoneIcon } from './MicrophoneIcon';
+export { PaperclipIcon } from './PaperclipIcon';
+export { XIcon } from './XIcon';
+export { ImplementIcon } from './ImplementIcon';
+export { FileIcon } from './FileIcon';
+export { DownloadIcon } from './DownloadIcon';
+export { RulesIcon } from './RulesIcon';
+export { DebugIcon } from './DebugIcon';
+export { PlusSquareIcon } from './PlusSquareIcon';
+export { CheckSquareIcon } from './CheckSquareIcon';
+export { FocusIcon } from './FocusIcon';
+export { GitBranchIcon } from './GitBranchIcon';
+export { PlusIcon } from './PlusIcon';
+export { SteeringWheelIcon } from './SteeringWheelIcon';
+export { BookOpenIcon } from './BookOpenIcon';
+export { CheckCircleIcon } from './CheckCircleIcon';
+export { ChevronLeftIcon } from './ChevronLeftIcon';
+export { ChevronRightIcon } from './ChevronRightIcon';
+export { GavelIcon } from './GavelIcon';
+export { FireIcon } from './FireIcon';
+export { SecurityIcon } from './SecurityIcon';
+export { OptimizerIcon } from './OptimizerIcon';
+export { DocumenterIcon } from './DocumenterIcon';
+export { AetherOSIcon } from './AetherOSIcon';
+export { AnalyzeIcon } from './AnalyzeIcon';
+export { EngineIcon } from './EngineIcon';
+export { BatteryIcon } from './BatteryIcon';
+export { NavigationIcon } from './NavigationIcon';
+export { InfotainmentIcon } from './InfotainmentIcon';
+export { WarningIcon } from './WarningIcon';
+export { WrenchIcon } from './WrenchIcon';
+export { MessageCircleIcon } from './MessageCircleIcon';
+export { ThermometerIcon } from './ThermometerIcon';
+export { ZapIcon } from './ZapIcon';
+export { SignalIcon } from './SignalIcon';
+export { MusicIcon } from './MusicIcon';
+export { InstallIcon } from './InstallIcon';
+export { UploadIcon } from './UploadIcon';
+export { SpinnerIcon } from './SpinnerIcon';
+export { GaugeIcon } from './GaugeIcon';
+export { BrainIcon } from './BrainIcon';
+export { CodeIcon } from './CodeIcon';
+export { SuspensionIcon } from './SuspensionIcon';
+export { TractionIcon } from './TractionIcon';
+export { ForgeIcon, HammerIcon } from './ForgeIcon';
+export { ArchiveIcon } from './ArchiveIcon';
+export { SettingsIcon } from './SettingsIcon';
+export { ChevronUpIcon } from './ChevronUpIcon';
+export { VaultIcon } from './VaultIcon';
+export { SearchIcon } from './SearchIcon';
+export { PinIcon } from './PinIcon';
+export { ShareIcon } from './ShareIcon';
+export { ActivityIcon } from './ActivityIcon';
+export { EyeIcon } from './EyeIcon';
+export { ShieldIcon } from './ShieldIcon';
+export { TerminalIcon } from './TerminalIcon';
 
-// Helper for creating SVG icons in a .ts file without JSX
-const createIcon = (d: string, viewBox = "0 0 24 24") => {
-  return ({ className }: { className?: string }) => React.createElement('svg', {
-    xmlns: "http://www.w3.org/2000/svg",
-    width: "24",
-    height: "24",
-    viewBox: viewBox,
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "2",
-    strokeLinecap: "round",
-    strokeLinejoin: "round",
-    className: className
-  }, React.createElement('path', { d: d }));
-};
+// --- HOC GENERATED ICONS ---
+function createIcon(d: string, viewBox = "0 0 24 24") {
+  return function GeneratedIcon({ className, style }: { className?: string; style?: React.CSSProperties }) {
+    return React.createElement('svg', {
+      xmlns: "http://www.w3.org/2000/svg",
+      width: "24",
+      height: "24",
+      viewBox: viewBox,
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "2",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      className: className,
+      style: style
+    }, React.createElement('path', { d: d }));
+  };
+}
 
-// Defining missing icons
-export const LockIcon = createIcon("M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z M7 11V7a5 5 0 0 1 10 0v4");
-export const GlobeIcon = createIcon("M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z M2 12h20 M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z");
-export const BookIcon = createIcon("M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5z");
-export const MovieIcon = createIcon("M2 18v3c0 .6.4 1 1 1h4 M7 22c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2H3c-1.1 0-2 .9-2 2v13c0 1.1.9 2 2 2h4 M22 2v20 M18 5l4 4 M18 19l4-4");
-export const FlagIcon = createIcon("M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z M4 22v-7");
-export const ClockIcon = createIcon("M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M12 6v6l4 2");
+export const ClockIcon = createIcon("M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z");
+export const StarIcon = createIcon("M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z");
+export const LockIcon = createIcon("M12 11V7a4 4 0 0 0-8 0v4 M12 11h2a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h2");
+export const SparklesIcon = createIcon("M12 3l1.912 5.813L21 9l-5.813 1.912L12 21l-1.912-5.813L3 15l5.813-1.912L12 3z M5 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z");
+export const GlobeIcon = createIcon("M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z");
+export const BookIcon = createIcon("M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5z");
 export const CalendarIcon = createIcon("M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z M16 2v4 M8 2v4 M3 10h18");
+export const AtomIcon = createIcon("M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z");
+export const TruthIcon = createIcon("M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z");
+export const DinoIcon = createIcon("M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z");
+export const ShirtIcon = createIcon("M12 2L4 4v14l8 4 8-4V4l-8-2z");
+export const ConceptIcon = createIcon("M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z");
+export const FlagIcon = createIcon("M12 2l-1 5h2l-1-5zM5 22h14v-2H5v2zm7-18c-3.87 0-7 3.13-7 7 0 2.38 1.19 4.47 3 5.74V20h8v-3.26c1.81-1.27 3-3.36 3-5.74 0-3.87-3.13-7-7-7z");
+export const HomeIcon = createIcon("M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6");
+export const ServerIcon = createIcon("M2 2h20v8H2z M2 14h20v8H2z M6 6h.01 M6 18h.01");
+export const BroadcastIcon = createIcon("M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.07 4.93a10 10 0 0 1 0 14.14 M4.93 19.07a10 10 0 0 1 0-14.14");
+export const PhoneIcon = createIcon("M17 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z M12 18h.01");
+export const MovieIcon = createIcon("M23 7l-7 5 7 5V7z M2 5h14v14H2z");
+export const ScaleIcon = createIcon("M12 3v18 M12 7l10 5-10 5 M12 7l-10 5 10 5");
+export const GemIcon = createIcon("M6 3h12l4 6-10 12L2 9z");
+export const WindowsIcon = createIcon("M3 3h8v8H3z M13 3h8v8h-8z M3 13h8v8H3z M13 13h8v8h-8z");
+export const LinuxIcon = createIcon("M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z");
+export const AppleIcon = createIcon("M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z");
+export const MissionIcon = createIcon("M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z");
+export const FlaskIcon = createIcon("M9 3h6v3l5 11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2L9 6V3z");
 
-export const AtomIcon = createIcon("M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0 M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2");
-export const FlaskIcon = createIcon("M9 3h6v3l-4 8v4h-4v-4l-4-8z");
-export const DinoIcon = createIcon("M12 2L2 7l10 5 10-5-10-5z");
-export const GemIcon = createIcon("M6 3h12l3 6-9 12-9-12z");
-export const ShirtIcon = createIcon("M20.38 3.46L16 2a4 4 0 01-8 0L3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z");
-export const ConceptIcon = createIcon("M2 6h20M2 12h20M2 18h20");
-export const CleanIcon = createIcon("M20 7h-9m3 3H5m5 3h10m-4 3H9");
-export const TruthIcon = createIcon("M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z");
-export const TestTubeIcon = createIcon("M9 3h6v13a3 3 0 11-6 0V3z");
-export const WindowsIcon = createIcon("M3 3h8v8H3zm10 0h8v8h-8zM3 13h8v8H3zm10 0h8v8h-8z");
-export const LinuxIcon = createIcon("M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z");
-export const AppleIcon = createIcon("M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2z");
-export const MissionIcon = createIcon("M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5");
-export const PhoneIcon = createIcon("M17 2H7a2 2 0 00-2 2v16a2 2 0 002 2h10a2 2 0 002-2V4a2 2 0 00-2-2z");
-export const ScaleIcon = createIcon("M3 6h18M12 2v20M7 22h10");
-
-export const SpinnerIcon = ({ className }: { className?: string }) => React.createElement('svg', {
-  xmlns: "http://www.w3.org/2000/svg",
-  width: "24",
-  height: "24",
-  viewBox: "0 0 24 24",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: "2",
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  className: `${className} animate-spin`
-}, React.createElement('path', { d: "M21 12a9 9 0 1 1-6.219-8.56" }));
+export const TestTubeIcon = FlaskIcon;
+export const CleanIcon = SparklesIcon;

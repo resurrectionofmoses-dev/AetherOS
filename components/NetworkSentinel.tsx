@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { TerminalIcon, ShieldIcon, ActivityIcon, SearchIcon, ZapIcon, WarningIcon, SpinnerIcon, CheckCircleIcon, CodeIcon, BotIcon } from './icons';
+import { TerminalIcon, ShieldIcon, ActivityIcon, SearchIcon, ZapIcon, WarningIcon, SpinnerIcon, CheckCircleIcon, CodeIcon, BotIcon, EyeIcon, XIcon } from './icons';
 import { neutralizeThreat } from '../services/geminiService';
 import type { NetworkNode as NetworkNodeType, NeutralizationPlan } from '../types';
 
@@ -8,9 +8,10 @@ interface NetworkNodeProps {
     node: NetworkNodeType;
     isScanning: boolean;
     onNeutralize: (node: NetworkNodeType) => void;
+    onInspect: (node: NetworkNodeType) => void;
 }
 
-const NetworkNode: React.FC<NetworkNodeProps> = ({ node, isScanning, onNeutralize }) => {
+const NetworkNode: React.FC<NetworkNodeProps> = ({ node, isScanning, onNeutralize, onInspect }) => {
     const isVulnerable = node.status === 'VULNERABLE';
     const isNeutralizing = node.status === 'NEUTRALIZING';
     const isSecured = node.status === 'SECURED';
@@ -52,14 +53,23 @@ const NetworkNode: React.FC<NetworkNodeProps> = ({ node, isScanning, onNeutraliz
                     <div className={`h-full ${node.threatLevel > 50 ? 'bg-red-500' : 'bg-green-500'}`} style={{ width: `${node.threatLevel}%` }}></div>
                 </div>
                 
-                {isVulnerable && !isScanning && (
+                <div className="flex gap-2 mt-4">
+                    {isVulnerable && !isScanning && (
+                        <button 
+                            onClick={() => onNeutralize(node)}
+                            className="vista-button flex-1 py-2 bg-red-600/60 text-white font-black uppercase text-[9px] rounded-lg flex items-center justify-center gap-1 shadow-[4px_4px_0_0_#000] animate-pulse"
+                        >
+                            <ShieldIcon className="w-4 h-4" /> NEUTRALIZE
+                        </button>
+                    )}
                     <button 
-                        onClick={() => onNeutralize(node)}
-                        className="vista-button w-full mt-4 py-2 bg-red-600/60 text-white font-black uppercase text-[9px] rounded-lg flex items-center justify-center gap-1 shadow-[4px_4px_0_0_#000] animate-pulse"
+                        onClick={() => onInspect(node)}
+                        className={`vista-button py-2 bg-blue-600/40 text-blue-200 font-black uppercase text-[9px] rounded-lg flex items-center justify-center gap-1 shadow-[2px_2px_0_0_#000] hover:bg-blue-600/60 transition-colors ${isVulnerable && !isScanning ? 'px-3' : 'w-full'}`}
+                        title="Inspect Node"
                     >
-                        <ShieldIcon className="w-4 h-4" /> NEUTRALIZE HEURISTIC
+                        <EyeIcon className="w-4 h-4" /> {(!isVulnerable || isScanning) && "INSPECT"}
                     </button>
-                )}
+                </div>
                 {isNeutralizing && (
                     <p className="text-[9px] text-amber-400 font-black uppercase mt-4 animate-pulse">SYNTHESIZING PLAN...</p>
                 )}
@@ -77,6 +87,7 @@ const NetworkNode: React.FC<NetworkNodeProps> = ({ node, isScanning, onNeutraliz
 
 export const NetworkSentinel: React.FC = () => {
     const [isScanning, setIsScanning] = useState(false);
+    const [selectedNode, setSelectedNode] = useState<NetworkNodeType | null>(null);
     const [logs, setLogs] = useState<string[]>(["[KALI-SENTINEL] v4.2.0-STABLE initialization...", "[OK] Ethernet interface eth0 bound."]);
     const [nodes, setNodes] = useState<NetworkNodeType[]>([
         { id: '1', ip: '192.168.1.1', status: 'ACTIVE', label: 'Mainframe Gateway', threatLevel: 2 },
@@ -151,7 +162,7 @@ export const NetworkSentinel: React.FC = () => {
                     <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(var(--kali-green) 1px, transparent 1px)', backgroundSize: '30px 30px' }}></div>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-8 relative z-10">
                         {nodes.map(node => (
-                            <NetworkNode key={node.id} node={node} isScanning={isScanning} onNeutralize={handleNeutralizeNode} />
+                            <NetworkNode key={node.id} node={node} isScanning={isScanning} onNeutralize={handleNeutralizeNode} onInspect={setSelectedNode} />
                         ))}
                     </div>
                 </div>
@@ -184,6 +195,80 @@ export const NetworkSentinel: React.FC = () => {
                     <span className="text-[10px] font-bold text-green-500 uppercase">Secure Link</span>
                 </div>
             </div>
+
+            {/* Inspection Modal */}
+            {selectedNode && (
+                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-gray-900 border border-green-500/50 rounded-xl p-6 max-w-md w-full shadow-2xl relative">
+                        <button 
+                            onClick={() => setSelectedNode(null)}
+                            className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
+                        >
+                            <XIcon className="w-5 h-5" />
+                        </button>
+                        <h3 className="text-xl font-bold text-green-400 mb-6 flex items-center gap-2">
+                            <SearchIcon className="w-5 h-5" /> NODE INSPECTION
+                        </h3>
+                        
+                        <div className="space-y-6 font-mono text-sm">
+                            <div className="grid grid-cols-2 gap-6">
+                                <div>
+                                    <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">IP Address</p>
+                                    <p className="text-white font-bold text-lg">{selectedNode.ip}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">Label</p>
+                                    <p className="text-white font-bold text-lg">{selectedNode.label}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">Status</p>
+                                    <p className={`font-bold text-lg ${
+                                        selectedNode.status === 'SECURED' ? 'text-green-400' : 
+                                        selectedNode.status === 'VULNERABLE' ? 'text-red-400' : 'text-blue-400'
+                                    }`}>{selectedNode.status}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 text-[10px] uppercase tracking-wider mb-1">Threat Level</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden">
+                                            <div 
+                                                className={`h-full ${selectedNode.threatLevel > 50 ? 'bg-red-500' : 'bg-green-500'}`} 
+                                                style={{ width: `${selectedNode.threatLevel}%` }}
+                                            ></div>
+                                        </div>
+                                        <span className="text-xs font-bold">{selectedNode.threatLevel}%</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {selectedNode.neutralizationPlan ? (
+                                <div className="mt-4 p-4 bg-black/40 rounded-lg border border-white/10">
+                                    <p className="text-green-400 text-xs uppercase font-bold mb-3 flex items-center gap-2">
+                                        <ShieldIcon className="w-3 h-3" /> Neutralization Plan Deployed
+                                    </p>
+                                    <p className="text-gray-300 text-xs mb-3 italic">"{selectedNode.neutralizationPlan.statusUpdate}"</p>
+                                    <div className="space-y-2 pl-2 border-l-2 border-green-500/20">
+                                        {selectedNode.neutralizationPlan.plan.map((step, idx) => (
+                                            <div key={idx} className="flex items-start gap-2 text-[11px] text-gray-400">
+                                                <span className="text-green-500 font-mono">0{idx + 1}</span>
+                                                <span>{step}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="mt-3 pt-3 border-t border-white/5 flex justify-between items-center">
+                                        <p className="text-[9px] text-gray-600 font-mono uppercase">Signature Verified</p>
+                                        <p className="text-[9px] text-green-500 font-mono">{selectedNode.neutralizationPlan.signature}</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="mt-4 p-4 bg-black/40 rounded-lg border border-white/10 text-center">
+                                    <p className="text-gray-500 text-xs italic">No active neutralization plan deployed for this node.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

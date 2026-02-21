@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useMemo } from 'react';
 import type { ChatMessage } from '../types';
 import { Message } from './Message';
@@ -67,7 +66,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const isAnyFilterActive = searchQuery || startDate || endDate;
 
   return (
-    <div ref={scrollRef} className="flex-1 overflow-y-auto bg-gray-900 rounded-t-lg">
+    <div ref={scrollRef} className="flex-1 overflow-y-auto bg-gray-900 rounded-t-lg custom-scrollbar min-h-0 flex-hinge">
       <div className="max-w-4xl mx-auto w-full p-4 md:px-8 space-y-6">
         {isAnyFilterActive && (
             <div className="text-center text-[10px] text-green-500 font-black py-2 px-4 bg-green-950/20 rounded-xl border-2 border-green-600/40 sticky top-2 z-20 flex items-center justify-center gap-3 backdrop-blur-md shadow-[0_0_20px_rgba(34,197,94,0.1)]">
@@ -103,7 +102,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           })
         )}
 
-        {isLoading && messages[messages.length - 1]?.sender === 'model' && !messages[messages.length - 1]?.content &&(
+        {isLoading && messages[messages.length - 1]?.sender === 'model' && !messages[messages.length - 1]?.content && (
              <div className="flex items-start gap-4 p-4 md:p-6 w-full justify-start">
                 <div className="flex items-end gap-3 max-w-3xl">
                     <div className="w-8 h-8 rounded-full flex-shrink-0 bg-gray-600" />

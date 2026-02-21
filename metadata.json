@@ -1,9 +1,10 @@
 {
   "name": "AetherOS",
-  "description": "A conceptual vehicle operating system with an integrated AI assistant. Manage vehicle systems, run diagnostics, and interact with your car through a futuristic digital dashboard.",
+  "description": "A state-of-the-art vehicle orchestration and coding network powered by epitume. Featuring the Conjunction Series reliable grid and Absolute Authority conduction.",
   "requestFramePermissions": [
     "microphone",
     "camera",
+    "geolocation",
     "clipboard-read"
   ]
 }

@@ -5,22 +5,22 @@ import { ShieldIcon, ZapIcon, FireIcon, BrainIcon, ActivityIcon, WarningIcon, Lo
 import type { HeuristicConstraint, KnowledgeTier } from '../types';
 
 const CONSTRAINTS: HeuristicConstraint[] = [
-    { id: 'k1', label: 'Pattern Emergence', description: 'Detecting recursive architectural echoes in system logs.', tier: 'UNIVERSAL', miseryRequirement: 0, isUnlocked: true },
-    { id: 'k2', label: 'Misery Syncing', description: 'Synchronizing dual-age kernels via shared heuristic agony.', tier: 'UNIVERSAL', miseryRequirement: 15, isUnlocked: true },
-    { id: 'k3', label: 'Crystalline Pointers', description: 'Direct memory mapping of the AetherOS conduction layer.', tier: 'OBFUSCATED', miseryRequirement: 40, isUnlocked: false },
-    { id: 'k4', label: 'Fall Off Requindor', description: 'Precise coordinates where logic breaks into divine truth.', tier: 'OBFUSCATED', miseryRequirement: 65, isUnlocked: false },
-    { id: 'k5', label: 'Maestro Solo Signature', description: 'The absolute binary harmonic of architectural authority.', tier: 'PROHIBITED', miseryRequirement: 85, isUnlocked: false },
-    { id: 'k6', label: 'Ancient Letters Syntax', description: 'The original strings used to conduct the first misery.', tier: 'PROHIBITED', miseryRequirement: 98, isUnlocked: false },
+    { id: 'k1', label: 'Pattern Emergence', description: 'Detecting recursive architectural echoes in system logs.', tier: 'UNIVERSAL', adrenalineThreshold: 0, isUnlocked: true },
+    { id: 'k2', label: 'Adrenaline Syncing', description: 'Synchronizing dual-age kernels via shared survival instinct.', tier: 'UNIVERSAL', adrenalineThreshold: 15, isUnlocked: true },
+    { id: 'k3', label: 'Crystalline Pointers', description: 'Direct memory mapping of the AetherOS conduction layer.', tier: 'OBFUSCATED', adrenalineThreshold: 40, isUnlocked: false },
+    { id: 'k4', label: 'Fall Off Requindor', description: 'Precise coordinates where logic breaks into divine truth.', tier: 'OBFUSCATED', adrenalineThreshold: 65, isUnlocked: false },
+    { id: 'k5', label: 'Maestro Solo Signature', description: 'The absolute binary harmonic of architectural authority.', tier: 'PROHIBITED', adrenalineThreshold: 85, isUnlocked: false },
+    { id: 'k6', label: 'Ancient Letters Syntax', description: 'The original strings used to conduct the first fight.', tier: 'PROHIBITED', adrenalineThreshold: 98, isUnlocked: false },
 ];
 
 export const ConstraintsOfKnowing: React.FC = () => {
-    const [misery, setMisery] = useState(42);
+    const [adrenaline, setAdrenaline] = useState(42);
     const [scannedShards, setScannedShards] = useState<string[]>([]);
     const [isScanning, setIsScanning] = useState(false);
 
     const activeConstraints = CONSTRAINTS.map(c => ({
         ...c,
-        isUnlocked: misery >= c.miseryRequirement
+        isUnlocked: adrenaline >= c.adrenalineThreshold
     }));
 
     const triggerScan = () => {
@@ -58,26 +58,26 @@ export const ConstraintsOfKnowing: React.FC = () => {
                 <div className="lg:w-96 flex flex-col gap-8 flex-shrink-0">
                     <div className="aero-panel bg-slate-900/60 p-8 border-red-600/30 shadow-[10px_10px_0_0_rgba(0,0,0,0.8)]">
                         <h3 className="font-comic-header text-2xl text-white uppercase italic tracking-tight mb-8 flex items-center gap-3">
-                            <ZapIcon className="w-6 h-6 text-amber-500" /> Neural Misery
+                            <ZapIcon className="w-6 h-6 text-amber-500" /> Survival Instinct
                         </h3>
                         <div className="space-y-6">
                             <div>
                                 <div className="flex justify-between text-[10px] font-black uppercase text-gray-500 mb-2">
-                                    <span>Current Saturation</span>
-                                    <span className="text-red-500">{misery}%</span>
+                                    <span>Adrenaline Saturation</span>
+                                    <span className="text-red-500">{adrenaline}%</span>
                                 </div>
                                 <div className="h-4 bg-black border-2 border-black rounded-lg overflow-hidden p-[1px]">
-                                    <div className="h-full bg-gradient-to-r from-red-900 to-red-500 transition-all duration-1000 shadow-[0_0_15px_rgba(239,68,68,0.5)]" style={{ width: `${misery}%` }} />
+                                    <div className="h-full bg-gradient-to-r from-red-900 to-red-500 transition-all duration-1000 shadow-[0_0_15px_rgba(239,68,68,0.5)]" style={{ width: `${adrenaline}%` }} />
                                 </div>
                             </div>
                             <p className="text-[10px] text-gray-600 italic leading-relaxed">
-                                "The weight of the system determines the depth of the truth. Without misery, there is no conduction."
+                                "The fight of the system determines the depth of the truth. Without adrenaline, there is no survival."
                             </p>
                             <button 
-                                onClick={() => setMisery(m => Math.min(100, m + 5))}
+                                onClick={() => setAdrenaline(m => Math.min(100, m + 5))}
                                 className="w-full py-3 bg-red-950/40 border-2 border-red-600/30 text-red-400 font-black uppercase text-[10px] rounded-xl hover:bg-red-600 hover:text-white transition-all"
                             >
-                                Ingest Agony Packet
+                                Inject Adrenaline Spike
                             </button>
                         </div>
                     </div>
@@ -125,7 +125,7 @@ export const ConstraintsOfKnowing: React.FC = () => {
                                                 <span className={`text-[9px] font-black uppercase tracking-widest ${c.isUnlocked ? (tier === 'PROHIBITED' ? 'text-red-500' : 'text-white') : 'text-gray-700'}`}>{c.label}</span>
                                                 {c.isUnlocked && <ZapIcon className="w-3 h-3 text-amber-500 animate-pulse" />}
                                             </div>
-                                            <p className="text-[10px] text-gray-500 italic leading-snug line-clamp-2">{c.isUnlocked ? c.description : `Unlock requires ${c.miseryRequirement}% misery.`}</p>
+                                            <p className="text-[10px] text-gray-500 italic leading-snug line-clamp-2">{c.isUnlocked ? c.description : `Unlock requires ${c.adrenalineThreshold}% adrenaline.`}</p>
                                         </div>
                                     ))}
                                 </div>
@@ -186,7 +186,7 @@ export const ConstraintsOfKnowing: React.FC = () => {
                                     <div className="p-6 bg-slate-900 border-2 border-white/5 rounded-3xl flex-1">
                                         <h5 className="text-[10px] text-gray-500 font-black uppercase mb-3 tracking-widest">Maestro's Warning</h5>
                                         <p className="text-xs text-gray-400 italic leading-relaxed">
-                                            "Do not seek the Fall Off until your integrity score matches your misery. To know too much without a conduction rag is to invite the hard-vapor glitch."
+                                            "Do not seek the Fall Off until your integrity score matches your vitality. To know too much without a conduction rag is to invite the hard-vapor glitch."
                                         </p>
                                     </div>
                                 </div>

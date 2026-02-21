@@ -1,4 +1,3 @@
-
 import { v4 as uuidv4 } from 'uuid';
 import type { Checkpoint, ScoredItem } from '../types';
 
@@ -31,7 +30,7 @@ export class CheckpointStore {
   /**
    * Creates a 'Block' in the vault, linking logic shards back to origins.
    */
-  public create(item: ScoredItem | { id: string, raw_text: string }, summaryText: string, level: number, provenance: string): Checkpoint {
+  public create(item: ScoredItem | { id: string, raw_text: string }, summaryText: string, levelValue: number, provenanceStr: string): Checkpoint {
     const cid = uuidv4();
     const itemId = item.id || 'genesis_or_orphan';
 
@@ -39,8 +38,8 @@ export class CheckpointStore {
       id: cid,
       parent_id: itemId,
       summary: summaryText,
-      level: level,
-      provenance: provenance,
+      level: levelValue,
+      provenance: provenanceStr,
       original_hash: this.generateOriginalHash(item.raw_text),
       timestamp: Date.now() / 1000
     };

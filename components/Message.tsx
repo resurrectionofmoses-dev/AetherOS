@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import * as ReactKatex from 'react-katex';
 import type { ChatMessage, ImplementationResponse, GroundingSource } from '../types';
 import { UserIcon } from './icons/UserIcon';
@@ -16,13 +16,20 @@ interface MessageProps {
 }
 
 const highlightText = (text: string, highlight: string): React.ReactNode => {
-    if (!highlight.trim()) return text;
-    const regex = new RegExp(`(${highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    if (!highlight || !highlight.trim()) return text;
+    
+    const safeHighlight = highlight.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${safeHighlight})`, 'gi');
+    const parts = text.split(regex);
+    
     return (
         <>
-            {text.split(regex).map((part, i) =>
+            {parts.map((part, i) =>
                 part.toLowerCase() === highlight.toLowerCase() ? (
-                    <mark key={i} className="bg-blue-500 text-white px-0.5 rounded-sm">
+                    <mark 
+                      key={i} 
+                      className="bg-amber-400 text-black px-0.5 rounded-sm font-black shadow-[0_0_12px_rgba(251,191,36,0.8)] animate-pulse inline-block"
+                    >
                         {part}
                     </mark>
                 ) : (
@@ -41,7 +48,7 @@ const parseText = (text: string, searchQuery: string): React.ReactNode[] => {
         const codeBlockMatch = part.match(/^```(\w*)\n([\s\S]*?)\n```$/);
         if (codeBlockMatch) {
             const [, language, code] = codeBlockMatch;
-            return <CodeBlock key={index} language={language} code={code.trim()} />;
+            return <CodeBlock key={index} language={language} code={code.trim()} searchQuery={searchQuery} />;
         }
         if (part.match(/^\$\$([\s\S]*?)\$\$$/)) {
             return <ReactKatex.BlockMath key={index} math={part.match(/^\$\$([\s\S]*?)\$\$$/)![1].trim()} />;
@@ -57,7 +64,6 @@ const parseText = (text: string, searchQuery: string): React.ReactNode[] => {
 };
 
 const parseContent = (content: string, searchQuery: string): React.ReactNode => {
-  // Check if the content is explicitly a JSON code block
   const jsonCodeBlockMatch = content.match(/^```json\n([\s\S]*?)\n```$/);
   if (jsonCodeBlockMatch) {
       try {
@@ -67,31 +73,43 @@ const parseContent = (content: string, searchQuery: string): React.ReactNode => 
               return <ImplementationResult response={implParsed} />;
           }
       } catch (e) {
-          // If JSON parsing fails, treat it as a regular text block
           console.warn("Failed to parse JSON content in message:", e);
       }
   }
-  // If not a JSON code block or parsing failed, proceed with general text parsing
   return <div className="whitespace-pre-wrap leading-relaxed">{parseText(content, searchQuery)}</div>;
 };
 
 export const Message: React.FC<MessageProps> = ({ message, onInteractionSubmit, searchQuery }) => {
   const isModel = message.sender === 'model';
 
+  const matchCount = useMemo(() => {
+    if (!searchQuery || !searchQuery.trim()) return 0;
+    const regex = new RegExp(searchQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
+    return (message.content.match(regex) || []).length;
+  }, [message.content, searchQuery]);
+
   return (
     <div className={`group flex items-start gap-3 max-w-3xl w-full relative ${isModel ? 'flex-row' : 'flex-row-reverse'}`}>
-      <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center border-2 border-black mt-1 ${isModel ? 'bg-slate-700 text-white shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'bg-blue-400 text-black shadow-[0_0_10px_rgba(59,130,246,0.5)]'}`}>
+      <div className={`w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center border-2 border-black mt-1 transition-all duration-500 group-hover:scale-110 ${isModel ? 'bg-slate-700 text-white shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'bg-blue-400 text-black shadow-[0_0_10px_rgba(59,130,246,0.5)]'}`}>
         {isModel ? <BotIcon className="w-5 h-5" /> : <UserIcon className="w-5 h-5" />}
       </div>
-      <div className={`message-bubble ${isModel ? 'message-bubble-model bg-slate-800/80 border-blue-500/20' : 'message-bubble-user bg-blue-900/40 border-blue-400/30'}`}>
+      
+      <div className={`message-bubble relative transition-all duration-300 ${isModel ? 'message-bubble-model bg-slate-800/80 border-blue-500/20' : 'message-bubble-user bg-blue-900/40 border-blue-400/30'} ${searchQuery && matchCount > 0 ? 'ring-2 ring-amber-500/40 shadow-[0_0_20px_rgba(245,158,11,0.1)]' : ''}`}>
+        
+        {searchQuery && matchCount > 0 && (
+          <div className="absolute -top-3 right-4 bg-amber-500 text-black text-[8px] font-black px-2 py-0.5 rounded-full border border-black animate-bounce shadow-lg z-20">
+            {matchCount} RESONANCE MATCH{matchCount === 1 ? '' : 'ES'}
+          </div>
+        )}
+
         {message.attachedFiles?.length > 0 && (
-            <div className="mb-3 p-3 bg-black/40 rounded-lg border border-white/5">
+            <div className="mb-3 p-3 bg-black/40 rounded-lg border border-white/5 shadow-inner">
                 <div className="flex items-center gap-2 text-sm text-blue-300 font-black uppercase tracking-tighter mb-2">
                     <PaperclipIcon className="w-4 h-4" />
                     <span>{message.attachedFiles.length} Binary Attachments</span>
                 </div>
                 <ul className="list-disc list-inside text-[10px] text-gray-400 space-y-1 font-mono">
-                    {message.attachedFiles.map(name => <li key={name}>{name}</li>)}
+                    {message.attachedFiles.map(name => <li key={name}>{highlightText(name, searchQuery)}</li>)}
                 </ul>
             </div>
         )}
@@ -101,14 +119,15 @@ export const Message: React.FC<MessageProps> = ({ message, onInteractionSubmit, 
         {message.groundingSources?.length > 0 && (
           <div className="mt-4 p-3 bg-blue-900/20 border-2 border-blue-500/30 rounded-xl animate-in zoom-in-95 duration-500">
             <p className="text-[10px] text-blue-400 font-black uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
-              <LinkIcon className="w-3 h-3" /> Ancient Letters (Ingested Sources)
+              <LinkIcon className="w-3 h-3" /> Ingested Letters (Sources)
             </p>
             <ul className="space-y-2">
               {message.groundingSources.map((source, idx) => (
                 <li key={idx} className="text-xs group/link">
                   <a href={source.uri} target="_blank" rel="noopener noreferrer" className="text-blue-300 hover:text-white transition-all flex items-center gap-2 truncate">
                     <div className="w-1 h-1 bg-blue-500 rounded-full group-hover/link:scale-150 transition-transform" />
-                    <span className="truncate border-b border-transparent group-hover/link:border-blue-400">{source.title}</span>
+                    <span className="truncate border-b border-transparent group-hover/link:border-blue-400">{highlightText(source.title, searchQuery)}</span>
+                    <span className="text-[8px] font-mono text-gray-500 ml-auto opacity-0 group-hover:opacity-100 transition-opacity">{source.bitSig || 'bits://N/A'}</span>
                   </a>
                 </li>
               ))}

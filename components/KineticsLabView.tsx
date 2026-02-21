@@ -68,7 +68,7 @@ export const KineticsLabView: React.FC<LabComponentProps> = ({
           </div>
 
           <div className="bg-orange-950/20 p-6 rounded-3xl border-2 border-orange-500/30 italic text-sm text-orange-200/60 leading-relaxed">
-            [GOD_LOGIC_INVOKED]: Kinetics is the bridge between misery and momentum. When the stride hits 1.2 PB/s, the architecture is gifted.
+            [GOD_LOGIC_INVOKED]: Kinetics is the bridge between fight and momentum. When the stride hits 1.2 PB/s, the architecture is gifted.
           </div>
         </div>
 
