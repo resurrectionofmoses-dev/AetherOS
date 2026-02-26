@@ -231,7 +231,6 @@ export const InputBar: React.FC<InputBarProps> = ({
                 <input 
                     type="file" 
                     multiple 
-                    accept="image/*,video/*,audio/*,text/plain,.pdf,.json"
                     ref={fileInputRef} 
                     onChange={(e) => onFilesChange(e.target.files)}
                     className="hidden"

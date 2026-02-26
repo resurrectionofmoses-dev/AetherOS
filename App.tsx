@@ -52,6 +52,7 @@ import { RawMineralLabView } from './components/RawMineralLabView';
 import { ClothingLabView } from './components/ClothingLabView';
 import { ConceptsLabView } from './components/ConceptsLabView';
 import { SanitizationLabView } from './components/SanitizationLabView';
+import { RemixScopeLabView } from './components/RemixScopeLabView';
 import { WindowsLabView } from './components/WindowsLabView';
 import { LinuxLabView } from './components/LinuxLabView';
 import { MacOSLabView } from './components/MacOSLabView';
@@ -83,7 +84,7 @@ import { ConstraintsAuditView } from './components/ConstraintsAuditView';
 import { sonicLedger } from './services/sonicLedger';
 import { cellularEngine } from './services/cellularEngine';
 
-import { startChatSession, sendMessageSovereign, generateSoftwareModule } from './services/geminiService';
+import { startChatSession, sendMessageSovereign, generateSoftwareModule, checkConnectivity, scanBinaryFile } from './services/geminiService';
 import { EmergencyKillSwitch } from './services/emergencyKillSwitch';
 import { safeStorage } from './services/safeStorage';
 import { PredictionEngine } from './services/predictionEngine';
@@ -149,6 +150,8 @@ export const App: React.FC = () => {
     // Predictive Engine State
     const [currentAlert, setCurrentAlert] = useState<PredictiveAlert | null>(null);
 
+    const [isOnline, setIsOnline] = useState(true);
+
     // Initial Chat Setup
     const chatRef = useRef<any>(null);
 
@@ -159,6 +162,24 @@ export const App: React.FC = () => {
         
         // HEARTBEAT: Local data updates only, do not force root remount
         const qInterval = setInterval(() => setQuantumTick(t => t + 1), 500);
+
+        // Connectivity Check
+        const checkConn = async () => {
+            const online = await checkConnectivity();
+            setIsOnline(online);
+            if (!online) {
+                setCurrentAlert({
+                    id: uuidv4(),
+                    type: 'WARNING',
+                    title: 'BRIDGE_SEVERED',
+                    message: 'The Sovereign Bridge is currently unreachable. System integrity maintains $260.5B treasury isolation.',
+                    severity: 'HIGH',
+                    timestamp: new Date()
+                });
+            }
+        };
+        const connInterval = setInterval(checkConn, 30000); // Check every 30s
+        checkConn();
 
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
             const p = sonicLedger.record('KEY', `NOTE_0x${e.keyCode.toString(16)}`, 1);
@@ -189,25 +210,89 @@ export const App: React.FC = () => {
         setMessages(prev => [...prev, newMessage, { sender: 'model', content: '', timestamp: new Date() }]);
         setIsLoading(true);
         setChatInput('');
+        
         try {
             if (chatRef.current) {
+                // We don't have direct access to callWithRetry here as it's inside sendMessageSovereign
+                // But we can catch the final error
                 const result = await sendMessageSovereign(chatRef.current, text, attachedFiles);
-                 setMessages(prev => {
+                
+                setMessages(prev => {
                     const newMsgs = [...prev];
                     newMsgs[newMsgs.length - 1].content = result.text;
                     newMsgs[newMsgs.length - 1].groundingSources = result.sources;
+                    newMsgs[newMsgs.length - 1].careScore = result.careScore;
                     return newMsgs;
                 });
+
+                // If the result text contains our "Right on Light" fallback message, show an alert
+                if (result.text.includes("Sovereign Bridge") && result.text.includes("Right on Light")) {
+                    setCurrentAlert({
+                        id: uuidv4(),
+                        type: 'WARNING',
+                        title: 'CONJUNCTION_DRIFT',
+                        message: 'The Sovereign Bridge is experiencing high latency. Fallback logic engaged.',
+                        severity: 'MEDIUM',
+                        timestamp: new Date()
+                    });
+                }
             }
-        } catch (error) {
+        } catch (error: any) {
+            console.error("[App] Chat failure:", error);
+            const errorMsg = error?.message || "Unknown fracture";
+            
+            setCurrentAlert({
+                id: uuidv4(),
+                type: 'ERROR',
+                title: 'QUANTIZATION_FAILURE',
+                message: `Critical fracture in the conjunction bridge: ${errorMsg}`,
+                severity: 'HIGH',
+                timestamp: new Date()
+            });
+
             setMessages(prev => {
                 const newMsgs = [...prev];
-                newMsgs[newMsgs.length - 1].content = "Quantization fail. Re-snapping grid...";
+                newMsgs[newMsgs.length - 1].content = "Quantization fail. The Sovereign Bridge has collapsed. Please check your API fuel levels or try again later.";
                 return newMsgs;
             });
         } finally {
             setIsLoading(false);
             setAttachedFiles([]);
+        }
+    };
+
+    const handleFilesChange = (files: FileList | null) => {
+        if (!files) return;
+        Array.from(files).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const content = e.target?.result as string;
+                setAttachedFiles(prev => [...prev, {
+                    name: file.name,
+                    type: file.type,
+                    content: content,
+                    scanStatus: 'complete'
+                }]);
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
+    const handleRemoveFile = (fileName: string) => {
+        setAttachedFiles(prev => prev.filter(f => f.name !== fileName));
+    };
+
+    const handleScanFile = async (fileName: string) => {
+        const file = attachedFiles.find(f => f.name === fileName);
+        if (!file) return;
+        
+        setAttachedFiles(prev => prev.map(f => f.name === fileName ? { ...f, scanStatus: 'scanning' } : f));
+        
+        try {
+            const result = await scanBinaryFile(file.name, file.content);
+            setAttachedFiles(prev => prev.map(f => f.name === fileName ? { ...f, scanStatus: 'complete', scanResult: result } : f));
+        } catch (e) {
+            setAttachedFiles(prev => prev.map(f => f.name === fileName ? { ...f, scanStatus: 'error' } : f));
         }
     };
 
@@ -241,7 +326,18 @@ export const App: React.FC = () => {
                         onDateChange={(s, e) => { setChatStartDate(s); setChatEndDate(e); }}
                     />
                     <ChatView messages={messages} isLoading={isLoading} searchQuery={chatSearchQuery} startDate={chatStartDate} endDate={chatEndDate} />
-                    <InputBar inputText={chatInput} setInputText={setChatInput} isLoading={isLoading} onSendMessage={handleSendMessage} isRecording={isRecording} onToggleRecording={() => setIsRecording(!isRecording)} attachedFiles={attachedFiles} onFilesChange={() => {}} onRemoveFile={() => {}} onScanFile={() => {}} />
+                    <InputBar 
+                        inputText={chatInput} 
+                        setInputText={setChatInput} 
+                        isLoading={isLoading} 
+                        onSendMessage={handleSendMessage} 
+                        isRecording={isRecording} 
+                        onToggleRecording={() => setIsRecording(!isRecording)} 
+                        attachedFiles={attachedFiles} 
+                        onFilesChange={handleFilesChange} 
+                        onRemoveFile={handleRemoveFile} 
+                        onScanFile={handleScanFile} 
+                    />
                 </div>
             );
             case 'recon_vault': return <TailscaleVaultView />;
@@ -286,11 +382,11 @@ export const App: React.FC = () => {
             case 'bluetooth_bridge': return <BluetoothSpecBridge />;
             case 'launch_center': return <LaunchCenterView />;
             case 'eliza_terminal': return <ElizaTerminal />;
-            case 'code_fall_lab': return <CodeFallLabView onGenerate={async (logic) => null} />;
+            case 'code_fall_lab': return <CodeFallLabView onGenerate={generateSoftwareModule} />;
             case 'alphabet_hexagon': return <AlphabetHexagonScroll />;
             case 'powertrain_conjunction': return <PowertrainConjunctionView systemStatus={systemStatus} />;
             case 'hyper_spatial_lab': return <HyperSpatialLab onActionReward={() => {}} />;
-            case 'engineering_lab': return <EngineeringLabView onGenerate={async (logic) => null} />;
+            case 'engineering_lab': return <EngineeringLabView onGenerate={generateSoftwareModule} />;
             case 'hard_code_lab': return <HardCodeLabView />;
             case 'truth_lab': return <TruthLabView />;
             case 'testing_lab': return <TestingLabView />;
@@ -303,6 +399,7 @@ export const App: React.FC = () => {
             case 'clothing_lab': return <ClothingLabView />;
             case 'concepts_lab': return <ConceptsLabView />;
             case 'sanitization_lab': return <SanitizationLabView />;
+            case 'remix_scope_lab': return <RemixScopeLabView />;
             case 'windows_lab': return <WindowsLabView />;
             case 'linux_lab': return <LinuxLabView />;
             case 'mac_os_lab': return <MacOSLabView />;
@@ -327,7 +424,7 @@ export const App: React.FC = () => {
             <Sidebar 
                 systemStatus={systemStatus} systemDetails={{}} currentView={currentView as MainView} onSetView={(v) => setCurrentView(v as any)} 
                 currentDateTime={currentTime} timeFormat={timeFormat} onToggleTimeFormat={() => setTimeFormat(prev => prev === '12hr' ? '24hr' : '12hr')} 
-                unlockedViews={[...unlockedViews, 'cellular_grid' as any, 'quantum_ledger' as any, 'voice_authority' as any, 'constraints_audit' as any]} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
+                unlockedViews={[...unlockedViews, 'cellular_grid' as any, 'quantum_ledger' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any]} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
             />
             
             <main className={`flex-1 flex flex-col relative overflow-hidden transition-all duration-75 flex-hinge ${isTerminal ? 'font-mono bg-black text-green-500 border-l-2 border-green-900/40' : ''}`}>

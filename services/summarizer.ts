@@ -17,7 +17,7 @@ export class Summarizer {
     try {
       const response = await ai.models.embedContent({
         model: 'text-embedding-004',
-        content: { parts: [{ text: text }] },
+        contents: [{ parts: [{ text: text }] }],
       });
       return Array.from(response.embeddings[0].values);
     } catch (e) {

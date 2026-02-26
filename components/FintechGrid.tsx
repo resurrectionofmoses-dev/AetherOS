@@ -99,27 +99,27 @@ export const FintechGrid: React.FC = () => {
                     <div className="font-mono text-xs space-y-3 text-sky-400/70 h-64 overflow-y-auto custom-scrollbar relative z-10">
                         <div className="flex gap-4 border-b border-white/5 pb-2">
                             <span className="text-stone-700">[09:24:12]</span>
-                            <span>DBS_SG >> <span className="text-white">ATOMIC_SETTLEMENT</span> >> COMPLETED (0x03E2)</span>
+                            <span>DBS_SG {'>>'} <span className="text-white">ATOMIC_SETTLEMENT</span> {'>>'} COMPLETED (0x03E2)</span>
                         </div>
                         <div className="flex gap-4 border-b border-white/5 pb-2">
                             <span className="text-stone-700">[09:24:15]</span>
-                            <span>REVOLUT_LN >> <span className="text-amber-500">REEDLE_AUTH_v5</span> >> CHALLENGE_PENDING</span>
+                            <span>REVOLUT_LN {'>>'} <span className="text-amber-500">REEDLE_AUTH_v5</span> {'>>'} CHALLENGE_PENDING</span>
                         </div>
                         <div className="flex gap-4 border-b border-white/5 pb-2">
                             <span className="text-stone-700">[09:24:18]</span>
-                            <span>JPM_NYC >> <span className="text-white">ONYX_LATTICE</span> >> FINALIZED_BLOCK_78291</span>
+                            <span>JPM_NYC {'>>'} <span className="text-white">ONYX_LATTICE</span> {'>>'} FINALIZED_BLOCK_78291</span>
                         </div>
                         <div className="flex gap-4 border-b border-white/5 pb-2">
                             <span className="text-stone-700">[09:24:22]</span>
-                            <span>STARLING_LDN >> <span className="text-emerald-400">KERNEL_SYNC</span> >> SUCCESS [VERIFIED]</span>
+                            <span>STARLING_LDN {'>>'} <span className="text-emerald-400">KERNEL_SYNC</span> {'>>'} SUCCESS [VERIFIED]</span>
                         </div>
                         <div className="flex gap-4 border-b border-white/5 pb-2">
                             <span className="text-stone-700">[09:24:28]</span>
-                            <span>IPROOV_GLOBAL >> <span className="text-white">BIOMETRIC_SHROUD</span> >> ATTESTATION_OK</span>
+                            <span>IPROOV_GLOBAL {'>>'} <span className="text-white">BIOMETRIC_SHROUD</span> {'>>'} ATTESTATION_OK</span>
                         </div>
                         <div className="flex gap-4 border-b border-white/5 pb-2">
                             <span className="text-stone-700">[09:24:35]</span>
-                            <span>HSBC_HK >> <span className="text-white">SWIFT_ISO_20022</span> >> INGRESS_BUF_LOCKED</span>
+                            <span>HSBC_HK {'>>'} <span className="text-white">SWIFT_ISO_20022</span> {'>>'} INGRESS_BUF_LOCKED</span>
                         </div>
                     </div>
                 </div>

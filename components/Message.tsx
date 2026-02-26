@@ -102,6 +102,13 @@ export const Message: React.FC<MessageProps> = ({ message, onInteractionSubmit, 
           </div>
         )}
 
+        {message.careScore !== undefined && (
+          <div className="absolute -top-3 left-4 bg-green-600 text-white text-[8px] font-black px-2 py-0.5 rounded-full border border-black shadow-lg z-20 flex items-center gap-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            CARE SCORE: {message.careScore}
+          </div>
+        )}
+
         {message.attachedFiles?.length > 0 && (
             <div className="mb-3 p-3 bg-black/40 rounded-lg border border-white/5 shadow-inner">
                 <div className="flex items-center gap-2 text-sm text-blue-300 font-black uppercase tracking-tighter mb-2">

@@ -19,11 +19,15 @@ export interface QuantumMove {
 export interface PredictiveAlert {
     id: string;
     title: string;
-    probability: number; 
-    timeToImpact: number; 
-    detectedPattern: string;
-    suggestedFix: string;
-    reward: number;
+    probability?: number; 
+    timeToImpact?: number; 
+    detectedPattern?: string;
+    suggestedFix?: string;
+    reward?: number;
+    type?: 'WARNING' | 'ERROR' | 'INFO';
+    message?: string;
+    severity?: 'LOW' | 'MEDIUM' | 'HIGH';
+    timestamp?: Date;
 }
 
 export interface ProjectTask {
@@ -87,7 +91,7 @@ export type MainView =
   | 'apple_lab' | 'mission_lab' | 'cell_phone_lab' | 'sampling_lab' | 'pornography_studio' 
   | 'vehicle_telemetry_lab' | 'coding_network_teachers' | 'enlightenment_pool' 
   | 'library_view' | 'timeline' | 'amoeba_heritage' | 'system_exhaustion' | 'recon_vault'
-  | 'quantum_ledger' | 'constraints_audit';
+  | 'quantum_ledger' | 'constraints_audit' | 'remix_scope_lab';
 
 export interface SystemStatus {
   Engine: SystemState;
@@ -110,6 +114,7 @@ export interface ChatMessage {
   attachedFiles?: string[];
   groundingSources?: GroundingSource[];
   interactionPrompt?: InteractionPromptData;
+  careScore?: number;
 }
 
 export interface AttachedFile {
@@ -271,6 +276,7 @@ export interface LabComponentProps {
     description?: string;
     globalDirective?: GlobalDirective;
     onActionReward?: (shards: number) => void;
+    onGenerate?: (logic: string) => Promise<ImplementationResponse | null>;
 }
 
 export interface GlobalDirective {
@@ -361,6 +367,7 @@ export interface NetworkProject {
     knowHow?: string;
     assetType?: string;
     manifest?: ImplementationResponse;
+    careScore?: number;
 }
 
 export interface NetworkNode {

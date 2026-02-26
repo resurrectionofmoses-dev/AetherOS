@@ -5,9 +5,7 @@ import {
     ActivityIcon, SpinnerIcon, SearchIcon, GaugeIcon, StarIcon,
     PlusIcon, CheckCircleIcon, LogicIcon, BrainIcon
 } from './icons';
-import { GoogleGenAI, Type } from "@google/genai";
-import { callWithRetry, extractJSON } from '../utils';
-import { MAESTRO_SYSTEM_PROMPT, generateSoftwareModule } from '../services/geminiService';
+import { MAESTRO_SYSTEM_PROMPT, generateSoftwareModule, startChatSession } from '../services/geminiService';
 import { ImplementationResult } from './ImplementationResult';
 import type { ImplementationResponse } from '../types';
 
@@ -16,7 +14,7 @@ interface ProjectShard {
     title: string;
     description: string;
     status: 'IDEATING' | 'FORGING' | 'STABLE';
-    fightIndex: number; // Replaced miseryIndex
+    careScore: number; // Replaced fightIndex
     knowHow?: string;
     manifest?: ImplementationResponse;
 }
@@ -42,64 +40,45 @@ export const AbsoluteReliabilityNetwork: React.FC<{ onActionReward?: (shards: nu
         setIsConducting(true);
         addLog(`Ingesting Intent: "${intent}"`, "text-amber-400 font-bold");
         
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        
         try {
-            // STEP 1: Conceptualize Project
-            const conceptualResponse = await callWithRetry(async () => {
-                return await ai.models.generateContent({
-                    model: 'gemini-3-flash-preview',
-                    contents: `ACT AS THE MAESTRO. PROJECT INTENT: "${intent}". 
-                    1. Assign a name.
-                    2. Determine Fight Index (0-100) - how hard it fights to survive.
-                    3. Provide a brief architectural description.
-                    Return JSON.`,
-                    config: {
-                        systemInstruction: MAESTRO_SYSTEM_PROMPT,
-                        responseMimeType: "application/json",
-                        responseSchema: {
-                            type: Type.OBJECT,
-                            properties: {
-                                name: { type: Type.STRING },
-                                fightIndex: { type: Type.NUMBER },
-                                description: { type: Type.STRING }
-                            },
-                            required: ["name", "fightIndex", "description"]
-                        }
-                    }
-                });
-            });
-
-            const concept = extractJSON<{name: string, fightIndex: number, description: string}>(conceptualResponse.text || '', {
-                name: "Logic Fragment", fightIndex: 42, description: "Unknown Conjunction"
-            });
+            // STEP 1: Conceptualize Project (Local Logic)
+            const chat = startChatSession(MAESTRO_SYSTEM_PROMPT);
+            const response = await chat.sendMessage({ message: intent });
+            
+            const careScore = parseInt(response.text.match(/Care Score: (\d+)/)?.[1] || "50");
+            const name = intent.split(' ').slice(0, 2).join('_').toUpperCase() || "LOGIC_FRAGMENT";
 
             const newId = `shard_${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
             const newProject: ProjectShard = {
                 id: newId,
-                title: concept.name,
-                description: concept.description,
+                title: name,
+                description: `Care-driven manifestation of: ${intent}`,
                 status: 'FORGING',
-                fightIndex: concept.fightIndex
+                careScore: careScore
             };
 
             setActiveProjects(prev => [newProject, ...prev]);
             setSelectedProjectId(newId);
             setIntent('');
-            addLog(`Shard Manifested: ${concept.name}. Fight Index: ${concept.fightIndex}%`, "text-green-400");
+            addLog(`Shard Manifested: ${name}. Care Score: ${careScore}%`, "text-green-400");
 
             // STEP 2: Synthesize Core Module
-            addLog(`Synthesizing God-Logic for ${concept.name}...`, "text-violet-400");
-            const module = await generateSoftwareModule(`Build the absolute reliable version of: ${concept.name}. Description: ${concept.description}`);
+            addLog(`Synthesizing God-Logic for ${name}...`, "text-violet-400");
+            const module = await generateSoftwareModule(`Build the absolute reliable version of: ${name}. Care Score: ${careScore}`);
             
             if (module) {
                 setActiveProjects(prev => prev.map(p => p.id === newId ? { ...p, status: 'STABLE', manifest: module } : p));
-                addLog(`Conjunction Stable. 0x03E2_HARMONY attained.`, "text-green-500 font-black");
+                addLog(`Conjunction Stable. 0x03E2_CARE_HARMONY attained.`, "text-green-500 font-black");
                 onActionReward?.(10);
+            } else {
+                addLog(`Synthesis stalled. Care buffer overflow.`, "text-amber-500");
+                setActiveProjects(prev => prev.map(p => p.id === newId ? { ...p, status: 'IDEATING' } : p));
             }
 
-        } catch (err) {
-            addLog("FRACTURE DETECTED: Conjunction bridge collapsed.", "text-red-500");
+        } catch (err: any) {
+            const errorMsg = err?.message || "Unknown fracture";
+            addLog(`FRACTURE DETECTED: ${errorMsg}`, "text-red-500 font-black");
+            console.error("[RELIABILITY_NET] Care bridge collapsed:", err);
         } finally {
             setIsConducting(false);
         }
@@ -177,11 +156,11 @@ export const AbsoluteReliabilityNetwork: React.FC<{ onActionReward?: (shards: nu
                                         </div>
                                         <p className="font-black text-white text-sm uppercase tracking-tight truncate">{project.title}</p>
                                         <div className="mt-3 flex justify-between items-center text-[6px] font-black uppercase text-gray-600">
-                                            <span>Fight Index</span>
-                                            <span className={project.fightIndex > 70 ? 'text-red-500' : 'text-cyan-400'}>{project.fightIndex}%</span>
+                                            <span>Care Score</span>
+                                            <span className={project.careScore < 30 ? 'text-red-500' : 'text-cyan-400'}>{project.careScore}%</span>
                                         </div>
                                         <div className="h-1 bg-gray-950 rounded-full mt-1 overflow-hidden">
-                                            <div className={`h-full transition-all duration-1000 ${project.fightIndex > 70 ? 'bg-red-600' : 'bg-cyan-600'}`} style={{ width: `${project.fightIndex}%` }} />
+                                            <div className={`h-full transition-all duration-1000 ${project.careScore < 30 ? 'bg-red-600' : 'bg-cyan-600'}`} style={{ width: `${project.careScore}%` }} />
                                         </div>
                                     </button>
                                 ))

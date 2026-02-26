@@ -125,11 +125,17 @@ export const getSophisticatedColor = (seed: string): SophisticatedColor => {
   return COLOR_PALETTE[index];
 };
 
+export interface RetryOptions {
+  maxRetries?: number;
+  initialDelay?: number;
+  onRetry?: (attempt: number, error: any, nextDelay: number) => void;
+}
+
 export async function callWithRetry<T>(
   fn: () => Promise<T>,
-  maxRetries: number = 10,
-  initialDelay: number = 5000
+  options: RetryOptions = {}
 ): Promise<T> {
+  const { maxRetries = 10, initialDelay = 5000, onRetry } = options;
   let retries = 0;
   while (true) {
     try {
@@ -137,15 +143,29 @@ export async function callWithRetry<T>(
     } catch (error: any) {
       const errorMsg = error?.message || "";
       const status = error?.status || error?.code || 0;
+      
       const isQuotaError = status === 429 || errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED');
-      const isTransientError = status >= 500 || errorMsg.includes('Rpc failed') || errorMsg.includes('UNKNOWN') || errorMsg.includes('xhr error');
+      const isTransientError = status >= 500 || errorMsg.includes('Rpc failed') || errorMsg.includes('UNKNOWN') || errorMsg.includes('xhr error') || errorMsg.includes('Network Error');
+      const isAuthError = status === 401 || status === 403 || errorMsg.includes('API_KEY_INVALID') || errorMsg.includes('PERMISSION_DENIED');
+
       if ((isQuotaError || isTransientError) && retries < maxRetries) {
         retries++;
         const delay = initialDelay * Math.pow(2, retries - 1) + Math.random() * 3000;
+        
+        if (onRetry) {
+          onRetry(retries, error, delay);
+        }
+        
         console.warn(`[AetherOS] Quota saturation or drift detected (Retry ${retries}/${maxRetries}). Delaying ${Math.round(delay)}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }
+      
+      // If it's an auth error, we shouldn't retry
+      if (isAuthError) {
+        console.error("[AetherOS] Authentication fracture. Conjunction bridge unable to ignite.");
+      }
+      
       throw error;
     }
   }
