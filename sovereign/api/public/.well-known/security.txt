@@ -1,0 +1,6 @@
+Contact: mailto:security@aetheros.sovereign
+Expires: 2027-03-16T20:00:00.000Z
+Acknowledgments: http://localhost:5000/api/status
+Policy: http://localhost:5000/vdp-policy
+Hiring: http://localhost:5000/api/status
+Canonical: http://localhost:5000/.well-known/security.txt
