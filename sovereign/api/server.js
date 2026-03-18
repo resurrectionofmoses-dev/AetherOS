@@ -75,6 +75,24 @@ app.post('/api/network/deploy-acl', async (req, res) => {
     }
 });
 
+app.post('/api/network/perfect-eth0', async (req, res) => {
+    try {
+        const result = await networkGateway.perfectEth0();
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ error: "SI0 Perfection Failure", message: e.message });
+    }
+});
+
+app.get('/api/network/stats', async (req, res) => {
+    try {
+        const stats = await networkGateway.getInterfaceStats();
+        res.json(stats);
+    } catch (e) {
+        res.status(500).json({ error: "Stats Retrieval Failure", message: e.message });
+    }
+});
+
 // [VDP] Reporting Endpoint
 app.post('/api/report', (req, res) => {
     const { title, description, steps, contact } = req.body;
