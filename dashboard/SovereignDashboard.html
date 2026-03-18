@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AetherOS | Sovereign Dashboard</title>
+        :root {
+            --bg-color: #020205;
+            --accent-primary: #00ff88;
+            --accent-secondary: #7000ff;
+            --accent-alert: #ff3e3e;
+            --text-main: #f0f0f0;
+            --glass-bg: rgba(10, 10, 20, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(112, 0, 255, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 85% 85%, rgba(0, 255, 136, 0.15) 0%, transparent 50%),
+                url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            color: var(--text-main);
+            font-family: 'Inter', 'Outfit', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 320px 1fr 320px;
+            grid-template-rows: 80px 1fr 180px;
+            gap: 20px;
+        }
+
+        .glass-card {
+            background: var(--glass-bg);
+            -webkit-backdrop-filter: blur(20px);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 50px rgba(0, 255, 136, 0.1);
+            border-color: rgba(0, 255, 136, 0.2);
+        }
+
+        header {
+            grid-column: 1 / span 3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--accent-primary);
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 900;
+            letter-spacing: -2px;
+            text-transform: uppercase;
+        }
+
+        .logo span {
+            color: var(--accent-primary);
+            text-shadow: 0 0 15px var(--accent-primary);
+        }
+
+        .kinetic-pulse {
+            width: 10px;
+            height: 10px;
+            background-color: var(--accent-primary);
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            box-shadow: 0 0 10px var(--accent-primary);
+            animation: kineticPulse 1.5s infinite;
+        }
+
+        @keyframes kineticPulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+        }
+
+        .btn-sovereign {
+            background: rgba(112, 0, 255, 0.1);
+            border: 1px solid var(--accent-secondary);
+            color: var(--accent-secondary);
+            font-family: inherit;
+            font-weight: 700;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.75rem;
+        }
+
+        .btn-sovereign:hover {
+            background: var(--accent-secondary);
+            color: white;
+            box-shadow: 0 0 20px var(--accent-secondary);
+        }
+
+        .terminal-text {
+            color: var(--accent-primary);
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.8rem;
+            line-height: 1.6;
+        }
+
+        h2 {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            color: var(--accent-primary);
+            margin: 0 0 15px 0;
+            opacity: 0.8;
+        }
+
+        header {
+            grid-column: 1 / span 3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-primary);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-primary);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .knowledge-fragments {
+            grid-row: 2 / span 2;
+        }
+
+        .main-feed {
+            grid-column: 2;
+            grid-row: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+        }
+
+        .feed-item {
+            padding: 10px;
+            border-bottom: 1px solid var(--glass-border);
+            font-size: 0.85rem;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .system-ops {
+            grid-column: 3;
+            grid-row: 2 / span 2;
+        }
+
+        .firewall-active {
+            grid-column: 2;
+            grid-row: 3;
+        }
+
+        h2 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            color: var(--accent-primary);
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        .terminal-text {
+            color: var(--accent-primary);
+            font-family: 'Courier New', monospace;
+        }
+
+        .shimmer {
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+    </style>
+</head>
+<body class="grid-bg">
+    <header class="glass-card">
+        <div class="logo">
+            AETHER<span>OS</span>
+        </div>
+        <div class="status-badge">
+            <div class="kinetic-pulse"></div>
+            TinyLlama Firewall: ACTIVE
+        </div>
+        <div id="clock" class="terminal-text" style="font-size: 1.2rem;">00:00:00</div>
+    </header>
+
+    <div class="glass-card knowledge-fragments">
+        <h2>Knowledge Shards</h2>
+        <div class="feed-item terminal-text">JOe Signature: [PENDING]</div>
+        <div class="feed-item terminal-text">Bandicoot Code: [DECRYPTING]</div>
+        <div class="feed-item terminal-text">Breaking Bad: Phase JESUS</div>
+    </div>
+
+    <div class="glass-card main-feed" id="feed">
+        <h2>Sovereign Feed</h2>
+        <!-- Events will be populated here -->
+    </div>
+
+    <div class="glass-card system-ops">
+        <h2>System Operations</h2>
+        <div class="feed-item">WSL2 Kali: Mounted (/dev/sdd)</div>
+        <div class="feed-item">Account: InboundAdmin (Locked)</div>
+        <div class="feed-item">Memory: 64GB DDR5 (Optimized)</div>
+    </div>
+
+    <div class="glass-card terraform-ops shimmer">
+        <h2 style="color: #61dafb;">Terraform Plan: 0x03E2</h2>
+        <div class="feed-item terminal-text" id="terraform-status">Current: [ORCHESTRATING...]</div>
+        <div id="terraform-plan" class="terminal-text" style="font-size: 0.6rem; max-height: 80px; overflow: hidden; opacity: 0.6;">
+            # Cisco Switch: VLAN 3000 -> ACTIVE<br>
+            # SonicWall: Policy Discard (100+ CVEs)<br>
+            # Kinetic Bridge Gateway: 172.21.229.195
+        </div>
+        <button onclick="applyTerraform()" class="btn-sovereign" style="border-color: #61dafb; color: #61dafb;">Terraform Apply</button>
+    </div>
+
+    <div class="glass-card network-ops shimmer">
+        <h2 style="color: var(--accent-secondary);">Network Sovereignty</h2>
+        <div class="feed-item terminal-text" id="cisco-status">Cisco Switch: [POLLING...]</div>
+        <div class="feed-item terminal-text" id="sonicwall-status">SonicWall TZ: [POLLING...]</div>
+        <div class="feed-item" style="font-size: 0.7rem; color: #888; margin-top: 10px;">
+            Active CVEs (Hardware Pool): <span id="hardware-cves" style="color: var(--accent-alert);">0</span>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button onclick="runAudit()" class="btn-sovereign">Run Audit</button>
+            <button onclick="deployAcl()" class="btn-sovereign" style="border-color: var(--accent-secondary); color: var(--accent-secondary);">Deploy ACLs</button>
+        </div>
+    </div>
+
+    <div class="glass-card firewall-active shimmer">
+        <h2 style="color: var(--accent-alert);">TinyLlama Core Protection</h2>
+        <div style="font-size: 0.9rem; margin-top: 10px; opacity: 0.8;">
+            Auditing outbound entropy. All OpenAI/Grok/Vex vectors under review.
+        </div>
+    </div>
+
+    <script>
+        const feed = document.getElementById('feed');
+        const statusBadge = document.querySelector('.status-badge');
+        const clock = document.getElementById('clock');
+
+        async function updateDashboard() {
+            try {
+                // Update Status
+                const statusRes = await fetch('http://localhost:5000/api/status');
+                const statusData = await statusRes.json();
+                statusBadge.innerHTML = `<div class="dot"></div> TinyLlama Firewall: ${statusData.firewall}`;
+
+                // Update Network Status
+                const networkRes = await fetch('http://localhost:5000/api/network-status');
+                const netData = await networkRes.json();
+                document.getElementById('cisco-status').textContent = `Cisco Switch: ${netData.cisco}`;
+                document.getElementById('sonicwall-status').textContent = `SonicWall TZ: ${netData.sonicwall}`;
+                document.getElementById('hardware-cves').textContent = netData.cve_count;
+
+                // Update Feed from API Logs
+                const logRes = await fetch('http://localhost:5000/api/firewall-logs');
+// ... rest of log code
+                const logs = await logRes.json();
+                
+                // Clear simulated items but keep header
+                const header = feed.querySelector('h2');
+                feed.innerHTML = '';
+                feed.appendChild(header);
+
+                logs.forEach(log => {
+                    const div = document.createElement('div');
+                    div.className = 'feed-item';
+                    div.textContent = `[${new Date().toLocaleTimeString()}] ${log}`;
+                    feed.appendChild(div);
+                });
+
+            } catch (err) {
+                console.error("Sovereign API disconnected:", err);
+                statusBadge.innerHTML = `<div class="dot" style="background-color: #ff3e3e; box-shadow: 0 0 10px #ff3e3e;"></div> Sovereign API: DISCONNECTED`;
+            }
+        }
+
+        async function applyTerraform() {
+            alert("Terraform Apply Initiated: Providioning Cisco Switch VLANs & SonicWall Entropy Guards...");
+            const res = await fetch('http://localhost:5000/api/network/terraform', { method: 'POST' });
+            const data = await res.json();
+            document.getElementById('terraform-status').textContent = `Status: ${data.status}`;
+            alert("Sovereign Infrastructure Remodeled: " + data.message);
+        }
+
+        async function deployAcl() {
+            try {
+                const res = await fetch('http://localhost:5000/api/network/deploy-acl', { method: 'POST' });
+                const data = await res.json();
+                alert("Sovereign ACL Deployment Initiated: " + data.status);
+            } catch (err) {
+                alert("Critical Bridge Failure: ACL Deployment Offline.");
+            }
+        }
+
+        async function runAudit() {
+            try {
+                const res = await fetch('http://localhost:5000/api/network/audit', { method: 'POST' });
+                const data = await res.json();
+                alert("Audit Response: " + data.message + "\n\n" + data.output);
+                updateDashboard();
+            } catch (err) {
+                alert("Audit Command Failed: Check API Connection.");
+            }
+        }
+
+        setInterval(updateDashboard, 5000);
+        updateDashboard();
+
+        setInterval(() => {
+            clock.textContent = new Date().toLocaleTimeString();
+        }, 1000);
+    </script>
+</body>
+</html>
