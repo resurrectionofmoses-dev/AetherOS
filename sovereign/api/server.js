@@ -43,6 +43,20 @@ app.get('/api/network-status', async (req, res) => {
     }
 });
 
+app.get('/api/policies', (req, res) => {
+    // Try both possible locations
+    const localPolicy = path.join(__dirname, 'SOVEREIGN_POLICIES.md');
+    const rootPolicy = path.join(__dirname, '..', 'compliance', 'SOVEREIGN_POLICIES.md');
+    const policyPath = fs.existsSync(localPolicy) ? localPolicy : rootPolicy;
+
+    if (fs.existsSync(policyPath)) {
+        const content = fs.readFileSync(policyPath, 'utf8');
+        res.json({ content, status: "SOVEREIGN_POLICY_SYNCED" });
+    } else {
+        res.status(404).json({ error: "Policy Shard Missing" });
+    }
+});
+
 app.post('/api/network/audit', (req, res) => {
     console.log("[0x03E2_AUDIT] Initiating Network Vulnerability Audit...");
     const auditScript = path.join(__dirname, '..', '..', '.gemini', 'antigravity', 'scratch', 'NetworkAudit.py');
@@ -156,7 +170,7 @@ app.get('/prohibited-knowledge', (req, res) => {
                 <div style="margin-top: 20px; font-size: 10px; color: #991b1b;">SOVEREIGN_OVERWATCH_ID: \${Date.now()}</div>
             </body>
         </html>
-    `);
+    \`);
 });
 
 // [PINNED_PROTOCOL] Sovereign VDP Policy (Absolute Zero)
@@ -243,121 +257,6 @@ app.get('/vdp-policy', (req, res) => {
     \`);
 });
 
-// [PINNED_BOUNDARY] Disallowed by robots.txt - Kernel Leak
-app.get('/kernel-leak', (req, res) => {
-    res.status(403).json({
-        error: "KERNEL_ACCESS_RESTRICTED",
-        message: "You are attempting to observe a raw memory leak. InboundAdmin protocols are required.",
-        protocol: "0x03E2_SHIELD",
-        instruction: "Consult the VDP Policy regarding 'Safe Harbor' before proceeding further."
-    });
-});
-
-// [VDP] Automated Threat Intelligence Feed (CISA KEV)
-app.get('/api/vdp/threat-feed', (req, res) => {
-    const threatPath = path.join(__dirname, '..', '..', '.gemini', 'antigravity', 'scratch', 'AetherOS-VDP', 'cisa_threat_shards.json');
-    
-    if (fs.existsSync(threatPath)) {
-        const threats = JSON.parse(fs.readFileSync(threatPath, 'utf8'));
-        res.json({
-            status: "Sovereign Threat Sync Active",
-            source: "CISA KEV Catalog",
-            count: threats.length,
-            latest_threats: threats.slice(0, 10) // Return top 10 for quick audit
-        });
-    } else {
-        res.status(404).json({ error: "Threat Feed Offline", message: "Run CISA Ingestor to populate Shards." });
-    }
-});
-
-app.get('/api/knowledge', (req, res) => {
-    // Read fragments if they exist on the 1TB drive
-    res.json({
-        joe: "JOe Signature: RECON_PHASE_LEAD",
-        bandicoot: "Bandicoot Logic: DECRYPTING_FRAGMENTS",
-        breaking_bad: "Project Status: Phase JESUS"
-    });
-});
-
-// [BRIDGE_GATEWAY] Sovereign Webhook Relay (Port 3000 Bridge)
-app.post('/api/webhook', (req, res) => {
-    const bridgeIP = "172.21.229.195";
-    const timestamp = new Date().toISOString();
-    const payload = req.body;
-    
-    console.log(\`[0x03E2_BRIDGE] Webhook Inbound: \${timestamp} | Relay Target: \${bridgeIP}:3000\`);
-    
-    // Log intent to the Sovereign Ledger
-    const entry = {
-        id: \`WEBHOOK_\${Date.now()}\`,
-        bridge_ip: bridgeIP,
-        origin: req.ip,
-        data: payload,
-        status: "BRIDGED_OPTIMAL"
-    };
-
-    const logPath = path.join(STORAGE_PATH, 'webhook_audit.json');
-    try {
-        let logs = [];
-        if (fs.existsSync(logPath)) {
-            logs = JSON.parse(fs.readFileSync(logPath, 'utf8'));
-        }
-        logs.push(entry);
-        fs.writeFileSync(logPath, JSON.stringify(logs, null, 2));
-        
-        res.json({ 
-            status: "SUCCESS", 
-            bridge: "ACTIVE", 
-            target: bridgeIP,
-            note: "Kinetic Bridge Engaged on Port 3000."
-        });
-    } catch (e) {
-        res.status(500).json({ error: "Bridge Shard Fracture", message: e.message });
-    }
-});
-
-// [BRIDGE_GATEWAY] Sovereign Webhook Bridge (Port 3000)
-// This implements the Kinetic Bridge without requiring OS-level elevation
-const webhookApp = express();
-webhookApp.use(express.json());
-
-// USE middleware for catch-all to avoid path-to-regexp issues in Express 5
-webhookApp.use((req, res, next) => {
-    if (req.method !== 'POST') return next();
-
-    const bridgeIP = "172.21.229.195";
-    const timestamp = new Date().toISOString();
-    console.log(\`[0x03E2_BRIDGE] INBOUND_WEBHOOK on Port 3000 -> RELAYING TO \${bridgeIP}:3000\`);
-    
-    // Log intent to the Sovereign Ledger
-    const entry = {
-        id: \`WEBHOOK_RELAY_\${Date.now()}\`,
-        bridge_ip: bridgeIP,
-        origin: req.ip,
-        data: req.body,
-        status: "BRIDGED_OPTIMAL"
-    };
-
-    const logPath = path.join(STORAGE_PATH, 'webhook_audit.json');
-    try {
-        let logs = [];
-        if (fs.existsSync(logPath)) {
-            logs = JSON.parse(fs.readFileSync(logPath, 'utf8'));
-        }
-        logs.push(entry);
-        fs.writeFileSync(logPath, JSON.stringify(logs, null, 2));
-        
-        res.json({ 
-            status: "SUCCESS", 
-            bridge: "RELAYED", 
-            target: bridgeIP,
-            timestamp: timestamp
-        });
-    } catch (e) {
-        res.status(500).json({ error: "Bridge Relay Fracture", message: e.message });
-    }
-});
-
 // START BOTH SERVERS
 app.listen(PORT, '127.0.0.1', async () => {
     console.log(\`Sovereign API running at http://localhost:\${PORT}\`);
@@ -369,8 +268,4 @@ app.listen(PORT, '127.0.0.1', async () => {
     exec(\`python "\${auditScript}"\`, (error, stdout) => {
         if (!error) console.log("[0x03E2_STARTUP] Initial audit complete. Shards synchronized.");
     });
-});
-
-webhookApp.listen(3000, '0.0.0.0', () => {
-    console.log(\`Kinetic Bridge ACTIVE on Port 3000 // Target: 172.21.229.195\`);
 });
