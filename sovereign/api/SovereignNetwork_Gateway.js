@@ -48,13 +48,35 @@ class SovereignNetworkGateway {
         return { status: "ACL_DEPLOYED", timestamp: new Date().toISOString() };
     }
 
-    async terraformApply() {
-        console.log("[0x03E2_TERRAFORM] Parsing Sovereign Profile: main.tf...");
-        // Simulated HCL parsing and device provisioning
-        return { 
-            status: "PROVISIONED", 
-            message: "Cisco VLAN 3000 & SonicWall Entropy Guards applied successfully.",
-            timestamp: new Date().toISOString()
+    async perfectEth0() {
+        console.log("[0x03E2_ETH0] Initiating Sovereign Interface Perfection (SI0)...");
+        const scriptPath = path.join(__dirname, '..', '..', '.gemini', 'antigravity', 'scratch', 'SI0_Perfect.sh');
+        
+        return new Promise((resolve, reject) => {
+            exec(`wsl -e bash "/mnt/c/Users/SonsofMan/.gemini/antigravity/scratch/SI0_Perfect.sh"`, (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`[ETH0_ERROR] ${error.message}`);
+                    return reject(error);
+                }
+                
+                // Extract MAC from fingerprint
+                const macMatch = stdout.match(/MAC: ([a-f0-9:]{17})/i);
+                resolve({
+                    status: "PERFECTED",
+                    output: stdout,
+                    mac: macMatch ? macMatch[1] : "[HIDDEN]",
+                    timestamp: new Date().toISOString()
+                });
+            });
+        });
+    }
+
+    async getInterfaceStats() {
+        // Return simulated stats but plan for real WSL RX/TX integration
+        return {
+            rx_kbps: Math.floor(Math.random() * 500) + 50,
+            tx_kbps: Math.floor(Math.random() * 200) + 20,
+            error_rate: 0.0001
         };
     }
 }
