@@ -20,7 +20,7 @@ def audit_network_infrastructure():
     high_priority_threats = []
     
     if os.path.exists(THREAT_POOL):
-        with open(THREAT_POOL, 'r') as f:
+        with open(THREAT_POOL, 'r', encoding='utf-8') as f:
             threats = json.load(f)
             for t in threats:
                 vendor = t.get('vendor', '').lower()
