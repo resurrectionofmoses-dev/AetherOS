@@ -23,7 +23,7 @@ class SovereignNetworkGateway {
 
     pingDevice(ip) {
         return new Promise((resolve) => {
-            exec(`ping -n 1 ${ip}`, (error) => {
+            execFile('ping', ['-n', '1', ip], (error) => {
                 resolve(!error);
             });
         });
