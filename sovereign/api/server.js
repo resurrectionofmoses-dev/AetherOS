@@ -12,7 +12,7 @@ app.use(cors());
 app.use(express.json());
 
 // Path to Sovereign Storage (WSL Symlink)
-const STORAGE_PATH = 'C:\\Users\\SonsofMan\\AetherOS_Data\\SovereignStorage';
+const STORAGE_PATH = process.env.SOVEREIGN_STORAGE_PATH || 'C:\\Users\\SonsofMan\\AetherOS_Data\\SovereignStorage';;
 
 // Static files (security.txt)
 app.use(express.static('public', { dotfiles: 'allow' }));
