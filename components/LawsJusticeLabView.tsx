@@ -12,7 +12,7 @@ export const LawsJusticeLabView: React.FC<LabComponentProps> = ({
 }) => {
   const [activeAccord, setActiveAccord] = useState(governance?.activeAccord || 'MAESTRO_SOLO_v5');
   const [lawLevel, setLawLevel] = useState(governance?.lawLevel || 0.42);
-  const [symphonicFreedom, setSymphonicFreedom] = useState(governance?.symphonicFreedom || true);
+  const [symphonicFreedom, setSymphonicFreedom] = useState<boolean>(governance?.symphonicFreedom ?? true);
   const [logs, setLogs] = useState<string[]>(["[GOVERNANCE] Regulatory stack re-initialized.", "[OK] Symphonic Freedom enabled."]);
 
   const updateGov = (newGov: Partial<SystemGovernance>) => {

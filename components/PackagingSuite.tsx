@@ -208,7 +208,7 @@ export const PackagingSuite: React.FC = () => {
                                     <span>BUILD {accessTier === 'ROOT' ? 'ROOTED' : 'DEBUG'} APK</span>
                                 </button>
                                 <button 
-                                    onClick={() => alert("PC VECTOR: Launching Electron-Builder sequence... (simulated)")}
+                                    onClick={() => console.log("PC VECTOR: Launching Electron-Builder sequence... (simulated)")}
                                     disabled={isCompiling}
                                     className="vista-button w-full bg-emerald-600 hover:bg-emerald-500 text-black py-4 text-base font-black uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-2.5 transition-all shadow-[4px_4px_0_0_#000] disabled:opacity-20"
                                 >

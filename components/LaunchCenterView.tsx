@@ -67,9 +67,9 @@ export const LaunchCenterView: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex flex-col bg-[#050810] text-gray-200 font-mono overflow-hidden">
+        <div className="h-full flex flex-col bg-black text-gray-200 font-mono overflow-hidden">
             {/* Header: Launch Authority */}
-            <div className="p-6 border-b-8 border-black bg-slate-900 flex justify-between items-center shadow-2xl relative z-20">
+            <div className="p-6 border-b-8 border-black bg-black flex justify-between items-center shadow-2xl relative z-20">
                 <div className="flex items-center gap-6">
                     <div className="w-20 h-20 bg-amber-500/10 border-4 border-amber-600 rounded-[2rem] flex items-center justify-center shadow-[0_0_40px_rgba(251,191,36,0.3)]">
                         <StarIcon className="w-12 h-12 text-amber-500 animate-pulse" />
@@ -220,7 +220,7 @@ export const LaunchCenterView: React.FC = () => {
             </div>
             
             {/* Footer: Regulatory Stamp */}
-            <div className="p-4 bg-slate-950 border-t-4 border-black flex items-center justify-between z-10">
+            <div className="p-4 bg-black border-t-4 border-black flex items-center justify-between z-10">
                 <div className="flex items-center gap-10">
                    <div className="flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-green-500 animate-ping" />

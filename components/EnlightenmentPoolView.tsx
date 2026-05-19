@@ -96,8 +96,8 @@ export const EnlightenmentPoolView: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex flex-col bg-[#01050a] text-gray-200 font-mono overflow-hidden">
-            <div className="p-4 border-b-8 border-black sticky top-0 z-30 bg-slate-900 flex justify-between items-center shadow-2xl">
+        <div className="h-full flex flex-col bg-black text-gray-200 font-mono overflow-hidden">
+            <div className="p-4 border-b-8 border-black sticky top-0 z-30 bg-black flex justify-between items-center shadow-2xl">
                 <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-blue-500/10 border-4 border-blue-600 rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(59,130,246,0.2)]">
                         <BrainIcon className="w-10 h-10 text-blue-500 animate-pulse" />

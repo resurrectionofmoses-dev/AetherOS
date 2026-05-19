@@ -1,10 +1,13 @@
 {
   "name": "AetherOS",
-  "description": "A state-of-the-art vehicle orchestration and coding network powered by epitume. Featuring the Conjunction Series reliable grid and Absolute Authority conduction.",
+  "description": "A state-of-the-art sovereign operating system featuring global ecosystem infrastructure mapping, API key sovereign management, and a persistent neural project network. Designed for flawless conduction and absolute orchestration.",
   "requestFramePermissions": [
     "microphone",
     "camera",
     "geolocation",
     "clipboard-read"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
 }

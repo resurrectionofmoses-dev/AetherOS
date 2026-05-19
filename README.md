@@ -1,20 +1,77 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Aetheros - Installation & Setup for WSL
 
-# Run and deploy your AI Studio app
+This application is a full-stack React + Express application configured for high-performance execution. Follow the instructions below to install and run it on Windows Subsystem for Linux (WSL).
 
-This contains everything you need to run your app locally.
+## Prerequisites
 
-View your app in AI Studio: https://ai.studio/apps/ef3ae912-32f0-4e2f-9b4a-d70aae6649da
+Before starting, ensure you have the following installed in your WSL environment:
 
-## Run Locally
+1.  **Node.js (v18 or higher)**: We recommend using [nvm](https://github.com/nvm-sh/nvm) to install Node.js.
+    ```bash
+    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    nvm install 22
+    ```
+2.  **npm**: Usually comes with Node.js.
 
-**Prerequisites:**  Node.js
+## Installation
 
+1.  **Download or Clone the Project**:
+    Extract the project files into a directory in your WSL filesystem (e.g., `~/projects/aetheros`).
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+2.  **Navigate to the Directory**:
+    ```bash
+    cd ~/projects/aetheros
+    ```
+
+3.  **Run the Setup Script**:
+    We've provided a simple script to handle dependency installation and environment initialization.
+    ```bash
+    chmod +x setup.sh
+    ./setup.sh
+    ```
+
+4.  **Alternatively, Manual Installation**:
+    ```bash
+    npm install
+    touch .env
+    ```
+
+## Configuration
+
+The application requires a Gemini API key to function.
+
+1.  Create a `.env` file in the root directory:
+    ```bash
+    touch .env
+    ```
+2.  Add your API key to the `.env` file:
+    ```env
+    GEMINI_API_KEY=your_actual_api_key_here
+    ```
+
+## Running the Application
+
+### Development Mode
+Runs the server with `tsx` and the Vite middleware for Hot Module Replacement (HMR).
+```bash
+npm run dev
+```
+The app will be accessible at `http://localhost:3000`.
+
+### Production Build
+To build and run the application in production mode:
+```bash
+# Build the client and server
+npm run build
+
+# Start the production server
+npm run start
+```
+
+## Troubleshooting (WSL Specific)
+
+- **Port Forwarding**: WSL usually handles port forwarding automatically. If you cannot reach `localhost:3000` from your Windows browser, check your WSL IP address (`hostname -I`) and try accessing `http://<wsl-ip>:3000`.
+- **Node Modules**: Never run `npm install` on a folder shared between Windows and WSL (like `/mnt/c/...`) as it can cause permissions and symlink issues. Always keep your project inside the WSL filesystem (e.g., `~/aetheros`).
+
+---
+Built with Aetheros Intelligence.

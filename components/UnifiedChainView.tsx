@@ -119,9 +119,9 @@ export const UnifiedChainView: React.FC<UnifiedChainViewProps> = ({ sessionToken
   const budgetPercentage = Math.min(100, (sessionTokens / CONTINUITY_CONFIG.DEFAULT_SESSION_BUDGET) * 100);
 
   return (
-    <div className="h-full flex flex-col bg-[#050510] text-gray-200 font-mono overflow-hidden">
+    <div className="h-full flex flex-col bg-black text-gray-200 font-mono overflow-hidden">
       {/* UCO Header */}
-      <div className="p-6 border-b-8 border-black bg-slate-900 flex justify-between items-center shadow-2xl z-30">
+      <div className="p-6 border-b-8 border-black bg-black flex justify-between items-center shadow-2xl z-30">
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 bg-red-600/10 border-4 border-red-600 rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(239,68,68,0.2)]">
             <ShieldIcon className="w-10 h-10 text-red-500 animate-pulse" />
@@ -489,7 +489,7 @@ export const UnifiedChainView: React.FC<UnifiedChainViewProps> = ({ sessionToken
       </div>
 
       {/* Hub Footer */}
-      <div className="p-4 bg-slate-900 border-t-8 border-black flex justify-between items-center z-40 px-12">
+      <div className="p-4 bg-black border-t-8 border-black flex justify-between items-center z-40 px-12">
         <div className="flex items-center gap-10">
           <div className="flex items-center gap-3">
             <div className="w-2 h-2 rounded-full bg-red-500 animate-ping" />

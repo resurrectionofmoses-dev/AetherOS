@@ -81,8 +81,8 @@ export const SystemExhaustionView: React.FC<LabComponentProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#080202] overflow-hidden font-mono text-red-100">
-      <div className="p-6 border-b-8 border-black bg-red-950/20 flex justify-between items-center shadow-xl z-20">
+    <div className="h-full flex flex-col bg-black overflow-hidden font-mono text-red-100">
+      <div className="p-6 border-b-8 border-black bg-black flex justify-between items-center shadow-xl z-20">
         <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-red-600/10 border-4 border-red-600 rounded-3xl flex items-center justify-center animate-pulse">
                 <LabIcon className={`w-10 h-10 ${labColor}`} />
@@ -106,7 +106,7 @@ export const SystemExhaustionView: React.FC<LabComponentProps> = ({
             </button>
         </div>
       </div>
-
+ 
       <div className="flex-1 p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 overflow-y-auto custom-scrollbar">
         
         {/* Main Stress Core */}
@@ -117,7 +117,7 @@ export const SystemExhaustionView: React.FC<LabComponentProps> = ({
                 <div className="relative z-10 w-full flex flex-col items-center">
                     <h3 className="text-[10px] text-red-500 font-black uppercase tracking-[0.8em] mb-8 animate-pulse">System Limit Break</h3>
                     
-                    <div className="w-full h-12 bg-gray-900 rounded-full border-4 border-black p-1 overflow-hidden relative">
+                    <div className="w-full h-12 bg-black rounded-full border-4 border-black p-1 overflow-hidden relative">
                         <div 
                             className="h-full bg-gradient-to-r from-red-900 via-red-600 to-white transition-all duration-75 shadow-[0_0_30px_red]" 
                             style={{ width: `${Math.min(100, (load / 120) * 100)}%` }} 
@@ -134,7 +134,7 @@ export const SystemExhaustionView: React.FC<LabComponentProps> = ({
                         ].map(sys => (
                              <div key={sys.l} className="text-center p-4 bg-black/60 border-2 border-red-900/30 rounded-2xl">
                                 <p className="text-[8px] font-black uppercase text-gray-500 mb-2">{sys.l}</p>
-                                <div className="relative h-32 w-8 mx-auto bg-gray-900 rounded-full border border-gray-800 overflow-hidden">
+                                <div className="relative h-32 w-8 mx-auto bg-black rounded-full border border-gray-800 overflow-hidden">
                                     <div 
                                         className="absolute bottom-0 left-0 w-full bg-red-600 transition-all duration-100"
                                         style={{ height: `${sys.v}%` }}
@@ -146,10 +146,10 @@ export const SystemExhaustionView: React.FC<LabComponentProps> = ({
                     </div>
                 </div>
             </div>
-
+ 
             {/* Forensic Report Area */}
             {report && (
-                <div className="aero-panel bg-slate-900 border-4 border-white/20 p-8 animate-in slide-in-from-bottom-10 shadow-2xl">
+                <div className="aero-panel bg-black/90 border-4 border-white/20 p-8 animate-in slide-in-from-bottom-10 shadow-2xl">
                     <div className="flex justify-between items-start mb-6 border-b-2 border-white/10 pb-4">
                         <div className="flex items-center gap-4">
                             <ShieldIcon className="w-10 h-10 text-green-500" />

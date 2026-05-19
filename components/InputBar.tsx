@@ -1,13 +1,15 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
+import { motion } from 'motion/react';
 import { MicrophoneIcon } from './icons/MicrophoneIcon';
 import { PaperclipIcon } from './icons/PaperclipIcon';
 import { XIcon } from './icons/XIcon';
 import { TerminalIcon, FileIcon, UploadIcon, ZapIcon, SpinnerIcon } from './icons';
-import type { AttachedFile } from '../types';
+import type { AttachedFile, AISeat } from '../types';
 import { BinaryFileAttachment } from './BinaryFileAttachment';
 import { isBinaryFile } from '../utils';
 import { transcribeAudio } from '../services/geminiService';
+import { reportError, ErrorSeverity } from './GlobalErrorHandler';
 
 interface InputBarProps {
   onSendMessage: (text: string) => void;
@@ -20,11 +22,13 @@ interface InputBarProps {
   onFilesChange: (files: FileList | null) => void;
   onRemoveFile: (fileName: string) => void;
   onScanFile: (fileName: string) => void;
+  activeSeat?: AISeat;
+  currentChannel?: 'global' | 'moderator';
 }
 
 export const InputBar: React.FC<InputBarProps> = ({ 
     onSendMessage, isLoading, inputText, setInputText, 
-    isRecording, onToggleRecording, attachedFiles, onFilesChange, onRemoveFile, onScanFile
+    isRecording, onToggleRecording, attachedFiles, onFilesChange, onRemoveFile, onScanFile, activeSeat, currentChannel
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -32,23 +36,26 @@ export const InputBar: React.FC<InputBarProps> = ({
   const audioChunksRef = useRef<Blob[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const dragCounter = useRef(0);
 
   const handleSubmit = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (inputText.trim() || attachedFiles.length > 0) {
+      setErrorMsg(null);
       onSendMessage(inputText);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if ((e.key === 'Enter' && !e.shiftKey) || (e.key === 'Enter' && e.ctrlKey)) {
       e.preventDefault();
       handleSubmit();
     }
   };
 
   const startRecording = useCallback(async () => {
+      setErrorMsg(null);
       try {
           const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
           const mediaRecorder = new MediaRecorder(stream);
@@ -68,15 +75,34 @@ export const InputBar: React.FC<InputBarProps> = ({
                   const reader = new FileReader();
                   reader.readAsDataURL(audioBlob);
                   reader.onloadend = async () => {
-                      const base64Audio = (reader.result as string).split(',')[1];
-                      const transcription = await transcribeAudio(base64Audio, 'audio/webm');
-                      if (transcription) {
-                        setInputText(prev => prev + (prev ? ' ' : '') + transcription);
+                      try {
+                          const base64Audio = (reader.result as string).split(',')[1];
+                          const transcription = await transcribeAudio(base64Audio, 'audio/webm');
+                          if (transcription) {
+                            setInputText(inputText + (inputText ? ' ' : '') + transcription);
+                          }
+                      } catch (err: any) {
+                          console.error("[VOICE] Transcription failed:", err);
+                          const msg = "Transcription failed. Please try again.";
+                          setErrorMsg(msg);
+                          reportError({
+                              title: 'VOICE_TRANSCRIPTION_FAILURE',
+                              message: msg,
+                              severity: ErrorSeverity.MEDIUM
+                          });
+                      } finally {
+                          setIsTranscribing(false);
                       }
                   };
-              } catch (err) {
-                  console.error("[VOICE] Transcription failed:", err);
-              } finally {
+              } catch (err: any) {
+                  console.error("[VOICE] File reading failed:", err);
+                  const msg = "Failed to process audio.";
+                  setErrorMsg(msg);
+                  reportError({
+                      title: 'AUDIO_PROCESSING_FAILURE',
+                      message: msg,
+                      severity: ErrorSeverity.MEDIUM
+                  });
                   setIsTranscribing(false);
               }
               // Stop all tracks in the stream
@@ -85,11 +111,17 @@ export const InputBar: React.FC<InputBarProps> = ({
 
           mediaRecorder.start();
           onToggleRecording();
-      } catch (err) {
+      } catch (err: any) {
           console.error("[VOICE] Failed to start recording:", err);
-          alert("Microphone access denied. Conjunction bridge severed.");
+          const msg = "Microphone access denied or unavailable.";
+          setErrorMsg(msg);
+          reportError({
+              title: 'MIC_ACCESS_DENIED',
+              message: msg,
+              severity: ErrorSeverity.HIGH
+          });
       }
-  }, [onToggleRecording, setInputText]);
+  }, [onToggleRecording, setInputText, inputText]);
 
   const stopRecording = useCallback(() => {
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
@@ -99,11 +131,7 @@ export const InputBar: React.FC<InputBarProps> = ({
   }, [onToggleRecording]);
 
   const handleMicClick = () => {
-      if (isRecording) {
-          stopRecording();
-      } else {
-          startRecording();
-      }
+      onToggleRecording();
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
@@ -144,9 +172,15 @@ export const InputBar: React.FC<InputBarProps> = ({
   useEffect(() => {
     const textarea = textareaRef.current;
     if (textarea) {
+      // Precise 300DPI height harmonization
+      const currentHeight = textarea.style.height;
       textarea.style.height = 'auto';
       const scrollHeight = textarea.scrollHeight;
-      textarea.style.height = `${Math.min(scrollHeight, 200)}px`;
+      const targetHeight = `${Math.min(scrollHeight, 400)}px`;
+      
+      if (currentHeight !== targetHeight) {
+        textarea.style.height = targetHeight;
+      }
     }
   }, [inputText]);
   
@@ -154,14 +188,19 @@ export const InputBar: React.FC<InputBarProps> = ({
     fileInputRef.current?.click();
   };
 
-  const placeholder = "Conduct a neural command... (Shift+Enter for newline)";
-  
+  const channelLabel = currentChannel === 'moderator' ? 'Lattice (Moderator)' : 'Nexus (Global)';
+  const placeholder = isRecording 
+    ? "Listening to the void..." 
+    : isTranscribing 
+    ? "Siphoning voice logic..." 
+    : `Conducting to ${channelLabel}...`;
+
   const textFiles = attachedFiles.filter(f => !isBinaryFile(f.name));
   const binaryFiles = attachedFiles.filter(f => isBinaryFile(f.name));
   const hasAttachments = textFiles.length > 0 || binaryFiles.length > 0;
 
   return (
-    <div className="p-4 pt-2 bg-slate-900 border-t-4 border-black relative">
+    <div className="p-4 pt-2 bg-black border-t-4 border-black relative">
       <div className="max-w-4xl mx-auto">
         <div 
           onDragEnter={handleDragEnter}
@@ -171,7 +210,7 @@ export const InputBar: React.FC<InputBarProps> = ({
           className={`flex flex-col rounded-2xl border-4 transition-all duration-500 relative overflow-hidden shadow-[8px_8px_0_0_#000] ${
             isDragging 
             ? 'border-amber-500 border-dashed bg-amber-950/20 scale-[1.02] shadow-[0_0_50px_rgba(245,158,11,0.3)] ring-4 ring-amber-500/10' 
-            : 'border-black bg-slate-800'
+            : 'border-black bg-[#0a0a0a]'
           }`}
         >
             {/* Neural Ingress Overlay - Visible only during active drag */}
@@ -213,13 +252,19 @@ export const InputBar: React.FC<InputBarProps> = ({
                     {textFiles.length > 0 && (
                         <div className="flex flex-wrap gap-2">
                             {textFiles.map(file => (
-                                <div key={file.name} className="flex items-center gap-2 bg-gray-900 rounded-lg py-1.5 px-3 text-[10px] text-white border-2 border-black group hover:border-blue-500/50 transition-all">
+                                <motion.div 
+                                    key={file.name}
+                                    initial={{ opacity: 0, scale: 0.9 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    whileHover={{ y: -1 }}
+                                    className="flex items-center gap-2 bg-gray-900 rounded-lg py-1.5 px-3 text-[10px] text-white border-2 border-black group hover:border-blue-500/50 transition-all"
+                                >
                                     <FileIcon className="w-3 h-3" />
                                     <span className="font-mono truncate max-w-[150px]">{file.name}</span>
                                     <button onClick={() => onRemoveFile(file.name)} className="text-gray-600 hover:text-red-500 transition-colors">
                                         <XIcon className="w-3 h-3" />
                                     </button>
-                                </div>
+                                </motion.div>
                             ))}
                         </div>
                     )}
@@ -235,14 +280,16 @@ export const InputBar: React.FC<InputBarProps> = ({
                     onChange={(e) => onFilesChange(e.target.files)}
                     className="hidden"
                 />
-                <button
+                <motion.button
                     type="button"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                     onClick={handleAttachClick}
-                    className="w-12 h-12 rounded-xl text-gray-800 bg-gray-300 hover:bg-white flex items-center justify-center flex-shrink-0 transition-all border-4 border-black shadow-[3px_3px_0_0_#000] active:translate-y-0.5 active:shadow-none"
+                    className="w-12 h-12 rounded-xl text-gray-400 bg-slate-900 hover:bg-zinc-800 hover:text-white flex items-center justify-center flex-shrink-0 transition-all border border-zinc-900 shadow-[2px_2px_0_0_#000] active:translate-y-px active:shadow-none"
                     aria-label="Upload Firmware"
                 >
                     <PaperclipIcon className="w-6 h-6" />
-                </button>
+                </motion.button>
                 
                 <div className="flex-1 relative group">
                     <textarea
@@ -251,18 +298,20 @@ export const InputBar: React.FC<InputBarProps> = ({
                         onChange={(e) => setInputText(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder={isRecording ? "Listening to the void..." : isTranscribing ? "Siphoning voice logic..." : placeholder}
-                        className="w-full bg-black/60 border-4 border-black rounded-xl p-3 max-h-48 text-amber-400 placeholder:text-gray-800 focus:outline-none focus:border-amber-600 transition-all font-mono text-sm leading-relaxed"
+                        className="w-full bg-black/60 border border-zinc-900 rounded-xl p-3 max-h-48 text-amber-400 placeholder:text-gray-800 focus:outline-none focus:border-amber-600 focus:ring-2 focus:ring-amber-600/20 transition-all font-mono text-sm leading-relaxed"
                         rows={1}
                         disabled={isLoading || isTranscribing}
                     />
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <button
+                    <motion.button
                         type="button"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
                         onClick={handleMicClick}
                         disabled={isTranscribing}
-                        className={`w-12 h-12 rounded-xl text-white flex items-center justify-center flex-shrink-0 transition-all duration-300 relative border-4 border-black shadow-[3px_3px_0_0_#000] active:translate-y-0.5 active:shadow-none ${
+                        className={`w-12 h-12 rounded-xl text-white flex items-center justify-center flex-shrink-0 transition-all duration-300 relative border border-zinc-900 shadow-[2px_2px_0_0_#000] active:translate-y-px active:shadow-none ${
                             isRecording 
                             ? 'bg-red-600' 
                             : 'bg-slate-700 hover:bg-slate-600'
@@ -271,15 +320,17 @@ export const InputBar: React.FC<InputBarProps> = ({
                     >
                         {isRecording && <div className="absolute inset-0 rounded-lg bg-red-500/30 animate-ping"></div>}
                         {isTranscribing ? <SpinnerIcon className="w-6 h-6 animate-spin" /> : <MicrophoneIcon className="w-6 h-6 z-10" />}
-                    </button>
+                    </motion.button>
                     
-                    <button
+                    <motion.button
                         type="submit"
+                        whileHover={!(isLoading || isTranscribing || (!inputText.trim() && attachedFiles.length === 0)) ? { scale: 1.05 } : {}}
+                        whileTap={!(isLoading || isTranscribing || (!inputText.trim() && attachedFiles.length === 0)) ? { scale: 0.95 } : {}}
                         disabled={isLoading || isTranscribing || (!inputText.trim() && attachedFiles.length === 0)}
-                        className="w-12 h-12 rounded-xl bg-amber-600 hover:bg-amber-500 text-black flex items-center justify-center flex-shrink-0 disabled:bg-gray-700 disabled:text-gray-800 disabled:cursor-not-allowed transition-all border-4 border-black shadow-[3px_3px_0_0_#000] active:translate-y-0.5 active:shadow-none"
+                        className="w-12 h-12 rounded-xl bg-amber-600 hover:bg-amber-500 text-black flex items-center justify-center flex-shrink-0 disabled:bg-zinc-800 disabled:text-zinc-950 disabled:cursor-not-allowed transition-all border border-zinc-900 shadow-[2px_2px_0_0_#000] active:translate-y-px active:shadow-none"
                     >
                         <ZapIcon className="w-6 h-6" />
-                    </button>
+                    </motion.button>
                 </div>
             </form>
         </div>
@@ -290,6 +341,7 @@ export const InputBar: React.FC<InputBarProps> = ({
                 <span className="text-[8px] font-black text-gray-700 uppercase tracking-widest">Logic: {inputText.length} bits</span>
                 {isLoading && <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest animate-pulse">Maestro Thinking...</span>}
                 {isTranscribing && <span className="text-[8px] font-black text-cyan-500 uppercase tracking-widest animate-pulse">Voice Siphon Active...</span>}
+                {errorMsg && <span className="text-[8px] font-black text-red-500 uppercase tracking-widest">{errorMsg}</span>}
             </div>
             <span className="text-[8px] font-black text-gray-800 uppercase tracking-tighter italic">"Precision conduction requires focus."</span>
         </div>

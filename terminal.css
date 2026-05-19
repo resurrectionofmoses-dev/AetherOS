@@ -3,12 +3,27 @@
 :root {
   --os-green: #00ff00; /* The Color of Order */
   --os-black: #000000;
+  --dpi-scale: 1;
+}
+
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  :root {
+    --dpi-scale: 0.5;
+  }
+}
+
+@media (-webkit-min-device-pixel-ratio: 3), (min-resolution: 300dpi) {
+  :root {
+    --dpi-scale: 0.33;
+  }
 }
 
 .terminal-mode {
   background-color: var(--os-black) !important;
   color: var(--os-green) !important;
-  font-family: 'Courier New', Courier, monospace !important;
+  font-family: 'JetBrains Mono', 'Courier New', Courier, monospace !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .terminal-mode * {
@@ -16,6 +31,13 @@
   box-shadow: none !important;
   background-image: none !important;
   text-shadow: none !important;
+}
+
+/* 300DPI High-Density Box Model */
+input, textarea, button {
+    box-sizing: border-box !important;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
 }
 
 .terminal-mode .aero-panel, 
@@ -32,10 +54,11 @@
 .terminal-lab {
   background-color: var(--os-black);
   color: var(--os-green);
-  font-family: 'Courier New', Courier, monospace;
-  border: 1px solid var(--os-green);
-  padding: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  border: 1.5px solid var(--os-green);
+  padding: 12px;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 /* Sophisticated Tool Grid for Legacy Era Monitors */
@@ -54,6 +77,7 @@
   border-radius: 0 !important;
   text-transform: uppercase !important;
   font-weight: bold !important;
+  padding: 8px 16px !important;
 }
 
 .terminal-mode button:hover {
@@ -66,8 +90,11 @@
 .terminal-mode select {
   background: var(--os-black) !important;
   color: var(--os-green) !important;
-  border: 1px solid var(--os-green) !important;
+  border: 1.5px solid var(--os-green) !important;
   border-radius: 0 !important;
+  padding: 10px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  outline: none !important;
 }
 
 .terminal-mode .wisdom-glow {

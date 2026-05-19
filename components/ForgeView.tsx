@@ -2,12 +2,13 @@
 import React, { useState } from 'react';
 import { 
     ForgeIcon, HammerIcon, TerminalIcon, ShieldIcon, BrainIcon, CodeIcon, ZapIcon, ActivityIcon, SignalIcon, StarIcon,
-    XIcon, ClockIcon, CalendarIcon, PlusIcon, CheckCircleIcon, ScaleIcon, FireIcon, SpinnerIcon
+    XIcon, ClockIcon, CalendarIcon, PlusIcon, CheckCircleIcon, ScaleIcon, FireIcon, SpinnerIcon, ChevronDownIcon
 } from './icons';
 import { FINTECH_AUTHORITIES } from '../constants';
 import type { ProjectBlueprint, BlueprintPriority, BlueprintStatus, ProjectTask } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { generateBlueprintDetails } from '../services/geminiService';
+import { reportError, ErrorSeverity } from './GlobalErrorHandler';
 
 interface ForgeViewProps {
   blueprints: ProjectBlueprint[];
@@ -67,6 +68,12 @@ export const ForgeView: React.FC<ForgeViewProps> = ({
             }
         } catch (e) {
             console.error("Auto-synthesis stalled", e);
+            reportError({
+                title: "AUTO_SYNTHESIS_STALLED",
+                message: "The Forge was unable to synthesize the blueprint details. Please check your quantized intent.",
+                severity: ErrorSeverity.MEDIUM,
+                error: e
+            });
         } finally {
             setIsSynthesizing(false);
         }
@@ -94,7 +101,8 @@ export const ForgeView: React.FC<ForgeViewProps> = ({
             id: uuidv4(),
             text: input.text,
             completed: false,
-            dueDate: input.date
+            dueDate: input.date,
+            createdAt: Date.now()
         });
 
         setTaskInputs(prev => ({
@@ -124,6 +132,15 @@ export const ForgeView: React.FC<ForgeViewProps> = ({
         }
     };
 
+    const getStatusColor = (s: BlueprintStatus) => {
+        switch (s) {
+            case 'Completed': return 'bg-green-600/20 text-green-500 border-green-500/50';
+            case 'In Progress': return 'bg-blue-600/20 text-blue-400 border-blue-500/50';
+            case 'On Hold': return 'bg-red-600/20 text-red-400 border-red-500/50';
+            default: return 'bg-zinc-800 text-gray-400 border-zinc-700';
+        }
+    };
+
     const calculateReliability = (tasks: ProjectTask[]) => {
         if (tasks.length === 0) return 0;
         const completed = tasks.filter(t => t.completed).length;
@@ -131,8 +148,8 @@ export const ForgeView: React.FC<ForgeViewProps> = ({
     };
 
     return (
-        <div className="h-full flex flex-col bg-[#050508] text-gray-200 font-mono overflow-hidden">
-             <div className="p-6 border-b-8 border-black bg-slate-900 flex justify-between items-center shadow-xl z-20">
+        <div className="h-full flex flex-col bg-black text-gray-200 font-mono overflow-hidden">
+             <div className="p-6 border-b-8 border-black bg-black flex justify-between items-center shadow-xl z-20">
                 <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-amber-500/10 border-4 border-amber-600 rounded-3xl flex items-center justify-center">
                         <HammerIcon className="w-10 h-10 text-amber-500 animate-pulse" />
@@ -150,13 +167,13 @@ export const ForgeView: React.FC<ForgeViewProps> = ({
                     <ForgeIcon className="w-12 h-12 text-gray-800" />
                 </div>
             </div>
-
+ 
             <div className="flex-1 flex overflow-hidden p-8 gap-8 relative z-10">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,_rgba(245,158,11,0.02)_0%,_transparent_70%)] pointer-events-none" />
-
+ 
                 {/* Left Column: Input Form */}
                 <div className="lg:w-[450px] flex flex-col gap-6 flex-shrink-0">
-                    <div className="aero-panel bg-slate-900/80 border-4 border-amber-600/30 p-6 shadow-[10px_10px_0_0_#000] overflow-y-auto custom-scrollbar">
+                    <div className="aero-panel bg-black/80 border-4 border-amber-600/30 p-6 shadow-[10px_10px_0_0_#000] overflow-y-auto custom-scrollbar">
                         <div className="flex items-center gap-3 mb-6 border-b border-white/5 pb-2">
                             <ZapIcon className="w-6 h-6 text-amber-500" />
                             <h3 className="font-comic-header text-2xl text-white uppercase italic leading-none">Manifest Blueprint</h3>
@@ -291,20 +308,26 @@ export const ForgeView: React.FC<ForgeViewProps> = ({
                                             <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded border-2 ${getPriorityColor(bp.priority)}`}>
                                                 {bp.priority}
                                             </span>
-                                            <span className="text-[8px] font-mono text-gray-500 uppercase border border-zinc-800 px-2 py-0.5 rounded bg-black">{bp.status}</span>
+                                            <div className="relative group/status flex items-center">
+                                                <select 
+                                                    value={bp.status} 
+                                                    onChange={(e) => handleUpdateStatus(bp.id, e.target.value as BlueprintStatus)}
+                                                    className={`text-[8px] font-mono uppercase border px-2 py-0.5 rounded bg-black cursor-pointer focus:outline-none focus:border-amber-500 transition-all appearance-none pr-6 ${getStatusColor(bp.status)}`}
+                                                >
+                                                    <option value="Pending">Pending</option>
+                                                    <option value="In Progress">In Progress</option>
+                                                    <option value="Completed">Completed</option>
+                                                    <option value="On Hold">On Hold</option>
+                                                </select>
+                                                <div className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                                                    <ChevronDownIcon className="w-2 h-2" />
+                                                </div>
+                                            </div>
                                         </div>
                                         <h5 className="font-black text-white uppercase text-xl leading-tight mt-1">{bp.title}</h5>
                                         <p className="text-[8px] text-gray-600 font-mono italic uppercase tracking-tighter">SIG: 0x{bp.id.substring(0,6).toUpperCase()}</p>
                                     </div>
                                     <div className="flex gap-2">
-                                        <select 
-                                            value={bp.status} 
-                                            onChange={(e) => handleUpdateStatus(bp.id, e.target.value as any)}
-                                            className="w-6 h-6 opacity-0 absolute cursor-pointer"
-                                        />
-                                        <button className="text-zinc-600 hover:text-amber-500 transition-colors p-1" title="Update Status">
-                                            <ActivityIcon className="w-5 h-5" />
-                                        </button>
                                         <button onClick={() => handleDeleteBlueprint(bp.id)} className="text-zinc-600 hover:text-red-500 transition-colors p-1" title="Purge Shard">
                                             <XIcon className="w-5 h-5" />
                                         </button>
@@ -369,7 +392,7 @@ export const ForgeView: React.FC<ForgeViewProps> = ({
                                                     >
                                                         {task.completed && <CheckCircleIcon className="w-3 h-3 text-black" />}
                                                     </button>
-                                                    <span className={`text-[10px] font-bold uppercase tracking-tight ${task.completed ? 'text-gray-600 line-through' : 'text-gray-300'}`}>
+                                                    <span className={`text-[10px] font-bold uppercase tracking-tight ${task.completed ? 'text-green-600/50 line-through opacity-60 italic' : 'text-gray-300'}`}>
                                                         {task.text}
                                                     </span>
                                                 </div>

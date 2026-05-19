@@ -79,9 +79,9 @@ export const TailscaleVaultView: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'INIT' | 'ACL' | 'PAYLOAD'>('INIT');
 
     return (
-        <div className="h-full flex flex-col bg-[#050505] text-gray-200 font-mono overflow-hidden">
+        <div className="h-full flex flex-col bg-black text-gray-200 font-mono overflow-hidden">
             {/* Skim Milk Header */}
-            <div className="p-3 border-b-4 border-black bg-slate-900 flex justify-between items-center shadow-xl z-20">
+            <div className="p-3 border-b-4 border-black bg-black flex justify-between items-center shadow-xl z-20">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-red-600/10 border-2 border-red-600 rounded-xl flex items-center justify-center">
                         <LockIcon className="w-6 h-6 text-red-500" />
@@ -121,7 +121,7 @@ export const TailscaleVaultView: React.FC = () => {
                 </div>
 
                 <div className="w-80 flex flex-col gap-4">
-                    <div className="aero-panel bg-slate-900 border-4 border-black p-4 shadow-[8px_8px_0_0_#000]">
+                    <div className="aero-panel bg-black border-4 border-black p-4 shadow-[8px_8px_0_0_#000]">
                         <h3 className="font-comic-header text-xl text-white uppercase italic mb-5 flex items-center gap-2">
                             <SignalIcon className="w-4 h-4 text-cyan-400" /> Mesh Topology
                         </h3>
@@ -153,7 +153,7 @@ export const TailscaleVaultView: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <div className="p-2 bg-slate-900 border-t-8 border-black flex justify-between items-center z-40 px-6">
+            <div className="p-2 bg-black border-t-8 border-black flex justify-between items-center z-40 px-6">
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />

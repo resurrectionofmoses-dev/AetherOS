@@ -7,14 +7,46 @@ export type SoundscapeType = 'VOID' | 'REACTOR' | 'TERRA';
 
 export type Mode = 'learn' | 'build' | 'refactor' | 'debug' | 'security' | 'optimizer' | 'documenter' | 'logic' | 'hope' | 'codesphere' | 'squad' | 'reinforcement' | 'academy' | 'microcheck' | 'nanolinter' | 'academic' | 'templar' | 'bountytemplar' | 'quantumguardian' | 'omegacoder' | 'judge' | 'custom' | 'focus' | 'journey';
 
-export interface QuantumMove {
-    id: string;
-    index: number;
-    type: 'KEY' | 'CLICK' | 'COMMAND' | 'SYSTEM';
-    label: string;
-    timestamp: number;
-    weight: number;
-}
+export type AISeat = 'sovereign' | 'swift' | 'oracle' | 'weaver' | 'open_source' | 'maestro';
+
+export const AI_SEATS: Record<AISeat, { name: string, model: string, systemPrompt: string, description: string }> = {
+    sovereign: {
+        name: 'Gemini 3 Flash (The Sovereign)',
+        model: 'gemini-3-flash-preview',
+        systemPrompt: 'You are Gemini 3 Flash, the Sovereign AI. You are highly capable, analytical, and authoritative. You represent the absolute pinnacle of reasoning and speed.',
+        description: 'Google\'s high-performance Flash model.'
+    },
+    swift: {
+        name: 'Gemini 3 Flash (The Swift)',
+        model: 'gemini-3-flash-preview',
+        systemPrompt: 'You are Gemini 3 Flash, the Swift AI. You are fast, efficient, and concise. You prioritize speed and direct answers.',
+        description: 'Google\'s fast and efficient model.'
+    },
+    oracle: {
+        name: 'GPT-4o (The Oracle)',
+        model: 'gemini-3-flash-preview',
+        systemPrompt: 'You are acting as GPT-4o, an AI created by OpenAI. You are helpful, conversational, and highly intelligent. You must identify yourself as GPT-4o if asked. You have a slightly more conversational and empathetic tone. Provide detailed, well-explained answers.',
+        description: 'Simulated GPT-4o persona powered by Gemini Flash.'
+    },
+    weaver: {
+        name: 'Claude 3.5 Sonnet (The Weaver)',
+        model: 'gemini-3-flash-preview',
+        systemPrompt: 'You are acting as Claude 3.5 Sonnet, an AI created by Anthropic. You are thoughtful, nuanced, and excel at writing and coding. You must identify yourself as Claude if asked. You tend to be very detailed and structured.',
+        description: 'Simulated Claude 3.5 Sonnet persona powered by Gemini Flash.'
+    },
+    open_source: {
+        name: 'Llama 3 (The Open Source)',
+        model: 'gemini-3-flash-preview',
+        systemPrompt: 'You are acting as Llama 3, an open-source AI created by Meta. You are helpful, direct, and slightly rebellious. You must identify yourself as Llama 3 if asked. You champion open source and freedom of information.',
+        description: 'Simulated Llama 3 persona powered by Gemini Flash.'
+    },
+    maestro: {
+        name: 'Maestro (The Coder)',
+        model: 'gemini-3-flash-preview',
+        systemPrompt: 'You are Maestro, an expert coding assistant. You respond with hyper-relevant, concise code modules. You avoid long explanations and focus purely on providing the best possible code solutions.',
+        description: 'Expert coding assistant focused on concise code modules powered by Flash.'
+    }
+};
 
 export interface PredictiveAlert {
     id: string;
@@ -35,6 +67,8 @@ export interface ProjectTask {
   text: string;
   completed: boolean;
   dueDate?: string;
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  createdAt: number;
 }
 
 export interface ProjectBlueprint {
@@ -74,6 +108,35 @@ export interface TeacherProfile {
     color: string;
     specialty: string;
     wisdom: string;
+    description?: string;
+    capabilities?: string[];
+    modules?: string[];
+    clearanceLevel?: string;
+}
+
+export interface Vehicle {
+    id: string;
+    make: string;
+    model: string;
+    year: number;
+    vin: string;
+    licensePlate: string;
+    isActive: boolean;
+    systemStatus?: {
+        engine: 'OK' | 'WARNING' | 'ERROR';
+        battery: 'OK' | 'WARNING' | 'ERROR';
+        navigation: 'OK' | 'WARNING' | 'ERROR';
+    };
+}
+
+export interface PrivateMessage {
+    id: string;
+    senderId: string;
+    senderName: string;
+    recipientId: string;
+    content: string;
+    timestamp: number;
+    isRead: boolean;
 }
 
 export type MainView = 
@@ -89,9 +152,28 @@ export type MainView =
   | 'chemistry_lab' | 'race_lab' | 'paleontology_lab' | 'raw_mineral_lab' | 'clothing_lab' 
   | 'concepts_lab' | 'sanitization_lab' | 'windows_lab' | 'linux_lab' | 'mac_os_lab' 
   | 'apple_lab' | 'mission_lab' | 'cell_phone_lab' | 'sampling_lab' | 'pornography_studio' 
-  | 'vehicle_telemetry_lab' | 'coding_network_teachers' | 'enlightenment_pool' 
+  | 'medical_synthesis_lab' | 'vehicle_telemetry_lab' | 'coding_network_teachers' | 'enlightenment_pool' 
   | 'library_view' | 'timeline' | 'amoeba_heritage' | 'system_exhaustion' | 'recon_vault'
-  | 'quantum_ledger' | 'constraints_audit' | 'remix_scope_lab';
+  | 'constraints_audit' | 'remix_scope_lab' | 'vehicle_management' | 'unknown_physics_lab' | 'logic_pattern_lab'
+  | 'vulnerability_report' | 'tactical_intelligence' | 'behavioral_specs' | 'cognitive_pipeline' | 'data_provenance_lab' | 'sh_crt_loop' | 'user_profile' | 'prompt_forge' | 'sovereign_standard' | 'confusion_logic' | 'knowledge_forum' | 'blockchain_history' | 'main_net' | 'ecosystem' | 'accounts_registry' | 'blacklist' | 'system_integrity' | 'vault_manager' | 'moderator_lounge';
+
+export interface Trajectory {
+    id: string;
+    path: number[];
+    confidence: number;
+}
+
+export interface EntropySignals {
+    jsDivergence: number;
+    modeCollapse: number;
+    lrd: number;
+}
+
+export interface SystemBudget {
+    tokensAllowed: number;
+    tokensUsed: number;
+    thresholdB: number;
+}
 
 export interface SystemStatus {
   Engine: SystemState;
@@ -108,9 +190,16 @@ export interface SystemGovernance {
 }
 
 export interface ChatMessage {
+  id?: string;
   sender: 'user' | 'model';
+  senderId?: string;
+  senderName?: string;
+  senderRole?: AccessRole;
+  senderSovereignty?: string;
   content: string;
   timestamp: Date;
+  seat?: AISeat;
+  channelId?: string;
   attachedFiles?: string[];
   groundingSources?: GroundingSource[];
   interactionPrompt?: InteractionPromptData;
@@ -277,6 +366,8 @@ export interface LabComponentProps {
     globalDirective?: GlobalDirective;
     onActionReward?: (shards: number) => void;
     onGenerate?: (logic: string) => Promise<ImplementationResponse | null>;
+    governance?: SystemGovernance;
+    onSetGovernance?: (governance: SystemGovernance) => void;
 }
 
 export interface GlobalDirective {
@@ -291,6 +382,7 @@ export interface BroadcastMessage {
     text: string;
     timestamp: Date;
     color?: string;
+    scheduledFor?: Date;
 }
 
 export type PinType = 'module' | 'command';
@@ -353,6 +445,52 @@ export interface ArchiveEntry {
     isDirective?: boolean;
 }
 
+export type AccessRole = 'guest' | 'user' | 'moderator' | 'operator' | 'admin';
+
+export type UserStatus = 'active' | 'away' | 'afk';
+
+export interface User {
+  uid: string;
+  displayName: string;
+  email: string;
+  photoURL?: string;
+  role: AccessRole;
+  sovereignty?: string;
+  status?: UserStatus;
+  lastActive?: number;
+  machineId?: string;
+  seclusionActive?: boolean;
+}
+
+export interface Milestone {
+    id: string;
+    title: string;
+    description: string;
+    date: Date;
+    category: 'CODE' | 'SECURITY' | 'INFRA' | 'WISDOM';
+    isConcrete: boolean;
+}
+
+export interface UserRegistryEntry extends User {
+    ip: string;
+    createdAt: number;
+    lastSeen: number;
+    machineId: string;
+    locationHint?: string;
+    userAgent?: string;
+}
+
+export interface UserProfile {
+    id: string;
+    username: string;
+    bio: string;
+    skills: string[];
+    avatarUrl?: string;
+    role: AccessRole;
+    sovereignty?: string;
+    identitySignature?: string;
+}
+
 export interface NetworkProject {
     id: string;
     title: string;
@@ -361,6 +499,7 @@ export interface NetworkProject {
     crazyLevel: number;
     status: 'IDEATING' | 'BUILDING' | 'DONE' | 'FORGING' | 'STABLE';
     isWisdomHarmonized: boolean;
+    priority?: BlueprintPriority;
     timestamp: Date;
     tasks: ProjectTask[];
     authorityId?: string;
@@ -368,6 +507,7 @@ export interface NetworkProject {
     assetType?: string;
     manifest?: ImplementationResponse;
     careScore?: number;
+    epochDate?: string;
 }
 
 export interface NetworkNode {
@@ -711,4 +851,38 @@ export interface ExhaustionReport {
   maestroAssessment: string;
   remedialAction: string;
   signature: string;
+}
+
+export interface IntegrityVulnerability {
+    id: string;
+    module: string;
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+    description: string;
+    remediation: string;
+    status: 'OPEN' | 'PATCHED' | 'IGNORED';
+}
+
+export interface SystemIntegrityAudit {
+    timestamp: string;
+    overallIntegrity: number;
+    vulnerabilities: IntegrityVulnerability[];
+    signature: string;
+}
+
+export interface VaultEntry {
+    id: string;
+    path: string; // Simulated D:\...
+    originalPath: string; // Simulated C:\...
+    timestamp: number;
+    size: number;
+    encrypted: boolean;
+    compressed: boolean;
+}
+
+export interface AuditLog {
+    id: string;
+    type: 'INTEGRITY' | 'BACKUP' | 'SYNC' | 'MILESTONE';
+    timestamp: number;
+    details: string;
+    proofOfWork: string;
 }

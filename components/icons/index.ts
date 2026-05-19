@@ -70,6 +70,11 @@ export { ActivityIcon } from './ActivityIcon';
 export { EyeIcon } from './EyeIcon';
 export { ShieldIcon } from './ShieldIcon';
 export { TerminalIcon } from './TerminalIcon';
+export { ConfusionIcon } from './ConfusionIcon';
+export { ThumbsUpIcon } from './ThumbsUpIcon';
+export { TagIcon } from './TagIcon';
+export { CoffeeIcon } from './CoffeeIcon';
+export { TimerIcon } from './TimerIcon';
 
 // --- HOC GENERATED ICONS ---
 function createIcon(d: string, viewBox = "0 0 24 24") {
@@ -93,9 +98,12 @@ function createIcon(d: string, viewBox = "0 0 24 24") {
 export const CpuIcon = createIcon("M4 7V4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3 M4 17v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3 M9 2v3 M15 2v3 M9 19v3 M15 19v3 M2 9h3 M2 15h3 M19 9h3 M19 15h3 M7 7h10v10H7z");
 export const BugIcon = createIcon("M3.97 9C3.358 9.612 3 10.462 3 11.4c0 1.175.569 2.215 1.435 2.855L3 18h2l1.5-3.5h7L15 18h2l-1.435-3.745C16.431 13.615 17 12.575 17 11.4c0-.938-.358-1.788-.97-2.4M3.97 9L6 6h8l2.03 3M3.97 9h12.06M7 11h.01M13 11h.01");
 export const AlertTriangleIcon = createIcon("M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01");
+export const InfoIcon = createIcon("M12 16h.01 M12 8v4 M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2s10 4.477 10 10z");
 export const ClockIcon = createIcon("M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z");
 export const StarIcon = createIcon("M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14l-5-4.87 6.91-1.01L12 2z");
 export const LockIcon = createIcon("M12 11V7a4 4 0 0 0-8 0v4 M12 11h2a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h2");
+export const SendIcon = createIcon("M22 2L11 13 M22 2l-7 20-4-9-9-4 20-7z");
+export const UnlockIcon = createIcon("M12 11V7a4 4 0 0 0-8 0v4 M12 11h2a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h2 M4 11V7a4 4 0 0 1 8 0");
 export const SparklesIcon = createIcon("M12 3l1.912 5.813L21 9l-5.813 1.912L12 21l-1.912-5.813L3 15l5.813-1.912L12 3z M5 3l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z");
 export const GlobeIcon = createIcon("M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z");
 export const BookIcon = createIcon("M4 19.5A2.5 2.5 0 0 1 6.5 17H20V4H6.5A2.5 2.5 0 0 0 4 6.5z");
@@ -121,3 +129,15 @@ export const FlaskIcon = createIcon("M9 3h6v3l5 11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2
 
 export const TestTubeIcon = FlaskIcon;
 export const CleanIcon = SparklesIcon;
+export const TrashIcon = createIcon("M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2 M10 11v6 M14 11v6");
+export const DatabaseIcon = createIcon("M4 6a8 3 0 0 0 16 0M4 6v12a8 3 0 0 0 16 0V6 M4 12a8 3 0 0 0 16 0");
+export const LinkIcon = createIcon("M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71 M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71");
+export const PlayIcon = createIcon("M5 3l14 9-14 9V3z");
+export const RadioIcon = createIcon("M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.07 4.93a10 10 0 0 1 0 14.14 M4.93 19.07a10 10 0 0 1 0-14.14");
+export const HistoryIcon = createIcon("M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8 M3 3v5h5");
+export const Volume2Icon = createIcon("M11 5L6 9H2v6h4l5 4V5z M19.07 4.93a10 10 0 0 1 0 14.14 M15.54 8.46a5 5 0 0 1 0 7.07");
+export const VolumeXIcon = createIcon("M11 5L6 9H2v6h4l5 4V5z M23 9l-6 6 M17 9l6 6");
+export const StopCircleIcon = createIcon("M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z M9 9h6v6H9z");
+export const MicIcon = createIcon("M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z M19 10v1a7 7 0 0 1-14 0v-1 M12 18v4 M8 22h8");
+
+export const CheckIcon = createIcon("M20 6L9 17l-5-5");

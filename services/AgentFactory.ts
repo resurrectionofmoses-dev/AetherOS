@@ -182,7 +182,8 @@ export class AgentFactory {
           successRate: 50,
           userTone: 50,
           autonomy: 50,
-          growth: 50
+          growth: 50,
+          compensation: 50
         },
         recentEvents: []
       },

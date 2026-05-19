@@ -8,7 +8,7 @@ import { MAESTRO_SYSTEM_PROMPT } from './geminiService';
  */
 export const GoldTranslator = {
   async translate(text: string): Promise<{ gold: string; class: number; weight: number }> {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     
     try {
       const response = await ai.models.generateContent({

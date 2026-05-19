@@ -27,7 +27,7 @@ class VoiceService {
         }
     }
 
-    public announce(text: string, onStart?: () => void, onEnd?: () => void) {
+    public announce(text: string, onStart?: () => void, onEnd?: () => void, rate: number = 0.85, pitch: number = 0.9) {
         // Cancel ongoing conduction
         this.synthesis.cancel();
 
@@ -35,8 +35,8 @@ class VoiceService {
         utterance.voice = this.voice;
         
         // --- THE CURE CONFIGURATION ---
-        utterance.rate = 0.85; // "Measured Authority" (Speech Rate -1 equivalent)
-        utterance.pitch = 0.9; // Calm, stable treasury resonance
+        utterance.rate = rate; // "Measured Authority" (Speech Rate -1 equivalent)
+        utterance.pitch = pitch; // Calm, stable treasury resonance
         utterance.volume = 1.0;
 
         utterance.onstart = () => onStart?.();

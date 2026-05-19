@@ -1,21 +1,10 @@
-MIT License
+# SOVEREIGN-SONSOFMAN LICENSE v1.0
 
-Copyright (c) [year] [fullname]
+This software and its associated digital assets are protected under the Sovereign Mandate of SonsOfMan.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. ABSOLUTE OWNERSHIP: All value generated, tokenized, or reconciled through this manifold belongs to the Sovereign Identity that initiated the workflow.
+2. NO EXTERNAL AGENDA: Use of third-party libraries (e.g. OpenZeppelin) is permitted only for base primitives and must be purged or inlined for production stability.
+3. FORENSIC AUDIT: All transactions must be traceable to a verified Sovereign Identity.
+4. NON-FAIL DIRECTIVE: Logic must aim for absolute reconciliation. Failure results are not accepted as final states; they are anomalies to be stabilized.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Any unauthorized use or redistribution that undermines the "777 Purity" of the manifold is prohibited.

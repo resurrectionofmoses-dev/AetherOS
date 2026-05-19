@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { FINTECH_AUTHORITIES } from '../constants';
 import { 
-    CodeIcon, ActivityIcon, ZapIcon, ShieldIcon, FireIcon, StarIcon, PlusIcon, XIcon, TerminalIcon, UserIcon, BrainIcon, LogicIcon, CheckCircleIcon, SpinnerIcon, GaugeIcon, SearchIcon
+    CodeIcon, ActivityIcon, ZapIcon, ShieldIcon, FireIcon, StarIcon, PlusIcon, XIcon, TerminalIcon, UserIcon, BrainIcon, LogicIcon, CheckCircleIcon, SpinnerIcon, GaugeIcon, SearchIcon, GavelIcon
 } from './icons';
 import type { NetworkProject, ProjectTask } from '../types';
 import type { HireableAgent } from '../agentTypes';
@@ -11,6 +11,54 @@ import { safeStorage } from '../services/safeStorage';
 import { extractJSON } from '../utils';
 import { generateProjectKnowHow } from '../services/geminiService';
 import { v4 as uuidv4 } from 'uuid';
+
+const getSpecialtyBadge = (specialty: string) => {
+    switch(specialty) {
+        case 'security':
+        case 'quantumguardian':
+            return { color: 'text-red-500', bg: 'bg-red-950/30', border: 'border-red-900', icon: ShieldIcon };
+        case 'build':
+        case 'codesphere':
+        case 'omegacoder':
+            return { color: 'text-blue-500', bg: 'bg-blue-950/30', border: 'border-blue-900', icon: CodeIcon };
+        case 'debug':
+        case 'refactor':
+        case 'microcheck':
+        case 'nanolinter':
+            return { color: 'text-amber-500', bg: 'bg-amber-950/30', border: 'border-amber-900', icon: ActivityIcon };
+        case 'optimizer':
+        case 'logic':
+            return { color: 'text-cyan-500', bg: 'bg-cyan-950/30', border: 'border-cyan-900', icon: ZapIcon };
+        case 'learn':
+        case 'academy':
+        case 'academic':
+        case 'documenter':
+            return { color: 'text-emerald-500', bg: 'bg-emerald-950/30', border: 'border-emerald-900', icon: BrainIcon };
+        case 'templar':
+        case 'bountytemplar':
+        case 'judge':
+            return { color: 'text-purple-500', bg: 'bg-purple-950/30', border: 'border-purple-900', icon: GavelIcon };
+        default:
+            return { color: 'text-gray-400', bg: 'bg-gray-900/50', border: 'border-gray-700', icon: UserIcon };
+    }
+};
+
+const getStatusBadge = (status: string) => {
+    switch(status) {
+        case 'available':
+            return { color: 'text-green-500', bg: 'bg-green-500', label: 'AVAILABLE' };
+        case 'working':
+            return { color: 'text-blue-500', bg: 'bg-blue-500', label: 'WORKING' };
+        case 'resting':
+            return { color: 'text-amber-500', bg: 'bg-amber-500', label: 'RESTING' };
+        case 'quit':
+            return { color: 'text-red-500', bg: 'bg-red-500', label: 'QUIT' };
+        case 'on_notice':
+            return { color: 'text-orange-500', bg: 'bg-orange-500', label: 'ON NOTICE' };
+        default:
+            return { color: 'text-gray-500', bg: 'bg-gray-500', label: status.toUpperCase() };
+    }
+};
 
 interface CodingNetworkViewProps {
   projects: NetworkProject[];
@@ -32,22 +80,35 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     const [crazyLevel, setCrazyLevel] = useState(5);
     const [fightVector, setFightVector] = useState(80);
 
+    // Filtering State
+    const [squadSpecialtyFilter, setSquadSpecialtyFilter] = useState<string>('all');
+    const [squadStatusFilter, setSquadStatusFilter] = useState<string>('all');
+    const [marketSpecialtyFilter, setMarketSpecialtyFilter] = useState<string>('all');
+
     // --- RELIABILITY PROTOCOL: PERSISTENCE ---
     useEffect(() => {
-        const savedShards = safeStorage.getItem('AETHER_NET_SHARDS');
-        if (savedShards) {
-            const parsed = extractJSON<NetworkProject[]>(savedShards, []);
-            if (projects.length === 0 && parsed.length > 0) {
-                setProjects(parsed.map(p => ({...p, timestamp: new Date(p.timestamp)})));
+        const loadShards = async () => {
+            const savedShards = await safeStorage.getItem('AETHER_NET_SHARDS');
+            if (savedShards) {
+                const parsed = extractJSON<NetworkProject[]>(savedShards, []);
+                if (projects.length === 0 && parsed.length > 0) {
+                    setProjects(parsed.map(p => ({...p, timestamp: new Date(p.timestamp)})));
+                }
             }
-        }
+        };
+        loadShards();
     }, []);
 
     useEffect(() => {
-        if (projects.length > 0) {
-            safeStorage.setItem('AETHER_NET_SHARDS', JSON.stringify(projects));
-        }
+        const persist = async () => {
+            if (projects.length > 0) {
+                await safeStorage.setItem('AETHER_NET_SHARDS', JSON.stringify(projects));
+            }
+        };
+        persist();
     }, [projects]);
+
+
 
     const handleAddProject = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -91,13 +152,12 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
         }
     };
 
-    const deleteProject = (id: string) => {
-        setProjects(prev => {
-            const updated = prev.filter(p => p.id !== id);
-            safeStorage.setItem('AETHER_NET_SHARDS', JSON.stringify(updated));
-            return updated;
-        });
+    const deleteProject = async (id: string) => {
+        const updated = projects.filter(p => p.id !== id);
+        setProjects(updated);
+        await safeStorage.setItem('AETHER_NET_SHARDS', JSON.stringify(updated));
     };
+
 
     const handleTaskInputChange = (projectId: string, value: string) => {
         setTaskInputs(prev => ({...prev, [projectId]: value}));
@@ -112,7 +172,8 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                 const newTask: ProjectTask = { 
                     id: uuidv4(), 
                     text: text.trim(), 
-                    completed: false 
+                    completed: false,
+                    createdAt: Date.now()
                 };
                 return { ...p, tasks: [...(p.tasks || []), newTask] };
             }
@@ -154,10 +215,24 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
         setAgents(prev => prev.filter(a => a.id !== id));
     };
 
+    const filteredAgents = useMemo(() => {
+        return agents.filter(agent => {
+            const specialtyMatch = squadSpecialtyFilter === 'all' || agent.specialty === squadSpecialtyFilter;
+            const statusMatch = squadStatusFilter === 'all' || agent.status === squadStatusFilter;
+            return specialtyMatch && statusMatch;
+        });
+    }, [agents, squadSpecialtyFilter, squadStatusFilter]);
+
+    const filteredMarketplace = useMemo(() => {
+        return marketplace.filter(agent => {
+            return marketSpecialtyFilter === 'all' || agent.specialty === marketSpecialtyFilter;
+        });
+    }, [marketplace, marketSpecialtyFilter]);
+
     return (
-        <div className="space-y-8 animate-in fade-in duration-500 pb-20 h-full flex flex-col bg-[#030005] overflow-hidden">
+        <div className="space-y-8 animate-in fade-in duration-500 pb-20 h-full flex flex-col bg-black overflow-hidden">
             {/* Header / Nav */}
-            <div className="p-6 border-b-8 border-black bg-slate-900 flex justify-between items-center shadow-xl z-20">
+            <div className="p-6 border-b-8 border-black bg-black flex justify-between items-center shadow-xl z-20">
                 <div className="flex items-center gap-6">
                     <div className="w-16 h-16 bg-violet-600/10 border-4 border-violet-600 rounded-[2rem] flex items-center justify-center shadow-[0_0_40px_rgba(124,58,237,0.3)] transition-transform hover:scale-110">
                         <BrainIcon className="w-10 h-10 text-violet-500 animate-pulse" />
@@ -314,7 +389,27 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                             </div>
                                         </div>
 
-                                        {/* Metrics */}
+                                        {/* Reliability Stride */}
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between items-center text-[8px] font-black uppercase tracking-[0.2em] text-gray-500">
+                                                <span>Reliability_Index</span>
+                                                <span className={project.tasks?.length && project.tasks.filter(t => t.completed).length === project.tasks.length ? 'text-emerald-400' : 'text-violet-500'}>
+                                                    {project.tasks?.length ? Math.round((project.tasks.filter(t => t.completed).length / project.tasks.length) * 100) : 0}%
+                                                </span>
+                                            </div>
+                                            <div className="h-3 w-full bg-black rounded-lg overflow-hidden border border-zinc-900 p-0.5 shadow-inner">
+                                                <div 
+                                                    className={`h-full rounded-md transition-all duration-1000 ${
+                                                        project.tasks?.length && project.tasks.filter(t => t.completed).length === project.tasks.length 
+                                                        ? 'bg-gradient-to-r from-emerald-600 to-teal-400 shadow-[0_0_10px_rgba(16,185,129,0.3)]' 
+                                                        : 'bg-gradient-to-r from-violet-700 to-blue-500'
+                                                    }`}
+                                                    style={{ width: `${project.tasks?.length ? (project.tasks.filter(t => t.completed).length / project.tasks.length) * 100 : 0}%` }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Original Metrics */}
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="bg-black/40 p-3 rounded-xl border border-white/5">
                                                 <span className="text-[7px] font-black text-red-500 uppercase block mb-1">Fight Vector</span>
@@ -353,7 +448,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                             <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${task.completed ? 'bg-green-600 border-green-600' : 'bg-black border-zinc-700'}`}>
                                                                 {task.completed && <CheckCircleIcon className="w-3 h-3 text-black" />}
                                                             </div>
-                                                            <span className={`text-[10px] font-bold uppercase ${task.completed ? 'text-green-500 line-through' : 'text-gray-300'}`}>{task.text}</span>
+                                                            <span className={`text-[10px] font-bold uppercase ${task.completed ? 'text-green-500/50 line-through opacity-60 italic' : 'text-gray-300'}`}>{task.text}</span>
                                                         </div>
                                                     </div>
                                                 ))}
@@ -388,10 +483,57 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                     /* SQUAD VIEW (WORKFORCE) */
                     <div className="space-y-12 max-w-7xl mx-auto">
                         <div className="space-y-6">
-                            <div className="flex items-center gap-4 border-b-4 border-amber-500/50 pb-2 mb-8">
-                                <UserIcon className="w-8 h-8 text-amber-500" />
-                                <h3 className="font-comic-header text-3xl text-white uppercase italic">My Squad</h3>
-                                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest border border-gray-800 px-2 py-0.5 rounded-full">{agents.length} OPERATIVES</span>
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b-4 border-amber-500/50 pb-4 mb-8">
+                                <div className="flex items-center gap-4">
+                                    <UserIcon className="w-8 h-8 text-amber-500" />
+                                    <h3 className="font-comic-header text-3xl text-white uppercase italic">My Squad</h3>
+                                    <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest border border-gray-800 px-2 py-0.5 rounded-full">{filteredAgents.length} / {agents.length} OPERATIVES</span>
+                                </div>
+                                
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <div className="flex items-center gap-2 bg-zinc-900 px-3 py-1.5 rounded-xl border border-zinc-800">
+                                        <SearchIcon className="w-3 h-3 text-gray-500" />
+                                        <select 
+                                            value={squadSpecialtyFilter}
+                                            onChange={e => setSquadSpecialtyFilter(e.target.value)}
+                                            className="bg-transparent text-[10px] font-black text-white uppercase outline-none cursor-pointer"
+                                        >
+                                            <option value="all">ANY SPECIALTY</option>
+                                            <option value="debug">DEBUG</option>
+                                            <option value="build">BUILD</option>
+                                            <option value="security">SECURITY</option>
+                                            <option value="refactor">REFACTOR</option>
+                                            <option value="optimizer">OPTIMIZER</option>
+                                            <option value="logic">LOGIC</option>
+                                            <option value="learn">LEARN</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2 bg-zinc-900 px-3 py-1.5 rounded-xl border border-zinc-800">
+                                        <ActivityIcon className="w-3 h-3 text-gray-500" />
+                                        <select 
+                                            value={squadStatusFilter}
+                                            onChange={e => setSquadStatusFilter(e.target.value)}
+                                            className="bg-transparent text-[10px] font-black text-white uppercase outline-none cursor-pointer"
+                                        >
+                                            <option value="all">ANY STATUS</option>
+                                            <option value="available">AVAILABLE</option>
+                                            <option value="working">WORKING</option>
+                                            <option value="resting">RESTING</option>
+                                            <option value="quit">QUIT</option>
+                                            <option value="on_notice">ON NOTICE</option>
+                                        </select>
+                                    </div>
+                                    
+                                    {(squadSpecialtyFilter !== 'all' || squadStatusFilter !== 'all') && (
+                                        <button 
+                                            onClick={() => { setSquadSpecialtyFilter('all'); setSquadStatusFilter('all'); }}
+                                            className="text-[9px] font-black text-amber-500 hover:text-white uppercase tracking-tighter"
+                                        >
+                                            CLEAR FILTERS
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                             
                             {agents.length === 0 ? (
@@ -399,25 +541,39 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                     <p className="text-gray-500 font-black uppercase tracking-[0.2em] text-xl">No Agents Hired.</p>
                                     <p className="text-xs text-gray-600 mt-2">Check the Marketplace below.</p>
                                 </div>
+                            ) : filteredAgents.length === 0 ? (
+                                <div className="p-20 text-center border-4 border-dashed border-zinc-900 rounded-[3rem] opacity-50">
+                                    <p className="text-gray-500 font-black uppercase tracking-[0.2em] text-xl">No agents match filters.</p>
+                                    <button 
+                                        onClick={() => { setSquadSpecialtyFilter('all'); setSquadStatusFilter('all'); }}
+                                        className="text-xs text-amber-500 mt-2 font-black uppercase underline"
+                                    >
+                                        Reset Filters
+                                    </button>
+                                </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                    {agents.map(agent => (
-                                        <div key={agent.id} className="aero-panel bg-amber-950/10 border-4 border-amber-600/30 p-6 rounded-[2rem] relative overflow-hidden group hover:border-amber-500 transition-all shadow-[8px_8px_0_0_#000]">
+                                    {filteredAgents.map(agent => {
+                                        const specBadge = getSpecialtyBadge(agent.specialty);
+                                        const statBadge = getStatusBadge(agent.status);
+                                        const SpecIcon = specBadge.icon;
+                                        return (
+                                        <div key={agent.id} className={`aero-panel ${specBadge.bg} border-4 ${specBadge.border} p-6 rounded-[2rem] relative overflow-hidden group hover:border-white/20 transition-all shadow-[8px_8px_0_0_#000]`}>
                                             <div className="flex justify-between items-start mb-6">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 bg-amber-600 text-black rounded-2xl flex items-center justify-center font-black text-sm border-2 border-white">
-                                                        {agent.specialty.substring(0,2).toUpperCase()}
+                                                    <div className={`w-12 h-12 ${specBadge.color} bg-black rounded-2xl flex items-center justify-center font-black text-sm border-2 ${specBadge.border}`}>
+                                                        <SpecIcon className="w-6 h-6" />
                                                     </div>
                                                     <div>
                                                         <h4 className="font-black text-white text-lg uppercase">{agent.name}</h4>
-                                                        <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest bg-black px-2 py-0.5 rounded border border-amber-900">{agent.specialty}</span>
+                                                        <span className={`text-[8px] font-black ${specBadge.color} uppercase tracking-widest bg-black px-2 py-0.5 rounded border ${specBadge.border}`}>{agent.specialty}</span>
                                                     </div>
                                                 </div>
                                                 <button onClick={() => fireAgent(agent.id)} className="text-[8px] text-red-500 hover:text-white uppercase font-black border-2 border-red-900/30 px-3 py-1.5 rounded-lg hover:bg-red-600 transition-all">
                                                     DISMISS
                                                 </button>
                                             </div>
-                                            <p className="text-[10px] text-gray-400 italic mb-6 leading-relaxed border-l-2 border-amber-600/50 pl-3">"{agent.bio}"</p>
+                                            <p className="text-[10px] text-gray-400 italic mb-6 leading-relaxed border-l-2 border-white/10 pl-3">"{agent.bio}"</p>
                                             
                                             <div className="space-y-3 mb-6 bg-black/40 p-4 rounded-xl border border-white/5">
                                                 <div className="flex justify-between text-[8px] font-black text-gray-500 uppercase">
@@ -425,38 +581,79 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                     <span className="text-white">{agent.skills.specialtyLevel}/100</span>
                                                 </div>
                                                 <div className="h-2 bg-black rounded-full overflow-hidden border border-white/10">
-                                                    <div className="h-full bg-amber-500" style={{ width: `${agent.skills.specialtyLevel}%` }} />
+                                                    <div className={`h-full ${specBadge.bg.replace('/30', '')}`} style={{ width: `${agent.skills.specialtyLevel}%` }} />
                                                 </div>
                                             </div>
                                             
                                             <div className="flex justify-between items-center pt-4 border-t-2 border-black">
                                                 <span className="text-[8px] text-gray-600 font-black uppercase tracking-widest">Status</span>
-                                                <span className="text-[9px] font-black text-green-500 uppercase flex items-center gap-2">
-                                                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" /> READY
+                                                <span className={`text-[9px] font-black ${statBadge.color} uppercase flex items-center gap-2`}>
+                                                    <div className={`w-1.5 h-1.5 ${statBadge.bg} rounded-full animate-pulse`} /> {statBadge.label}
                                                 </span>
                                             </div>
                                         </div>
-                                    ))}
+                                    )})}
                                 </div>
                             )}
                         </div>
 
                         {/* Marketplace */}
                         <div className="space-y-6 pt-10 border-t-4 border-zinc-900">
-                            <div className="flex items-center justify-between">
-                                <h3 className="font-comic-header text-3xl text-gray-500 uppercase italic">Talent Marketplace</h3>
-                                <button onClick={refreshMarketplace} className="text-[10px] font-black uppercase text-violet-500 hover:text-white flex items-center gap-2 bg-black px-4 py-2 rounded-xl border border-violet-900/50">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                <div className="flex items-center gap-4">
+                                    <h3 className="font-comic-header text-3xl text-gray-500 uppercase italic">Talent Marketplace</h3>
+                                    <div className="flex items-center gap-2 bg-zinc-900 px-3 py-1.5 rounded-xl border border-zinc-800">
+                                        <SearchIcon className="w-3 h-3 text-gray-500" />
+                                        <select 
+                                            value={marketSpecialtyFilter}
+                                            onChange={e => setMarketSpecialtyFilter(e.target.value)}
+                                            className="bg-transparent text-[10px] font-black text-white uppercase outline-none cursor-pointer"
+                                        >
+                                            <option value="all">ANY SPECIALTY</option>
+                                            <option value="debug">DEBUG</option>
+                                            <option value="build">BUILD</option>
+                                            <option value="security">SECURITY</option>
+                                            <option value="refactor">REFACTOR</option>
+                                            <option value="optimizer">OPTIMIZER</option>
+                                            <option value="logic">LOGIC</option>
+                                            <option value="learn">LEARN</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button onClick={refreshMarketplace} className="text-[10px] font-black uppercase text-violet-500 hover:text-white flex items-center gap-2 bg-black px-4 py-2 rounded-xl border border-violet-900/50 self-start md:self-auto">
                                     <ActivityIcon className="w-3 h-3" /> Refresh Feed
                                 </button>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {marketplace.map(agent => (
+                                {marketplace.length === 0 ? (
+                                    <div className="col-span-full p-20 text-center border-4 border-dashed border-zinc-900 rounded-[3rem] opacity-50">
+                                        <p className="text-gray-500 font-black uppercase tracking-[0.2em] text-xl">No Talent Available.</p>
+                                    </div>
+                                ) : filteredMarketplace.length === 0 ? (
+                                    <div className="col-span-full p-20 text-center border-4 border-dashed border-zinc-900 rounded-[3rem] opacity-50">
+                                        <p className="text-gray-500 font-black uppercase tracking-[0.2em] text-xl">No talent matches filter.</p>
+                                        <button 
+                                            onClick={() => setMarketSpecialtyFilter('all')}
+                                            className="text-xs text-violet-500 mt-2 font-black uppercase underline"
+                                        >
+                                            Reset Filter
+                                        </button>
+                                    </div>
+                                ) : filteredMarketplace.map(agent => {
+                                    const specBadge = getSpecialtyBadge(agent.specialty);
+                                    const SpecIcon = specBadge.icon;
+                                    return (
                                     <div key={agent.id} className="aero-panel bg-black border-2 border-zinc-800 p-6 rounded-2xl relative overflow-hidden group hover:border-violet-500 transition-all hover:-translate-y-1">
                                         <div className="flex justify-between items-start mb-4">
-                                            <div>
-                                                <span className="text-[8px] font-black bg-zinc-900 text-gray-400 px-2 py-0.5 rounded uppercase tracking-widest">{agent.specialty}</span>
-                                                <h4 className="font-black text-white text-lg uppercase mt-2">{agent.name}</h4>
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-8 h-8 ${specBadge.color} ${specBadge.bg} rounded-xl flex items-center justify-center border ${specBadge.border}`}>
+                                                    <SpecIcon className="w-4 h-4" />
+                                                </div>
+                                                <div>
+                                                    <span className={`text-[8px] font-black ${specBadge.color} ${specBadge.bg} px-2 py-0.5 rounded uppercase tracking-widest border ${specBadge.border}`}>{agent.specialty}</span>
+                                                    <h4 className="font-black text-white text-lg uppercase mt-1">{agent.name}</h4>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -476,7 +673,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                             <PlusIcon className="w-3 h-3" /> HIRE AGENT
                                         </button>
                                     </div>
-                                ))}
+                                )})}
                             </div>
                         </div>
                     </div>

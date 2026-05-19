@@ -85,9 +85,9 @@ export const UniversalSearchBridge: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex flex-col bg-[#01050a] text-cyan-100 font-mono overflow-hidden">
+        <div className="h-full flex flex-col bg-black text-cyan-100 font-mono overflow-hidden">
             {/* Header: Search Authority */}
-            <div className="p-6 border-b-8 border-black bg-slate-900 flex justify-between items-center shadow-2xl relative z-30">
+            <div className="p-6 border-b-8 border-black bg-black flex justify-between items-center shadow-2xl relative z-30">
                 <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-blue-600/10 border-4 border-blue-500 rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(59,130,246,0.3)]">
                         <GlobeIcon className="w-10 h-10 text-blue-400 animate-pulse" />
@@ -179,7 +179,7 @@ export const UniversalSearchBridge: React.FC = () => {
 
                 {/* Main Content: Input & Shards */}
                 <div className="flex-1 flex flex-col gap-6 relative z-10 min-w-0">
-                    <form onSubmit={handleSovereignSearch} className="aero-panel bg-slate-900 border-8 border-black p-2 flex items-center gap-4 shadow-[15px_15px_60px_rgba(0,0,0,1)] focus-within:border-blue-600 transition-all rounded-[3rem]">
+                    <form onSubmit={handleSovereignSearch} className="aero-panel bg-black border-8 border-black p-2 flex items-center gap-4 shadow-[15px_15px_60px_rgba(0,0,0,1)] focus-within:border-blue-600 transition-all rounded-[3rem]">
                         <div className="pl-8 text-blue-900">
                             <GlobeIcon className="w-8 h-8" />
                         </div>

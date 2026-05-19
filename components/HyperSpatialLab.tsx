@@ -8,6 +8,7 @@ import type { LabComponentProps } from '../types';
 const VERTEX_SHADER_SOURCE = `
     attribute vec4 a_position;
     uniform float u_rotation;
+    uniform float u_gravity;
     uniform vec2 u_resolution;
     varying float v_w;
 
@@ -19,11 +20,14 @@ const VERTEX_SHADER_SOURCE = `
         float rotX = a_position.x * cosA - a_position.w * sinA;
         float rotW = a_position.x * sinA + a_position.w * cosA;
         
+        // Apply gravity
+        float yPos = a_position.y - u_gravity * (rotW + 2.0) * 0.2;
+        
         // 4D to 3D Projection
         float distance = 2.5;
         float factor = 1.0 / (distance - rotW);
         
-        vec3 p3d = vec3(rotX * factor, a_position.y * factor, a_position.z * factor);
+        vec3 p3d = vec3(rotX * factor, yPos * factor, a_position.z * factor);
         
         // 3D to 2D Projection
         float depth = 2.0;
@@ -60,6 +64,8 @@ export const HyperSpatialLab: React.FC<LabComponentProps> = ({
   const [rotation, setRotation] = useState(0);
   const [isAutoRotating, setIsAutoRotating] = useState(true);
   const [fractureChance, setFractureChance] = useState(0.02);
+  const [gravity, setGravity] = useState(0);
+  const [stride, setStride] = useState(1);
   const glRef = useRef<WebGLRenderingContext | null>(null);
   const programRef = useRef<WebGLProgram | null>(null);
 
@@ -148,6 +154,9 @@ export const HyperSpatialLab: React.FC<LabComponentProps> = ({
       const rotLoc = gl.getUniformLocation(program, 'u_rotation');
       gl.uniform1f(rotLoc, rotation);
 
+      const gravLoc = gl.getUniformLocation(program, 'u_gravity');
+      gl.uniform1f(gravLoc, gravity);
+
       const hiLoc = gl.getUniformLocation(program, 'u_color_hi');
       const loLoc = gl.getUniformLocation(program, 'u_color_lo');
       
@@ -165,7 +174,7 @@ export const HyperSpatialLab: React.FC<LabComponentProps> = ({
       gl.drawArrays(gl.POINTS, 0, 16);
 
       if (isAutoRotating) {
-        setRotation(prev => (prev + 0.008) % (Math.PI * 2));
+        setRotation(prev => (prev + 0.008 * stride) % (Math.PI * 2));
       }
       
       animationFrame = requestAnimationFrame(render);
@@ -173,7 +182,7 @@ export const HyperSpatialLab: React.FC<LabComponentProps> = ({
 
     render();
     return () => cancelAnimationFrame(animationFrame);
-  }, [rotation, isAutoRotating, vertices, edges]);
+  }, [rotation, isAutoRotating, vertices, edges, gravity, stride]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -255,6 +264,44 @@ export const HyperSpatialLab: React.FC<LabComponentProps> = ({
                <div className="flex justify-between text-[7px] font-black text-gray-700 uppercase">
                  <span>Shader Thread</span>
                  <span className="text-green-500">OPTIMAL</span>
+               </div>
+            </div>
+          </div>
+
+          <div className="aero-panel bg-black/80 border-2 border-emerald-600/40 p-4 shadow-xl">
+             <h4 className="text-[9px] font-black text-emerald-500 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+              <ZapIcon className="w-4 h-4" /> Parameters
+            </h4>
+            <div className="space-y-4">
+               <div>
+                 <div className="flex justify-between text-[7px] font-black text-gray-700 uppercase mb-1">
+                   <span>Gravity Coefficient</span>
+                   <span className="text-emerald-400">{gravity.toFixed(2)}</span>
+                 </div>
+                 <input 
+                   type="range" 
+                   min="-2" 
+                   max="2" 
+                   step="0.1" 
+                   value={gravity} 
+                   onChange={(e) => setGravity(parseFloat(e.target.value))}
+                   className="w-full accent-emerald-500"
+                 />
+               </div>
+               <div>
+                 <div className="flex justify-between text-[7px] font-black text-gray-700 uppercase mb-1">
+                   <span>Conduction Stride</span>
+                   <span className="text-amber-400">{stride.toFixed(2)}x</span>
+                 </div>
+                 <input 
+                   type="range" 
+                   min="0" 
+                   max="5" 
+                   step="0.1" 
+                   value={stride} 
+                   onChange={(e) => setStride(parseFloat(e.target.value))}
+                   className="w-full accent-amber-500"
+                 />
                </div>
             </div>
           </div>

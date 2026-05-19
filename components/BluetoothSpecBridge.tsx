@@ -104,9 +104,17 @@ const PROTOCOLS: BluetoothProtocol[] = [
 const CATEGORIES = ['All', 'Core', 'GATT', 'Mesh', 'Auracast', 'Traditional'] as const;
 const STATUSES = ['All', 'Stable', 'Beta', 'Experimental'] as const;
 
+const SYSTEM_MANDATES = [
+    'Encryption Mandatory (AES-CCM / EAD)',
+    'Connection Latency < 10ms (Rigid Constraint)',
+    'PAwR Sub-event Latency < 15ms',
+    'LE Security Mode 1 Level 4 (FIPS)',
+    'GATT Database Caching Required'
+];
+
 export const BluetoothSpecBridge: React.FC = () => {
     const [selectedProtocol, setSelectedProtocol] = useState<BluetoothProtocol>(PROTOCOLS[0]);
-    const [designRequirements, setDesignRequirements] = useState('');
+    const [designRequirements, setDesignRequirements] = useState(SYSTEM_MANDATES.join('\n'));
     const [blueprint, setBlueprint] = useState<BluetoothBlueprint | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [logs, setLogs] = useState<string[]>(["[SIG_BRIDGE] Initialized via epitume.", "[READY] Spectrum scanners calibrated."]);
@@ -115,6 +123,7 @@ export const BluetoothSpecBridge: React.FC = () => {
     const [adaptationResult, setAdaptationResult] = useState<ProtocolAdaptation | null>(null);
     const [isMaximusEngaged, setIsMaximusEngaged] = useState(false);
     const [maximusStatus, setMaximusStatus] = useState<string | null>(null);
+    const [complianceStatus, setComplianceStatus] = useState<'COMPLIANT' | 'NON_COMPLIANT' | 'CHECKING'>('CHECKING');
 
     // Filter states
     const [searchTerm, setSearchTerm] = useState('');
@@ -131,6 +140,20 @@ export const BluetoothSpecBridge: React.FC = () => {
             return matchesSearch && matchesCategory && matchesStatus;
         });
     }, [searchTerm, filterCategory, filterStatus]);
+
+    useEffect(() => {
+        setComplianceStatus('CHECKING');
+        const timer = setTimeout(() => {
+            const isCompliant = SYSTEM_MANDATES.every(m => selectedProtocol.designConstraints.includes(m));
+            setComplianceStatus(isCompliant ? 'COMPLIANT' : 'NON_COMPLIANT');
+            if (isCompliant) {
+                addLog(`[COMPLIANCE] Protocol ${selectedProtocol.name} meets all security mandates.`, 'text-green-400');
+            } else {
+                addLog(`[COMPLIANCE] Protocol ${selectedProtocol.name} fails security mandates.`, 'text-red-500');
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [selectedProtocol]);
 
     useEffect(() => {
         if (!selectedProtocol || !filteredProtocols.find(p => p.id === selectedProtocol.id)) {
@@ -218,7 +241,19 @@ export const BluetoothSpecBridge: React.FC = () => {
                     </div>
                     <div>
                         <h2 className="font-comic-header text-5xl text-blue-500 wisdom-glow italic tracking-tighter uppercase">Bluetooth SIG Bridge</h2>
-                        <p className="text-[10px] text-gray-600 font-black uppercase tracking-[0.4em] mt-1 italic">Epitume Protocol | v5.4.1</p>
+                        <div className="flex items-center gap-3 mt-1">
+                            <span className="text-[10px] text-gray-600 font-black uppercase tracking-[0.4em] italic">Epitume Protocol | v5.4.1</span>
+                            {complianceStatus === 'COMPLIANT' && (
+                                <span className="text-[10px] bg-green-950/40 text-green-500 px-2 py-0.5 rounded border border-green-900/30 font-black animate-pulse">
+                                    SECURE_MODE: ACTIVE
+                                </span>
+                            )}
+                            {complianceStatus === 'NON_COMPLIANT' && (
+                                <span className="text-[10px] bg-red-950/40 text-red-500 px-2 py-0.5 rounded border border-red-900/30 font-black animate-pulse">
+                                    SECURE_MODE: FAILED
+                                </span>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <div className="flex gap-10">
@@ -235,6 +270,33 @@ export const BluetoothSpecBridge: React.FC = () => {
             <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div className="lg:col-span-4 space-y-8">
+                        {/* Compliance Panel */}
+                        <div className={`aero-panel p-6 border-2 shadow-2xl space-y-4 transition-all duration-500 ${complianceStatus === 'COMPLIANT' ? 'bg-green-950/10 border-green-600/30' : 'bg-red-950/10 border-red-600/30'}`}>
+                            <div className="flex justify-between items-center">
+                                <h3 className={`font-comic-header text-2xl uppercase italic tracking-tight flex items-center gap-2 ${complianceStatus === 'COMPLIANT' ? 'text-green-500' : 'text-red-500'}`}>
+                                    <ShieldIcon className="w-5 h-5" /> Security Mandates
+                                </h3>
+                                {complianceStatus === 'CHECKING' ? (
+                                    <SpinnerIcon className="w-4 h-4 text-blue-500 animate-spin" />
+                                ) : complianceStatus === 'COMPLIANT' ? (
+                                    <CheckCircleIcon className="w-5 h-5 text-green-500" />
+                                ) : (
+                                    <XIcon className="w-5 h-5 text-red-500" />
+                                )}
+                            </div>
+                            <div className="space-y-2">
+                                {SYSTEM_MANDATES.map((mandate, i) => {
+                                    const isMet = selectedProtocol.designConstraints.includes(mandate);
+                                    return (
+                                        <div key={i} className={`flex items-center gap-3 p-2 rounded-lg border ${isMet ? 'bg-green-950/20 border-green-900/30' : 'bg-red-950/20 border-red-900/30'}`}>
+                                            {isMet ? <CheckCircleIcon className="w-3 h-3 text-green-500 flex-shrink-0" /> : <XIcon className="w-3 h-3 text-red-500 flex-shrink-0" />}
+                                            <span className={`text-[9px] font-black uppercase ${isMet ? 'text-green-400' : 'text-red-400'}`}>{mandate}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
                         {/* Filters & Protocols */}
                         <div className="aero-panel p-6 bg-slate-900/80 border-blue-600/30 shadow-2xl space-y-6">
                             <div className="space-y-4">

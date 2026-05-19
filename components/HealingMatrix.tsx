@@ -5,6 +5,7 @@ import {
     ActivityIcon, SignalIcon
 } from './icons';
 import { SystemHealer, HealingManifest } from '../services/systemHealer';
+import { reportSuccess } from './GlobalErrorHandler';
 import { DIAGNOSTIC_TROUBLE_CODES } from '../constants';
 import type { SystemGovernance } from '../types';
 
@@ -54,6 +55,7 @@ export const HealingMatrix: React.FC<HealingMatrixProps> = ({ governance }) => {
         setIsHealing(false);
         setProgress(100);
         setCurrentStep("FLUID STATE: HEALED");
+        reportSuccess("SYSTEM_HEALED", "The Sovereign Bridge has been re-quantized and the spectral fractures have been sealed.");
     };
 
     useEffect(() => {

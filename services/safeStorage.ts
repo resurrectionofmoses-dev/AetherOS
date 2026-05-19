@@ -5,21 +5,146 @@
 
 const memoryStorage: Record<string, string> = {};
 
-export const safeStorage = {
-  getItem: (key: string): string | null => {
+/**
+ * [AES-SIM] Absolute Encryption Scheme (AEC-SIM v3)
+ * Implements AES-GCM encryption via the Web Crypto API with dynamic key derivation.
+ */
+let SESSION_PASSPHRASE: string | null = null;
+const SALT_KEY = "AETHER_GCM_SALT_0x03E2";
+
+interface CryptoPackage {
+  iv: string;
+  ciphertext: string;
+}
+
+const CRYPTO_ENGINE = {
+  getSalt: () => {
+    let salt = localStorage.getItem(SALT_KEY);
+    if (!salt) {
+      const newSalt = window.crypto.getRandomValues(new Uint8Array(16));
+      salt = btoa(String.fromCharCode(...newSalt));
+      localStorage.setItem(SALT_KEY, salt);
+    }
+    return new Uint8Array(atob(salt).split('').map(c => c.charCodeAt(0)));
+  },
+
+  getDerivedKey: async (passphrase: string) => {
+    const encoder = new TextEncoder();
+    const salt = CRYPTO_ENGINE.getSalt();
+    
+    const baseKey = await window.crypto.subtle.importKey(
+      'raw',
+      encoder.encode(passphrase),
+      'PBKDF2',
+      false,
+      ['deriveKey']
+    );
+
+    return await window.crypto.subtle.deriveKey(
+      {
+        name: 'PBKDF2',
+        salt: salt,
+        iterations: 100000,
+        hash: 'SHA-256'
+      },
+      baseKey,
+      { name: 'AES-GCM', length: 256 },
+      false,
+      ['encrypt', 'decrypt']
+    );
+  },
+
+  encrypt: async (text: string): Promise<string> => {
     try {
-      return localStorage.getItem(key);
+      // Use fallback if no session passphrase set
+      const key = await CRYPTO_ENGINE.getDerivedKey(SESSION_PASSPHRASE || 'AetherSovereign2026');
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const encoder = new TextEncoder();
+      const encodedText = encoder.encode(text);
+
+      const ciphertextArr = await window.crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        encodedText
+      );
+
+      const pkg: CryptoPackage = {
+        iv: btoa(String.fromCharCode(...iv)),
+        ciphertext: btoa(String.fromCharCode(...new Uint8Array(ciphertextArr)))
+      };
+
+      return JSON.stringify(pkg);
     } catch (e) {
-      console.warn(`[AetherOS] Storage access restricted. Falling back to memory for key: ${key}`);
-      return memoryStorage[key] || null;
+      console.error("[AES-GCM] Encryption Failure:", e);
+      return text;
     }
   },
-  setItem: (key: string, value: string): void => {
+
+  decrypt: async (jsonPkg: string): Promise<string | null> => {
     try {
-      localStorage.setItem(key, value);
+      const pkg: CryptoPackage = JSON.parse(jsonPkg);
+      const key = await CRYPTO_ENGINE.getDerivedKey(SESSION_PASSPHRASE || 'AetherSovereign2026');
+      
+      const iv = new Uint8Array(atob(pkg.iv).split('').map(c => c.charCodeAt(0)));
+      const ciphertext = new Uint8Array(atob(pkg.ciphertext).split('').map(c => c.charCodeAt(0)));
+
+      const decryptedArr = await window.crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        ciphertext
+      );
+
+      return new TextDecoder().decode(decryptedArr);
+    } catch (e) {
+      return null;
+    }
+  }
+};
+
+export const safeStorage = {
+  /**
+   * Inject user passphrase into the secure context.
+   */
+  setPassphrase: (pass: string) => {
+    SESSION_PASSPHRASE = pass;
+    console.log("[AetherOS] Sovereign Passphrase Engaged.");
+  },
+
+  getItem: async (key: string): Promise<string | null> => {
+    try {
+      const val = localStorage.getItem(key);
+      if (!val) {
+        return memoryStorage[key] ? await CRYPTO_ENGINE.decrypt(memoryStorage[key]) : null;
+      }
+      return await CRYPTO_ENGINE.decrypt(val);
+    } catch (e) {
+      console.warn(`[AetherOS] Storage access restricted for key: ${key}`);
+      return memoryStorage[key] ? await CRYPTO_ENGINE.decrypt(memoryStorage[key]) : null;
+    }
+  },
+  setItem: async (key: string, value: string): Promise<void> => {
+    // PRE-WRITE BACKUP (D:\ simulation)
+    const existing = localStorage.getItem(key);
+    if (existing) {
+        const backupKey = `D:\\VAULT_BACKUP\\${key}_${new Date().getTime()}.enc`;
+        try {
+            localStorage.setItem(backupKey, existing);
+            // Limit backups to last 5 per key to avoid storage overflow
+            const allBackups = Object.keys(localStorage).filter(k => k.startsWith(`D:\\VAULT_BACKUP\\${key}`));
+            if (allBackups.length > 5) {
+                allBackups.sort().slice(0, allBackups.length - 5).forEach(k => localStorage.removeItem(k));
+            }
+        } catch (e) {
+            console.warn("[AetherOS] D:\\ Vault Backup Overflow. Maintaining current state.");
+        }
+    }
+
+    const encrypted = await CRYPTO_ENGINE.encrypt(value);
+    try {
+      localStorage.setItem(key, encrypted);
     } catch (e) {
       console.warn(`[AetherOS] Storage write restricted. Siphoning to memory for key: ${key}`);
-      memoryStorage[key] = value;
+      memoryStorage[key] = encrypted;
     }
   },
   removeItem: (key: string): void => {
@@ -37,3 +162,4 @@ export const safeStorage = {
     }
   }
 };
+

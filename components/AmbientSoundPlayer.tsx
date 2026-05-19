@@ -31,6 +31,60 @@ export const AmbientSoundPlayer: React.FC<AmbientSoundPlayerProps> = ({ enabled,
     nodesRef.current = [];
   };
 
+  const sirenNodesRef = useRef<any[]>([]);
+
+  // Siren Logic
+  useEffect(() => {
+    if (!enabled || !isHalted) {
+        sirenNodesRef.current.forEach(node => {
+            try {
+                if (node.stop) node.stop();
+                node.disconnect();
+            } catch (e) {}
+        });
+        sirenNodesRef.current = [];
+        return;
+    }
+
+    if (!audioCtxRef.current) return;
+    const ctx = audioCtxRef.current;
+    
+    // Siren Oscillator
+    const osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(440, ctx.currentTime);
+    
+    // Siren LFO (The "Wail")
+    const lfo = ctx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.setValueAtTime(1, ctx.currentTime); // 1Hz wail
+    
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.setValueAtTime(200, ctx.currentTime); // 200Hz sweep
+    
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.1);
+    
+    lfo.connect(lfoGain);
+    lfoGain.connect(osc.frequency);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start();
+    lfo.start();
+    sirenNodesRef.current = [osc, lfo, gain, lfoGain];
+
+    return () => {
+        sirenNodesRef.current.forEach(node => {
+            try {
+                if (node.stop) node.stop();
+                node.disconnect();
+            } catch (e) {}
+        });
+    };
+  }, [isHalted, enabled]);
+
   // Setup Soundscape
   useEffect(() => {
     if (!enabled) {

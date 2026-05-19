@@ -1,9 +1,79 @@
 
+import { toast } from 'sonner';
+
 export const BINARY_EXTENSIONS = [
   '.dll', '.exe', '.com', '.msi', '.sys', '.scr',
   '.so', '.bin', '.out', '.dylib', '.jar', '.pyd',
   '.zip', '.rar', '.7z', '.tar', '.gz', '.tgz', '.iso',
 ];
+
+export const SUPPORTED_MIME_TYPES: Record<string, string> = {
+  // Images
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.heic': 'image/heic',
+  '.heif': 'image/heif',
+  // Audio
+  '.wav': 'audio/wav',
+  '.mp3': 'audio/mp3',
+  '.aiff': 'audio/aiff',
+  '.aac': 'audio/aac',
+  '.ogg': 'audio/ogg',
+  '.flac': 'audio/flac',
+  // Video
+  '.mp4': 'video/mp4',
+  '.mpeg': 'video/mpeg',
+  '.mov': 'video/mov',
+  '.avi': 'video/avi',
+  '.flv': 'video/x-flv',
+  '.mpg': 'video/mpg',
+  '.webm': 'video/webm',
+  '.wmv': 'video/wmv',
+  '.3gp': 'video/3gpp',
+  // Documents
+  '.pdf': 'application/pdf',
+  '.txt': 'text/plain',
+  '.html': 'text/html',
+  '.css': 'text/css',
+  '.js': 'text/javascript',
+  '.jsx': 'text/javascript',
+  '.ts': 'text/x-typescript',
+  '.tsx': 'text/x-typescript',
+  '.json': 'application/json',
+  '.md': 'text/markdown',
+  '.py': 'text/x-python',
+  '.go': 'text/x-go',
+  '.csv': 'text/csv',
+};
+
+export const getMimeType = (fileName: string, browserMimeType?: string): string => {
+  const ext = '.' + fileName.split('.').pop()?.toLowerCase();
+  
+  // If we have a direct mapping for the extension, use it
+  if (SUPPORTED_MIME_TYPES[ext]) {
+    return SUPPORTED_MIME_TYPES[ext];
+  }
+
+  // If browser provided a MIME type and it's not generic octet-stream, use it
+  if (browserMimeType && browserMimeType !== 'application/octet-stream') {
+    return browserMimeType;
+  }
+
+  // Fallback for text-like files that might not be in our list
+  const textExtensions = ['.c', '.cpp', '.h', '.hpp', '.rs', '.swift', '.java', '.kt', '.rb', '.php', '.sql', '.yaml', '.yml', '.xml', '.toml', '.ini', '.conf'];
+  if (textExtensions.includes(ext)) {
+    return 'text/plain';
+  }
+
+  // Final fallback: if it's not a known binary extension, treat as text/plain
+  if (!BINARY_EXTENSIONS.includes(ext)) {
+    return 'text/plain';
+  }
+
+  return browserMimeType || 'application/octet-stream';
+};
 
 export const isBinaryFile = (fileName: string): boolean => {
   return BINARY_EXTENSIONS.some(ext => fileName.toLowerCase().endsWith(ext));
@@ -144,9 +214,10 @@ export async function callWithRetry<T>(
       const errorMsg = error?.message || "";
       const status = error?.status || error?.code || 0;
       
-      const isQuotaError = status === 429 || errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED');
+      const isQuotaError = (status === 429 || errorMsg.includes('429') || errorMsg.includes('RESOURCE_EXHAUSTED')) && !errorMsg.toLowerCase().includes('exceeded your current quota');
       const isTransientError = status >= 500 || errorMsg.includes('Rpc failed') || errorMsg.includes('UNKNOWN') || errorMsg.includes('xhr error') || errorMsg.includes('Network Error');
       const isAuthError = status === 401 || status === 403 || errorMsg.includes('API_KEY_INVALID') || errorMsg.includes('PERMISSION_DENIED');
+      const isHardQuotaError = errorMsg.toLowerCase().includes('exceeded your current quota');
 
       if ((isQuotaError || isTransientError) && retries < maxRetries) {
         retries++;
@@ -156,6 +227,11 @@ export async function callWithRetry<T>(
           onRetry(retries, error, delay);
         }
         
+        toast.warning(`RETRYING_OPERATION (${retries}/${maxRetries})`, {
+          description: `Neural drift detected. Re-quantizing in ${Math.round(delay/1000)}s...`,
+          className: 'bg-amber-900/20 border-amber-900/40 text-amber-200 font-mono border-2 backdrop-blur-md rounded-none uppercase tracking-tighter'
+        });
+        
         console.warn(`[AetherOS] Quota saturation or drift detected (Retry ${retries}/${maxRetries}). Delaying ${Math.round(delay)}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
@@ -163,6 +239,10 @@ export async function callWithRetry<T>(
       
       // If it's an auth error, we shouldn't retry
       if (isAuthError) {
+        toast.error("AUTHENTICATION_FRACTURE", {
+          description: "The Conjunction Bridge unable to ignite. Check your API fuel levels.",
+          className: 'bg-red-900/20 border-red-900/40 text-red-200 font-mono border-2 backdrop-blur-md rounded-none uppercase tracking-tighter'
+        });
         console.error("[AetherOS] Authentication fracture. Conjunction bridge unable to ignite.");
       }
       

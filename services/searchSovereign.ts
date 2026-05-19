@@ -12,7 +12,7 @@ import type { SovereignSearchResult } from '../types';
 export const SearchSovereign = {
     async conduct(query: string): Promise<SovereignSearchResult | null> {
         // Create new GoogleGenAI instance right before making an API call
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
         
         try {
             const response = await ai.models.generateContent({

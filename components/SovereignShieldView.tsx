@@ -3,9 +3,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
     ShieldIcon, ZapIcon, FireIcon, ActivityIcon, SpinnerIcon, 
     TerminalIcon, LogicIcon, StarIcon, WarningIcon, LockIcon,
-    SearchIcon, CheckCircleIcon, CodeIcon
+    SearchIcon, CheckCircleIcon, CodeIcon, GavelIcon, BrainIcon
 } from './icons';
-import type { ShieldTelemetry, ThreatShard } from '../types';
+import type { ShieldTelemetry, ThreatShard, SystemIntegrityAudit, IntegrityVulnerability, MainView } from '../types';
+import { conductSystemIntegrityAudit } from '../services/geminiService';
 
 /**
  * SHIELD_MESH_SHADER: Renders a pulsing hexagonal grid representing the Sovereign Shield.
@@ -107,7 +108,11 @@ const ShieldVisualization: React.FC<{ integrity: number }> = ({ integrity }) => 
     return <canvas ref={canvasRef} className="w-full h-full rounded-3xl" width={600} height={400} />;
 };
 
-export const SovereignShieldView: React.FC = () => {
+interface SovereignShieldViewProps {
+    onNavigateToReport?: (view: MainView) => void;
+}
+
+export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavigateToReport }) => {
     const [shieldStrength, setShieldStrength] = useState(100);
     const [telemetry, setTelemetry] = useState<ShieldTelemetry>({
         integrity: 98.4,
@@ -123,12 +128,49 @@ export const SovereignShieldView: React.FC = () => {
     ]);
 
     const [isNeutralizing, setIsNeutralizing] = useState<string | null>(null);
+    const [isAuditing, setIsAuditing] = useState(false);
+    const [auditResult, setAuditResult] = useState<SystemIntegrityAudit | null>(null);
     const [logs, setLogs] = useState<string[]>(["[SHIELD] Sovereign Link Established.", "[OK] Entropy filters at 100%."]);
 
     const addLog = useCallback((msg: string, type: 'INFO' | 'WARN' | 'SUCCESS' = 'INFO') => {
         const color = type === 'SUCCESS' ? 'text-green-400' : type === 'WARN' ? 'text-red-500 font-bold' : 'text-cyan-500';
         setLogs(prev => [`[${new Date().toLocaleTimeString()}] <span class="${color}">${msg}</span>`, ...prev].slice(0, 20));
     }, []);
+
+    const handleAudit = async () => {
+        setIsAuditing(true);
+        addLog("Initiating System Integrity Audit...", 'WARN');
+        addLog("Scanning core modules: SovereignBridge, KineticInterlock, CareMaestro...", 'INFO');
+        
+        try {
+            const result = await conductSystemIntegrityAudit(['SovereignBridge', 'KineticInterlock', 'CareMaestro']);
+            setAuditResult(result);
+            setTelemetry(prev => ({ ...prev, integrity: result.overallIntegrity }));
+            addLog(`Audit complete. Overall Integrity: ${result.overallIntegrity}%`, result.overallIntegrity > 90 ? 'SUCCESS' : 'WARN');
+            if (result.vulnerabilities.length > 0) {
+                addLog(`Detected ${result.vulnerabilities.length} vulnerabilities.`, 'WARN');
+            }
+        } catch (e) {
+            addLog("Audit failed: Logic fracture detected in the scanner.", 'WARN');
+        } finally {
+            setIsAuditing(false);
+        }
+    };
+
+    const handlePatch = (vId: string) => {
+        addLog(`Applying logic patch to ${vId}...`, 'INFO');
+        setTimeout(() => {
+            setAuditResult(prev => {
+                if (!prev) return null;
+                const updatedVuls = prev.vulnerabilities.map(v => v.id === vId ? { ...v, status: 'PATCHED' as const } : v);
+                const patchedCount = updatedVuls.filter(v => v.status === 'PATCHED').length;
+                const newIntegrity = Math.min(100, prev.overallIntegrity + (patchedCount * 5));
+                setTelemetry(t => ({ ...t, integrity: newIntegrity }));
+                return { ...prev, overallIntegrity: newIntegrity, vulnerabilities: updatedVuls };
+            });
+            addLog(`Vulnerability ${vId} patched. Integrity restored.`, 'SUCCESS');
+        }, 1500);
+    };
 
     const handleNeutralize = (id: string) => {
         setIsNeutralizing(id);
@@ -156,11 +198,11 @@ export const SovereignShieldView: React.FC = () => {
     }, []);
 
     return (
-        <div className="h-full flex flex-col bg-[#02040a] text-cyan-100 font-mono overflow-hidden relative">
+        <div className="h-full flex flex-col bg-black text-cyan-100 font-mono overflow-hidden relative">
             {/* Background Ambience */}
             <div className="absolute inset-0 opacity-5 pointer-events-none z-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
 
-            <div className="p-6 border-b-8 border-black bg-slate-900/90 backdrop-blur-md flex justify-between items-center shadow-2xl relative z-30">
+            <div className="p-6 border-b-8 border-black bg-black flex justify-between items-center shadow-2xl relative z-30">
                 <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-blue-600/10 border-4 border-blue-600 rounded-2xl flex items-center justify-center shadow-[0_0_40px_rgba(59,130,246,0.3)]">
                         <ShieldIcon className="w-10 h-10 text-blue-500 animate-pulse" />
@@ -174,7 +216,45 @@ export const SovereignShieldView: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex gap-8">
+                <div className="flex gap-8 items-center">
+                    {onNavigateToReport && (
+                        <button 
+                            onClick={() => onNavigateToReport('vulnerability_report')}
+                            className="vista-button px-6 py-2 bg-red-600 hover:bg-red-500 text-white font-black uppercase text-xs rounded-xl shadow-[4px_4px_0_0_#000] active:translate-y-1 transition-all flex items-center gap-2 animate-pulse"
+                        >
+                            <WarningIcon className="w-4 h-4" />
+                            <span>CRITICAL ALERT</span>
+                        </button>
+                    )}
+                    <button 
+                        onClick={() => onNavigateToReport && onNavigateToReport('tactical_intelligence')}
+                        className="vista-button px-6 py-2 bg-purple-600 hover:bg-purple-500 text-white font-black uppercase text-xs rounded-xl shadow-[4px_4px_0_0_#000] active:translate-y-1 transition-all flex items-center gap-2"
+                    >
+                        <SearchIcon className="w-4 h-4" />
+                        <span>TACTICAL INTEL</span>
+                    </button>
+                    <button 
+                        onClick={() => onNavigateToReport && onNavigateToReport('behavioral_specs')}
+                        className="vista-button px-6 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-black uppercase text-xs rounded-xl shadow-[4px_4px_0_0_#000] active:translate-y-1 transition-all flex items-center gap-2"
+                    >
+                        <CodeIcon className="w-4 h-4" />
+                        <span>BEHAVIORAL SPECS</span>
+                    </button>
+                    <button 
+                        onClick={() => onNavigateToReport && onNavigateToReport('cognitive_pipeline')}
+                        className="vista-button px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-black uppercase text-xs rounded-xl shadow-[4px_4px_0_0_#000] active:translate-y-1 transition-all flex items-center gap-2"
+                    >
+                        <BrainIcon className="w-4 h-4" />
+                        <span>COGNITIVE PIPELINE</span>
+                    </button>
+                    <button 
+                        onClick={handleAudit}
+                        disabled={isAuditing}
+                        className="vista-button px-6 py-2 bg-blue-600 hover:bg-blue-500 text-white font-black uppercase text-xs rounded-xl shadow-[4px_4px_0_0_#000] active:translate-y-1 transition-all flex items-center gap-2"
+                    >
+                        {isAuditing ? <SpinnerIcon className="w-4 h-4 animate-spin" /> : <GavelIcon className="w-4 h-4" />}
+                        <span>SYSTEM AUDIT</span>
+                    </button>
                     <div className="text-right">
                         <p className="text-[9px] text-gray-600 font-black uppercase mb-1">Grid Integrity</p>
                         <p className={`text-xl font-comic-header ${telemetry.integrity > 90 ? 'text-green-500' : 'text-amber-500'}`}>{telemetry.integrity.toFixed(2)}%</p>
@@ -185,6 +265,9 @@ export const SovereignShieldView: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* ... (rest of the component remains unchanged) */}
+
 
             <div className="flex-1 flex overflow-hidden p-8 gap-8 relative z-20">
                 
@@ -248,7 +331,7 @@ export const SovereignShieldView: React.FC = () => {
                         
                         <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
                             {shards.map(shard => (
-                                <div key={shard.id} className={`p-4 bg-slate-900/60 rounded-2xl border-2 transition-all duration-500 ${shard.status === 'PURGED' ? 'border-green-600/30 opacity-50' : 'border-red-600/30 hover:border-red-500'}`}>
+                                <div key={shard.id} className={`p-4 bg-black/60 rounded-2xl border-2 transition-all duration-500 ${shard.status === 'PURGED' ? 'border-green-600/30 opacity-50' : 'border-red-600/30 hover:border-red-500'}`}>
                                     <div className="flex justify-between items-start mb-3">
                                         <div>
                                             <p className="text-[9px] font-black text-white uppercase tracking-tighter">{shard.id} // {shard.origin}</p>
@@ -283,6 +366,43 @@ export const SovereignShieldView: React.FC = () => {
                             ))}
                         </div>
                     </div>
+                    
+                    {auditResult && (
+                        <div className="h-64 aero-panel bg-black border-4 border-black flex flex-col overflow-hidden shadow-[10px_10px_0_0_#000]">
+                            <div className="p-4 border-b-2 border-white/5 bg-blue-900/20 flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <GavelIcon className="w-5 h-5 text-blue-400" />
+                                    <span className="text-[10px] font-black uppercase text-blue-400">Integrity Audit Report</span>
+                                </div>
+                                <span className="text-[8px] font-mono text-gray-700">{auditResult.signature}</span>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                                {auditResult.vulnerabilities.map(vul => (
+                                    <div key={vul.id} className={`p-3 rounded-xl border-2 transition-all ${vul.status === 'PATCHED' ? 'border-green-600/20 bg-green-950/10' : 'border-blue-600/30 bg-blue-950/10'}`}>
+                                        <div className="flex justify-between items-start mb-1">
+                                            <span className="text-[9px] font-black text-white uppercase">{vul.module}</span>
+                                            <span className={`text-[7px] font-black px-1.5 py-0.5 rounded ${vul.severity === 'CRITICAL' ? 'bg-red-600 text-white' : 'bg-blue-600 text-white'}`}>
+                                                {vul.severity}
+                                            </span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-400 leading-tight mb-2">{vul.description}</p>
+                                        {vul.status === 'OPEN' ? (
+                                            <button 
+                                                onClick={() => handlePatch(vul.id)}
+                                                className="w-full py-1.5 bg-blue-600/20 hover:bg-blue-600 border border-blue-600/30 text-blue-400 hover:text-white transition-all text-[8px] font-black uppercase rounded-lg flex items-center justify-center gap-2"
+                                            >
+                                                <ZapIcon className="w-3 h-3" /> APPLY PATCH
+                                            </button>
+                                        ) : (
+                                            <div className="w-full py-1.5 bg-green-950/40 text-green-500 text-[8px] font-black uppercase rounded-lg flex items-center justify-center gap-2">
+                                                <CheckCircleIcon className="w-3 h-3" /> MODULE SECURED
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     <div className="h-64 aero-panel bg-black border-4 border-black p-4 flex flex-col overflow-hidden shadow-inner">
                         <div className="flex items-center gap-2 mb-3 text-cyan-900 border-b border-white/5 pb-2">
@@ -298,7 +418,7 @@ export const SovereignShieldView: React.FC = () => {
                 </div>
             </div>
 
-            <div className="p-3 bg-slate-950 border-t-8 border-black flex justify-between items-center z-40 px-12 shadow-inner">
+            <div className="p-3 bg-black border-t-8 border-black flex justify-between items-center z-40 px-12 shadow-inner">
                 <div className="flex items-center gap-10">
                    <div className="flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping" />

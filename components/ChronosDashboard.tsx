@@ -69,19 +69,19 @@ export const ChronosDashboard: React.FC<LabComponentProps> = ({ onActionReward }
                     </div>
 
                     <div className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-                        <div className="p-4 bg-stone-50 rounded-xl">
+                        <div className="p-4 bg-zinc-900 rounded-xl">
                             <div className="text-xs text-stone-400 font-bold uppercase mb-1">Total Shards</div>
                             <div className="text-lg font-black font-mono">10,000</div>
                         </div>
-                        <div className="p-4 bg-stone-50 rounded-xl">
+                        <div className="p-4 bg-zinc-900 rounded-xl">
                             <div className="text-xs text-stone-400 font-bold uppercase mb-1">Finality</div>
                             <div className="text-lg font-black font-mono text-sky-600">T0</div>
                         </div>
-                        <div className="p-4 bg-stone-50 rounded-xl">
+                        <div className="p-4 bg-zinc-900 rounded-xl">
                             <div className="text-xs text-stone-400 font-bold uppercase mb-1">Stability</div>
                             <div className="text-lg font-black font-mono text-emerald-600">{telemetry.noHurpStability}%</div>
                         </div>
-                        <div className="p-4 bg-stone-50 rounded-xl">
+                        <div className="p-4 bg-zinc-900 rounded-xl">
                             <div className="text-xs text-stone-400 font-bold uppercase mb-1">PZIS Rot.</div>
                             <div className="text-lg font-black font-mono">0.011ms</div>
                         </div>
@@ -89,7 +89,7 @@ export const ChronosDashboard: React.FC<LabComponentProps> = ({ onActionReward }
                 </div>
 
                 {/* Security Terminal */}
-                <div className="lg:col-span-1 glass-card p-6 rounded-2xl bg-stone-950 text-stone-100 flex flex-col h-[500px]">
+                <div className="lg:col-span-1 glass-card p-6 rounded-2xl bg-black text-stone-100 flex flex-col h-[500px]">
                     <div className="flex items-center justify-between mb-4 pb-2 border-b border-stone-800">
                         <h3 className="text-xs font-black uppercase tracking-widest text-stone-400">PZIS_IDENTITY_LOG</h3>
                         <TerminalIcon className="text-sky-500 w-3 h-3" />
@@ -125,7 +125,7 @@ export const ChronosDashboard: React.FC<LabComponentProps> = ({ onActionReward }
                     </div>
                 </div>
                 
-                <div className="h-48 w-full bg-stone-50 rounded-xl border border-stone-200 flex items-end p-4 gap-1">
+                <div className="h-48 w-full bg-zinc-900 rounded-xl border border-stone-200 flex items-end p-4 gap-1">
                     {Array.from({ length: 60 }).map((_, i) => {
                         const h = 40 + Math.random() * 60;
                         return (

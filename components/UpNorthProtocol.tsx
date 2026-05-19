@@ -186,7 +186,7 @@ export const UpNorthProtocol: React.FC<UpNorthProtocolProps> = ({ onSetView }) =
             <span className={`text-[10px] px-2 py-0.5 border rounded uppercase font-black tracking-widest italic animate-pulse bg-cyan-900 text-cyan-300 border-cyan-500`}>
                 {taskInput.toLowerCase().includes('aetherheal') ? 'V22.11.02 ACTIVE' : `Link Status: ${telemetry.velocity}`}
             </span>
-            <span className="text-[10px] text-gray-500 font-mono tracking-tighter">NONCE_SIGNATURE: 0x{nonce.toString(16).toUpperCase()}</span>
+            <span className="text-[10px] text-gray-500 font-mono tracking-tighter">NONCE_SIGNATURE: 0x{(nonce || 0).toString(16).toUpperCase()}</span>
           </div>
         </div>
         <div className="flex gap-2">
@@ -391,7 +391,7 @@ export const UpNorthProtocol: React.FC<UpNorthProtocolProps> = ({ onSetView }) =
                                 {[
                                     { label: 'TREASURY SAVINGS', val: '€5,068.00', color: 'text-green-400 font-black' },
                                     { label: 'SEMANTIC DRIFT', val: '0.020', color: 'text-red-400' },
-                                    { label: 'LIFETIME NONCE', val: `0x${audit.nonce.toString(16).toUpperCase()}`, color: 'text-gray-500' },
+                                    { label: 'LIFETIME NONCE', val: `0x${(audit.nonce || 0).toString(16).toUpperCase()}`, color: 'text-gray-500' },
                                 ].map(row => (
                                     <div key={row.label} className="flex justify-between items-center text-sm p-4 bg-slate-900/80 rounded-2xl border-2 border-black">
                                         <span className="text-gray-500 font-black tracking-widest text-[10px]">{row.label}</span>
@@ -418,7 +418,7 @@ export const UpNorthProtocol: React.FC<UpNorthProtocolProps> = ({ onSetView }) =
                     <div className="flex flex-col justify-center">
                         <div className="aero-panel bg-slate-900/60 border-4 border-black p-8 rounded-3xl text-center border-dashed relative mb-10">
                             <h5 className="text-[10px] text-gray-600 font-black uppercase mb-6 tracking-[0.5em]">Mark of Truth</h5>
-                            <div className="text-7xl font-black text-cyan-500 mb-4 font-mono italic">0x{audit.nonce.toString(16).toUpperCase()}</div>
+                            <div className="text-7xl font-black text-cyan-500 mb-4 font-mono italic">0x{(audit.nonce || 0).toString(16).toUpperCase()}</div>
                             <p className="text-[9px] text-gray-500 uppercase font-black tracking-widest border-t border-white/5 pt-4">SURVIVAL PROTOCOL V22.11.02</p>
                         </div>
 

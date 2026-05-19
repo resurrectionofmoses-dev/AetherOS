@@ -39,7 +39,7 @@ export const OmniBuilder = {
     if (!primaryFracture) return null;
 
     // Create new GoogleGenAI instance right before making an API call
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
@@ -92,7 +92,7 @@ export const OmniBuilder = {
    */
   async synthesizeSeed(seedPhrase: string): Promise<DreamedSchema | null> {
     // Create new GoogleGenAI instance right before making an API call
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',

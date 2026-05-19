@@ -48,7 +48,7 @@ const ArticleCard: React.FC<ArticleCardProps> = ({ id, title, text, isActive }) 
 );
 
 const CovenantHeader: React.FC<{ status: string }> = ({ status }) => (
-    <div className="p-4 border-b-8 border-black bg-slate-900 flex justify-between items-center shadow-2xl relative z-20">
+    <div className="p-4 border-b-8 border-black bg-black flex justify-between items-center shadow-2xl relative z-20">
         <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-amber-600/10 border-4 border-amber-600 rounded-[1.5rem] flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.3)]">
                 <RulesIcon className="w-8 h-8 text-amber-500 animate-pulse" />
@@ -142,7 +142,7 @@ const CovenantAcceptance: React.FC<{ onAccept: () => void; isAccepting: boolean;
 );
 
 const CovenantFooter: React.FC<{ integrity: number; stride: number }> = ({ integrity, stride }) => (
-    <div className="p-2.5 bg-slate-950 border-t-8 border-black flex items-center justify-between z-20">
+    <div className="p-2.5 bg-black border-t-8 border-black flex items-center justify-between z-20">
         <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5">
                 <div className="w-1 h-1 rounded-full bg-amber-500 animate-ping" />
@@ -228,7 +228,7 @@ export const NetworkCovenant: React.FC = () => {
                 clearInterval(affinityInterval);
                 setTimeout(() => {
                     setIsAccepting(false);
-                    alert("Covenant fully synchronized. You are GIFTED with epitume.");
+                    console.log("Covenant fully synchronized. You are GIFTED with epitume.");
                     setConductionAffinity(100); 
                 }, 500);
             }
@@ -236,7 +236,7 @@ export const NetworkCovenant: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex flex-col bg-[#02050f] text-gray-200 font-mono overflow-hidden">
+        <div className="h-full flex flex-col bg-black text-gray-200 font-mono overflow-hidden">
             <CovenantHeader status={covenantStatus} />
 
             <div className="flex-1 overflow-y-auto p-6 space-y-8 relative custom-scrollbar">

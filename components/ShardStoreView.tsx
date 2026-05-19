@@ -41,9 +41,9 @@ export const ShardStoreView: React.FC<ShardStoreViewProps> = ({ shards, onPurcha
     };
 
     return (
-        <div className="h-full flex flex-col bg-[#050505] text-gray-200 font-mono overflow-hidden">
+        <div className="h-full flex flex-col bg-black text-gray-200 font-mono overflow-hidden">
             {/* Store Header */}
-            <div className="p-8 border-b-8 border-black bg-slate-900 flex justify-between items-center shadow-2xl relative z-20">
+            <div className="p-8 border-b-8 border-black bg-black flex justify-between items-center shadow-2xl relative z-20">
                 <div className="flex items-center gap-6">
                     <div className="w-20 h-20 bg-amber-500/10 border-4 border-amber-600 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_50px_rgba(251,191,36,0.3)] transition-transform hover:scale-110">
                         <GemIcon className="w-12 h-12 text-amber-500 animate-pulse" />
@@ -151,7 +151,7 @@ export const ShardStoreView: React.FC<ShardStoreViewProps> = ({ shards, onPurcha
             </div>
 
             {/* Hub Footer */}
-            <div className="p-4 bg-slate-950 border-t-8 border-black flex justify-between items-center z-40 px-12 shadow-inner">
+            <div className="p-4 bg-black border-t-8 border-black flex justify-between items-center z-40 px-12 shadow-inner">
                 <div className="flex items-center gap-10">
                    <div className="flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />

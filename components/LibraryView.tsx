@@ -1,16 +1,38 @@
 
 import React, { useState } from 'react';
-import type { LibraryItem } from '../types';
-import { BookOpenIcon, SearchIcon, GlobeIcon, ArchiveIcon, PlusIcon, ClockIcon, StarIcon, TerminalIcon, ZapIcon, ShieldIcon, FireIcon } from './icons';
+import type { LibraryItem, MainView } from '../types';
+import { BookOpenIcon, SearchIcon, GlobeIcon, ArchiveIcon, PlusIcon, ClockIcon, StarIcon, TerminalIcon, ZapIcon, ShieldIcon, FireIcon, LockIcon, UnlockIcon } from './icons';
 import { v4 as uuidv4 } from 'uuid';
+
+interface LatentModule {
+  id: string;
+  name: string;
+  description: string;
+  cost: number;
+  viewKey: MainView;
+  category: string;
+}
+
+const LATENT_MODULES: LatentModule[] = [
+  { id: 'mod_chem', name: 'Chemistry Lab', description: 'Synthesize molecular structures and analyze chemical reactions.', cost: 50, viewKey: 'chemistry_lab', category: 'Physical Sciences' },
+  { id: 'mod_quant', name: 'Quantum Theory Lab', description: 'Explore subatomic probabilities and quantum entanglement.', cost: 100, viewKey: 'quantum_theory_lab', category: 'Physical Sciences' },
+  { id: 'mod_codefall', name: 'Code Fall Lab', description: 'Analyze cascading code failures and matrix drops.', cost: 75, viewKey: 'code_fall_lab', category: 'Cybernetics' },
+  { id: 'mod_truth', name: 'Truth Lab', description: 'Cryptographic provenance and epistemological sovereignty engine.', cost: 200, viewKey: 'truth_lab', category: 'Conceptual' },
+  { id: 'mod_med', name: 'Medical Synthesis', description: 'Biological simulation and panacea generation protocols.', cost: 150, viewKey: 'medical_synthesis_lab', category: 'Biological' },
+  { id: 'mod_hyper', name: 'Hyper Spatial Lab', description: 'N-dimensional geometry and vector wraith routing.', cost: 300, viewKey: 'hyper_spatial_lab', category: 'Engineering' }
+];
 
 interface LibraryViewProps {
   libraryItems: LibraryItem[];
   onAddLibraryItem: (item: LibraryItem) => void;
   onActionReward?: (shards: number) => void;
+  unlockedViews?: MainView[];
+  setUnlockedViews?: (views: MainView[]) => void;
+  onSetView?: (view: MainView) => void;
+  shards?: number;
 }
 
-export const LibraryView: React.FC<LibraryViewProps> = ({ libraryItems, onAddLibraryItem, onActionReward }) => {
+export const LibraryView: React.FC<LibraryViewProps> = ({ libraryItems, onAddLibraryItem, onActionReward, unlockedViews = [], setUnlockedViews, onSetView, shards = 0 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSource, setFilterSource] = useState<'All' | LibraryItem['source']>('All');
 
@@ -91,6 +113,60 @@ export const LibraryView: React.FC<LibraryViewProps> = ({ libraryItems, onAddLib
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar relative z-10 space-y-12">
+            {/* Latent Modules Section */}
+            <div className="space-y-6">
+                <div className="flex items-center gap-4 border-b-4 border-blue-900/50 pb-2">
+                    <ShieldIcon className="w-8 h-8 text-blue-500 animate-pulse" />
+                    <h3 className="font-comic-header text-4xl text-blue-400 uppercase italic tracking-tight">Latent Modules</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {LATENT_MODULES.map(module => {
+                        const isUnlocked = unlockedViews.includes(module.viewKey);
+                        return (
+                            <div key={module.id} className={`aero-panel p-6 border-4 transition-all duration-500 shadow-[10px_10px_0_0_#000] relative overflow-hidden ${isUnlocked ? 'bg-blue-950/20 border-blue-600/40 hover:border-blue-400' : 'bg-black/60 border-gray-800 hover:border-gray-600'}`}>
+                                {!isUnlocked && (
+                                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center">
+                                        <LockIcon className="w-12 h-12 text-gray-600 mb-4" />
+                                        <button 
+                                            onClick={() => {
+                                                if (setUnlockedViews && shards >= module.cost) {
+                                                    setUnlockedViews([...unlockedViews, module.viewKey]);
+                                                    onActionReward?.(-module.cost);
+                                                }
+                                            }}
+                                            disabled={shards < module.cost}
+                                            className={`vista-button py-2 px-6 font-black uppercase text-xs tracking-widest rounded-xl shadow-[4px_4px_0_0_#000] transition-all ${shards >= module.cost ? 'bg-gray-800 hover:bg-blue-600 text-white active:translate-y-1' : 'bg-gray-900 text-gray-700 cursor-not-allowed'}`}
+                                        >
+                                            Unlock ({module.cost} Shards)
+                                        </button>
+                                    </div>
+                                )}
+                                <div className="flex justify-between items-start mb-4 relative z-0">
+                                    <div className={`p-3 rounded-xl ${isUnlocked ? 'bg-blue-600/20 text-blue-400 border border-blue-600/30' : 'bg-gray-900 text-gray-600 border border-gray-800'}`}>
+                                        <TerminalIcon className="w-6 h-6" />
+                                    </div>
+                                    <span className="text-[7px] font-black text-gray-500 uppercase tracking-widest bg-black px-2 py-1 rounded border border-gray-800">{module.category}</span>
+                                </div>
+                                <h4 className={`font-comic-header text-2xl uppercase italic tracking-tight mb-2 leading-none relative z-0 ${isUnlocked ? 'text-white' : 'text-gray-500'}`}>{module.name}</h4>
+                                <p className={`text-[10px] font-black uppercase mb-4 tracking-widest relative z-0 ${isUnlocked ? 'text-blue-400' : 'text-gray-700'}`}>STATUS: {isUnlocked ? 'ONLINE' : 'DORMANT'}</p>
+                                <div className={`p-4 rounded-xl border mb-6 text-xs italic leading-relaxed h-20 overflow-y-auto custom-scrollbar shadow-inner relative z-0 ${isUnlocked ? 'bg-blue-950/20 border-blue-900/30 text-blue-100/70' : 'bg-black/40 border-gray-800 text-gray-600'}`}>
+                                    "{module.description}"
+                                </div>
+                                <button 
+                                    onClick={() => isUnlocked && onSetView?.(module.viewKey)} 
+                                    disabled={!isUnlocked}
+                                    className={`vista-button w-full py-3 font-black uppercase text-xs tracking-widest rounded-xl text-center block shadow-[4px_4px_0_0_#000] transition-all relative z-0 ${isUnlocked ? 'bg-blue-600 hover:bg-blue-500 text-white active:translate-y-1' : 'bg-gray-900 text-gray-700 cursor-not-allowed'}`}
+                                >
+                                    <span className="flex items-center justify-center gap-2">
+                                        {isUnlocked ? <><UnlockIcon className="w-4 h-4" /> Initialize Protocol</> : <><LockIcon className="w-4 h-4" /> Locked</>}
+                                    </span>
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
             {/* Featured Section: Build Logs */}
             {buildLogItems.length > 0 && (
                 <div className="space-y-6">

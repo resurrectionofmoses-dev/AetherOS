@@ -35,10 +35,12 @@ export const OperationsVault: React.FC<OperationsVaultProps> = ({
   // Sovereign Key Forge State
   const [isForgingKey, setIsForgingKey] = useState(false);
   const [forgeProgress, setForgeProgress] = useState(0);
-  const [hasSovereignKey, setHasSovereignKey] = useState(() => safeStorage.getItem('SOVEREIGN_KEY_ACTIVE') === 'true');
-  const [sovereignSig, setSovereignSig] = useState(() => safeStorage.getItem('SOVEREIGN_SIG') || 'GENERIC_CORE_0x0000');
+  const [hasSovereignKey, setHasSovereignKey] = useState(false);
+  const [sovereignSig, setSovereignSig] = useState('GENERIC_CORE_0x0000');
+  const [isVaultLoading, setIsVaultLoading] = useState(true);
 
   // Nova Scotia Winter Protocol State
+
   const [env, setEnv] = useState<SystemEnvironment>({
       isWinter: true,
       novaScotiaDominance: dominance.score,
@@ -46,16 +48,26 @@ export const OperationsVault: React.FC<OperationsVaultProps> = ({
       iceSaturation: dominance.hasWonWinter ? 0 : 14
   });
 
-  const loadLedger = useCallback(() => {
-    const raw = safeStorage.getItem('AETHER_VAULT_LEDGER');
+  const loadLedger = useCallback(async () => {
+    const raw = await safeStorage.getItem('AETHER_VAULT_LEDGER');
     if (raw) {
         setLineageLedger(extractJSON<LineageEntry[]>(raw, []).sort((a, b) => b.sealedAt - a.sealedAt));
     }
-  }, []);
+  }, [extractJSON]);
 
   useEffect(() => {
-    loadLedger();
-  }, [lastBroadcast, loadLedger]);
+    const initVault = async () => {
+        setIsVaultLoading(true);
+        const active = await safeStorage.getItem('SOVEREIGN_KEY_ACTIVE');
+        const sig = await safeStorage.getItem('SOVEREIGN_SIG');
+        if (active === 'true') setHasSovereignKey(true);
+        if (sig) setSovereignSig(sig);
+        await loadLedger();
+        setIsVaultLoading(false);
+    };
+    initVault();
+  }, [loadLedger]);
+
 
   useEffect(() => {
       const weatherInterval = setInterval(() => {
@@ -97,9 +109,10 @@ export const OperationsVault: React.FC<OperationsVaultProps> = ({
     setIsForgingKey(true);
     setForgeProgress(0);
     
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
         setForgeProgress(prev => {
-            if (prev >= 100) {
+            const next = prev + 1;
+            if (next >= 100) {
                 clearInterval(interval);
                 setIsForgingKey(false);
                 setHasSovereignKey(true);
@@ -109,9 +122,11 @@ export const OperationsVault: React.FC<OperationsVaultProps> = ({
                 safeStorage.setItem('SOVEREIGN_SIG', sig);
                 return 100;
             }
-            return prev + 1;
+            return next;
         });
     }, 50);
+
+
   };
 
   const handleLock = () => {

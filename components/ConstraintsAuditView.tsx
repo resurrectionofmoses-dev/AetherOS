@@ -50,7 +50,7 @@ export const ConstraintsAuditView: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex flex-col bg-[#020205] text-gray-200 font-mono overflow-hidden relative flex-hinge">
+        <div className="h-full flex flex-col bg-black text-gray-200 font-mono overflow-hidden relative flex-hinge">
             {/* MAGENTA HEARTBEAT - The Visual Breath */}
             <div 
                 className="absolute inset-0 pointer-events-none transition-opacity duration-1000 z-0"
@@ -61,7 +61,7 @@ export const ConstraintsAuditView: React.FC = () => {
             />
 
             {/* Header */}
-            <div className="p-4 border-b-4 border-black bg-slate-900 flex justify-between items-center shadow-xl z-20 flex-shrink-0">
+            <div className="p-4 border-b-4 border-black bg-black flex justify-between items-center shadow-xl z-20 flex-shrink-0">
                 <div className="flex items-center gap-6">
                     <div className="w-12 h-12 bg-fuchsia-600/10 border-4 border-fuchsia-600 rounded-xl flex items-center justify-center">
                         <LogicIcon className="w-8 h-8 text-fuchsia-500 animate-pulse" />
@@ -76,7 +76,7 @@ export const ConstraintsAuditView: React.FC = () => {
                     <SonicMetric size="sm" value="-1" label="SPEECH_RATE" unit="UNIT" colorClass="border-amber-600 text-amber-500" />
                 </div>
             </div>
-
+ 
             <div className="flex-1 flex overflow-hidden p-6 gap-6 relative z-10 min-h-0 flex-hinge">
                 {/* Left: The Cure Logic */}
                 <div className="flex-1 flex flex-col gap-6 overflow-hidden min-h-0 flex-hinge">
@@ -106,7 +106,7 @@ export const ConstraintsAuditView: React.FC = () => {
                         </div>
                     </div>
                 </div>
-
+ 
                 {/* Right: Risks & Maintenance */}
                 <div className="w-[450px] flex flex-col gap-6 overflow-hidden min-h-0 flex-shrink-0 flex-hinge">
                     {/* Path Risks */}
@@ -128,9 +128,9 @@ export const ConstraintsAuditView: React.FC = () => {
                             ))}
                         </div>
                     </div>
-
+ 
                     {/* Maintenance Ticker */}
-                    <div className="aero-panel bg-slate-900 border-4 border-black p-6 flex flex-col flex-1 shadow-[10px_10px_0_0_#000] overflow-hidden min-h-0 flex-hinge">
+                    <div className="aero-panel bg-black border-4 border-black p-6 flex flex-col flex-1 shadow-[10px_10px_0_0_#000] overflow-hidden min-h-0 flex-hinge">
                         <h3 className="text-xs font-black text-cyan-500 uppercase tracking-[0.3em] flex items-center gap-2 mb-4 border-b border-white/5 pb-2 flex-shrink-0">
                             <ActivityIcon className="w-5 h-5" /> Maintenance Frequency
                         </h3>
@@ -149,17 +149,17 @@ export const ConstraintsAuditView: React.FC = () => {
                             ))}
                         </div>
                     </div>
-
-                    <div className="p-4 bg-slate-950 border-4 border-black rounded-3xl shadow-[6px_6px_0_0_#000] flex-shrink-0">
+ 
+                    <div className="p-4 bg-black border-4 border-black rounded-3xl shadow-[6px_6px_0_0_#000] flex-shrink-0">
                          <p className="text-[9px] text-gray-500 font-mono italic leading-relaxed">
                             [MAESTRO_FORENSICS]: "Map those out with tee say i a oh. The $260.5B treasury isolation depends on the Measured Authority. If quota starvation occurs, the Right on Light maneuver is mandatory."
                          </p>
                     </div>
                 </div>
             </div>
-
+ 
             {/* Matrix Footer */}
-            <div className="p-2 bg-slate-900 border-t-8 border-black flex justify-between items-center px-8 z-40 flex-shrink-0">
+            <div className="p-2 bg-black border-t-8 border-black flex justify-between items-center px-8 z-40 flex-shrink-0">
                 <div className="flex items-center gap-10">
                    <div className="flex items-center gap-3">
                         <div className="w-1.5 h-1.5 rounded-full bg-fuchsia-600 animate-ping" />

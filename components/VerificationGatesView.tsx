@@ -66,9 +66,9 @@ export const VerificationGatesView: React.FC = () => {
     };
 
     return (
-        <div className="h-full flex flex-col bg-[#020502] overflow-hidden font-mono text-cyan-100 selection:bg-cyan-500/30">
+        <div className="h-full flex flex-col bg-black overflow-hidden font-mono text-cyan-100 selection:bg-cyan-500/30">
             {/* Header */}
-            <div className="px-6 py-6 border-b-4 border-black bg-slate-900 flex justify-between items-center shadow-xl z-20">
+            <div className="px-6 py-6 border-b-4 border-black bg-black flex justify-between items-center shadow-xl z-20">
                 <div className="flex items-center gap-4">
                     <div className="w-14 h-14 bg-cyan-500/10 border-4 border-cyan-600 rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.2)]">
                         <ShieldIcon className="w-9 h-9 text-cyan-400 animate-pulse" />
@@ -181,7 +181,7 @@ export const VerificationGatesView: React.FC = () => {
             </div>
 
             {/* Footer Stride */}
-            <div className="p-3 bg-slate-900 border-t-8 border-black flex justify-between items-center z-30 px-10 shadow-inner">
+            <div className="p-3 bg-black border-t-8 border-black flex justify-between items-center z-30 px-10 shadow-inner">
                 <div className="flex items-center gap-8">
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full bg-cyan-500 animate-ping" />

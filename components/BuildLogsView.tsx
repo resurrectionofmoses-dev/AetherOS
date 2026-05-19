@@ -74,9 +74,9 @@ const BuildShard: React.FC<BuildShardProps> = ({ title, content, type, index }) 
 
 export const BuildLogsView: React.FC = () => {
     return (
-        <div className="h-full flex flex-col bg-[#020205] text-gray-200 font-mono overflow-hidden">
+        <div className="h-full flex flex-col bg-black text-gray-200 font-mono overflow-hidden">
             {/* Header */}
-            <div className="p-6 border-b-8 border-black bg-slate-900 flex justify-between items-center shadow-2xl relative z-30">
+            <div className="p-6 border-b-8 border-black bg-black flex justify-between items-center shadow-2xl relative z-30">
                 <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-red-600/10 border-4 border-red-600 rounded-[2rem] flex items-center justify-center shadow-[0_0_40px_rgba(239,68,68,0.2)]">
                         <TerminalIcon className="w-10 h-10 text-red-500 animate-pulse" />
@@ -159,7 +159,7 @@ export const BuildLogsView: React.FC = () => {
             </div>
 
             {/* Footer Logs */}
-            <div className="p-4 bg-slate-950 border-t-8 border-black flex justify-between items-center z-40 px-12 shadow-inner">
+            <div className="p-4 bg-black border-t-8 border-black flex justify-between items-center z-40 px-12 shadow-inner">
                 <div className="flex items-center gap-10">
                    <div className="flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-red-600 animate-ping" />

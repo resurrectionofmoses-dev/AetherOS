@@ -6,9 +6,12 @@ interface KillSwitchOverlayProps {
   isHalted: boolean;
   onTrigger: () => void;
   onReset: () => void;
+  hasAlarm: boolean;
 }
 
-export const KillSwitchOverlay: React.FC<KillSwitchOverlayProps> = ({ isHalted, onTrigger, onReset }) => {
+export const KillSwitchOverlay: React.FC<KillSwitchOverlayProps> = ({ isHalted, onTrigger, onReset, hasAlarm }) => {
+  if (!hasAlarm && !isHalted) return null;
+
   return (
     <div className="fixed top-6 right-6 z-[9999] pointer-events-none">
       <div className="flex flex-col items-end gap-4">

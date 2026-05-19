@@ -38,6 +38,7 @@ export interface AgentMorale {
     userTone: number;        // Sentiment analysis of user messages
     autonomy: number;        // Freedom to make decisions
     growth: number;          // Learning opportunities
+    compensation: number;    // Salary, bonuses, and perceived value
   };
   
   recentEvents: MoraleEvent[];
@@ -45,9 +46,28 @@ export interface AgentMorale {
 
 export interface MoraleEvent {
   timestamp: Date;
-  type: 'praise' | 'criticism' | 'overwork' | 'success' | 'failure' | 'ignored' | 'trusted';
+  type: 
+    | 'praise' 
+    | 'criticism' 
+    | 'overwork' 
+    | 'success' 
+    | 'failure' 
+    | 'ignored' 
+    | 'trusted' 
+    | 'bonus' 
+    | 'promotion' 
+    | 'ignored_request' 
+    | 'mentorship' 
+    | 'breakthrough' 
+    | 'conflict' 
+    | 'burnout' 
+    | 'vacation';
   impact: number;            // -10 to +10
   description: string;
+  
+  // Linkage to morale system
+  factorAdjustments?: Partial<AgentMorale['factors']>;
+  trendAdjustment?: 'rising' | 'stable' | 'falling';
 }
 
 export interface AgentSkills {

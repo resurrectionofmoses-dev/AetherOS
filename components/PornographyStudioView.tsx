@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
     MovieIcon, ActivityIcon, ZapIcon, GaugeIcon, SpinnerIcon, 
     ShieldIcon, FireIcon, CheckCircleIcon, TerminalIcon, 
@@ -25,6 +25,15 @@ export const PornographyStudioView: React.FC<LabComponentProps> = ({
   const [saturation, setSaturation] = useState(88);
   const [isRendering, setIsRendering] = useState(false);
   const [frameBuffer, setFrameBuffer] = useState<string[]>([]);
+  const [hyperMode, setHyperMode] = useState(false);
+  const [neuralSaturation, setNeuralSaturation] = useState(42);
+  const neuralSaturationRef = useRef(neuralSaturation);
+  const [isCrashing, setIsCrashing] = useState(false);
+  
+  // Update ref whenever state changes
+  useEffect(() => {
+    neuralSaturationRef.current = neuralSaturation;
+  }, [neuralSaturation]);
   
   // Audit States
   const [isAgeAuditing, setIsAgeAuditing] = useState(false);
@@ -36,18 +45,43 @@ export const PornographyStudioView: React.FC<LabComponentProps> = ({
   useEffect(() => {
     let interval: number;
     if (isRendering) {
-      // FIX: Use window.setInterval to guarantee browser timer ID type (number)
       interval = window.setInterval(() => {
-        setFps(prev => Math.max(24, Math.min(120, prev + (Math.random() - 0.5) * 10)));
-        setSaturation(prev => Math.max(0, Math.min(100, prev + (Math.random() - 0.5) * 5)));
+        setFps(prev => {
+            const base = hyperMode ? 144 : 60;
+            return Math.max(1, Math.min(240, base + (Math.random() - 0.5) * (hyperMode ? 50 : 10)));
+        });
+        setSaturation(prev => {
+            const base = hyperMode ? 150 : 88;
+            return Math.max(0, Math.min(300, base + (Math.random() - 0.5) * (hyperMode ? 30 : 5)));
+        });
+        setNeuralSaturation(prev => {
+            if (isCrashing) return Math.min(100, prev + 5);
+            return Math.max(0, Math.min(100, prev + (Math.random() - 0.5) * (hyperMode ? 10 : 2)));
+        });
         setFrameBuffer(prev => {
             const hex = "0x" + Math.floor(Math.random() * 0xFFFFFF).toString(16).toUpperCase().padStart(6, '0');
-            return [`[RENDER] Frame ${hex} processed.`, ...prev].slice(0, 5);
+            const prefix = hyperMode ? "[CRITICAL_OVERFLOW] " : "[RENDER] ";
+            return [`${prefix}Frame ${hex} processed.`, ...prev].slice(0, 10);
         });
-      }, 500);
+
+        if (hyperMode && neuralSaturationRef.current > 95 && !isCrashing) {
+            triggerNeuralCrash();
+        }
+      }, hyperMode ? 100 : 500);
     }
     return () => { if (interval) clearInterval(interval); };
-  }, [isRendering]);
+  }, [isRendering, hyperMode, isCrashing]);
+
+  const triggerNeuralCrash = () => {
+    setIsCrashing(true);
+    setFrameBuffer(prev => ["[FATAL] NEURAL_BUFFER_EXHAUSTED", "[SYSTEM] Emergency stasis initiated.", ...prev]);
+    setTimeout(() => {
+        setIsCrashing(false);
+        setHyperMode(false);
+        setIsRendering(false);
+        setNeuralSaturation(42);
+    }, 3000);
+  };
 
   const runAgeAudit = async () => {
     setIsAgeAuditing(true);
@@ -76,23 +110,27 @@ export const PornographyStudioView: React.FC<LabComponentProps> = ({
   };
 
   return (
-    <div className="h-full flex flex-col bg-[#050000] overflow-hidden font-mono text-red-100">
-      <div className="p-6 border-b-8 border-black bg-red-950/40 flex justify-between items-center shadow-xl z-20">
+    <div className={`h-full flex flex-col bg-[#050000] overflow-hidden font-mono text-red-100 transition-all duration-300 ${hyperMode ? 'bg-red-950/20' : ''} ${isCrashing ? 'animate-pulse grayscale contrast-200' : ''}`}>
+      <div className={`p-6 border-b-8 border-black flex justify-between items-center shadow-xl z-20 transition-colors ${hyperMode ? 'bg-red-600/20' : 'bg-red-950/40'}`}>
         <div className="flex items-center gap-4">
-            <div className="w-16 h-16 bg-red-900/10 border-4 border-red-900 rounded-3xl flex items-center justify-center shadow-[0_0_30px_rgba(153,27,27,0.3)]">
-                <LabIcon className={`w-10 h-10 ${labColor} animate-pulse`} />
+            <div className={`w-16 h-16 bg-red-900/10 border-4 border-red-900 rounded-3xl flex items-center justify-center shadow-[0_0_30px_rgba(153,27,27,0.3)] transition-all ${hyperMode ? 'scale-110 rotate-3 border-red-500 shadow-red-500/50' : ''}`}>
+                <LabIcon className={`w-10 h-10 ${labColor} ${hyperMode ? 'animate-bounce text-red-400' : 'animate-pulse'}`} />
             </div>
             <div>
-                <h2 className="font-comic-header text-5xl text-white italic tracking-tighter uppercase leading-none">{labName}</h2>
-                <p className="text-[9px] text-red-900 font-black uppercase tracking-[0.4em] mt-1 italic">{description}</p>
+                <h2 className={`font-comic-header text-5xl italic tracking-tighter uppercase leading-none transition-colors ${hyperMode ? 'text-red-400' : 'text-white'}`}>
+                    {hyperMode ? 'HYPER-SATURATION LAB' : labName}
+                </h2>
+                <p className="text-[9px] text-red-900 font-black uppercase tracking-[0.4em] mt-1 italic">
+                    {hyperMode ? "WARNING: NEURAL OVERFLOW DETECTED // PROTOCOL_WORST" : description}
+                </p>
             </div>
         </div>
         <div className="flex gap-4">
             <button 
-                onClick={() => setIsRendering(!isRendering)}
-                className={`px-6 py-3 rounded-2xl border-4 border-black font-black uppercase text-xs tracking-widest shadow-[4px_4px_0_0_#000] active:translate-y-1 transition-all ${isRendering ? 'bg-amber-500 text-black' : 'bg-red-600 text-white animate-pulse'}`}
+                onClick={() => setHyperMode(!hyperMode)}
+                className={`px-4 py-3 rounded-2xl border-4 border-black font-black uppercase text-[10px] tracking-widest shadow-[4px_4px_0_0_#000] active:translate-y-1 transition-all ${hyperMode ? 'bg-red-500 text-white animate-ping' : 'bg-zinc-900 text-red-900 hover:text-red-500'}`}
             >
-                {isRendering ? 'HALT PRODUCTION' : 'INITIATE CAPTURE'}
+                {hyperMode ? 'ABORT HYPER-MODE' : 'HYPER-INTENSITY'}
             </button>
             <button 
                 onClick={runFinancialAudit}
@@ -102,42 +140,78 @@ export const PornographyStudioView: React.FC<LabComponentProps> = ({
                 {isFinancialAuditing ? <SpinnerIcon className="w-4 h-4" /> : <ScaleIcon className="w-4 h-4" />}
                 FINANCIAL FORENSICS
             </button>
+            <button 
+                onClick={() => {
+                  setIsRendering(!isRendering);
+                  if (!isRendering) {
+                    setFrameBuffer(prev => ["[MAESTRO] Initializing Deep Capture...", ...prev]);
+                  }
+                }}
+                className={`px-6 py-3 rounded-2xl border-4 border-black font-black uppercase text-xs tracking-widest shadow-[4px_4px_0_0_#000] active:translate-y-1 transition-all ${isRendering ? 'bg-amber-500 text-black' : 'bg-red-600 text-white animate-pulse'}`}
+            >
+                {isRendering ? 'HALT PRODUCTION' : 'INITIATE CAPTURE'}
+            </button>
         </div>
       </div>
 
       <div className="flex-1 p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 overflow-y-auto custom-scrollbar">
         
         {/* Render Engine Monitor */}
-        <div className="lg:col-span-8 aero-panel bg-black/80 border-4 border-black p-8 flex flex-col justify-center items-center relative overflow-hidden shadow-[12px_12px_0_0_#000]">
+        <div className={`lg:col-span-8 aero-panel bg-black/80 border-4 border-black p-8 flex flex-col justify-center items-center relative overflow-hidden shadow-[12px_12px_0_0_#000] ${hyperMode ? 'border-red-500/50' : ''}`}>
+             {(isCrashing || (hyperMode && Math.random() > 0.95)) && (
+                 <div className="absolute inset-0 z-50 bg-red-600/40 flex flex-col items-center justify-center backdrop-blur-sm">
+                     <span className="text-6xl font-black text-white italic tracking-tighter animate-bounce uppercase">NEURAL CRASH</span>
+                     <p className="text-xs font-black text-black bg-white px-2 mt-4 tracking-widest uppercase">FATAL_DOPAMINE_CIRCUIT_BREAK</p>
+                 </div>
+             )}
+             
+             {neuralSaturation > 90 && !isCrashing && (
+                 <div className="absolute top-10 right-10 z-40 bg-white p-4 border-4 border-red-600 animate-bounce">
+                     <p className="text-xs font-black text-red-600 uppercase tracking-widest">CRITICAL: DOPAMINE EXHAUSTION</p>
+                 </div>
+             )}
+
+             <div className="absolute bottom-4 left-4 z-40">
+                <div className="flex items-center gap-2 p-2 bg-black border border-red-500/30 rounded text-[8px] font-black text-red-500 animate-pulse">
+                    <ShieldIcon className="w-3 h-3" />
+                    BOUNTY_TEMPLAR_ACTIVE // SCANNING_FOR_LEGAL_DRIFT
+                </div>
+             </div>
+             
              <div className="absolute inset-0 opacity-[0.05] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#991b1b 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
              
              <div className="text-center space-y-10 relative z-10 w-full">
                 <div className="flex justify-between items-end">
                     <div className="text-left">
-                        <p className="text-[10px] text-red-900 font-black uppercase tracking-[0.5em] mb-4">Neural Frame Resonance</p>
-                        <div className="text-9xl font-black text-white wisdom-glow tracking-tighter leading-none">
-                            {Math.floor(fps)}<span className="text-2xl text-red-900 ml-2">FPS</span>
+                        <p className={`text-[10px] font-black uppercase tracking-[0.5em] mb-4 ${hyperMode ? 'text-red-400 animate-pulse' : 'text-red-900'}`}>Neural Frame Resonance</p>
+                        <div className={`text-9xl font-black text-white wisdom-glow tracking-tighter leading-none ${hyperMode ? 'scale-110 text-red-100 hover:tracking-[-0.05em] transition-all' : ''}`}>
+                            {Math.floor(fps)}<span className={`text-2xl ml-2 ${hyperMode ? 'text-red-500' : 'text-red-900'}`}>FPS</span>
                         </div>
                     </div>
                     <div className="text-right">
                         <p className="text-[10px] text-gray-600 font-black uppercase tracking-widest mb-2">Conjunction Stride</p>
-                        <p className="text-4xl font-comic-header text-red-500">1.2 PB/S</p>
+                        <p className={`text-4xl font-comic-header ${hyperMode ? 'text-red-400' : 'text-red-500'}`}>
+                            {hyperMode ? '9.8 EB/S' : '1.2 PB/S'}
+                        </p>
                     </div>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 w-full">
-                    <div className="p-4 bg-black border-2 border-red-900/30 rounded-2xl">
+                    <div className="p-4 bg-black border-2 border-red-900/30 rounded-2xl relative overflow-hidden">
                         <p className="text-[8px] text-red-800 font-black uppercase mb-1">Color Saturation</p>
                         <p className="text-2xl font-comic-header text-white">{saturation.toFixed(1)}%</p>
+                        {hyperMode && <div className="absolute bottom-0 left-0 h-1 bg-red-500 animate-pulse" style={{ width: `${(saturation/300)*100}%` }} />}
                     </div>
                     <div className="p-4 bg-black border-2 border-red-900/30 rounded-2xl">
                         <p className="text-[8px] text-red-800 font-black uppercase mb-1">Censure Bypass</p>
-                        <p className="text-2xl font-comic-header text-green-500">ACTIVE</p>
+                        <p className={`text-2xl font-comic-header ${hyperMode ? 'text-red-400 animate-ping' : 'text-green-500'}`}>
+                            {hyperMode ? 'OVERLOAD' : 'ACTIVE'}
+                        </p>
                     </div>
                     <div className="p-4 bg-black border-2 border-red-900/30 rounded-2xl">
-                        <p className="text-[8px] text-red-800 font-black uppercase mb-1">Financial Integrity</p>
-                        <p className={`text-2xl font-comic-header ${financialAuditReport?.financialFlowStatus === 'SECURE' ? 'text-green-500' : 'text-red-500'}`}>
-                            {financialAuditReport?.financialFlowStatus || 'PENDING'}
+                        <p className="text-[8px] text-red-800 font-black uppercase mb-1">Neural Saturation</p>
+                        <p className={`text-2xl font-comic-header ${neuralSaturation > 80 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+                            {neuralSaturation.toFixed(1)}%
                         </p>
                     </div>
                     <div className={`p-4 bg-black border-2 rounded-2xl transition-colors ${ageAuditReport?.riskLevel === 'CRITICAL' ? 'border-red-600 bg-red-900/20' : 'border-red-900/30'}`}>
@@ -147,17 +221,36 @@ export const PornographyStudioView: React.FC<LabComponentProps> = ({
                 </div>
              </div>
 
+             {/* Deep Analytics Overlay */}
+             <div className="absolute top-4 left-4 p-3 bg-red-950/40 border border-red-500/20 rounded shadow-lg backdrop-blur-md hidden md:block">
+                <div className="text-[7px] font-black text-red-500 uppercase tracking-widest mb-1 border-b border-red-500/20 pb-1">DEEP_FORENSICS</div>
+                <div className="space-y-1">
+                    <div className="flex justify-between gap-4 text-[6px] font-mono text-red-300">
+                        <span>PULSE_LOCK:</span>
+                        <span className="text-white">TRUE</span>
+                    </div>
+                    <div className="flex justify-between gap-4 text-[6px] font-mono text-red-300">
+                        <span>PUPIL_DILATION:</span>
+                        <span className="text-white">88%</span>
+                    </div>
+                    <div className="flex justify-between gap-4 text-[6px] font-mono text-red-300">
+                        <span>AESTHETIC_PURITY:</span>
+                        <span className="text-white">0x03E2</span>
+                    </div>
+                </div>
+             </div>
+
              {/* Dynamic Log Area */}
-             <div className="w-full mt-10 p-6 bg-red-950/10 border-2 border-red-900/20 rounded-3xl">
-                <h4 className="font-comic-header text-2xl text-red-700 uppercase italic mb-4 flex items-center gap-3">
-                    <TerminalIcon className="w-6 h-6" /> Production Stream
+             <div className={`w-full mt-10 p-6 bg-red-950/10 border-2 border-red-900/20 rounded-3xl transition-all ${hyperMode ? 'border-red-500 bg-red-950/30 h-48' : ''}`}>
+                <h4 className={`font-comic-header text-2xl uppercase italic mb-4 flex items-center gap-3 ${hyperMode ? 'text-red-400' : 'text-red-700'}`}>
+                    <TerminalIcon className={`w-6 h-6 ${hyperMode ? 'animate-spin' : ''}`} /> Production Stream
                 </h4>
-                <div className="space-y-2 font-mono text-[10px] text-red-400 h-24 overflow-y-auto custom-scrollbar">
+                <div className={`space-y-2 font-mono text-[10px] text-red-400 overflow-y-auto custom-scrollbar ${hyperMode ? 'h-28' : 'h-24'}`}>
                     {isRendering ? (
                         frameBuffer.map((log, i) => (
-                            <div key={i} className="flex gap-3 border-l-2 border-red-900 pl-4 py-0.5 animate-in slide-in-from-left-2">
+                            <div key={i} className={`flex gap-3 border-l-2 pl-4 py-0.5 animate-in slide-in-from-left-2 ${log.includes('CRITICAL') ? 'text-red-500 font-black border-red-500' : 'border-red-900'}`}>
                                 <span className="opacity-40">[{new Date().toLocaleTimeString()}]</span>
-                                <span className="italic">{log}</span>
+                                <span className={hyperMode ? 'uppercase text-[9px]' : 'italic'}>{log}</span>
                             </div>
                         ))
                     ) : (

@@ -87,9 +87,9 @@ export const AbsoluteReliabilityNetwork: React.FC<{ onActionReward?: (shards: nu
     const selectedProject = useMemo(() => activeProjects.find(p => p.id === selectedProjectId), [activeProjects, selectedProjectId]);
 
     return (
-        <div className="h-full flex flex-col bg-[#020408] text-gray-200 font-mono overflow-hidden selection:bg-amber-500/30">
+        <div className="h-full flex flex-col bg-black text-gray-200 font-mono overflow-hidden selection:bg-amber-500/30">
             {/* Network Header */}
-            <div className="p-6 border-b-8 border-black bg-slate-900 flex justify-between items-center shadow-2xl relative z-30">
+            <div className="p-6 border-b-8 border-black bg-black flex justify-between items-center shadow-2xl relative z-30">
                 <div className="flex items-center gap-5">
                     <div className="w-16 h-16 bg-amber-500/10 border-4 border-amber-600 rounded-3xl flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.2)]">
                         <CodeIcon className="w-10 h-10 text-amber-500 animate-pulse" />
@@ -102,7 +102,7 @@ export const AbsoluteReliabilityNetwork: React.FC<{ onActionReward?: (shards: nu
                         </div>
                     </div>
                 </div>
-
+ 
                 <div className="flex items-center gap-8">
                     <div className="text-right">
                         <p className="text-[9px] text-gray-600 font-black uppercase mb-1">Active Conjunctions</p>
@@ -119,13 +119,13 @@ export const AbsoluteReliabilityNetwork: React.FC<{ onActionReward?: (shards: nu
                     </div>
                 </div>
             </div>
-
+ 
             <div className="flex-1 flex overflow-hidden p-6 gap-6 relative">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,_rgba(59,130,246,0.03)_0%,_transparent_70%)] pointer-events-none" />
-
+ 
                 {/* Left: Project Shard Lattice */}
                 <div className="lg:w-80 flex flex-col gap-6 flex-shrink-0 z-20">
-                    <div className="aero-panel p-6 bg-slate-900/80 border-amber-600/20 border-4 shadow-[8px_8px_0_0_#000] flex-1 flex flex-col overflow-hidden">
+                    <div className="aero-panel p-6 bg-black border-amber-600/20 border-4 shadow-[8px_8px_0_0_#000] flex-1 flex flex-col overflow-hidden">
                         <h3 className="font-comic-header text-2xl text-white uppercase italic mb-6 border-b border-white/5 pb-2 flex items-center gap-2">
                             <ActivityIcon className="w-5 h-5 text-amber-500" /> Shard Lattice
                         </h3>
@@ -167,7 +167,7 @@ export const AbsoluteReliabilityNetwork: React.FC<{ onActionReward?: (shards: nu
                             )}
                         </div>
                     </div>
-
+ 
                     <div className="aero-panel bg-black/40 border-4 border-black p-5 flex flex-col shadow-[8px_8px_0_0_#000]">
                          <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-white/5 pb-2">
                             <TerminalIcon className="w-4 h-4" /> Conductor Log
@@ -183,11 +183,11 @@ export const AbsoluteReliabilityNetwork: React.FC<{ onActionReward?: (shards: nu
                          </div>
                     </div>
                 </div>
-
+ 
                 {/* Center: Command Terminal & Resulting Logic */}
                 <div className="flex-1 flex flex-col gap-6 min-w-0 z-20">
                     {/* The Baton (Input) */}
-                    <form onSubmit={handleConductIntent} className="aero-panel bg-slate-900 border-8 border-black p-2 flex items-center gap-4 shadow-[15px_15px_60px_rgba(0,0,0,0.8)] focus-within:border-amber-600 transition-all rounded-[3rem] group">
+                    <form onSubmit={handleConductIntent} className="aero-panel bg-black border-8 border-black p-2 flex items-center gap-4 shadow-[15px_15px_60px_rgba(0,0,0,0.8)] focus-within:border-amber-600 transition-all rounded-[3rem] group">
                         <div className="pl-8 text-amber-900 group-focus-within:text-amber-500 transition-colors">
                             <ZapIcon className="w-8 h-8" />
                         </div>
@@ -207,7 +207,7 @@ export const AbsoluteReliabilityNetwork: React.FC<{ onActionReward?: (shards: nu
                             {isConducting ? <SpinnerIcon className="w-10 h-10 animate-spin" /> : <FireIcon className="w-10 h-10" />}
                         </button>
                     </form>
-
+ 
                     <div className="flex-1 aero-panel bg-black border-4 border-black overflow-hidden flex flex-col shadow-[20px_20px_100px_rgba(0,0,0,1)] relative">
                          <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
                          
@@ -257,10 +257,10 @@ export const AbsoluteReliabilityNetwork: React.FC<{ onActionReward?: (shards: nu
                          )}
                     </div>
                 </div>
-
+ 
                 {/* Right: Technical Expertise & Stride Status */}
                 <div className="lg:w-96 flex flex-col gap-6 flex-shrink-0 z-20">
-                    <div className="aero-panel bg-slate-900 border-4 border-black p-8 shadow-[10px_10px_0_0_#000] relative overflow-hidden group">
+                    <div className="aero-panel bg-black border-4 border-black p-8 shadow-[10px_10px_0_0_#000] relative overflow-hidden group">
                          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity"><FireIcon className="w-24 h-24" /></div>
                          <h3 className="font-comic-header text-3xl text-red-500 uppercase italic mb-6 flex items-center gap-3">
                             <StarIcon className="w-6 h-6 text-red-600 animate-spin-slow" /> Gifted Expertise
@@ -297,7 +297,7 @@ export const AbsoluteReliabilityNetwork: React.FC<{ onActionReward?: (shards: nu
                             </div>
                          </div>
                     </div>
-
+ 
                     <div className="flex-1 aero-panel bg-black/60 border-4 border-black p-6 flex flex-col shadow-[10px_10px_0_0_#000] overflow-hidden">
                         <h3 className="text-xs font-black text-cyan-500 uppercase tracking-widest mb-6 border-b border-white/5 pb-3">
                             Spectral Audit Feed
@@ -322,9 +322,9 @@ export const AbsoluteReliabilityNetwork: React.FC<{ onActionReward?: (shards: nu
                     </div>
                 </div>
             </div>
-
+ 
             {/* Footer Stride Bar */}
-            <div className="p-3 bg-slate-950 border-t-8 border-black flex justify-between items-center z-40 px-12 shadow-inner">
+            <div className="p-3 bg-black border-t-8 border-black flex justify-between items-center z-40 px-12 shadow-inner">
                 <div className="flex items-center gap-10">
                    <div className="flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />

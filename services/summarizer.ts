@@ -13,7 +13,7 @@ export class Summarizer {
    */
   public async embed(text: string): Promise<number[]> {
     // Create new GoogleGenAI instance right before making an API call
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
       const response = await ai.models.embedContent({
         model: 'text-embedding-004',
@@ -44,7 +44,7 @@ export class Summarizer {
 
   public async compressLevel2(textInput: string): Promise<string> {
     // Create new GoogleGenAI instance right before making an API call
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -63,7 +63,7 @@ export class Summarizer {
 
   public async compressLevel3(textInput: string): Promise<string> {
     // Create new GoogleGenAI instance right before making an API call
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',

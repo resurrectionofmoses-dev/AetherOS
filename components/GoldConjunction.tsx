@@ -43,9 +43,9 @@ export const GoldConjunction: React.FC = () => {
     };
 
     return (
-        <div className={`h-full flex flex-col bg-[#050505] text-[#fbbf24] font-mono overflow-hidden transition-all duration-300 ${shake ? 'translate-y-1' : ''}`}>
+        <div className={`h-full flex flex-col bg-black text-[#fbbf24] font-mono overflow-hidden transition-all duration-300 ${shake ? 'translate-y-1' : ''}`}>
             {/* Gold Header */}
-            <div className="p-6 border-b-8 border-black bg-gradient-to-r from-[#0a0a0a] via-[#1a1505] to-[#0a0a0a] flex justify-between items-center shadow-2xl relative z-30">
+            <div className="p-6 border-b-8 border-black bg-black flex justify-between items-center shadow-2xl relative z-30">
                 <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-[#fbbf24]/10 border-4 border-[#fbbf24] rounded-[2rem] flex items-center justify-center shadow-[0_0_50px_rgba(251,191,36,0.3)]">
                         <GemIcon className="w-10 h-10 text-[#fbbf24] animate-pulse" />

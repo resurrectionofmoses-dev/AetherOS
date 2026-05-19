@@ -44,7 +44,7 @@ export const FCCNetworkView: React.FC<FCCNetworkViewProps> = ({ projects, setPro
 
     const addTask = () => {
         if (!newTaskText.trim() || !selectedId) return;
-        const newTask: ProjectTask = { id: uuidv4(), text: newTaskText, completed: false };
+        const newTask: ProjectTask = { id: uuidv4(), text: newTaskText, completed: false, createdAt: Date.now() };
         setProjects(prev => prev.map(p => 
             p.id === selectedId ? { ...p, tasks: [...p.tasks, newTask] } : p
         ));
@@ -219,7 +219,7 @@ export const FCCNetworkView: React.FC<FCCNetworkViewProps> = ({ projects, setPro
                                                     >
                                                         {task.completed && <CheckCircleIcon className="w-2.5 h-2.5 text-black" />}
                                                     </button>
-                                                    <span className={`text-xs font-bold uppercase transition-all ${task.completed ? 'text-gray-600 line-through italic' : 'text-gray-200'}`}>
+                                                    <span className={`text-xs font-bold uppercase transition-all ${task.completed ? 'text-green-500/50 line-through italic opacity-60' : 'text-gray-200'}`}>
                                                         {task.text}
                                                     </span>
                                                 </div>

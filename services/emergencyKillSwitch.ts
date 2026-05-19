@@ -7,12 +7,13 @@ import { safeStorage } from './safeStorage';
  * Ensures that unlimited thought never results in uncontrolled action.
  */
 export const EmergencyKillSwitch = {
-  get isActive(): boolean {
-    return safeStorage.getItem('AETHER_KINETIC_HALT') === 'true';
+  async checkStatus(): Promise<boolean> {
+    const val = await safeStorage.getItem('AETHER_KINETIC_HALT');
+    return val === 'true';
   },
 
-  set isActive(val: boolean) {
-    safeStorage.setItem('AETHER_KINETIC_HALT', val.toString());
+  async setStatus(val: boolean): Promise<void> {
+    await safeStorage.setItem('AETHER_KINETIC_HALT', val.toString());
   },
 
   /**
@@ -20,8 +21,8 @@ export const EmergencyKillSwitch = {
    * Redirects energy to terminal sinks immediately.
    */
   async trigger(): Promise<void> {
-    this.isActive = true;
-    console.error("[!!!] KINETIC_HALT: Manual Kill-Switch Engaged.");
+    await this.setStatus(true);
+    console.warn("[!!!] KINETIC_HALT: Manual Kill-Switch Engaged.");
     
     // In a real environment, this would hit the GPIO/API layer
     const apertures = ['robotic_arm_01', 'printer_01', 'relay_01'];
@@ -40,10 +41,11 @@ export const EmergencyKillSwitch = {
   /**
    * Resets the interlock. Requires high-level conductor auth.
    */
-  reset(): void {
-    this.isActive = false;
+  async reset(): Promise<void> {
+    await this.setStatus(false);
     console.log("[OK] KINETIC_RESTORED: Systems re-arming...");
   },
+
 
   /**
    * Monitors conductor engagement. 

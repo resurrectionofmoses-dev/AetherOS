@@ -84,22 +84,26 @@ export const OmniBuilderUI: React.FC<OmniBuilderUIProps> = ({ shards = 0 }) => {
     const [unfilledNeedsCount, setUnfilledNeedsCount] = useState(0);
 
     useEffect(() => {
-        const raw = safeStorage.getItem('AETHER_VAULT_LEDGER');
-        const ledger = extractJSON<LineageEntry[]>(raw || '', []);
-        const wounds = ledger.filter(e => e.type === 'WOUND');
-        setUnfilledNeedsCount(wounds.length);
+        const loadNeeds = async () => {
+            const raw = await safeStorage.getItem('AETHER_VAULT_LEDGER');
+            const ledger = extractJSON<LineageEntry[]>(raw || '', []);
+            const wounds = ledger.filter(e => e.type === 'WOUND');
+            setUnfilledNeedsCount(wounds.length);
+        };
+        loadNeeds();
     }, []);
 
     const handleDreamFromVault = async () => {
         setIsDreaming(true);
         setCurrentDream(null);
-        const raw = safeStorage.getItem('AETHER_VAULT_LEDGER');
+        const raw = await safeStorage.getItem('AETHER_VAULT_LEDGER');
         const ledger = extractJSON<LineageEntry[]>(raw || '', []);
         
         const dream = await OmniBuilder.dreamFromVault(ledger);
         if (dream) setCurrentDream(dream);
         setIsDreaming(false);
     };
+
 
     const handleSynthesizeSeed = async (e: React.FormEvent) => {
         e.preventDefault();
