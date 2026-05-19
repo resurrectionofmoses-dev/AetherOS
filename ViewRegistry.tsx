@@ -96,6 +96,7 @@ import { SystemIntegrityView } from './components/SystemIntegrityView';
 import { LivePatchObservationView } from './components/LivePatchObservationView';
 import { ModeratorLoungeView } from './components/ModeratorLoungeView';
 import { EurodemuxView } from './eurodemux';
+import { BiometricIntelligenceView } from './components/BiometricIntelligenceView';
 import { v4 as uuidv4 } from 'uuid';
 
 export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
@@ -307,4 +308,5 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'sovereign_standard': () => <SovereignStandardView />,
     'blockchain_history': () => <UnifiedChainView />,
     'quantum_ledger': () => <UnifiedChainView />,
+    'biometric_intelligence': () => <BiometricIntelligenceView />,
 };

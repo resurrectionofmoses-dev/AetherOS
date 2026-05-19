@@ -73,5 +73,20 @@ npm run start
 - **Port Forwarding**: WSL usually handles port forwarding automatically. If you cannot reach `localhost:3000` from your Windows browser, check your WSL IP address (`hostname -I`) and try accessing `http://<wsl-ip>:3000`.
 - **Node Modules**: Never run `npm install` on a folder shared between Windows and WSL (like `/mnt/c/...`) as it can cause permissions and symlink issues. Always keep your project inside the WSL filesystem (e.g., `~/aetheros`).
 
+## Security Tools (Optional)
+
+### Modern DNS Auditing Toolkit
+A Python-based utility for DNS interception and analysis (educational use only).
+
+#### Prerequisites
+- **Python 3**
+- **Scapy**: `pip install scapy`
+
+#### Usage
+Root/Sudo privileges are required for raw socket access:
+```bash
+sudo python3 dns_auditor.py -d target-domain.com -ip 10.0.0.99
+```
+
 ---
 Built with Aetheros Intelligence.

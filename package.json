@@ -7,12 +7,18 @@
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "hh:node": "hardhat node",
+    "hh:compile": "hardhat compile",
+    "hh:deploy": "hardhat run scripts/deploy.js --network localhost"
   },
   "dependencies": {
     "@google/genai": "^1.35.0",
+    "@nomicfoundation/hardhat-toolbox": "^7.0.0",
     "esbuild": "^0.28.0",
+    "ethers": "^6.16.0",
     "express": "^5.2.1",
+    "hardhat": "^3.4.5",
     "jszip": "3.10.1",
     "katex": "0.16.9",
     "lucide-react": "^1.7.0",

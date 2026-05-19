@@ -73,6 +73,7 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
           { view: 'omni_builder', text: 'OMNI BUILDER', icon: ForgeIcon },
           { view: 'singularity_engine', text: 'SINGULARITY', icon: ActivityIcon },
           { view: 'diagnostics', text: 'FORENSIC AUDIT', icon: WrenchIcon },
+          { view: 'biometric_intelligence' as any, text: 'BIOMETRIC INTEL', icon: BrainIcon },
           { view: 'eurodemux_core' as any, text: 'EURODEMUX CORE', icon: ServerIcon },
           { view: 'confusion_logic', text: 'CONFUSION LOGIC', icon: ConfusionIcon },
           { view: 'blockchain_history', text: 'BLOCKCHAIN HISTORY', icon: DatabaseIcon },
