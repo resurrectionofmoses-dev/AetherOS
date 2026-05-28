@@ -105,6 +105,10 @@ export interface AgentTask {
   difficultyLevel: number;   // 1-10
   xpGained: number;
   userRating?: number;       // 1-5
+  // CPH metrics
+  estimatedCPH?: number;
+  actualCPH?: number;
+  efficiency?: number;
 }
 
 export interface UserFeedback {
@@ -133,6 +137,7 @@ export interface HireableAgent {
   
   // Employment
   currentSalary: number;     // Compute credits per day
+  efficiencyRating: number;  // CPH efficiency multiplier (0.6 - 1.5)
   currentDomain?: string;    // Which domain they're assigned to
   
   // Avatar/Flavor

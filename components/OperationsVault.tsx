@@ -4,6 +4,7 @@ import { AetherOSIcon, BookOpenIcon, BroadcastIcon, BuildIcon, MessageCircleIcon
 import { getSophisticatedColor, extractJSON } from '../utils';
 import { safeStorage } from '../services/safeStorage';
 import { shroud } from '../services/encryptionService';
+import { useAuth } from '../contexts/AuthContext';
 
 interface OperationsVaultProps {
   onSetView: (view: MainView) => void;
@@ -25,6 +26,7 @@ export const OperationsVault: React.FC<OperationsVaultProps> = ({
     savedModulesCount, savedCommandsCount, pinnedItems, onTogglePin, onExecuteCommand,
     activeDirective, dominance
 }) => {
+  const { verifyBiometricSignature } = useAuth();
   const [lineageLedger, setLineageLedger] = useState<LineageEntry[]>([]);
   const [decryptedLedger, setDecryptedLedger] = useState<Record<string, string>>({});
   const [passphrase, setPassphrase] = useState('');
@@ -105,7 +107,10 @@ export const OperationsVault: React.FC<OperationsVaultProps> = ({
     }
   };
 
-  const handleForgeSovereignKey = () => {
+  const handleForgeSovereignKey = async () => {
+    const verified = await verifyBiometricSignature("FORGE SOVEREIGN MASTER KEY");
+    if (!verified) return;
+
     setIsForgingKey(true);
     setForgeProgress(0);
     

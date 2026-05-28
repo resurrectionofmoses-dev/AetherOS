@@ -11,6 +11,8 @@ import { safeStorage } from '../services/safeStorage';
 import { extractJSON } from '../utils';
 import { generateProjectKnowHow } from '../services/geminiService';
 import { v4 as uuidv4 } from 'uuid';
+import { CPHManager, CPHDisplay } from '../services/cphManager';
+import { toast } from 'sonner';
 
 const getSpecialtyBadge = (specialty: string) => {
     switch(specialty) {
@@ -84,6 +86,56 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     const [squadSpecialtyFilter, setSquadSpecialtyFilter] = useState<string>('all');
     const [squadStatusFilter, setSquadStatusFilter] = useState<string>('all');
     const [marketSpecialtyFilter, setMarketSpecialtyFilter] = useState<string>('all');
+
+    // Agent Editing State
+    const [editingAgentId, setEditingAgentId] = useState<string | null>(null);
+    const [editedPatience, setEditedPatience] = useState<number>(0);
+    const [editedConfidence, setEditedConfidence] = useState<number>(0);
+    const [editedIndependence, setEditedIndependence] = useState<number>(0);
+    const [editedLoyalty, setEditedLoyalty] = useState<number>(0);
+    const [editedAdaptability, setEditedAdaptability] = useState<number>(0);
+    const [editedWorkload, setEditedWorkload] = useState<'light' | 'moderate' | 'heavy'>('moderate');
+    const [editedDomains, setEditedDomains] = useState<string[]>([]);
+    const [editedQuirks, setEditedQuirks] = useState<string[]>([]);
+    const [newDomainInput, setNewDomainInput] = useState('');
+    const [newQuirkInput, setNewQuirkInput] = useState('');
+
+    const startEditingAgent = (agent: HireableAgent) => {
+        setEditingAgentId(agent.id);
+        setEditedPatience(agent.personality?.patience ?? 50);
+        setEditedConfidence(agent.personality?.confidence ?? 50);
+        setEditedIndependence(agent.personality?.independence ?? 50);
+        setEditedLoyalty(agent.personality?.loyalty ?? 50);
+        setEditedAdaptability(agent.personality?.adaptability ?? 50);
+        setEditedWorkload(agent.personality?.preferredWorkload ?? 'moderate');
+        setEditedDomains(agent.personality?.preferredDomains ?? []);
+        setEditedQuirks(agent.personality?.quirks ?? []);
+        setNewDomainInput('');
+        setNewQuirkInput('');
+    };
+
+    const saveAgentChanges = (agentId: string) => {
+        setAgents(prev => prev.map(a => {
+            if (a.id === agentId) {
+                return {
+                    ...a,
+                    personality: {
+                        ...a.personality,
+                        patience: editedPatience,
+                        confidence: editedConfidence,
+                        independence: editedIndependence,
+                        loyalty: editedLoyalty,
+                        adaptability: editedAdaptability,
+                        preferredWorkload: editedWorkload,
+                        preferredDomains: editedDomains,
+                        quirks: editedQuirks
+                    }
+                };
+            }
+            return a;
+        }));
+        setEditingAgentId(null);
+    };
 
     // --- RELIABILITY PROTOCOL: PERSISTENCE ---
     useEffect(() => {
@@ -206,13 +258,33 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     }, []);
 
     const hireAgent = (agent: HireableAgent) => {
+        const currentBudget = CPHManager.calculateBudget(agents);
+        const { canAfford, reason } = CPHManager.canAfford(currentBudget, agent.currentSalary);
+        if (!canAfford) {
+            toast.error(`CPH Capacity Fracture: ${reason}. Please pause or dismiss someone first.`);
+            return;
+        }
         const hiredAgent = { ...agent, status: 'available' as const, hireDate: new Date() };
         setAgents(prev => [...prev, hiredAgent]);
         setMarketplace(prev => prev.filter(a => a.id !== agent.id));
+        toast.success(`Hired ${agent.name} (${agent.currentSalary} CPH allocated)`);
     };
 
     const fireAgent = (id: string) => {
+        const agentName = agents.find(a => a.id === id)?.name || "Agent";
         setAgents(prev => prev.filter(a => a.id !== id));
+        toast.info(`Dismissed ${agentName} from Coding Network`);
+    };
+
+    const toggleAgentPause = (id: string) => {
+        setAgents(prev => prev.map(a => {
+            if (a.id === id) {
+                const newStatus = a.status === 'resting' ? 'available' as const : 'resting' as const;
+                toast.info(`${a.name} is now ${newStatus === 'resting' ? 'on Standby (2% idle cost)' : 'Active (100% compute allocation)'}`);
+                return { ...a, status: newStatus };
+            }
+            return a;
+        }));
     };
 
     const filteredAgents = useMemo(() => {
@@ -222,6 +294,18 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
             return specialtyMatch && statusMatch;
         });
     }, [agents, squadSpecialtyFilter, squadStatusFilter]);
+
+    const currentBudget = useMemo(() => {
+        return CPHManager.calculateBudget(agents);
+    }, [agents]);
+
+    const pricingTier = useMemo(() => {
+        return CPHManager.getPricingTier();
+    }, []);
+
+    const optimizationSuggestions = useMemo(() => {
+        return CPHManager.suggestOptimizations(currentBudget);
+    }, [currentBudget]);
 
     const filteredMarketplace = useMemo(() => {
         return marketplace.filter(agent => {
@@ -482,6 +566,112 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                 ) : (
                     /* SQUAD VIEW (WORKFORCE) */
                     <div className="space-y-12 max-w-7xl mx-auto">
+                        
+                        {/* CPH COMPUTE CAPACITY & TIME-BASED BUDGET CONTROLS CODESPACE */}
+                        <div className="aero-panel bg-black border-4 border-violet-900/50 p-6 rounded-[2rem] relative overflow-hidden shadow-[8px_8px_0_0_rgba(124,58,237,0.2)]">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-[radial-gradient(circle_at_100%_0%,_rgba(124,58,237,0.15)_0%,_transparent_70%)] pointer-events-none" />
+                            
+                            <div className="flex flex-col lg:flex-row justify-between gap-6 pb-6 border-b border-zinc-800">
+                                <div>
+                                    <h4 className="font-mono text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Compute Capacity Ledger</h4>
+                                    <h3 className="font-comic-header text-4xl text-white uppercase italic">CPH Resource Engine</h3>
+                                    <p className="text-[11px] text-zinc-400 mt-2 max-w-xl">
+                                        Instead of abstract credits, CPH represents real compute capacity of your squad. Pause idle agents to stand them down to a 20% CPH baseline, or fire them to reclaim capacity.
+                                    </p>
+                                </div>
+                                <div className="flex flex-col md:flex-row gap-4 items-start lg:items-center">
+                                    <div className="bg-zinc-900/80 border-2 border-zinc-800 rounded-2xl px-5 py-3 font-mono">
+                                        <div className="text-[9px] text-zinc-500 uppercase">Interactive Clock & Pricing Tier</div>
+                                        <div className="text-sm font-bold text-violet-400 flex items-center gap-2 mt-1">
+                                            <ZapIcon className="w-4 h-4 text-amber-500 animate-pulse" />
+                                            <span>{pricingTier.label}</span>
+                                        </div>
+                                        <div className="text-[9px] text-zinc-400 mt-0.5">Time Period: {pricingTier.range} (Current Time: {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})})</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 pt-6">
+                                {/* Utilization Circular/Bar Progress */}
+                                <div className="md:col-span-2 space-y-4">
+                                    <div className="flex justify-between items-center text-xs font-mono font-bold">
+                                        <span className="text-zinc-400 uppercase">Compute Utilization Rate</span>
+                                        <span className={CPHDisplay.getUtilizationColor(currentBudget.utilizationRate)}>
+                                            {currentBudget.utilizationRate}% ({CPHDisplay.getUtilizationLabel(currentBudget.utilizationRate)})
+                                        </span>
+                                    </div>
+                                    
+                                    <div className="h-4 bg-zinc-950 rounded-full overflow-hidden border-2 border-zinc-800 relative">
+                                        {/* Warning threshold marker bar */}
+                                        <div className="absolute top-0 bottom-0 left-[80%] border-l-2 border-red-500/50 z-10" title="80% Warning Threshold" />
+                                        <div 
+                                            className={`h-full transition-all duration-500 ${
+                                                currentBudget.utilizationRate >= 90 ? 'bg-red-600' :
+                                                currentBudget.utilizationRate >= 75 ? 'bg-amber-500' : 'bg-emerald-500'
+                                            }`}
+                                            style={{ width: `${Math.min(100, currentBudget.utilizationRate)}%` }}
+                                        />
+                                    </div>
+                                    
+                                    <div className="flex justify-between text-[9px] font-mono text-zinc-500">
+                                        <span>Allocated / Standby Usage: {currentBudget.actualUsageCPH} CPH</span>
+                                        <span>Total Capacity: {currentBudget.totalCPH} CPH</span>
+                                    </div>
+                                    
+                                    {currentBudget.isOverCapacity && (
+                                        <div className="bg-red-950/20 border border-red-900 p-3 rounded-xl flex items-center gap-3">
+                                            <FireIcon className="w-5 h-5 text-red-500 animate-bounce" />
+                                            <p className="text-[10px] text-red-400 uppercase font-black">
+                                                Burst Capacity Activated! Operating above 1000 CPH limit incurs a 2x burst multiplier billing penalty.
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                                
+                                {/* Compute stats */}
+                                <div className="bg-zinc-900/40 p-4 border border-zinc-800/80 rounded-2xl flex flex-col justify-between font-mono">
+                                    <div>
+                                        <div className="text-[9px] text-zinc-500 uppercase mb-2">Capacity Allocation ledger</div>
+                                        <ul className="space-y-1.5 text-[10px] text-zinc-300">
+                                            <li className="flex justify-between">
+                                                <span>• Maximum Budget:</span>
+                                                <span className="text-white font-bold">{currentBudget.totalCPH} CPH</span>
+                                            </li>
+                                            <li className="flex justify-between">
+                                                <span>• Squad Allocations:</span>
+                                                <span className="text-amber-450">{currentBudget.allocatedCPH} CPH</span>
+                                            </li>
+                                            <li className="flex justify-between">
+                                                <span>• Standby Standdown:</span>
+                                                <span className="text-sky-450">
+                                                    {agents.reduce((sum, a) => sum + (a.status === 'resting' ? Math.round(a.currentSalary * 0.2) : 0), 0)} CPH
+                                                </span>
+                                            </li>
+                                            <li className="flex justify-between border-t border-zinc-800 pt-1.5 mt-1 text-emerald-400">
+                                                <span>• Available for Hires:</span>
+                                                <span className="font-bold">{currentBudget.availableCPH} CPH</span>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                
+                                {/* Optimization Suggestions list */}
+                                <div className="bg-zinc-900/40 p-4 border border-zinc-800/80 rounded-2xl flex flex-col justify-between font-mono">
+                                    <div>
+                                        <div className="text-[9px] text-violet-400 uppercase mb-2">Resource Recommendations</div>
+                                        <ul className="space-y-1.5 text-[9px] text-zinc-400">
+                                            {optimizationSuggestions.map((suggestion, idx) => (
+                                                <li key={idx} className="flex gap-1">
+                                                    <span>⚡</span>
+                                                    <span>{suggestion}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div className="space-y-6">
                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b-4 border-amber-500/50 pb-4 mb-8">
                                 <div className="flex items-center gap-4">
@@ -559,38 +749,343 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                         const SpecIcon = specBadge.icon;
                                         return (
                                         <div key={agent.id} className={`aero-panel ${specBadge.bg} border-4 ${specBadge.border} p-6 rounded-[2rem] relative overflow-hidden group hover:border-white/20 transition-all shadow-[8px_8px_0_0_#000]`}>
-                                            <div className="flex justify-between items-start mb-6">
-                                                <div className="flex items-center gap-4">
-                                                    <div className={`w-12 h-12 ${specBadge.color} bg-black rounded-2xl flex items-center justify-center font-black text-sm border-2 ${specBadge.border}`}>
-                                                        <SpecIcon className="w-6 h-6" />
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="font-black text-white text-lg uppercase">{agent.name}</h4>
-                                                        <span className={`text-[8px] font-black ${specBadge.color} uppercase tracking-widest bg-black px-2 py-0.5 rounded border ${specBadge.border}`}>{agent.specialty}</span>
-                                                    </div>
-                                                </div>
-                                                <button onClick={() => fireAgent(agent.id)} className="text-[8px] text-red-500 hover:text-white uppercase font-black border-2 border-red-900/30 px-3 py-1.5 rounded-lg hover:bg-red-600 transition-all">
-                                                    DISMISS
-                                                </button>
-                                            </div>
-                                            <p className="text-[10px] text-gray-400 italic mb-6 leading-relaxed border-l-2 border-white/10 pl-3">"{agent.bio}"</p>
-                                            
-                                            <div className="space-y-3 mb-6 bg-black/40 p-4 rounded-xl border border-white/5">
-                                                <div className="flex justify-between text-[8px] font-black text-gray-500 uppercase">
-                                                    <span>Skill Level</span>
-                                                    <span className="text-white">{agent.skills.specialtyLevel}/100</span>
-                                                </div>
-                                                <div className="h-2 bg-black rounded-full overflow-hidden border border-white/10">
-                                                    <div className={`h-full ${specBadge.bg.replace('/30', '')}`} style={{ width: `${agent.skills.specialtyLevel}%` }} />
-                                                </div>
-                                            </div>
-                                            
-                                            <div className="flex justify-between items-center pt-4 border-t-2 border-black">
-                                                <span className="text-[8px] text-gray-600 font-black uppercase tracking-widest">Status</span>
-                                                <span className={`text-[9px] font-black ${statBadge.color} uppercase flex items-center gap-2`}>
-                                                    <div className={`w-1.5 h-1.5 ${statBadge.bg} rounded-full animate-pulse`} /> {statBadge.label}
-                                                </span>
-                                            </div>
+                                            {editingAgentId === agent.id ? (
+                                                <div className="space-y-4">
+                                                    <div className="flex justify-between items-center pb-2 border-b border-white/10">
+                                                        <h4 className="font-black text-amber-400 text-xs uppercase tracking-wider">Configure Personality</h4>
+                                                        <button 
+                                                            onClick={() => setEditingAgentId(null)}
+                                                            className="text-[9px] font-black text-gray-500 hover:text-white uppercase"
+                                                        >
+                                                            Cancel
+                                                        </button>
+                                                     </div>
+
+                                                     {/* Personality Sliders */}
+                                                     <div className="space-y-2">
+                                                         <div>
+                                                             <div className="flex justify-between text-[9px] font-black uppercase text-gray-405">
+                                                                 <span>Patience</span>
+                                                                 <span className="text-amber-400">{editedPatience}%</span>
+                                                             </div>
+                                                             <input 
+                                                                 type="range" min="0" max="100" 
+                                                                 value={editedPatience} 
+                                                                 onChange={e => setEditedPatience(parseInt(e.target.value))} 
+                                                                 className="w-full h-1 bg-zinc-950 rounded-lg appearance-none cursor-pointer accent-amber-500 hover:accent-amber-400 transition-all"
+                                                             />
+                                                         </div>
+
+                                                         <div>
+                                                             <div className="flex justify-between text-[9px] font-black uppercase text-gray-405">
+                                                                 <span>Confidence</span>
+                                                                 <span className="text-amber-400">{editedConfidence}%</span>
+                                                             </div>
+                                                             <input 
+                                                                 type="range" min="0" max="100" 
+                                                                 value={editedConfidence} 
+                                                                 onChange={e => setEditedConfidence(parseInt(e.target.value))} 
+                                                                 className="w-full h-1 bg-zinc-950 rounded-lg appearance-none cursor-pointer accent-amber-500 hover:accent-amber-400 transition-all"
+                                                             />
+                                                         </div>
+
+                                                         <div>
+                                                             <div className="flex justify-between text-[9px] font-black uppercase text-gray-405">
+                                                                 <span>Independence</span>
+                                                                 <span className="text-amber-400">{editedIndependence}%</span>
+                                                             </div>
+                                                             <input 
+                                                                 type="range" min="0" max="100" 
+                                                                 value={editedIndependence} 
+                                                                 onChange={e => setEditedIndependence(parseInt(e.target.value))} 
+                                                                 className="w-full h-1 bg-zinc-950 rounded-lg appearance-none cursor-pointer accent-amber-500 hover:accent-amber-400 transition-all"
+                                                             />
+                                                         </div>
+
+                                                         <div>
+                                                             <div className="flex justify-between text-[9px] font-black uppercase text-gray-405">
+                                                                 <span>Loyalty</span>
+                                                                 <span className="text-amber-400">{editedLoyalty}%</span>
+                                                             </div>
+                                                             <input 
+                                                                 type="range" min="0" max="100" 
+                                                                 value={editedLoyalty} 
+                                                                 onChange={e => setEditedLoyalty(parseInt(e.target.value))} 
+                                                                 className="w-full h-1 bg-zinc-950 rounded-lg appearance-none cursor-pointer accent-amber-500 hover:accent-amber-400 transition-all"
+                                                             />
+                                                         </div>
+
+                                                         <div>
+                                                             <div className="flex justify-between text-[9px] font-black uppercase text-gray-450">
+                                                                 <span>Adaptability</span>
+                                                                 <span className="text-amber-400">{editedAdaptability}%</span>
+                                                             </div>
+                                                             <input 
+                                                                 type="range" min="0" max="100" 
+                                                                 value={editedAdaptability} 
+                                                                 onChange={e => setEditedAdaptability(parseInt(e.target.value))} 
+                                                                 className="w-full h-1 bg-zinc-950 rounded-lg appearance-none cursor-pointer accent-amber-500 hover:accent-amber-400 transition-all"
+                                                             />
+                                                         </div>
+                                                     </div>
+
+                                                     {/* Workload */}
+                                                     <div className="space-y-1">
+                                                         <span className="text-[9px] font-black uppercase text-gray-405 block">Preferred Workload</span>
+                                                         <div className="grid grid-cols-3 gap-2">
+                                                             {(['light', 'moderate', 'heavy'] as const).map(mode => (
+                                                                 <button
+                                                                     key={mode}
+                                                                     type="button"
+                                                                     onClick={() => setEditedWorkload(mode)}
+                                                                     className={`text-[8.5px] font-black uppercase py-1 border-2 rounded-lg transition-all ${
+                                                                         editedWorkload === mode 
+                                                                             ? 'border-amber-450 bg-amber-400 text-black font-black' 
+                                                                             : 'border-zinc-800 bg-black text-gray-400 hover:border-gray-500'
+                                                                     }`}
+                                                                 >
+                                                                     {mode}
+                                                                 </button>
+                                                             ))}
+                                                         </div>
+                                                     </div>
+
+                                                     {/* Preferred Domains */}
+                                                     <div className="space-y-1.5">
+                                                         <span className="text-[9px] font-black uppercase text-gray-455 block">Preferred Domains</span>
+                                                         <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto bg-black/40 p-1.5 rounded-lg border border-white/5">
+                                                             {editedDomains.length === 0 && <span className="text-[8px] text-gray-600 font-bold uppercase py-0.5">None specified</span>}
+                                                             {editedDomains.map((dom, idx) => (
+                                                                 <span key={idx} className="inline-flex items-center gap-1 text-[8px] font-black text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-800/40">
+                                                                     {dom}
+                                                                     <button 
+                                                                         type="button" 
+                                                                         onClick={() => setEditedDomains(prev => prev.filter((_, i) => i !== idx))}
+                                                                         className="text-red-400 hover:text-red-200"
+                                                                     >
+                                                                         ×
+                                                                     </button>
+                                                                 </span>
+                                                             ))}
+                                                         </div>
+                                                         <div className="flex gap-2">
+                                                             <input 
+                                                                 type="text" 
+                                                                 value={newDomainInput} 
+                                                                 onChange={e => setNewDomainInput(e.target.value)}
+                                                                 placeholder="New domain..."
+                                                                 onKeyDown={e => {
+                                                                     if (e.key === 'Enter') {
+                                                                         e.preventDefault();
+                                                                         if (newDomainInput.trim()) {
+                                                                             setEditedDomains(prev => [...prev, newDomainInput.trim()]);
+                                                                             setNewDomainInput('');
+                                                                         }
+                                                                     }
+                                                                 }}
+                                                                 className="flex-grow min-w-0 bg-black/50 text-[10px] text-white px-2 py-1 rounded border border-white/10 outline-none uppercase font-black"
+                                                             />
+                                                             <button 
+                                                                 type="button"
+                                                                 onClick={() => {
+                                                                     if (newDomainInput.trim()) {
+                                                                         setEditedDomains(prev => [...prev, newDomainInput.trim()]);
+                                                                         setNewDomainInput('');
+                                                                     }
+                                                                 }}
+                                                                 className="bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] font-black px-2.5 py-1 rounded transition-colors"
+                                                             >
+                                                                 +
+                                                             </button>
+                                                         </div>
+                                                     </div>
+
+                                                     {/* Quirks */}
+                                                     <div className="space-y-1.5">
+                                                         <span className="text-[9px] font-black uppercase text-gray-455 block">Quirks</span>
+                                                         <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto bg-black/40 p-1.5 rounded-lg border border-white/5">
+                                                             {editedQuirks.length === 0 && <span className="text-[8px] text-gray-600 font-bold uppercase py-0.5">None specified</span>}
+                                                             {editedQuirks.map((quirk, idx) => (
+                                                                 <span key={idx} className="inline-flex items-center gap-1 text-[8px] font-black text-violet-400 bg-violet-950/40 px-2 py-0.5 rounded border border-violet-800/40">
+                                                                     {quirk}
+                                                                     <button 
+                                                                         type="button" 
+                                                                         onClick={() => setEditedQuirks(prev => prev.filter((_, i) => i !== idx))}
+                                                                         className="text-red-400 hover:text-red-200"
+                                                                     >
+                                                                         ×
+                                                                     </button>
+                                                                 </span>
+                                                             ))}
+                                                         </div>
+                                                         <div className="flex gap-2">
+                                                             <input 
+                                                                 type="text" 
+                                                                 value={newQuirkInput} 
+                                                                 onChange={e => setNewQuirkInput(e.target.value)}
+                                                                 placeholder="New quirk..."
+                                                                 onKeyDown={e => {
+                                                                     if (e.key === 'Enter') {
+                                                                         e.preventDefault();
+                                                                         if (newQuirkInput.trim()) {
+                                                                             setEditedQuirks(prev => [...prev, newQuirkInput.trim()]);
+                                                                             setNewQuirkInput('');
+                                                                         }
+                                                                     }
+                                                                 }}
+                                                                 className="flex-grow min-w-0 bg-black/50 text-[10px] text-white px-2 py-1 rounded border border-white/10 outline-none uppercase font-black"
+                                                             />
+                                                             <button 
+                                                                 type="button"
+                                                                 onClick={() => {
+                                                                     if (newQuirkInput.trim()) {
+                                                                         setEditedQuirks(prev => [...prev, newQuirkInput.trim()]);
+                                                                         setNewQuirkInput('');
+                                                                     }
+                                                                 }}
+                                                                 className="bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] font-black px-2.5 py-1 rounded transition-colors"
+                                                             >
+                                                                 +
+                                                             </button>
+                                                         </div>
+                                                     </div>
+
+                                                     {/* Save btn */}
+                                                     <button 
+                                                         type="button"
+                                                         onClick={() => saveAgentChanges(agent.id)}
+                                                         className="w-full bg-emerald-500 hover:bg-emerald-600 text-black text-[10px] uppercase font-black py-2 rounded-lg transition-all"
+                                                     >
+                                                         Save Configuration
+                                                     </button>
+                                                 </div>
+                                             ) : (
+                                                 <>
+                                                     <div className="flex justify-between items-start mb-6">
+                                                         <div className="flex items-center gap-4">
+                                                             <div className={`w-12 h-12 ${specBadge.color} bg-black rounded-2xl flex items-center justify-center font-black text-sm border-2 ${specBadge.border}`}>
+                                                                 <SpecIcon className="w-6 h-6" />
+                                                             </div>
+                                                             <div>
+                                                                 <h4 className="font-black text-white text-lg uppercase">{agent.name}</h4>
+                                                                 <span className={`text-[8px] font-black ${specBadge.color} uppercase tracking-widest bg-black px-2 py-0.5 rounded border ${specBadge.border}`}>{agent.specialty}</span>
+                                                             </div>
+                                                         </div>
+                                                         <div className="flex flex-col items-end gap-1.5">
+                                                             <button onClick={() => startEditingAgent(agent)} className="text-[8px] text-amber-500 hover:text-white uppercase font-black border-2 border-amber-500/30 px-3 py-1.5 rounded-lg hover:bg-amber-500 transition-all">
+                                                                 CONFIG
+                                                             </button>
+                                                             <button onClick={() => fireAgent(agent.id)} className="text-[8px] text-red-500 hover:text-white uppercase font-black border-2 border-red-900/30 px-3 py-1.5 rounded-lg hover:bg-red-600 transition-all">
+                                                                 DISMISS
+                                                             </button>
+                                                         </div>
+                                                     </div>
+                                                     <p className="text-[10px] text-gray-400 italic mb-6 leading-relaxed border-l-2 border-white/10 pl-3">"{agent.bio}"</p>
+                                                     
+                                                     {/* Catchphrase & Workload */}
+                                                     <div className="flex justify-between items-center text-[8px] font-black uppercase text-gray-500 bg-black/20 p-2 rounded-lg border border-white/5 mb-3">
+                                                         <span>Workload: <span className="text-white">{agent.personality?.preferredWorkload || 'moderate'}</span></span>
+                                                         {agent.catchphrase && <span className="text-amber-500 italic max-w-[124px] truncate" title={agent.catchphrase}>"{agent.catchphrase}"</span>}
+                                                     </div>
+
+                                                     {/* Skill Level and Personality stats */}
+                                                     <div className="space-y-3 mb-6 bg-black/40 p-4 rounded-xl border border-white/5">
+                                                         <div className="flex justify-between text-[8px] font-black text-gray-500 uppercase">
+                                                             <span>Skill Level ({agent.specialty})</span>
+                                                             <span className="text-white">{agent.skills.specialtyLevel}/100</span>
+                                                         </div>
+                                                         <div className="h-2 bg-black rounded-full overflow-hidden border border-white/10">
+                                                             <div className={`h-full ${specBadge.bg.replace('/30', '')}`} style={{ width: `${agent.skills.specialtyLevel}%` }} />
+                                                         </div>
+
+                                                         <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 pt-2 border-t border-white/5 text-[7px] font-black">
+                                                             <div className="flex justify-between text-gray-400 uppercase">
+                                                                 <span>Patience</span>
+                                                                 <span className="text-amber-400">{agent.personality?.patience ?? 50}%</span>
+                                                             </div>
+                                                             <div className="flex justify-between text-gray-400 uppercase">
+                                                                 <span>Confidence</span>
+                                                                 <span className="text-amber-400">{agent.personality?.confidence ?? 50}%</span>
+                                                             </div>
+                                                             <div className="flex justify-between text-gray-400 uppercase">
+                                                                 <span>Independence</span>
+                                                                 <span className="text-amber-400">{agent.personality?.independence ?? 50}%</span>
+                                                             </div>
+                                                             <div className="flex justify-between text-gray-400 uppercase">
+                                                                 <span>Loyalty</span>
+                                                                 <span className="text-amber-400">{agent.personality?.loyalty ?? 50}%</span>
+                                                             </div>
+                                                             <div className="flex justify-between text-gray-400 uppercase">
+                                                                 <span>Adaptability</span>
+                                                                 <span className="text-amber-400">{agent.personality?.adaptability ?? 50}%</span>
+                                                             </div>
+                                                         </div>
+                                                     </div>
+
+                                                     {/* CPH Metrics Section */}
+                                                     <div className="flex justify-between items-center mb-3 text-[9px] font-mono text-zinc-400 bg-zinc-900/50 p-2.5 rounded-xl border border-white/5">
+                                                         <div className="flex flex-col">
+                                                             <span>Compute Cost:</span>
+                                                             <span className="text-white font-bold">{agent.currentSalary} CPH</span>
+                                                         </div>
+                                                         <div className="flex flex-col items-end">
+                                                             <span>Efficiency Multiplier:</span>
+                                                             <span className="text-violet-400 font-bold">
+                                                                 {CPHDisplay.formatEfficiency(agent.efficiencyRating ?? CPHManager.calculateEfficiency(agent.skills.specialtyLevel))}
+                                                             </span>
+                                                         </div>
+                                                     </div>
+
+                                                     {/* Preferred Domains tags */}
+                                                     {agent.personality?.preferredDomains && agent.personality.preferredDomains.length > 0 && (
+                                                         <div className="mb-3 space-y-1">
+                                                             <span className="text-[8px] uppercase font-black text-gray-500 block">Domains</span>
+                                                             <div className="flex flex-wrap gap-1">
+                                                                 {agent.personality.preferredDomains.map((dom: string, i: number) => (
+                                                                     <span key={i} className="text-[7px] font-black text-amber-450 bg-amber-950/20 px-1.5 py-0.5 rounded border border-amber-900/40 uppercase">
+                                                                         {dom}
+                                                                     </span>
+                                                                 ))}
+                                                             </div>
+                                                         </div>
+                                                     )}
+
+                                                     {/* Quirks tags */}
+                                                     {agent.personality?.quirks && agent.personality.quirks.length > 0 && (
+                                                         <div className="mb-3 space-y-1">
+                                                             <span className="text-[8px] uppercase font-black text-gray-500 block">Quirks</span>
+                                                             <div className="flex flex-wrap gap-1">
+                                                                 {agent.personality.quirks.map((quirk: string, i: number) => (
+                                                                     <span key={i} className="text-[7px] font-black text-violet-400 bg-violet-950/20 px-1.5 py-0.5 rounded border border-violet-900/40 uppercase">
+                                                                         {quirk}
+                                                                     </span>
+                                                                 ))}
+                                                             </div>
+                                                         </div>
+                                                     )}
+                                                     
+                                                     <div className="flex justify-between items-center pt-4 border-t-2 border-black">
+                                                         <div className="flex flex-col">
+                                                             <span className="text-[8px] text-gray-600 font-black uppercase tracking-widest">Status</span>
+                                                             <span className={`text-[9.5px] font-black ${statBadge.color} uppercase flex items-center gap-2 mt-1`}>
+                                                                 <div className={`w-1.5 h-1.5 ${statBadge.bg} rounded-full ${agent.status !== 'resting' ? 'animate-pulse' : ''}`} /> {statBadge.label}
+                                                             </span>
+                                                         </div>
+                                                         {agent.status !== 'quit' && (
+                                                             <button
+                                                                 onClick={() => toggleAgentPause(agent.id)}
+                                                                 className={`p-2 px-3 border-2 rounded-xl text-[9px] font-bold transition-all uppercase active:scale-95 ${
+                                                                     agent.status === 'resting'
+                                                                         ? 'border-emerald-500/50 hover:border-emerald-500 text-emerald-400 bg-emerald-950/20'
+                                                                         : 'border-amber-500/50 hover:border-amber-500 text-amber-500 bg-amber-950/20'
+                                                                 }`}
+                                                             >
+                                                                 {agent.status === 'resting' ? '▶ Resume' : '⏸ Pause (Standby)'}
+                                                             </button>
+                                                         )}
+                                                     </div>
+                                                 </>
+                                             )}
                                         </div>
                                     )})}
                                 </div>

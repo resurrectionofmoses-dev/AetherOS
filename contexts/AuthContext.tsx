@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { User, AccessRole, UserStatus, UserRegistryEntry } from '../types';
+import { BiometricScanner } from '../components/BiometricScanner';
 
 interface AuthContextType {
   user: User | null;
@@ -12,6 +13,7 @@ interface AuthContextType {
   guestLogin: () => Promise<void>;
   logout: () => Promise<void>;
   userRegistry: UserRegistryEntry[];
+  verifyBiometricSignature: (operationName: string) => Promise<boolean>;
 }
 
 const AFK_TIMEOUT = 15 * 60 * 1000; // 15 minutes in ms
@@ -226,9 +228,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem('aetheros_user');
   };
 
+  const [biometricPrompt, setBiometricPrompt] = useState<{
+    isOpen: boolean;
+    operationName: string;
+    resolve: (value: boolean) => void;
+  } | null>(null);
+
+  const verifyBiometricSignature = useCallback((operationName: string) => {
+    return new Promise<boolean>((resolve) => {
+      setBiometricPrompt({
+        isOpen: true,
+        operationName,
+        resolve,
+      });
+    });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, guestLogin, logout, updateSovereignty, updateStatus, toggleSeclusion, userRegistry }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      login, 
+      guestLogin, 
+      logout, 
+      updateSovereignty, 
+      updateStatus, 
+      toggleSeclusion, 
+      userRegistry,
+      verifyBiometricSignature
+    }}>
       {!loading && children}
+      {biometricPrompt?.isOpen && (
+        <BiometricScanner
+          operationName={biometricPrompt.operationName}
+          onVerify={(success) => {
+            biometricPrompt.resolve(success);
+            setBiometricPrompt(null);
+          }}
+          onClose={() => {
+            biometricPrompt.resolve(false);
+            setBiometricPrompt(null);
+          }}
+        />
+      )}
     </AuthContext.Provider>
   );
 };

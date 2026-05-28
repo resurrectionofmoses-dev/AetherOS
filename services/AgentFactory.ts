@@ -2,6 +2,7 @@
 import type { HireableAgent, AgentPersonality, AgentStatus } from '../agentTypes';
 import type { Mode } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { CPHManager } from './cphManager';
 
 // ===========================
 // AGENT FACTORY
@@ -108,6 +109,27 @@ const AGENT_TEMPLATES: Record<string, AgentTemplate> = {
     }
   },
 
+  security: {
+    namePrefix: ['Analyst', 'Guardian', 'Sentinel', 'Defender'],
+    nameSuffix: ['Aiden', 'Vance', 'Valerie', 'Sloane'],
+    bios: [
+      'Top-tier security analyst dedicated to proactive threat detection and vulnerability analysis.',
+      'Sovereign defensive operative with extensive experience safeguarding critical code infrastructures.',
+      'Vulnerability expert specializing in foresight intelligence and pre-emptive attack mitigation.'
+    ],
+    catchphrases: [
+      "I see the breach before it happens."
+    ],
+    defaultPersonality: {
+      patience: 80,
+      confidence: 90,
+      independence: 75,
+      loyalty: 85,
+      adaptability: 90,
+      preferredWorkload: 'light'
+    }
+  },
+
   // Fallback template for any other mode
   default: {
     namePrefix: ['Agent', 'Unit', 'Node', 'Operative'],
@@ -165,6 +187,7 @@ export class AgentFactory {
     // Determine salary based on skill level
     const baseSkillLevel = Math.floor(Math.random() * 40) + 30; // 30-70
     const baseSalary = Math.floor(50 + (baseSkillLevel * 1.5));
+    const efficiency = CPHManager.calculateEfficiency(baseSkillLevel);
     
     const agent: HireableAgent = {
       id: uuidv4(),
@@ -204,6 +227,7 @@ export class AgentFactory {
         userFeedback: []
       },
       currentSalary: baseSalary,
+      efficiencyRating: efficiency,
       bio,
       catchphrase
     };

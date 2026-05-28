@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { MainView } from './types';
+import { ProjectShowcaseView } from './components/ProjectShowcaseView';
 import { ChatView } from './components/ChatView';
 import { ChatHeader } from './components/ChatHeader';
 import { InputBar } from './components/InputBar';
@@ -97,6 +98,7 @@ import { LivePatchObservationView } from './components/LivePatchObservationView'
 import { ModeratorLoungeView } from './components/ModeratorLoungeView';
 import { EurodemuxView } from './eurodemux';
 import { BiometricIntelligenceView } from './components/BiometricIntelligenceView';
+import { CardRecoveryView } from './components/CardRecoveryView';
 import { v4 as uuidv4 } from 'uuid';
 
 export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
@@ -309,4 +311,6 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'blockchain_history': () => <UnifiedChainView />,
     'quantum_ledger': () => <UnifiedChainView />,
     'biometric_intelligence': () => <BiometricIntelligenceView />,
+    'card_recovery': () => <CardRecoveryView />,
+    'project_showcase': () => <ProjectShowcaseView />,
 };

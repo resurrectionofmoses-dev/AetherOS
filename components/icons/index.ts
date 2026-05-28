@@ -53,6 +53,7 @@ export { MusicIcon } from './MusicIcon';
 export { InstallIcon } from './InstallIcon';
 export { UploadIcon } from './UploadIcon';
 export { SpinnerIcon } from './SpinnerIcon';
+export { SquadIcon } from './SquadIcon';
 export { GaugeIcon } from './GaugeIcon';
 export { BrainIcon } from './BrainIcon';
 export { CodeIcon } from './CodeIcon';

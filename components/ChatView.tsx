@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import type { ChatMessage, AISeat } from '../types';
 import { AI_SEATS } from '../types';
 import { Message } from './Message';
-import { WarningIcon, TerminalIcon, ActivityIcon, ShieldIcon, BotIcon } from './icons';
+import { WarningIcon, TerminalIcon, ActivityIcon, ShieldIcon, BotIcon, SpeakerIcon, SpeakerOffIcon } from './icons';
+import { speechService } from '../services/speechService';
 
 interface ChatViewProps {
   messages: ChatMessage[];
@@ -46,6 +47,48 @@ export const ChatView: React.FC<ChatViewProps> = ({
   currentChannel, userRole, isRecordingVoice
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
+  const lastSpokenMessageIdRef = useRef<string | null>(null);
+  const lastMessagesLengthRef = useRef<number>(messages.length);
+
+  // Initialize on mount so we don't speak historic messages immediately
+  useEffect(() => {
+    const modelMessages = messages.filter(m => m.sender === 'model');
+    if (modelMessages.length > 0) {
+      const lastModelMsg = modelMessages[modelMessages.length - 1];
+      const msgId = lastModelMsg.id || `${lastModelMsg.timestamp instanceof Date ? lastModelMsg.timestamp.getTime() : new Date(lastModelMsg.timestamp).getTime()}-${lastModelMsg.content.slice(0, 30)}`;
+      lastSpokenMessageIdRef.current = msgId;
+    }
+  }, []);
+
+  // Monitor messages and speak new ones if voice is enabled
+  useEffect(() => {
+    if (isVoiceEnabled && messages.length > 0) {
+      const modelMessages = messages.filter(m => m.sender === 'model');
+      if (modelMessages.length > 0) {
+        const lastModelMsg = modelMessages[modelMessages.length - 1];
+        const msgId = lastModelMsg.id || `${lastModelMsg.timestamp instanceof Date ? lastModelMsg.timestamp.getTime() : new Date(lastModelMsg.timestamp).getTime()}-${lastModelMsg.content.slice(0, 30)}`;
+        
+        if (msgId !== lastSpokenMessageIdRef.current && lastModelMsg.content) {
+          // Speak only if messages length increased (signaling a newly added response)
+          if (messages.length > lastMessagesLengthRef.current) {
+            const seat = lastModelMsg.seat || 'sovereign';
+            
+            let voice: 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Zephyr' = 'Kore';
+            if (seat === 'maestro') voice = 'Zephyr';
+            else if (seat === 'oracle') voice = 'Fenrir';
+            else if (seat === 'weaver') voice = 'Puck';
+            else if (seat === 'swift') voice = 'Charon';
+            
+            const cleanText = lastModelMsg.content.replace(/^\[SOVEREIGN_WHISPER\]\s*/, '');
+            speechService.speak(cleanText, voice);
+          }
+          lastSpokenMessageIdRef.current = msgId;
+        }
+      }
+    }
+    lastMessagesLengthRef.current = messages.length;
+  }, [messages, isVoiceEnabled]);
 
   const filteredMessages = useMemo(() => {
     let filtered = messages;
@@ -98,9 +141,32 @@ export const ChatView: React.FC<ChatViewProps> = ({
     <div ref={scrollRef} className="flex-1 overflow-y-auto bg-black rounded-t-lg custom-scrollbar min-h-0 flex-hinge relative holographic-bg">
       <div className="sticky top-0 z-30 bg-black/80 backdrop-blur-md border-b border-white/10 p-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <BotIcon className="w-5 h-5 text-amber-500" />
-            <span className="font-comic-header text-xl text-white italic uppercase tracking-tighter">Council of AI</span>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <BotIcon className="w-5 h-5 text-amber-500" />
+              <span className="font-comic-header text-xl text-white italic uppercase tracking-tighter">Council of AI</span>
+            </div>
+            <button 
+              onClick={() => setIsVoiceEnabled(prev => !prev)}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-900/80 border text-[9px] font-black uppercase tracking-wider transition-all shadow-[2px_2px_0_0_rgba(0,0,0,0.5)] active:translate-y-0.5 cursor-pointer ${
+                isVoiceEnabled 
+                  ? 'border-amber-500/50 text-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.15)] bg-amber-500/5' 
+                  : 'border-zinc-800 text-zinc-500 hover:text-zinc-350 hover:border-zinc-700'
+              }`}
+              title={isVoiceEnabled ? "Disable Council Voice Output" : "Enable Council Voice Output"}
+            >
+              {isVoiceEnabled ? (
+                <>
+                  <SpeakerIcon className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                  <span>Voice ON</span>
+                </>
+              ) : (
+                <>
+                  <SpeakerOffIcon className="w-3.5 h-3.5 text-zinc-600" />
+                  <span>Voice OFF</span>
+                </>
+              )}
+            </button>
           </div>
           <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2">
             {(Object.keys(AI_SEATS) as AISeat[]).map((seat) => (

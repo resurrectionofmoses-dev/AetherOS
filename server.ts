@@ -1,6 +1,8 @@
 import express from "express";
 import path from "path";
 import { GoogleGenAI, Modality } from "@google/genai";
+import speakeasy from 'speakeasy';
+import QRCode from 'qrcode';
 
 async function startServer() {
   const app = express();
@@ -50,6 +52,33 @@ async function startServer() {
       console.error("Server TTS Error:", error);
       res.status(500).json({ error: error.message });
     }
+  });
+
+  // 2FA Endpoints
+  app.post("/api/2fa/generate", async (req, res) => {
+    const { email } = req.body;
+    const secret = speakeasy.generateSecret({
+        name: `AetherOS (${email})`,
+    });
+    
+    const qrCodeUrl = await QRCode.toDataURL(secret.otpauth_url || "");
+    
+    res.json({
+        secret: secret.base32,
+        qrCode: qrCodeUrl
+    });
+  });
+
+  app.post("/api/2fa/verify", async (req, res) => {
+    const { token, secret } = req.body;
+    const verified = speakeasy.totp.verify({
+        secret,
+        encoding: 'base32',
+        token,
+        window: 1
+    });
+    
+    res.json({ verified });
   });
 
   // Proxy for general Gemini calls (if needed)

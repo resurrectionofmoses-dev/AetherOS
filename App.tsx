@@ -150,6 +150,17 @@ export const App: React.FC = () => {
                 }
                 setProjects(updatedProjects);
 
+                // Restore Agents
+                const savedAgents = await safeStorage.getItem('aetheros_agents');
+                if (savedAgents) {
+                    const parsedAgents = JSON.parse(savedAgents);
+                    setAgents(parsedAgents.map((a: any) => ({
+                        ...a,
+                        hireDate: a.hireDate ? new Date(a.hireDate) : undefined,
+                        quitDate: a.quitDate ? new Date(a.quitDate) : undefined
+                    })));
+                }
+
             } catch (err) {
                 console.error("[AetherOS] Critical restoration fracture:", err);
             } finally {
@@ -240,15 +251,23 @@ export const App: React.FC = () => {
         persist();
     }, [blueprints, isInitializing]);
 
-
     const [agents, setAgents] = useState<any[]>([]); 
+
+    useEffect(() => {
+        const persist = async () => {
+            if (!isInitializing) {
+                await safeStorage.setItem('aetheros_agents', JSON.stringify(agents));
+            }
+        };
+        persist();
+    }, [agents, isInitializing]);
     const [archives, setArchives] = useState<ArchiveEntry[]>([]);
     const [savedModules, setSavedModules] = useState<SavedModule[]>([]);
     const [pinnedItems, setPinnedItems] = useState<PinnedItem[]>([]);
     const [evoLibrary, setEvoLibrary] = useState<EvoLibrary | null>(null);
     const [soundscape, setSoundscape] = useState<SoundscapeType>('VOID');
     const [governance, setGovernance] = useState<SystemGovernance>({ lawLevel: 0.42, symphonicFreedom: true, activeAccord: 'MAESTRO_SOLO_v5' });
-    const [unlockedViews, setUnlockedViews] = useState<MainView[]>(['chat', 'coding_network', 'projects', 'forge', 'system_exhaustion', 'recon_vault', 'constraints_audit', 'vehicle_management', 'library_view', 'unknown_physics_lab', 'logic_pattern_lab', 'blockchain_history', 'main_net', 'ecosystem', 'blacklist', 'accounts_registry', 'vault_manager', 'system_integrity']);
+    const [unlockedViews, setUnlockedViews] = useState<MainView[]>(['chat', 'coding_network', 'projects', 'forge', 'system_exhaustion', 'recon_vault', 'constraints_audit', 'vehicle_management', 'library_view', 'unknown_physics_lab', 'logic_pattern_lab', 'blockchain_history', 'main_net', 'ecosystem', 'blacklist', 'accounts_registry', 'vault_manager', 'system_integrity', 'project_showcase']);
     const [conjunctionProgress, setConjunctionProgress] = useState<ConjunctionProgress>({ level: 1, shards: 5000, unlockedViews: ['chat', 'constraints_audit'], globalAdrenaline: 42 });
     const [sisters, setSisters] = useState<SistersState>({ aethera: { active: false }, logica: { active: false }, sophia: { active: false } });
     const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);

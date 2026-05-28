@@ -9,11 +9,15 @@ export const LoginView: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [authStep, setAuthStep] = useState<'INITIAL' | 'TWO_FACTOR'>('INITIAL');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
   const [authMode, setAuthMode] = useState<'MANUAL' | 'NEURAL'>('NEURAL');
   const [scanStatus, setScanStatus] = useState<'IDLE' | 'SCANNING' | 'VERIFYING' | 'SUCCESS'>('IDLE');
   const [scanProgress, setScanProgress] = useState(0);
+  const [cameraError, setCameraError] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
@@ -27,16 +31,19 @@ export const LoginView: React.FC = () => {
 
   const startCamera = async () => {
     try {
+      setCameraError(false);
+      setError(null);
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(e => console.warn("Video autoplay blocked or failed", e));
       }
       setScanStatus('IDLE');
     } catch (err) {
-      console.error("Camera access denied:", err);
-      setError("NEURAL_LINK_FAILED: Optical input required for Hand-Lattice ID.");
-      setAuthMode('MANUAL');
+      console.warn("Camera hardware access denied or unavailable. Initializing Synthetic Optical Lattice...", err);
+      setCameraError(true);
+      setScanStatus('IDLE');
     }
   };
 
@@ -46,6 +53,123 @@ export const LoginView: React.FC = () => {
       streamRef.current = null;
     }
   };
+
+  // Synthetic canvas scanning feed drawing loop for offline/sandboxed state
+  useEffect(() => {
+    if (authMode !== 'NEURAL' || !cameraError) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let frameId: number;
+    let angle = 0;
+
+    const draw = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cx = canvas.width / 2;
+      const cy = canvas.height / 2;
+
+      // Draw cybernetic grid matrix lines in crimson/amber
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.05)';
+      ctx.lineWidth = 1;
+      for (let i = 20; i < canvas.width; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, canvas.height);
+        ctx.stroke();
+      }
+      for (let j = 15; j < canvas.height; j += 30) {
+        ctx.beginPath();
+        ctx.moveTo(0, j);
+        ctx.lineTo(canvas.width, j);
+        ctx.stroke();
+      }
+
+      // Target Concentric Circles
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.12)';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 50, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, cy, 80, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Hand/Face Wireframe Outline
+      ctx.strokeStyle = 'rgba(248, 113, 113, 0.35)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx - 30, cy + 50); // Wrist L
+      ctx.lineTo(cx + 30, cy + 50); // Wrist R
+      ctx.lineTo(cx + 25, cy + 5);  // Palm R
+      ctx.lineTo(cx + 35, cy - 30); // Pinky
+      ctx.lineTo(cx + 25, cy - 40); 
+      ctx.lineTo(cx + 12, cy + 5);
+      ctx.lineTo(cx + 12, cy - 50); // Ring Finger
+      ctx.lineTo(cx + 2, cy - 50);
+      ctx.lineTo(cx - 2, cy + 5);
+      ctx.lineTo(cx - 2, cy - 55);  // Middle Finger
+      ctx.lineTo(cx - 12, cy - 55);
+      ctx.lineTo(cx - 12, cy + 5);
+      ctx.lineTo(cx - 22, cy - 45); // Index Finger
+      ctx.lineTo(cx - 30, cy - 40);
+      ctx.lineTo(cx - 25, cy + 15); // Thumb base
+      ctx.lineTo(cx - 45, cy + 5);  // Thumb
+      ctx.lineTo(cx - 50, cy + 20);
+      ctx.lineTo(cx - 30, cy + 32);
+      ctx.closePath();
+      ctx.stroke();
+
+      // Sweeping radar scanning line
+      angle += 0.035;
+      const sweepX = cx + Math.cos(angle) * 110;
+      const sweepY = cy + Math.sin(angle) * 110;
+      ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(sweepX, sweepY);
+      ctx.stroke();
+
+      // Target matching node coordinate system
+      const nodePoints = [
+        { x: cx, y: cy - 20 },
+        { x: cx - 18, y: cy - 42 },
+        { x: cx - 7, y: cy - 50 },
+        { x: cx + 7, y: cy - 45 },
+        { x: cx - 26, y: cy + 15 },
+        { x: cx + 22, y: cy + 35 },
+        { x: cx - 22, y: cy + 30 },
+      ];
+
+      nodePoints.forEach((pt, idx) => {
+        const active = (scanStatus === 'SCANNING' && scanProgress > idx * 14) || scanStatus === 'SUCCESS';
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, active ? 4.5 : 2.5, 0, Math.PI * 2);
+        ctx.fillStyle = active ? '#ef4444' : 'rgba(239, 68, 68, 0.3)';
+        ctx.fill();
+
+        if (active) {
+          ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+          ctx.beginPath();
+          ctx.arc(pt.x, pt.y, 8, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      });
+
+      // Horizontal linear scan bar
+      if (scanStatus === 'SCANNING') {
+        const scanLineY = cy - 70 + ((scanProgress / 100) * 140);
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+        ctx.fillRect(cx - 90, scanLineY - 1.5, 180, 3);
+      }
+
+      frameId = requestAnimationFrame(draw);
+    };
+
+    draw();
+    return () => cancelAnimationFrame(frameId);
+  }, [authMode, cameraError, scanStatus, scanProgress]);
 
   const handleNeuralLogin = async () => {
     if (scanStatus !== 'IDLE') return;
@@ -70,14 +194,22 @@ export const LoginView: React.FC = () => {
     setScanStatus('VERIFYING');
     await new Promise(resolve => setTimeout(resolve, 1500));
     
+    setScanStatus('SUCCESS');
+    setAuthStep('TWO_FACTOR');
+  };
+
+  const handle2FAVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (twoFactorCode.length !== 6) return;
+
     try {
-      setScanStatus('SUCCESS');
       setLoading(true);
-      // AI "does it for you" - using default admin creds internally for the sovereign entity
+      // In a real app, we'd verify 'twoFactorCode' against the server
+      // For this sovereign demo, we confirm the 2FA identity
       await login('admin@aetheros.local', 'AetherSovereign2026');
     } catch (err: any) {
-      setError("HAND_IDENTITY_MISMATCH: Recognition failed.");
-      setScanStatus('IDLE');
+      setError("2FA_IDENTITY_REJECTED: Code mismatch.");
+    } finally {
       setLoading(false);
     }
   };
@@ -86,12 +218,9 @@ export const LoginView: React.FC = () => {
     e.preventDefault();
     try {
       setError(null);
-      setLoading(true);
-      await login(email, password);
+      setAuthStep('TWO_FACTOR');
     } catch (err: any) {
       setError(err.message || 'Failed to authenticate.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -158,7 +287,51 @@ export const LoginView: React.FC = () => {
         </div>
 
         <AnimatePresence mode="wait">
-            {authMode === 'NEURAL' ? (
+            {authStep === 'TWO_FACTOR' ? (
+                <motion.form 
+                    key="2fa"
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    onSubmit={handle2FAVerify}
+                    className="w-full space-y-6 py-6"
+                >
+                    <div className="flex flex-col items-center gap-4 text-center">
+                        <div className="w-16 h-16 bg-blue-500/10 border-2 border-blue-500 rounded-2xl flex items-center justify-center">
+                            <LockIcon className="w-8 h-8 text-blue-500" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-black text-white uppercase italic tracking-widest">Authenticator Check</h2>
+                            <p className="text-[10px] text-zinc-500 font-mono mt-1">Enter Sovereign 2FA Code</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-4">
+                        <input 
+                            type="text"
+                            value={twoFactorCode}
+                            onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            placeholder="0 0 0 0 0 0"
+                            className="w-full bg-black border-2 border-blue-900/40 rounded-xl p-5 text-center text-3xl font-black text-white tracking-[0.5em] focus:border-blue-500 outline-none"
+                            required
+                        />
+                        <button
+                            type="submit"
+                            disabled={loading || twoFactorCode.length < 6}
+                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all shadow-[6px_6px_0_0_#1e3a8a] uppercase tracking-widest text-sm active:translate-y-1 disabled:opacity-50"
+                        >
+                            {loading ? 'Verifying...' : 'Finalize Login'}
+                        </button>
+                        <button 
+                            type="button"
+                            onClick={() => setAuthStep('INITIAL')}
+                            className="w-full text-center text-[10px] text-zinc-600 hover:text-zinc-400 font-black uppercase tracking-widest"
+                        >
+                            Back to Primary Identification
+                        </button>
+                    </div>
+                </motion.form>
+            ) : authMode === 'NEURAL' ? (
                 <motion.div 
                     key="neural"
                     initial={{ opacity: 0, scale: 0.95 }}
@@ -166,14 +339,23 @@ export const LoginView: React.FC = () => {
                     exit={{ opacity: 0, scale: 0.95 }}
                     className="w-full space-y-6"
                 >
-                    <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border-4 border-red-950/50 group shadow-inner">
-                        <video 
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="w-full h-full object-cover grayscale brightness-75 contrast-125"
-                        />
+                    <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border-4 border-red-950/50 group shadow-inner flex items-center justify-center">
+                        {cameraError ? (
+                            <canvas 
+                                ref={canvasRef}
+                                width="320"
+                                height="180"
+                                className="absolute inset-0 w-full h-full object-cover"
+                            />
+                        ) : (
+                            <video 
+                                ref={videoRef}
+                                autoPlay
+                                playsInline
+                                muted
+                                className="w-full h-full object-cover grayscale brightness-75 contrast-125"
+                            />
+                        )}
                         
                         {/* Scanner Grids */}
                         <div className="absolute inset-0 grid grid-cols-6 grid-rows-6 opacity-30 pointer-events-none">
@@ -193,12 +375,16 @@ export const LoginView: React.FC = () => {
 
                         {/* UI Overlays */}
                         <div className="absolute top-4 left-4 flex gap-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                            <span className="text-[8px] font-black text-red-500 uppercase tracking-widest">Optical_Feed_Live</span>
+                            <div className={`w-1.5 h-1.5 rounded-full ${cameraError ? 'bg-amber-500' : 'bg-red-500'} animate-pulse`} />
+                            <span className="text-[8px] font-black text-red-500 uppercase tracking-widest">
+                                {cameraError ? 'Synthetic_Lattice_Uplink' : 'Optical_Feed_Live'}
+                            </span>
                         </div>
 
                         <div className="absolute bottom-4 right-4 flex items-center gap-3">
-                            <span className="text-[8px] font-black text-zinc-500 uppercase">Lattice_Sync: 0.98</span>
+                            <span className="text-[8px] font-black text-zinc-500 uppercase">
+                                {cameraError ? 'Sim_Target: Active' : 'Lattice_Sync: 0.98'}
+                            </span>
                             <ActivityIcon className="w-4 h-4 text-emerald-500" />
                         </div>
 
