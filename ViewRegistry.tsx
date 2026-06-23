@@ -2,6 +2,7 @@
 import React from 'react';
 import { MainView } from './types';
 import { ProjectShowcaseView } from './components/ProjectShowcaseView';
+import { QuantumLedgerView } from './components/QuantumLedgerView';
 import { ChatView } from './components/ChatView';
 import { ChatHeader } from './components/ChatHeader';
 import { InputBar } from './components/InputBar';
@@ -99,10 +100,21 @@ import { ModeratorLoungeView } from './components/ModeratorLoungeView';
 import { EurodemuxView } from './eurodemux';
 import { BiometricIntelligenceView } from './components/BiometricIntelligenceView';
 import { CardRecoveryView } from './components/CardRecoveryView';
+import { LabsFlowView } from './components/LabsFlowView';
+import { GoogleSheetsView } from './components/GoogleSheetsView';
+import { AITelemetryView } from './components/AITelemetryView';
+import { CascadeInspectorView } from './components/CascadeInspectorView';
+import { InevitableCrashView } from './components/InevitableCrashView';
+import { CentralProcessingHubView } from './components/CentralProcessingHubView';
+import { ScraperMerchantStoreView } from './components/ScraperMerchantStoreView';
+import { DataAcademyView } from './components/DataAcademyView';
 import { v4 as uuidv4 } from 'uuid';
 
 export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
+    'ai_telemetry': () => <AITelemetryView />,
+    'inevitable_crash': () => <InevitableCrashView />,
     'eurodemux_core': () => <EurodemuxView />,
+    'google_sheets': (props) => <GoogleSheetsView onAddLog={props.onAddLog} />,
     'moderator_lounge': () => <ModeratorLoungeView />,
     'live_patch_obs': () => <LivePatchObservationView />,
     'accounts_registry': () => <AccountManagerView />,
@@ -165,6 +177,8 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
               setProjects={props.setProjects} 
               agents={props.agents}
               setAgents={props.setAgents}
+              profile={props.profile}
+              onUpdateProfile={props.onUpdateProfile}
               onNavigateToAgent={() => props.onSetView('chat')} 
               onSetDirective={() => {}} 
           />
@@ -177,12 +191,16 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'projects': (props) => (
         <div className="flex-1 flex flex-col flex-hinge overflow-hidden">
             <ProjectNetwork 
+                profile={props.profile}
                 projects={props.projects} 
+                isSystemFractured={props.isSystemFractured}
+                onToggleFracture={props.onToggleFracture}
                 onDeleteProject={(id) => props.setProjects((p: any[]) => p.filter(proj => proj.id !== id))} 
                 onToggleTask={(projectId, taskId) => props.setProjects((prev: any[]) => prev.map(p => p.id === projectId ? { ...p, tasks: p.tasks.map((t: any) => t.id === taskId ? { ...t, completed: !t.completed } : t) } : p))} 
                 onDeleteTask={(projectId, taskId) => props.setProjects((prev: any[]) => prev.map(p => p.id === projectId ? { ...p, tasks: p.tasks.filter((t: any) => t.id !== taskId) } : p))}
                 onAddTask={(projectId, text, dueDate, priority) => props.setProjects((prev: any[]) => prev.map(p => p.id === projectId ? { ...p, tasks: [...(p.tasks || []), { id: uuidv4(), text, completed: false, dueDate, priority, createdAt: Date.now() }] } : p))} 
                 onUpdateProject={(id, updates) => props.setProjects((prev: any[]) => prev.map(p => p.id === id ? { ...p, ...updates } : p))} 
+                onAddProject={(title, desc, priority, deadline, collaborators, gitHubRepo, tags) => props.setProjects((prev: any[]) => [...prev, { id: uuidv4(), title, description: desc, priority, deadline, status: 'IDEATING', fightVector: 50, crazyLevel: 50, tasks: [], isWisdomHarmonized: false, timestamp: new Date(), collaborators: collaborators || [], gitHubRepo, tags: tags || [] }])}
             />
         </div>
     ),
@@ -204,7 +222,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'project_chronos': () => <ChronosDashboard />,
     'build_logs': () => <BuildLogsView />,
     'rt_ipc_lab': () => <RTIPCLabView />,
-    'sovereign_shield': (props) => <SovereignShieldView onNavigateToReport={props.onSetView} />,
+    'sovereign_shield': (props) => <SovereignShieldView onNavigateToReport={props.onSetView} projects={props.projects} setProjects={props.setProjects} />,
     'spectre_browser': (props) => <SpectreBrowserView onActionReward={() => {}} />,
     'unified_chain': () => <UnifiedChainView />,
     'fuel_optimizer': (props) => <FuelEfficiencyOptimizer systemStatus={props.systemStatus} />,
@@ -309,8 +327,13 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'cellular_grid': () => <CellularGrid />,
     'sovereign_standard': () => <SovereignStandardView />,
     'blockchain_history': () => <UnifiedChainView />,
-    'quantum_ledger': () => <UnifiedChainView />,
+    'quantum_ledger': () => <QuantumLedgerView />,
     'biometric_intelligence': () => <BiometricIntelligenceView />,
     'card_recovery': () => <CardRecoveryView />,
     'project_showcase': () => <ProjectShowcaseView />,
+    'labs_flow': () => <LabsFlowView />,
+    'cascade_investigator': () => <CascadeInspectorView />,
+    'cph_hub': () => <CentralProcessingHubView />,
+    'scraper_merchant_store': () => <ScraperMerchantStoreView />,
+    'data_academy': (props) => <DataAcademyView profile={props.profile} />,
 };

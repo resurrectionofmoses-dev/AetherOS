@@ -73,6 +73,7 @@ export { ShieldIcon } from './ShieldIcon';
 export { TerminalIcon } from './TerminalIcon';
 export { ConfusionIcon } from './ConfusionIcon';
 export { ThumbsUpIcon } from './ThumbsUpIcon';
+export { ThumbsDownIcon } from './ThumbsDownIcon';
 export { TagIcon } from './TagIcon';
 export { CoffeeIcon } from './CoffeeIcon';
 export { TimerIcon } from './TimerIcon';

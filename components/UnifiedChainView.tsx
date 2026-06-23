@@ -10,6 +10,7 @@ import { scorerTester } from '../services/priorityScorerTester';
 import { sessionLedger } from '../services/tokenLedger';
 import type { ScoredItem, SessionStats, Checkpoint, ScoringAuditResult } from '../types';
 import type { AssemblyResult } from '../services/contextAssembler';
+import { SolidityPlayground } from './SolidityPlayground';
 
 interface UnifiedChainViewProps {
   sessionTokens?: number;
@@ -18,18 +19,73 @@ interface UnifiedChainViewProps {
   assembly?: AssemblyResult | null;
 }
 
+// --- COGNITIVE CORE SYSTEM MEMORY CACHE ---
+interface BlockchainStateCache {
+  phase: 1 | 2 | 3;
+  isDiagnosticsPaused: boolean;
+  dissonance: number;
+  merkleRoot: string;
+  completion: number;
+  isHealed: boolean;
+  logs: string[];
+  auditResults: AuditResult[];
+  isAuditing: boolean;
+  scoringResults: ScoringAuditResult[];
+  isScoringAudit: boolean;
+  isDeconstructing: boolean;
+  isPhaseTransitioning: boolean;
+}
+
+let cachedBlockchainState: BlockchainStateCache | null = null;
+
 export const UnifiedChainView: React.FC<UnifiedChainViewProps> = ({ sessionTokens = 0, ledger, checkpoints = [], assembly }) => {
-  const [phase, setPhase] = useState<1 | 2 | 3>(1);
-  const [isDiagnosticsPaused, setIsDiagnosticsPaused] = useState(true);
-  const [dissonance, setDissonance] = useState(0);
-  const [merkleRoot, setMerkleRoot] = useState('0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''));
-  const [completion, setCompletion] = useState(0);
-  const [isHealed, setIsHealed] = useState(false);
-  const [logs, setLogs] = useState<string[]>(["[SYSTEM] UCO Protocol Engaged.", "[PHASE_1] Initiating Diagnostic Pause..."]);
-  const [auditResults, setAuditResults] = useState<AuditResult[]>([]);
-  const [isAuditing, setIsAuditing] = useState(false);
-  const [scoringResults, setScoringResults] = useState<ScoringAuditResult[]>([]);
-  const [isScoringAudit, setIsScoringAudit] = useState(false);
+  const [activeMode, setActiveMode] = useState<'uco' | 'solidity'>('uco');
+  const [phase, setPhase] = useState<1 | 2 | 3>(() => cachedBlockchainState?.phase ?? 1);
+  const [isDiagnosticsPaused, setIsDiagnosticsPaused] = useState(() => cachedBlockchainState?.isDiagnosticsPaused ?? true);
+  const [dissonance, setDissonance] = useState(() => cachedBlockchainState?.dissonance ?? 0);
+  const [merkleRoot, setMerkleRoot] = useState(() => cachedBlockchainState?.merkleRoot ?? ('0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('')));
+  const [completion, setCompletion] = useState(() => cachedBlockchainState?.completion ?? 0);
+  const [isHealed, setIsHealed] = useState(() => cachedBlockchainState?.isHealed ?? false);
+  const [logs, setLogs] = useState<string[]>(() => cachedBlockchainState?.logs ?? ["[SYSTEM] UCO Protocol Engaged.", "[PHASE_1] Initiating Diagnostic Pause..."]);
+  const [auditResults, setAuditResults] = useState<AuditResult[]>(() => cachedBlockchainState?.auditResults ?? []);
+  const [isAuditing, setIsAuditing] = useState(() => cachedBlockchainState?.isAuditing ?? false);
+  const [scoringResults, setScoringResults] = useState<ScoringAuditResult[]>(() => cachedBlockchainState?.scoringResults ?? []);
+  const [isScoringAudit, setIsScoringAudit] = useState(() => cachedBlockchainState?.isScoringAudit ?? false);
+  const [isDeconstructing, setIsDeconstructing] = useState(() => cachedBlockchainState?.isDeconstructing ?? false);
+  const [isPhaseTransitioning, setIsPhaseTransitioning] = useState(() => cachedBlockchainState?.isPhaseTransitioning ?? false);
+
+  // Keep cache synchronized on any changes
+  useEffect(() => {
+    cachedBlockchainState = {
+      phase,
+      isDiagnosticsPaused,
+      dissonance,
+      merkleRoot,
+      completion,
+      isHealed,
+      logs,
+      auditResults,
+      isAuditing,
+      scoringResults,
+      isScoringAudit,
+      isDeconstructing,
+      isPhaseTransitioning
+    };
+  }, [
+    phase,
+    isDiagnosticsPaused,
+    dissonance,
+    merkleRoot,
+    completion,
+    isHealed,
+    logs,
+    auditResults,
+    isAuditing,
+    scoringResults,
+    isScoringAudit,
+    isDeconstructing,
+    isPhaseTransitioning
+  ]);
 
   // Mock items for the Healed Hierarchy if no assembly exists
   const [mockItems] = useState<ScoredItem[]>([
@@ -60,31 +116,60 @@ export const UnifiedChainView: React.FC<UnifiedChainViewProps> = ({ sessionToken
     return () => clearInterval(interval);
   }, [phase, isDiagnosticsPaused]);
 
+  const isFirstUnifiedLogsRef = useRef(true);
+
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const element = logEndRef.current;
+    if (element && element.parentElement) {
+      const container = element.parentElement;
+      const selection = window.getSelection();
+      const hasSelection = selection && selection.toString();
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+      
+      if (isFirstUnifiedLogsRef.current || (isNearBottom && !hasSelection)) {
+        element.scrollIntoView({ behavior: 'smooth' });
+        isFirstUnifiedLogsRef.current = false;
+      }
+    } else if (logEndRef.current) {
+      logEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [logs]);
 
+  // Forensic Audit Checks reactive loop
   const runAudit = async () => {
     setIsAuditing(true);
     setLogs(prev => [...prev, "[AUDIT] Initiating Forensic Ledger Check..."]);
     const results = await ledgerTester.runComprehensiveAudit();
     setAuditResults(results);
-    setTimeout(() => {
-        setIsAuditing(false);
-        setLogs(prev => [...prev, "[AUDIT] Checks complete. 0x03E2_HARMONY maintained."]);
-    }, 1000);
   };
 
+  useEffect(() => {
+    if (isAuditing) {
+      const timeout = setTimeout(() => {
+        setIsAuditing(false);
+        setLogs(prev => [...prev, "[AUDIT] Checks complete. 0x03E2_HARMONY maintained."]);
+      }, 1000);
+      return () => clearTimeout(timeout);
+    }
+  }, [isAuditing]);
+
+  // Scoring Audit Resonance reactive loop
   const runScoringAudit = async () => {
     setIsScoringAudit(true);
     setLogs(prev => [...prev, "[AUDIT] Measuring neural resonance factors..."]);
     const results = await scorerTester.runScoringForensics();
     setScoringResults(results);
-    setTimeout(() => {
-        setIsScoringAudit(false);
-        setLogs(prev => [...prev, "[AUDIT] Scoring manifold validated. Hierarchy HEALED."]);
-    }, 800);
   };
+
+  useEffect(() => {
+    if (isScoringAudit) {
+      const timeout = setTimeout(() => {
+         setIsScoringAudit(false);
+         setLogs(prev => [...prev, "[AUDIT] Scoring manifold validated. Hierarchy HEALED."]);
+      }, 800);
+      return () => clearTimeout(timeout);
+    }
+  }, [isScoringAudit]);
 
   const handleFork = () => {
     setLogs(prev => [...prev, "[SYSTEM] Initiating Ledger Inheritance...", "[SYSTEM] Archiving Generation " + ledger?.generation + " to Vault..."]);
@@ -92,29 +177,49 @@ export const UnifiedChainView: React.FC<UnifiedChainViewProps> = ({ sessionToken
     setLogs(prev => [...prev, "[SUCCESS] New Inherited Block spawned. Stride reset."]);
   };
 
+  // Neutralize Fracture Transition reactive loop
   const triggerDiagnosticFix = () => {
     setIsDiagnosticsPaused(false);
     setLogs(prev => [...prev, "[PHASE_1] Fracture detection complete.", "[PHASE_1] Dissonance neutralized. State: HEALED."]);
-    setTimeout(() => {
-      setPhase(2);
-      setLogs(prev => [...prev, "[PHASE_2] Transitioning to Technical Execution...", "[PHASE_2] Zero Abstraction mode activated."]);
-    }, 1500);
+    setIsPhaseTransitioning(true);
   };
 
+  useEffect(() => {
+    if (isPhaseTransitioning) {
+      const timeout = setTimeout(() => {
+        setPhase(2);
+        setLogs(prev => [...prev, "[PHASE_2] Transitioning to Technical Execution...", "[PHASE_2] Zero Abstraction mode activated."]);
+        setIsPhaseTransitioning(false);
+      }, 1500);
+      return () => clearTimeout(timeout);
+    }
+  }, [isPhaseTransitioning]);
+
+  // Atomic Deconstruction reactive compilation loop
   const runAtomicDeconstruction = () => {
+    setIsDeconstructing(true);
     setLogs(prev => [...prev, "[PHASE_2] Deconstructing objective into SHA-256 complexity blocks...", "[PHASE_2] Merkle integrity verified."]);
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 10;
-      setCompletion(progress);
-      if (progress >= 100) {
-        clearInterval(interval);
-        setPhase(3);
-        setLogs(prev => [...prev, "[PHASE_3] State of Completion reached.", "[PHASE_3] Continuity Protocol: Ledger Inherited."]);
-        setIsHealed(true);
-      }
-    }, 500);
   };
+
+  useEffect(() => {
+    if (isDeconstructing && completion < 100) {
+      const interval = setInterval(() => {
+        setCompletion(prev => {
+          const next = prev + 10;
+          if (next >= 100) {
+            clearInterval(interval);
+            setIsDeconstructing(false);
+            setPhase(3);
+            setLogs(prevLogs => [...prevLogs, "[PHASE_3] State of Completion reached.", "[PHASE_3] Continuity Protocol: Ledger Inherited."]);
+            setIsHealed(true);
+            return 100;
+          }
+          return next;
+        });
+      }, 500);
+      return () => clearInterval(interval);
+    }
+  }, [isDeconstructing]);
 
   const budgetPercentage = Math.min(100, (sessionTokens / CONTINUITY_CONFIG.DEFAULT_SESSION_BUDGET) * 100);
 
@@ -131,14 +236,33 @@ export const UnifiedChainView: React.FC<UnifiedChainViewProps> = ({ sessionToken
             <p className="text-[10px] text-gray-600 font-black uppercase tracking-[0.4em] mt-1">Conductor Logic Protocol | forensic-level-v5</p>
           </div>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-4 flex-wrap items-center">
+          <button 
+            type="button"
+            onClick={() => setActiveMode('uco')}
+            className={`px-4 py-2 border-2 text-[10px] uppercase font-black tracking-wider transition-all duration-300 rounded-xl cursor-pointer ${activeMode === 'uco' ? 'bg-zinc-800 text-white border-zinc-700' : 'bg-transparent text-gray-500 border-zinc-900 hover:text-white hover:border-zinc-800'}`}
+          >
+            Conduce Core
+          </button>
+          <button 
+            type="button"
+            onClick={() => setActiveMode('solidity')}
+            className={`px-4 py-2 border-2 text-[10px] uppercase font-black tracking-wider transition-all duration-300 rounded-xl cursor-pointer ${activeMode === 'solidity' ? 'bg-amber-600 text-black border-amber-500 hover:bg-amber-500' : 'bg-transparent text-gray-500 border-zinc-900 hover:text-white hover:border-zinc-800'}`}
+          >
+            Solidity EVM Playground
+          </button>
           <div className={`px-6 py-2 rounded-xl border-4 border-black font-black uppercase text-xs tracking-widest ${isHealed ? 'bg-green-600 text-black' : 'bg-red-600 text-white animate-pulse'}`}>
             {isHealed ? 'STATE: HEALED' : 'STATE: FRACTURED'}
           </div>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-6 p-8 overflow-hidden">
+      {activeMode === 'solidity' ? (
+        <div className="flex-1 p-8 overflow-y-auto custom-scrollbar">
+          <SolidityPlayground />
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col lg:flex-row gap-6 p-8 overflow-hidden">
         {/* Phase Navigation & Budget Monitor */}
         <div className="lg:w-80 flex flex-col gap-4 flex-shrink-0">
           <div className="aero-panel p-6 border-4 border-blue-600/30 bg-blue-950/10 shadow-xl">
@@ -487,6 +611,7 @@ export const UnifiedChainView: React.FC<UnifiedChainViewProps> = ({ sessionToken
           </div>
         </div>
       </div>
+    )}
 
       {/* Hub Footer */}
       <div className="p-4 bg-black border-t-8 border-black flex justify-between items-center z-40 px-12">

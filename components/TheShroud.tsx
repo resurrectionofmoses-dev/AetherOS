@@ -25,11 +25,11 @@ export const TheShroud: React.FC<TheShroudProps> = ({ children, isSensitive = tr
 
   return (
     <div 
-      className="relative group cursor-help"
+      className="relative group cursor-help h-full w-full flex flex-col min-h-0"
       onMouseEnter={() => setIsRevealed(true)}
       onMouseLeave={() => setIsRevealed(false)}
     >
-      <div className={`transition-all duration-500 ${isRevealed ? 'opacity-100 blur-0 scale-100' : 'opacity-20 blur-xl scale-95 grayscale'}`}>
+      <div className={`h-full w-full flex flex-col min-h-0 transition-all duration-500 ${isRevealed ? 'opacity-100 blur-0 scale-100' : 'opacity-20 blur-xl scale-95 grayscale'}`}>
         {children}
       </div>
       

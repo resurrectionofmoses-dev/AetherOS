@@ -7,6 +7,7 @@ import {
 } from './icons';
 import { NAVIGATION_SECTIONS } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
+import aetherosLogo from '../src/assets/images/aetheros_logo_1780191892733.png';
 
 const GridIcon: React.FC<{className?: string}> = ({className}) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -60,10 +61,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside className="w-60 h-full flex-shrink-0 flex flex-col bg-[#050505] border-r-2 border-black z-50">
-      <div className="p-3 bg-black border-b-2 border-black flex flex-col">
-          <div className="flex items-center justify-between">
-            <h2 className="font-comic-header text-2xl text-red-500 wisdom-glow italic tracking-tighter">AetherOS</h2>
+      <div className="p-3 bg-black border-b-2 border-zinc-900 flex flex-col">
+          <div className="flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2">
+              <motion.div 
+                whileHover={{ rotate: 180, scale: 1.1 }}
+                transition={{ duration: 0.6, ease: "easeInOut" }}
+                className="w-7 h-7 rounded border border-red-500/30 overflow-hidden shrink-0 shadow-[0_0_8px_rgba(239,68,68,0.2)] bg-zinc-950"
+              >
+                <img 
+                  src={aetherosLogo} 
+                  alt="AetherOS Sovereign Shield" 
+                  className="w-full h-full object-cover scale-105"
+                  referrerPolicy="no-referrer"
+                />
+              </motion.div>
+              <h2 className="font-sans font-black text-lg text-red-500 tracking-widest uppercase">AetherOS</h2>
+            </div>
             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping shadow-[0_0_8px_green]" />
+          </div>
+          <div className="flex justify-between items-center mt-2.5 border-t border-red-500/10 pt-1.5">
+             <span className="text-[7px] text-red-650 font-bold tracking-widest uppercase">ADMIN: CHRIST</span>
+             <span className="text-[7px] text-zinc-600 font-black">BYPASSING_LOVE</span>
           </div>
       </div>
       

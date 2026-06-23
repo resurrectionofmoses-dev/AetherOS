@@ -21,7 +21,10 @@ import {
   Globe,
   Milestone,
   Check,
-  X
+  X,
+  Heart,
+  MessageSquare,
+  ThumbsUp
 } from 'lucide-react';
 
 // Custom inline Github SVGs for absolute safety
@@ -46,8 +49,12 @@ const Github: React.FC<{ className?: string }> = ({ className }) => (
 export interface ShowcaseProject {
   id: string;
   title: string;
+  author?: string;
   shortDescription: string;
   detailedDescription: string;
+  purpose?: string;
+  challengesFaced?: string;
+  outcomes?: string;
   technologies: string[];
   liveDemoUrl?: string;
   codeRepoUrl?: string;
@@ -56,6 +63,16 @@ export interface ShowcaseProject {
   featured: boolean;
   metrics?: string[];
   role?: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video';
+  status?: 'In Progress' | 'Completed' | string;
+  likes?: string[];
+  comments?: {
+    id: string;
+    username: string;
+    text: string;
+    timestamp: string;
+  }[];
 }
 
 const DEFAULT_PROJECTS: ShowcaseProject[] = [
@@ -81,7 +98,15 @@ This engine forms the core architectural backbone of AetherOS's async operations
     category: 'System Core',
     featured: true,
     role: 'Lead Kernel Engineer',
-    metrics: ['1.2M micro-ops/sec', '12µs peak latency', '0 heap allocations in hot path']
+    metrics: ['1.2M micro-ops/sec', '12µs peak latency', '0 heap allocations in hot path'],
+    mediaUrl: 'https://images.unsplash.com/photo-1629654297299-c8506221ca97?auto=format&fit=crop&w=800&q=80',
+    mediaType: 'image',
+    status: 'Completed',
+    likes: ['CyberWeaver_X', 'AcousticWeaver'],
+    comments: [
+      { id: 'c1', username: 'CyberWeaver_X', text: 'This lock-free coroutine matrix reduced my scheduler overhead to virtually zero. Astounding work!', timestamp: '2026-06-01T14:22:00Z' },
+      { id: 'c2', username: 'Validator_Solo', text: 'Double checked typesafety constraints. Verification is flawless.', timestamp: '2026-06-02T09:15:00Z' }
+    ]
   },
   {
     id: 'sp2',
@@ -101,7 +126,14 @@ Eurodemux delivers an absolute P2P signaling matrix bridging diverse sandbox nod
     category: 'Networking',
     featured: true,
     role: 'P2P Architect',
-    metrics: ['STUN/TURN connection bypass 94%', '< 5ms round-trip latency', 'Zero-knowledge channel handshakes']
+    metrics: ['STUN/TURN connection bypass 94%', '< 5ms round-trip latency', 'Zero-knowledge channel handshakes'],
+    mediaUrl: 'https://images.unsplash.com/photo-1544197150-b99a580bb7a8?auto=format&fit=crop&w=800&q=80',
+    mediaType: 'image',
+    status: 'In Progress',
+    likes: ['Validator_Solo'],
+    comments: [
+      { id: 'c3', username: 'Validator_Solo', text: 'Securing ephemeral DH handshakes makes inter-device consensus incredibly bulletproof here.', timestamp: '2026-06-03T18:41:00Z' }
+    ]
   },
   {
     id: 'sp3',
@@ -112,7 +144,7 @@ The ultimate cryptographic lockbox. Protect highvalue keys, tokens, and records 
 
 #### Technology Stack:
 - **AES-GCM-256 local encryption**: Direct client-side envelope decryption.
-- **TSS Multi-party compute**: Key generation without reconstructing the primary private key root.
+- **TSS Multi-party compute**: Key generation without reconstructing the private key root.
 - **Immutable Audit Trails**: Anchors security checkpoint state onto unified distributed ledger frames.`,
     technologies: ['Solidity', 'TypeScript', 'Ethers.js', 'SubtleCrypto', 'React'],
     liveDemoUrl: 'https://vault.aetheros.ai',
@@ -121,7 +153,14 @@ The ultimate cryptographic lockbox. Protect highvalue keys, tokens, and records 
     category: 'Security & Web3',
     featured: false,
     role: 'Cryptographic Lead',
-    metrics: ['Zero plaintext ever leaves device', '2-of-3 threshold signature enclaves', 'Audited by Sovereign Shields']
+    metrics: ['Zero plaintext ever leaves device', '2-of-3 threshold signature enclaves', 'Audited by Sovereign Shields'],
+    mediaUrl: 'https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80',
+    mediaType: 'image',
+    status: 'Completed',
+    likes: ['CyberWeaver_X', 'DesignSage'],
+    comments: [
+      { id: 'c4', username: 'DesignSage', text: 'The interface here is super clean, especially the threshold visualizers.', timestamp: '2026-06-04T11:05:00Z' }
+    ]
   }
 ];
 
@@ -145,10 +184,36 @@ export const ProjectShowcaseView: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<ShowcaseProject | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Social Stats and Profile Integration
+  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
+  const [commentInput, setCommentInput] = useState('');
+  const [postAsUsername, setPostAsUsername] = useState('');
+
+  useEffect(() => {
+    const loadProfileAndDefaultPoster = async () => {
+      try {
+        const stored = await safeStorage.getItem('aetheros_user_profile');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          setCurrentUserProfile(parsed);
+          setPostAsUsername(parsed.username || 'Aetheros_Prime');
+        } else {
+          setPostAsUsername('Aetheros_Prime');
+        }
+      } catch (e) {
+        setPostAsUsername('Aetheros_Prime');
+      }
+    };
+    loadProfileAndDefaultPoster();
+  }, [selectedProject]);
+
   // Form State
   const [newTitle, setNewTitle] = useState('');
   const [newShortDesc, setNewShortDesc] = useState('');
   const [newDetailedDesc, setNewDetailedDesc] = useState('');
+  const [newPurpose, setNewPurpose] = useState('');
+  const [newChallenges, setNewChallenges] = useState('');
+  const [newOutcomes, setNewOutcomes] = useState('');
   const [newCategory, setNewCategory] = useState('Fullstack');
   const [newTechs, setNewTechs] = useState('');
   const [newLiveUrl, setNewLiveUrl] = useState('');
@@ -158,6 +223,9 @@ export const ProjectShowcaseView: React.FC = () => {
   const [newFeatured, setNewFeatured] = useState(false);
   const [newMetric, setNewMetric] = useState('');
   const [newMetricsList, setNewMetricsList] = useState<string[]>([]);
+  const [newMediaUrl, setNewMediaUrl] = useState('');
+  const [newMediaType, setNewMediaType] = useState<'image' | 'video'>('image');
+  const [newStatus, setNewStatus] = useState<'In Progress' | 'Completed'>('Completed');
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -189,6 +257,52 @@ export const ProjectShowcaseView: React.FC = () => {
     }
   };
 
+  const handleToggleLike = async (projId: string) => {
+    const activeUsername = currentUserProfile?.username || 'Aetheros_Prime';
+    const updated = projects.map(p => {
+      if (p.id === projId) {
+        const currentLikes = p.likes || [];
+        const hasLiked = currentLikes.includes(activeUsername);
+        const nextLikes = hasLiked 
+          ? currentLikes.filter(u => u !== activeUsername)
+          : [...currentLikes, activeUsername];
+        return { ...p, likes: nextLikes };
+      }
+      return p;
+    });
+    await saveProjects(updated);
+    
+    if (selectedProject?.id === projId) {
+      setSelectedProject(updated.find(p => p.id === projId) || null);
+    }
+    toast.success('Project like status modernized!');
+  };
+
+  const handleAddComment = async (projId: string) => {
+    if (!commentInput.trim()) return;
+    const author = postAsUsername || currentUserProfile?.username || 'Aetheros_Prime';
+    const newComment = {
+      id: `comm_${Date.now()}`,
+      username: author,
+      text: commentInput.trim(),
+      timestamp: new Date().toISOString()
+    };
+    const updated = projects.map(p => {
+      if (p.id === projId) {
+        const currentComments = p.comments || [];
+        return { ...p, comments: [...currentComments, newComment] };
+      }
+      return p;
+    });
+    await saveProjects(updated);
+    setCommentInput('');
+    
+    if (selectedProject?.id === projId) {
+      setSelectedProject(updated.find(p => p.id === projId) || null);
+    }
+    toast.success(`Comment successfully committed as @${author}`);
+  };
+
   const handleAddProject = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newShortDesc.trim()) {
@@ -204,8 +318,12 @@ export const ProjectShowcaseView: React.FC = () => {
     const newProject: ShowcaseProject = {
       id: `sp-${Date.now()}`,
       title: newTitle.trim(),
+      author: postAsUsername || currentUserProfile?.username || 'Aetheros_Prime',
       shortDescription: newShortDesc.trim(),
       detailedDescription: newDetailedDesc.trim() || 'No detailed description provided.',
+      purpose: newPurpose.trim() || undefined,
+      challengesFaced: newChallenges.trim() || undefined,
+      outcomes: newOutcomes.trim() || undefined,
       technologies: techArray.length > 0 ? techArray : ['Web'],
       liveDemoUrl: newLiveUrl.trim() || undefined,
       codeRepoUrl: newRepoUrl.trim() || undefined,
@@ -213,7 +331,10 @@ export const ProjectShowcaseView: React.FC = () => {
       category: newCategory,
       featured: newFeatured,
       role: newRole.trim() || undefined,
-      metrics: newMetricsList.length > 0 ? newMetricsList : undefined
+      metrics: newMetricsList.length > 0 ? newMetricsList : undefined,
+      mediaUrl: newMediaUrl.trim() || undefined,
+      mediaType: newMediaType,
+      status: newStatus
     };
 
     const updated = [newProject, ...projects];
@@ -225,6 +346,9 @@ export const ProjectShowcaseView: React.FC = () => {
     setNewTitle('');
     setNewShortDesc('');
     setNewDetailedDesc('');
+    setNewPurpose('');
+    setNewChallenges('');
+    setNewOutcomes('');
     setNewCategory('Fullstack');
     setNewTechs('');
     setNewLiveUrl('');
@@ -234,6 +358,9 @@ export const ProjectShowcaseView: React.FC = () => {
     setNewFeatured(false);
     setNewMetric('');
     setNewMetricsList([]);
+    setNewMediaUrl('');
+    setNewMediaType('image');
+    setNewStatus('Completed');
   };
 
   const handleDeleteProject = (id: string, e: React.MouseEvent) => {
@@ -425,11 +552,11 @@ Shared via AetherOS Sovereign Hub`;
                     onClick={() => setSelectedProject(proj)}
                     className={`relative flex flex-col justify-between p-5 rounded-2xl bg-[#090915] border ${
                       proj.featured ? 'border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.02)]' : 'border-white/5 hover:border-white/10'
-                    } hover:bg-[#0d0d21] cursor-pointer group transition-all duration-300 overflow-hidden h-72`}
+                    } hover:bg-[#0d0d21] cursor-pointer group transition-all duration-300 overflow-hidden min-h-[19rem] h-auto`}
                   >
                     {/* Featured badge / border illumination */}
                     {proj.featured && (
-                      <div className="absolute top-0 right-0">
+                      <div className="absolute top-0 right-0 z-10">
                         <div className="bg-amber-500/15 border-l border-b border-amber-500/30 text-amber-400 text-[8px] px-2.5 py-1 rounded-bl font-mono font-black uppercase tracking-widest flex items-center gap-1">
                           <Sparkles className="w-2.5 h-2.5" />
                           Featured
@@ -438,11 +565,46 @@ Shared via AetherOS Sovereign Hub`;
                     )}
 
                     <div>
+                      {/* Media Image/Video Preview */}
+                      {proj.mediaUrl && (
+                        <div className="w-full h-24 rounded-lg overflow-hidden border border-white/5 mb-3 select-none relative bg-black">
+                          {proj.mediaType === 'video' ? (
+                            <video 
+                              src={proj.mediaUrl} 
+                              className="w-full h-full object-cover opacity-85" 
+                              muted 
+                              loop 
+                              playsInline
+                              autoPlay
+                            />
+                          ) : (
+                            <img 
+                              src={proj.mediaUrl} 
+                              alt={proj.title} 
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 opacity-85"
+                              referrerPolicy="no-referrer"
+                            />
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+                        </div>
+                      )}
+
                       {/* Top detail indicator */}
                       <div className="flex items-center justify-between mb-3 text-gray-500">
-                        <span className="text-[10px] font-mono tracking-widest bg-white/5 text-gray-400 px-2 py-0.5 rounded uppercase">
-                          {proj.category}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-mono tracking-widest bg-white/5 text-gray-400 px-2 py-0.5 rounded uppercase font-bold">
+                            {proj.category}
+                          </span>
+                          {proj.status && (
+                            <span className={`text-[9px] font-mono tracking-widest px-1.5 py-0.5 rounded uppercase font-bold border ${
+                              proj.status.toLowerCase().includes('in progress') 
+                                ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' 
+                                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                            }`}>
+                              {proj.status}
+                            </span>
+                          )}
+                        </div>
                         {proj.completionDate && (
                           <span className="text-[10px] font-mono flex items-center gap-1">
                             <Calendar className="w-3 h-3 text-gray-600" />
@@ -456,12 +618,19 @@ Shared via AetherOS Sovereign Hub`;
                         {proj.title}
                       </h3>
 
-                      {/* Subtitle / Role */}
-                      {proj.role && (
-                        <span className="text-[10px] font-mono text-red-500/80 uppercase tracking-widest block mt-0.5 mb-2 font-bold select-none">
-                          // ROLE: {proj.role}
+                      {/* Subtitle / Role & Author */}
+                      <div className="flex items-center gap-2 mt-1 mb-2 font-mono text-[10px] select-none">
+                        {proj.role && (
+                          <span className="text-red-500/80 uppercase tracking-widest font-bold">
+                            ROLE: {proj.role}
+                          </span>
+                        )}
+                        <span className="text-zinc-800 font-extrabold">//</span>
+                        <span className="text-zinc-500">AUTHOR:</span>
+                        <span className="text-cyan-400 font-black tracking-wider">
+                          @{proj.author || 'Aetheros_Prime'}
                         </span>
-                      )}
+                      </div>
 
                       {/* Pitch */}
                       <p className="text-gray-400 text-xs mt-2 line-clamp-3 leading-relaxed font-sans pr-2">
@@ -529,6 +698,30 @@ Shared via AetherOS Sovereign Hub`;
                           >
                             <Share2 className="w-4 h-4" />
                           </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleLike(proj.id);
+                            }}
+                            className={`p-1 rounded transition-colors flex items-center gap-1.5 ${
+                              (proj.likes || []).includes(currentUserProfile?.username || 'Aetheros_Prime')
+                                ? 'text-rose-500 hover:text-rose-400'
+                                : 'text-gray-500 hover:text-rose-500'
+                            }`}
+                            title="Like Project"
+                          >
+                            <Heart className={`w-3.5 h-3.5 ${(proj.likes || []).includes(currentUserProfile?.username || 'Aetheros_Prime') ? 'fill-current' : ''}`} />
+                            <span className="font-mono text-[9px] font-black">{(proj.likes || []).length}</span>
+                          </button>
+
+                          <div 
+                            className="p-1 text-gray-500 flex items-center gap-1.5"
+                            title="Comments Count"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                            <span className="font-mono text-[9px] font-black">{(proj.comments || []).length}</span>
+                          </div>
                         </div>
 
                         {/* Removable system */}
@@ -561,9 +754,20 @@ Shared via AetherOS Sovereign Hub`;
                 {/* Modal Header */}
                 <div className="p-6 bg-black/40 border-b border-white/5 flex items-start justify-between relative">
                   <div className="pr-8">
-                    <span className="text-[9px] font-mono bg-red-500/10 text-red-400 px-2 py-0.5 rounded tracking-widest uppercase font-bold">
-                      {selectedProject.category}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[9px] font-mono bg-red-500/10 text-red-400 px-2 py-0.5 rounded tracking-widest uppercase font-bold">
+                        {selectedProject.category}
+                      </span>
+                      {selectedProject.status && (
+                        <span className={`text-[9.5px] font-mono tracking-widest px-2 py-0.5 rounded uppercase font-bold border ${
+                          selectedProject.status.toLowerCase().includes('in progress') 
+                            ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' 
+                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        }`}>
+                          {selectedProject.status}
+                        </span>
+                      )}
+                    </div>
                     <h2 className="text-xl font-black text-white mt-2 leading-tight uppercase font-sans tracking-tight">
                       {selectedProject.title}
                     </h2>
@@ -584,6 +788,29 @@ Shared via AetherOS Sovereign Hub`;
 
                 {/* Modal Contents Scroller */}
                 <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 font-sans">
+                  {/* Media Banner */}
+                  {selectedProject.mediaUrl && (
+                    <div className="w-full h-56 rounded-xl overflow-hidden border border-white/5 relative bg-black select-none">
+                      {selectedProject.mediaType === 'video' ? (
+                        <video 
+                          src={selectedProject.mediaUrl} 
+                          className="w-full h-full object-contain" 
+                          controls 
+                          muted 
+                          playsInline 
+                          autoPlay
+                        />
+                      ) : (
+                        <img 
+                          src={selectedProject.mediaUrl} 
+                          alt={selectedProject.title} 
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      )}
+                    </div>
+                  )}
+
                   {/* Technology badging layout */}
                   <div className="space-y-2">
                     <h4 className="text-[10px] font-mono uppercase text-gray-500 tracking-wider">Showcase Technologies Matrix</h4>
@@ -617,11 +844,159 @@ Shared via AetherOS Sovereign Hub`;
                     </div>
                   )}
 
-                  {/* Detailed Description */}
-                  <div className="space-y-2 prose prose-invert max-w-none text-xs leading-relaxed text-gray-400">
-                    <h4 className="text-[10px] font-mono uppercase text-gray-500 tracking-wider">Architectural Deep-Dive Specs</h4>
-                    <div className="bg-black/20 p-4 border border-white/5 rounded-xl whitespace-pre-wrap font-sans text-xs max-h-80 overflow-y-auto">
-                      {selectedProject.detailedDescription}
+                  {/* Project's Purpose Section */}
+                  <div className="space-y-3">
+                    <h4 className="text-[10px] font-mono uppercase text-red-400 tracking-wider font-bold flex items-center gap-1.5">
+                      <Terminal className="w-3.5 h-3.5 text-red-500" />
+                      1. Project Purpose & Objective
+                    </h4>
+                    <div className="bg-zinc-950/60 p-4 border border-white/5 rounded-xl text-xs leading-relaxed text-gray-300">
+                      {selectedProject.purpose || selectedProject.shortDescription}
+                    </div>
+                  </div>
+
+                  {/* Technologies Employed Section */}
+                  <div className="space-y-2">
+                    <h4 className="text-[10px] font-mono uppercase text-sky-400 tracking-wider font-bold flex items-center gap-1.5">
+                      <Code className="w-3.5 h-3.5 text-sky-500" />
+                      2. Technologies Employed
+                    </h4>
+                    <div className="bg-zinc-950/60 p-4 border border-white/5 rounded-xl text-xs leading-relaxed text-gray-300 space-y-1">
+                      <p className="text-zinc-400">
+                        Synthesized using <span className="text-white font-bold">{selectedProject.technologies.join(', ')}</span> as core structural elements to construct reliable development pipelines.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Challenges Faced Section */}
+                  <div className="space-y-3">
+                    <h4 className="text-[10px] font-mono uppercase text-amber-400 tracking-wider font-bold flex items-center gap-1.5">
+                      <Layers className="w-3.5 h-3.5 text-amber-500" />
+                      3. Challenges Faced & Bottlenecks
+                    </h4>
+                    <div className="bg-zinc-950/60 p-4 border border-white/5 rounded-xl text-xs leading-relaxed text-gray-300">
+                      {selectedProject.challengesFaced || "Standard deployment architectures and structural thread latency constraints were solved with optimized queue routers."}
+                    </div>
+                  </div>
+
+                  {/* Outcomes Section */}
+                  <div className="space-y-3">
+                    <h4 className="text-[10px] font-mono uppercase text-emerald-400 tracking-wider font-bold flex items-center gap-1.5">
+                      <Check className="w-3.5 h-3.5 text-emerald-500" />
+                      4. Project Outcomes and Milestones
+                    </h4>
+                    <div className="bg-zinc-950/60 p-4 border border-emerald-500/10 rounded-xl text-xs leading-relaxed text-gray-300">
+                      {selectedProject.outcomes || "Completed implementation with comprehensive unit coverage and fully functional live node verification."}
+                    </div>
+                  </div>
+
+                  {/* Detailed Description fallback */}
+                  {selectedProject.detailedDescription && selectedProject.detailedDescription.length > 100 && (
+                    <div className="space-y-2 prose prose-invert max-w-none text-xs leading-relaxed text-gray-400 border-t border-white/5 pt-4">
+                      <h4 className="text-[10px] font-mono uppercase text-gray-500 tracking-wider">Extended Technical Log Notes</h4>
+                      <div className="bg-black/20 p-4 border border-white/5 rounded-xl whitespace-pre-wrap font-sans text-xs max-h-52 overflow-y-auto">
+                        {selectedProject.detailedDescription}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Likes and Comments Social Block */}
+                  <div className="space-y-4 border-t border-white/5 pt-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-[10px] font-mono uppercase text-gray-500 tracking-wider font-bold">Social Interaction Portal</h4>
+                        <p className="text-[9px] text-gray-500 uppercase mt-0.5">COMMUNITY TELEMETRY PROTOCOL</p>
+                      </div>
+                      <button
+                        onClick={() => handleToggleLike(selectedProject.id)}
+                        className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-black transition-all border ${
+                          (selectedProject.likes || []).includes(currentUserProfile?.username || 'Aetheros_Prime')
+                            ? 'bg-rose-500/20 border-rose-500/40 text-rose-400'
+                            : 'bg-[#101026] hover:bg-rose-500/10 border-white/5 text-gray-400 hover:text-rose-400'
+                        }`}
+                      >
+                        <Heart className={`w-4 h-4 ${(selectedProject.likes || []).includes(currentUserProfile?.username || 'Aetheros_Prime') ? 'fill-current text-rose-500' : ''}`} />
+                        <span>{(selectedProject.likes || []).length} Likes</span>
+                      </button>
+                    </div>
+
+                    {/* Likes User List Tracker if any */}
+                    {(selectedProject.likes || []).length > 0 && (
+                      <div className="text-[9px] font-mono text-gray-400 leading-snug px-3 py-2 bg-black/40 rounded-lg border border-white/5 flex flex-wrap gap-1 items-center">
+                        <span className="text-gray-600 uppercase font-black mr-1 select-none">Nodes who liked:</span>
+                        {(selectedProject.likes || []).map((u, idx) => (
+                          <span key={u} className="text-zinc-300 font-bold">
+                            @{u}{idx < (selectedProject.likes || []).length - 1 ? ',' : ''}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Comments Node list */}
+                    <div className="space-y-3 pt-2">
+                      <h5 className="text-[10px] font-mono uppercase text-gray-500 tracking-wider flex items-center gap-1.5">
+                        <MessageSquare className="w-3.5 h-3.5 text-gray-500" />
+                        Network Comments Matrices ({(selectedProject.comments || []).length})
+                      </h5>
+
+                      <div className="space-y-2 max-h-52 overflow-y-auto pr-2 custom-scrollbar">
+                        {(selectedProject.comments || []).map(comm => (
+                          <div key={comm.id} className="p-3 bg-zinc-950/60 border border-zinc-900 rounded-xl hover:border-zinc-800 transition-colors">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="font-mono text-xs font-bold text-red-400">@{comm.username}</span>
+                              <span className="text-[9px] font-mono text-gray-505 text-gray-500">
+                                {new Date(comm.timestamp).toLocaleTimeString() || comm.timestamp}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-300 leading-relaxed font-sans">{comm.text}</p>
+                          </div>
+                        ))}
+                        {(selectedProject.comments || []).length === 0 && (
+                          <p className="text-[10px] text-gray-600 uppercase font-black text-center py-4 border border-dashed border-white/5 rounded-xl">No comments recorded. Post the first network feedback telemetry below!</p>
+                        )}
+                      </div>
+
+                      {/* Comment Form Input */}
+                      <div className="p-3.5 bg-black/45 border border-white/5 rounded-xl space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5">
+                          <label className="text-[9px] font-mono uppercase text-gray-500 font-black">Transmit Feedback as node:</label>
+                          <select
+                            value={postAsUsername}
+                            onChange={(e) => setPostAsUsername(e.target.value)}
+                            className="bg-black border border-white/10 rounded-lg px-2.5 py-1 text-[10px] font-mono text-red-400 focus:outline-none"
+                          >
+                            <option value={currentUserProfile?.username || 'Aetheros_Prime'}>
+                              @{currentUserProfile?.username || 'Aetheros_Prime'} (Your Active Profile Node)
+                            </option>
+                            <option value="CyberWeaver_X">@CyberWeaver_X (External Dev)</option>
+                            <option value="AcousticWeaver">@AcousticWeaver (External Dev)</option>
+                            <option value="Validator_Solo">@Validator_Solo (Security Analyst)</option>
+                            <option value="DesignSage">@DesignSage (UX Specialist)</option>
+                          </select>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            placeholder="Write secure network commentary feedback..."
+                            value={commentInput}
+                            onChange={(e) => setCommentInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                handleAddComment(selectedProject.id);
+                              }
+                            }}
+                            className="flex-1 bg-[#090915] border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-gray-700 focus:outline-none focus:border-red-500"
+                          />
+                          <button
+                            onClick={() => handleAddComment(selectedProject.id)}
+                            disabled={!commentInput.trim()}
+                            className="px-4 py-2 bg-red-600 hover:bg-red-505 hover:bg-red-500 disabled:opacity-40 disabled:bg-zinc-800 text-white rounded-lg text-xs font-black uppercase tracking-wider border border-red-400/20 transition-all font-mono"
+                          >
+                            Post
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -705,9 +1080,9 @@ Shared via AetherOS Sovereign Hub`;
 
                 {/* Form Fields Body */}
                 <div className="flex-1 overflow-y-auto p-6 space-y-4 text-xs font-sans">
-                  {/* Row 1: Title and Category */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
+                  {/* Row 1: Title, Category, and Status */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-1.5 sm:col-span-1">
                       <label className="block text-[10px] font-mono uppercase text-gray-500 font-bold">Project Title *</label>
                       <input
                         type="text"
@@ -731,6 +1106,19 @@ Shared via AetherOS Sovereign Hub`;
                         {CATEGORIES.slice(1).map(cat => (
                           <option key={cat} value={cat}>{cat}</option>
                         ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-mono uppercase text-gray-500 font-bold">Project Status *</label>
+                      <select
+                        value={newStatus}
+                        onChange={(e) => setNewStatus(e.target.value as 'In Progress' | 'Completed')}
+                        className="w-full bg-[#0d0d1a] border border-white/10 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-red-500"
+                        id="form_status_select"
+                      >
+                        <option value="Completed font-black">Completed</option>
+                        <option value="In Progress font-black">In Progress</option>
                       </select>
                     </div>
                   </div>
@@ -774,12 +1162,54 @@ Shared via AetherOS Sovereign Hub`;
                     />
                   </div>
 
+                  {/* Project's Purpose */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-mono uppercase text-gray-500 font-bold">Project Purpose & Core Objective *</label>
+                    <textarea
+                      required
+                      rows={2}
+                      placeholder="e.g. To build an ultra-fast data processor for lock-free multi-threaded execution streams."
+                      value={newPurpose}
+                      onChange={(e) => setNewPurpose(e.target.value)}
+                      className="w-full bg-[#0d0d1a] border border-white/10 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-red-500 text-xs"
+                      id="form_purpose"
+                    />
+                  </div>
+
+                  {/* Challenges Faced */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-mono uppercase text-gray-500 font-bold">Challenges Faced & Bottlenecks *</label>
+                    <textarea
+                      required
+                      rows={2}
+                      placeholder="e.g. Race conditions during parallel context-switches and managing sub-millisecond network sockets."
+                      value={newChallenges}
+                      onChange={(e) => setNewChallenges(e.target.value)}
+                      className="w-full bg-[#0d0d1a] border border-white/10 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-red-500 text-xs"
+                      id="form_challenges"
+                    />
+                  </div>
+
+                  {/* Outcomes */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-mono uppercase text-gray-500 font-bold">Project Outcomes & Performance gains *</label>
+                    <textarea
+                      required
+                      rows={2}
+                      placeholder="e.g. Slashed CPU scheduling delays by 84% and achieved peak throughput of 1.2M micro-ops/sec."
+                      value={newOutcomes}
+                      onChange={(e) => setNewOutcomes(e.target.value)}
+                      className="w-full bg-[#0d0d1a] border border-white/10 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-red-500 text-xs"
+                      id="form_outcomes"
+                    />
+                  </div>
+
                   {/* Detailed Description */}
                   <div className="space-y-1.5">
-                    <label className="block text-[10px] font-mono uppercase text-gray-500 font-bold">Detailed Technical Specs</label>
+                    <label className="block text-[10px] font-mono uppercase text-gray-500 font-bold">Additional Technical Specs & Notes</label>
                     <textarea
-                      rows={4}
-                      placeholder="A comprehensive breakdown detailing development methodology, core milestones, benchmarks, and structural gains."
+                      rows={3}
+                      placeholder="An optional comprehensive breakdown listing development logs, core milestones, or structural gains."
                       value={newDetailedDesc}
                       onChange={(e) => setNewDetailedDesc(e.target.value)}
                       className="w-full bg-[#0d0d1a] border border-white/10 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-red-500 text-xs"
@@ -823,6 +1253,34 @@ Shared via AetherOS Sovereign Hub`;
                         className="w-full bg-[#0d0d1a] border border-white/10 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-red-500"
                       />
                     </div>
+                  </div>
+
+                  {/* Row 4: Optional Visual Showcase Media */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-t border-white/5 pt-3">
+                    <div className="space-y-1.5 sm:col-span-2">
+                       <label className="block text-[10px] font-mono uppercase text-gray-500 font-bold">Showcase Media URL (Optional Image or Video)</label>
+                       <input
+                         type="url"
+                         placeholder="e.g. https://images.unsplash.com/photo-..."
+                         value={newMediaUrl}
+                         onChange={(e) => setNewMediaUrl(e.target.value)}
+                         className="w-full bg-[#0d0d1a] border border-white/10 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-red-500"
+                         id="form_media_url_input"
+                       />
+                     </div>
+
+                     <div className="space-y-1.5">
+                       <label className="block text-[10px] font-mono uppercase text-gray-500 font-bold">Media Type</label>
+                       <select
+                         value={newMediaType}
+                         onChange={(e) => setNewMediaType(e.target.value as 'image' | 'video')}
+                         className="w-full bg-[#0d0d1a] border border-white/10 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-red-500"
+                         id="form_media_type_select"
+                       >
+                         <option value="image">Static Image</option>
+                         <option value="video">Interactive Video</option>
+                       </select>
+                     </div>
                   </div>
 
                   {/* Interconnected Metric Auditor Array builder */}

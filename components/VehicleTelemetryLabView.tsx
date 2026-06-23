@@ -121,7 +121,14 @@ export const VehicleTelemetryLabView: React.FC<LabComponentProps> = ({
         {/* Real-Time Gauges */}
         <div className="lg:col-span-8 flex flex-col gap-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="aero-panel bg-black/80 border-4 border-black p-8 flex flex-col items-center justify-center relative overflow-hidden shadow-[12px_12px_0_0_#000]">
+                <div 
+                    className="aero-panel bg-black/80 border-4 border-black p-8 flex flex-col items-center justify-center relative overflow-hidden shadow-[12px_12px_0_0_#000]"
+                    style={{
+                        '--circuit-color-base': 'rgba(6, 182, 212, 0.1)',
+                        '--circuit-color-glow': 'rgba(6, 182, 212, 0.15)',
+                        '--circuit-color-spark': 'rgba(34, 211, 238, 0.5)',
+                    } as React.CSSProperties}
+                >
                     <GaugeIcon className="absolute -right-4 -bottom-4 w-32 h-32 opacity-5 text-cyan-500" />
                     <p className="text-[10px] text-cyan-900 font-black uppercase tracking-[0.5em] mb-4">Rotational Resonance</p>
                     <div className="text-8xl font-black text-white wisdom-glow tracking-tighter leading-none">
@@ -132,7 +139,14 @@ export const VehicleTelemetryLabView: React.FC<LabComponentProps> = ({
                     </div>
                 </div>
 
-                <div className="aero-panel bg-black/80 border-4 border-black p-8 flex flex-col items-center justify-center relative overflow-hidden shadow-[12px_12px_0_0_#000]">
+                <div 
+                    className="aero-panel bg-black/80 border-4 border-black p-8 flex flex-col items-center justify-center relative overflow-hidden shadow-[12px_12px_0_0_#000]"
+                    style={{
+                        '--circuit-color-base': 'rgba(16, 185, 129, 0.1)',
+                        '--circuit-color-glow': 'rgba(16, 185, 129, 0.15)',
+                        '--circuit-color-spark': 'rgba(52, 211, 153, 0.5)',
+                    } as React.CSSProperties}
+                >
                     <SignalIcon className="absolute -right-4 -bottom-4 w-32 h-32 opacity-5 text-green-500" />
                     <p className="text-[10px] text-green-900 font-black uppercase tracking-[0.5em] mb-4">Kinetic Velocity</p>
                     <div className="text-8xl font-black text-white wisdom-glow tracking-tighter leading-none">

@@ -53,7 +53,7 @@ export const EnlightenmentPoolView: React.FC = () => {
 
             const response = await callWithRetry(async () => {
                 return await ai.models.generateContent({
-                    model: 'gemini-3-pro-preview',
+                    model: 'gemini-3.5-flash',
                     contents: prompt,
                     config: {
                         responseMimeType: "application/json",

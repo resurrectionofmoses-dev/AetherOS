@@ -114,6 +114,16 @@ const SYSTEM_MANDATES = [
 
 export const BluetoothSpecBridge: React.FC = () => {
     const [selectedProtocol, setSelectedProtocol] = useState<BluetoothProtocol>(PROTOCOLS[0]);
+    
+    // Stateful implementation mapping for all protocols to support dynamic alignment patches
+    const [protocolConstraintsMap, setProtocolConstraintsMap] = useState<Record<string, string[]>>(() => {
+        const initialMap: Record<string, string[]> = {};
+        PROTOCOLS.forEach(p => {
+            initialMap[p.id] = [...p.designConstraints];
+        });
+        return initialMap;
+    });
+
     const [designRequirements, setDesignRequirements] = useState(SYSTEM_MANDATES.join('\n'));
     const [blueprint, setBlueprint] = useState<BluetoothBlueprint | null>(null);
     const [isGenerating, setIsGenerating] = useState(false);
@@ -132,6 +142,70 @@ export const BluetoothSpecBridge: React.FC = () => {
 
     const logEndRef = useRef<HTMLDivElement>(null);
 
+    const playSystemWarningSynth = (frequency: number, type: OscillatorType, duration: number) => {
+        try {
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.type = type;
+            osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+            
+            gain.gain.setValueAtTime(0.08, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start();
+            osc.stop(ctx.currentTime + duration);
+        } catch (e) {
+            console.warn(e);
+        }
+    };
+
+    const handleToggleMandate = (mandate: string) => {
+        const currentConstraints = protocolConstraintsMap[selectedProtocol.id] || [];
+        const isMet = currentConstraints.includes(mandate);
+        let updated: string[];
+        if (isMet) {
+            updated = currentConstraints.filter(m => m !== mandate);
+            playSystemWarningSynth(330, 'triangle', 0.12);
+            addLog(`[DE-PROVISION] Terminated constraint: ${mandate}`, 'text-zinc-500');
+        } else {
+            updated = [...currentConstraints, mandate];
+            playSystemWarningSynth(523.25, 'sine', 0.15);
+            addLog(`[PROVISION] Integrated constraint: ${mandate}`, 'text-blue-400');
+        }
+        setProtocolConstraintsMap(prev => ({
+            ...prev,
+            [selectedProtocol.id]: updated
+        }));
+    };
+
+    const handleForceAlignment = () => {
+        const currentConstraints = protocolConstraintsMap[selectedProtocol.id] || [];
+        const updated = Array.from(new Set([...currentConstraints, ...SYSTEM_MANDATES]));
+        
+        setProtocolConstraintsMap(prev => ({
+            ...prev,
+            [selectedProtocol.id]: updated
+        }));
+        
+        playSystemWarningSynth(587.33, 'sine', 0.15); // D5
+        setTimeout(() => {
+            playSystemWarningSynth(659.25, 'sine', 0.15); // E5
+            setTimeout(() => {
+                playSystemWarningSynth(880, 'sine', 0.3); // A5
+            }, 80);
+        }, 80);
+        
+        addLog(`[PATCH] Enforcing all core system security mandates on ${selectedProtocol.name}...`, 'text-amber-400');
+        addLog(`[SUCCESS] Encryption, Connection Latency, PAwR, LE Security Mode, and Database Caching patched!`, 'text-green-400');
+    };
+
     const filteredProtocols = useMemo(() => {
         return PROTOCOLS.filter(p => {
             const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -144,16 +218,17 @@ export const BluetoothSpecBridge: React.FC = () => {
     useEffect(() => {
         setComplianceStatus('CHECKING');
         const timer = setTimeout(() => {
-            const isCompliant = SYSTEM_MANDATES.every(m => selectedProtocol.designConstraints.includes(m));
+            const currentConstraints = protocolConstraintsMap[selectedProtocol.id] || [];
+            const isCompliant = SYSTEM_MANDATES.every(m => currentConstraints.includes(m));
             setComplianceStatus(isCompliant ? 'COMPLIANT' : 'NON_COMPLIANT');
             if (isCompliant) {
-                addLog(`[COMPLIANCE] Protocol ${selectedProtocol.name} meets all security mandates.`, 'text-green-400');
+                addLog(`[COMPLIANCE] Protocol ${selectedProtocol.name} fully aligns with core network covenants.`, 'text-green-400');
             } else {
-                addLog(`[COMPLIANCE] Protocol ${selectedProtocol.name} fails security mandates.`, 'text-red-500');
+                addLog(`[COMPLIANCE] Protocol ${selectedProtocol.name} misses key security requirements.`, 'text-red-500 font-bold');
             }
-        }, 500);
+        }, 350);
         return () => clearTimeout(timer);
-    }, [selectedProtocol]);
+    }, [selectedProtocol, protocolConstraintsMap]);
 
     useEffect(() => {
         if (!selectedProtocol || !filteredProtocols.find(p => p.id === selectedProtocol.id)) {
@@ -271,7 +346,7 @@ export const BluetoothSpecBridge: React.FC = () => {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div className="lg:col-span-4 space-y-8">
                         {/* Compliance Panel */}
-                        <div className={`aero-panel p-6 border-2 shadow-2xl space-y-4 transition-all duration-500 ${complianceStatus === 'COMPLIANT' ? 'bg-green-950/10 border-green-600/30' : 'bg-red-950/10 border-red-600/30'}`}>
+                        <div className={`aero-panel p-6 border-2 shadow-2xl space-y-4 transition-all duration-500 ${complianceStatus === 'COMPLIANT' ? 'bg-green-950/25 border-green-600/50' : 'bg-red-950/25 border-red-600/50'}`}>
                             <div className="flex justify-between items-center">
                                 <h3 className={`font-comic-header text-2xl uppercase italic tracking-tight flex items-center gap-2 ${complianceStatus === 'COMPLIANT' ? 'text-green-500' : 'text-red-500'}`}>
                                     <ShieldIcon className="w-5 h-5" /> Security Mandates
@@ -286,15 +361,41 @@ export const BluetoothSpecBridge: React.FC = () => {
                             </div>
                             <div className="space-y-2">
                                 {SYSTEM_MANDATES.map((mandate, i) => {
-                                    const isMet = selectedProtocol.designConstraints.includes(mandate);
+                                    const currentConstraints = protocolConstraintsMap[selectedProtocol.id] || [];
+                                    const isMet = currentConstraints.includes(mandate);
                                     return (
-                                        <div key={i} className={`flex items-center gap-3 p-2 rounded-lg border ${isMet ? 'bg-green-950/20 border-green-900/30' : 'bg-red-950/20 border-red-900/30'}`}>
-                                            {isMet ? <CheckCircleIcon className="w-3 h-3 text-green-500 flex-shrink-0" /> : <XIcon className="w-3 h-3 text-red-500 flex-shrink-0" />}
-                                            <span className={`text-[9px] font-black uppercase ${isMet ? 'text-green-400' : 'text-red-400'}`}>{mandate}</span>
-                                        </div>
+                                        <button
+                                            key={i}
+                                            onClick={() => handleToggleMandate(mandate)}
+                                            className={`w-full text-left flex items-center justify-between p-2.5 rounded-lg border transition-all hover:bg-black/80 group/mandate ${isMet ? 'bg-green-950/20 border-green-900/30 text-green-400 hover:border-green-500/50' : 'bg-red-950/20 border-red-900/30 text-red-400 hover:border-red-500/50'}`}
+                                            id={`toggle-mandate-${i}`}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                {isMet ? (
+                                                    <CheckCircleIcon className="w-3.5 h-3.5 text-green-500 flex-shrink-0 group-hover/mandate:scale-110 transition-transform" />
+                                                ) : (
+                                                    <XIcon className="w-3.5 h-3.5 text-red-500 flex-shrink-0 group-hover/mandate:scale-110 transition-transform" />
+                                                )}
+                                                <span className="text-[10px] font-black uppercase tracking-tight">{mandate}</span>
+                                            </div>
+                                            <span className="text-[7.5px] px-1.5 py-0.5 bg-black/60 rounded text-zinc-500 font-mono uppercase group-hover/mandate:text-white transition-colors">
+                                                {isMet ? 'Active' : 'Deploy'}
+                                            </span>
+                                        </button>
                                     );
                                 })}
                             </div>
+
+                            {complianceStatus === 'NON_COMPLIANT' && (
+                                <button
+                                    onClick={handleForceAlignment}
+                                    className="w-full mt-4 py-3 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-black border-2 border-black font-black text-xs uppercase rounded-xl tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer animate-pulse shadow-lg active:scale-95"
+                                    id="force-rigid-alignment-btn"
+                                >
+                                    <ZapIcon className="w-4 h-4 text-black animate-bounce" />
+                                    FORCE RIGID ALIGNMENT
+                                </button>
+                            )}
                         </div>
 
                         {/* Filters & Protocols */}
@@ -428,12 +529,15 @@ export const BluetoothSpecBridge: React.FC = () => {
                                         <ShieldIcon className="w-4 h-4" /> Design Constraints
                                     </h4>
                                     <div className="space-y-2">
-                                        {selectedProtocol.designConstraints.map((constraint, i) => (
-                                            <div key={i} className={`p-3 bg-black/40 border-2 rounded-xl flex items-center gap-3 ${constraint.includes('Mandatory') || constraint.includes('< 10ms') || constraint.includes('< 15ms') ? 'border-red-600 bg-red-950/10' : 'border-white/5'}`}>
-                                                {constraint.includes('Mandatory') ? <ZapIcon className="w-4 h-4 text-red-500" /> : <CheckCircleIcon className="w-4 h-4 text-amber-600" />}
-                                                <span className={`text-[10px] font-black uppercase ${constraint.includes('Mandatory') ? 'text-red-500' : 'text-gray-300'}`}>{constraint}</span>
-                                            </div>
-                                        ))}
+                                        {(protocolConstraintsMap[selectedProtocol.id] || []).map((constraint, i) => {
+                                            const isMandate = SYSTEM_MANDATES.includes(constraint) || constraint.includes('Mandatory') || constraint.includes('< 10ms') || constraint.includes('< 15ms');
+                                            return (
+                                                <div key={i} className={`p-3 bg-black/40 border-2 rounded-xl flex items-center gap-3 transition-colors ${isMandate ? 'border-red-900 bg-red-950/10' : 'border-white/5'}`}>
+                                                    {isMandate ? <ZapIcon className="w-4 h-4 text-red-500 animate-pulse" /> : <CheckCircleIcon className="w-4 h-4 text-amber-600" />}
+                                                    <span className={`text-[10px] font-black uppercase ${isMandate ? 'text-red-400' : 'text-gray-300'}`}>{constraint}</span>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             </div>

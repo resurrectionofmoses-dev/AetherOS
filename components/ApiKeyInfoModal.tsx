@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldIcon, BrainIcon, CodeIcon, ZapIcon } from './icons';
+import { AndroidTransition } from './AndroidTransition';
 
 interface ApiKeyInfoModalProps {
     isOpen: boolean;
@@ -11,7 +12,7 @@ export const ApiKeyInfoModal: React.FC<ApiKeyInfoModalProps> = ({ isOpen, onClos
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 font-mono">
-            <div className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
+            <AndroidTransition type="abc_popup_enter" className="bg-zinc-950 border border-zinc-800 rounded-xl shadow-2xl max-w-lg w-full overflow-hidden flex flex-col">
                 <div className="p-4 border-b border-zinc-800 flex items-center justify-between bg-zinc-900/50">
                     <div className="flex items-center gap-3">
                         <ShieldIcon className="w-5 h-5 text-blue-500" />
@@ -77,7 +78,7 @@ export const ApiKeyInfoModal: React.FC<ApiKeyInfoModalProps> = ({ isOpen, onClos
                         Acknowledge
                     </button>
                 </div>
-            </div>
+            </AndroidTransition>
         </div>
     );
 };

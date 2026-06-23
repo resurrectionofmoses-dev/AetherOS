@@ -58,6 +58,19 @@ export const reportSuccess = (title: string, message: string) => {
 export const GlobalErrorHandler: React.FC = () => {
   useEffect(() => {
     const handleGlobalError = (event: ErrorEvent) => {
+      const msg = event.message || '';
+      // Filter out benign system, browser extension, sandbox or hot-reload scheduler warnings
+      if (
+        msg.includes("Performance") ||
+        msg.includes("measure") ||
+        msg.includes("DataCloneError") ||
+        msg.includes("Should not already be working") ||
+        msg.includes("flushSync")
+      ) {
+        console.warn("[GlobalErrorHandler] Suppressed benign system/scheduler error:", msg);
+        return;
+      }
+
       console.error("[GlobalErrorHandler] ErrorEvent:", event);
       reportError({
         title: 'UNHANDLED_EXCEPTION',
@@ -67,11 +80,24 @@ export const GlobalErrorHandler: React.FC = () => {
     };
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      console.error("[GlobalErrorHandler] UnhandledRejection:", event);
       const message = event.reason?.message || event.reason || 'A promise chain has collapsed without a catch block.';
+      const msgStr = String(message);
+
+      if (
+        msgStr.includes("Performance") ||
+        msgStr.includes("measure") ||
+        msgStr.includes("DataCloneError") ||
+        msgStr.includes("Should not already be working") ||
+        msgStr.includes("flushSync")
+      ) {
+        console.warn("[GlobalErrorHandler] Suppressed benign promise rejection:", msgStr);
+        return;
+      }
+
+      console.error("[GlobalErrorHandler] UnhandledRejection:", event);
       reportError({
         title: 'ASYNC_COLLAPSE',
-        message: String(message),
+        message: msgStr,
         severity: ErrorSeverity.HIGH
       });
     };

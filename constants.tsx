@@ -7,7 +7,8 @@ import {
     ServerIcon, UserIcon, TerminalIcon, ForgeIcon, RulesIcon,
     FireIcon, ClockIcon, EyeIcon, OptimizerIcon, VaultIcon,
     GavelIcon, WrenchIcon, BroadcastIcon, ShareIcon, FlagIcon, ZapIcon,
-    MessageCircleIcon, BookIcon, AtomIcon, ConfusionIcon, ThumbsUpIcon, TagIcon, DatabaseIcon
+    MessageCircleIcon, BookIcon, AtomIcon, ConfusionIcon, ThumbsUpIcon, TagIcon, DatabaseIcon,
+    MovieIcon
 } from './components/icons';
 
 export interface NavItem {
@@ -28,6 +29,8 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
       path: 'root://coding_network',
       items: [
           { view: 'chat', text: 'NEURAL NEXUS', icon: BrainIcon },
+          { view: 'cascade_investigator' as any, text: 'CASCADE INVESTIGATOR', icon: CodeIcon },
+          { view: 'ai_telemetry' as any, text: 'AI OPENTELEMETRY', icon: ActivityIcon },
           { view: 'constraints_audit' as any, text: 'CONSTRAINTS AUDIT', icon: SearchIcon },
           { view: 'voice_authority' as any, text: 'VOICE AUTHORITY', icon: SpeakerIcon },
           { view: 'cellular_grid' as any, text: 'CELLULAR GRID', icon: ActivityIcon },
@@ -57,6 +60,7 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
       path: 'root://os/kernel',
       items: [
           { view: 'system_exhaustion', text: 'TOTAL EXHAUSTION', icon: FireIcon },
+          { view: 'labs_flow' as any, text: 'SOVEREIGN LABS FLOW', icon: TerminalIcon },
           { view: 'project_chronos', text: 'PROJECT CHRONOS', icon: ClockIcon },
           { view: 'build_logs', text: 'BUILD LOGS', icon: TerminalIcon },
           { view: 'rt_ipc_lab', text: 'RT-IPC LAB', icon: SignalIcon },
@@ -69,6 +73,7 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
           { view: 'healing_matrix', text: 'HEALING MATRIX', icon: FireIcon },
           { view: 'laws_justice_lab', text: 'LAWS & JUSTICE', icon: GavelIcon },
           { view: 'live_patch_obs' as any, text: 'LIVE PATCH OBS', icon: ZapIcon },
+          { view: 'inevitable_crash', text: 'INEVITABLE CRASH', icon: ActivityIcon },
           { view: 'blacklist' as any, text: 'SOVEREIGN BLACKLIST', icon: FlagIcon },
           { view: 'requindor_scroll', text: 'REQUINDOR SCROLL', icon: ActivityIcon },
           { view: 'omni_builder', text: 'OMNI BUILDER', icon: ForgeIcon },
@@ -79,9 +84,13 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
           { view: 'eurodemux_core' as any, text: 'EURODEMUX CORE', icon: ServerIcon },
           { view: 'confusion_logic', text: 'CONFUSION LOGIC', icon: ConfusionIcon },
           { view: 'blockchain_history', text: 'BLOCKCHAIN HISTORY', icon: DatabaseIcon },
+          { view: 'quantum_ledger' as any, text: 'QUANTUM LEDGER', icon: AtomIcon },
           { view: 'main_net' as any, text: 'MAIN NET', icon: ActivityIcon },
           { view: 'ecosystem' as any, text: 'ECOSYSTEM', icon: GlobeIcon },
+          { view: 'scraper_merchant_store' as any, text: 'SCRAPER MERCHANT STORE', icon: DatabaseIcon },
+          { view: 'data_academy' as any, text: 'THE DATA ACADEMY', icon: BookIcon },
           { view: 'knowledge_forum', text: 'KNOWLEDGE EXCHANGE', icon: MessageCircleIcon },
+          { view: 'cph_hub', text: 'PROCESSING HUB', icon: ServerIcon },
           { view: 'vehicle_management', text: 'GARAGE PROTOCOL', icon: ServerIcon },
           { view: 'communications', text: 'SIGNAL BRIDGE', icon: BroadcastIcon },
           { view: 'up_north', text: 'UP NORTH PROTOCOL', icon: ShieldIcon },
@@ -90,6 +99,7 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
           { view: 'launch_center', text: 'LAUNCH CENTER', icon: FlagIcon },
           { view: 'eliza_terminal', text: 'ELIZA LOGIC', icon: MessageCircleIcon },
           { view: 'moderator_lounge', text: 'MODERATOR LOUNGE', icon: ShieldIcon },
+          { view: 'pornography_studio', text: 'PORNOGRAPHY STUDIO', icon: MovieIcon },
       ]
   }
 ];

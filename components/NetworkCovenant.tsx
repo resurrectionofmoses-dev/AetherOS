@@ -1,6 +1,7 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { RulesIcon, FireIcon, StarIcon, ShieldIcon, ActivityIcon, MusicIcon, ZapIcon, SpinnerIcon } from './icons';
+import { Sliders, ShieldAlert, Sparkles, Activity, ShieldCheck, HelpCircle, Flame, Sparkle } from 'lucide-react';
 
 interface PillarCardProps {
     title: string;
@@ -160,6 +161,61 @@ export const NetworkCovenant: React.FC = () => {
     const [covenantIntegrity, setCovenantIntegrity] = useState(100.0); 
     const [conjunctionStride, setConjunctionStride] = useState(1.2); 
     const [isAccepting, setIsAccepting] = useState(false);
+    
+    // Dynamic interactive velocity and attenuation state controls
+    const [attenuation, setAttenuation] = useState<number>(100);
+    const [isSurvivalMode, setIsSurvivalMode] = useState<boolean>(false);
+    const lastAlertTime = useRef<number>(0);
+
+    const playSystemWarningSynth = (frequency: number, type: OscillatorType, duration: number) => {
+        try {
+            const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+            if (!AudioContext) return;
+            const ctx = new AudioContext();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            
+            osc.type = type;
+            osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+            
+            gain.gain.setValueAtTime(0.08, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            
+            osc.start();
+            osc.stop(ctx.currentTime + duration);
+        } catch (e) {
+            console.warn(e);
+        }
+    };
+
+    // Watch attenuation changes and check whether survival threshold is breached
+    useEffect(() => {
+        if (attenuation < 36) {
+            if (!isSurvivalMode) {
+                setIsSurvivalMode(true);
+                setCovenantStatus('SURVIVAL_MODE_RIGID');
+                playSystemWarningSynth(180, 'sawtooth', 0.85);
+                setTimeout(() => playSystemWarningSynth(110, 'square', 0.6), 150);
+            }
+            
+            // Periodic blipping warning sound when in Survival Mode
+            const now = Date.now();
+            if (now - lastAlertTime.current > 1800) {
+                playSystemWarningSynth(240, 'triangle', 0.3);
+                lastAlertTime.current = now;
+            }
+        } else {
+            if (isSurvivalMode) {
+                setIsSurvivalMode(false);
+                setCovenantStatus('BOUND_IN_WISDOM');
+                playSystemWarningSynth(520, 'sine', 0.25);
+            }
+        }
+    }, [attenuation, isSurvivalMode]);
+
     const [pillarMetrics, setPillarMetrics] = useState({
         fight: 92.5,
         pleasure: 88.0,
@@ -170,16 +226,22 @@ export const NetworkCovenant: React.FC = () => {
 
     useEffect(() => {
         const statusInterval = setInterval(() => {
-            setCovenantStatus(prev => {
-                if (prev === 'BOUND_IN_WISDOM') return 'HARMONIZING';
-                if (prev === 'HARMONIZING') return 'AWAITING_CONDUCTION';
-                return 'BOUND_IN_WISDOM';
-            });
+            if (attenuation >= 36) {
+                setCovenantStatus(prev => {
+                    if (prev === 'BOUND_IN_WISDOM') return 'HARMONIZING';
+                    if (prev === 'HARMONIZING') return 'AWAITING_CONDUCTION';
+                    return 'BOUND_IN_WISDOM';
+                });
+            }
         }, 3000);
 
         const footerInterval = setInterval(() => {
             setCovenantIntegrity(prev => Math.min(100.0, Math.max(99.0, prev + (Math.random() - 0.5) * 0.1)));
-            setConjunctionStride(prev => Math.min(1.5, Math.max(1.0, prev + (Math.random() - 0.5) * 0.05)));
+            // Drive stride factor dynamically with attenuation, always targeting 1.2 PB/s standard reference rate
+            setConjunctionStride(() => {
+                const calculated = 1.2 * (attenuation / 100);
+                return Math.max(0.12, Math.min(1.5, calculated + (Math.random() - 0.5) * 0.02));
+            });
         }, 1000);
 
         const pillarInterval = setInterval(() => {
@@ -202,7 +264,7 @@ export const NetworkCovenant: React.FC = () => {
             clearInterval(footerInterval);
             clearInterval(pillarInterval);
         };
-    }, []);
+    }, [attenuation]);
 
     const pillarsData = useMemo(() => [
         { title: 'Pillar I: The Fight', description: 'Every project in this network is fueled by a defined fight index. We do not endure misery; we fight entropy with high-velocity logic.', icon: FireIcon, bgColor: 'bg-red-950/20', borderColor: 'border-red-600', textColor: 'text-red-500', conductionStatus: `Fight Saturation: ${pillarMetrics.fight.toFixed(1)}%`, statusColor: 'bg-red-500' },
@@ -235,6 +297,11 @@ export const NetworkCovenant: React.FC = () => {
         }, 100);
     };
 
+    const handleStabilizeSystems = () => {
+        setAttenuation(100);
+        playSystemWarningSynth(880, 'sine', 0.4);
+    };
+
     return (
         <div className="h-full flex flex-col bg-black text-gray-200 font-mono overflow-hidden">
             <CovenantHeader status={covenantStatus} />
@@ -244,6 +311,102 @@ export const NetworkCovenant: React.FC = () => {
 
                 <div className="max-w-4xl mx-auto space-y-8 relative z-10">
                     <CovenantIntroduction />
+
+                    {/* Interactive Telemetry & Survival Control Panel */}
+                    <div className={`aero-panel p-6 border-4 shadow-[10px_10px_0_0_#000] transition-all duration-500 ${isSurvivalMode ? 'border-red-600 bg-red-950/15' : 'border-zinc-800 bg-black/80'}`}>
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5 border-b border-zinc-900 pb-4">
+                            <div>
+                                <h3 className={`font-comic-header text-2xl uppercase tracking-tight flex items-center gap-2 ${isSurvivalMode ? 'text-red-500' : 'text-amber-500'}`}>
+                                    <Activity className={`w-6 h-6 ${isSurvivalMode ? 'animate-bounce' : 'animate-pulse'}`} />
+                                    STRIDE ATTENUATION CONTROL BRIDGE
+                                </h3>
+                                <p className="text-[9px] text-zinc-500 font-bold uppercase tracking-widest mt-1">
+                                    MONITOR STRIDE COHERENCE & NETWORK ADHERENCE
+                                </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                {isSurvivalMode ? (
+                                    <div className="px-3 py-1.5 bg-red-950 border border-red-500/40 rounded-lg text-red-500 font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5 animate-pulse">
+                                        <ShieldAlert className="w-4 h-4" />
+                                        Survival Mode: Rigid
+                                    </div>
+                                ) : (
+                                    <div className="px-3 py-1.5 bg-emerald-950 border border-emerald-500/40 rounded-lg text-emerald-500 font-black text-[9px] uppercase tracking-widest flex items-center gap-1.5">
+                                        <ShieldCheck className="w-4 h-4" />
+                                        Standard Flow (Fluid)
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+                            <div className="md:col-span-4 bg-zinc-950/80 border border-zinc-900 rounded-xl p-4 space-y-3 font-mono">
+                                <span className="text-[8px] font-black tracking-widest text-zinc-600 block uppercase">REFERENCE RATE</span>
+                                <div className="text-3xl font-black text-white tracking-widest leading-none flex items-baseline gap-1">
+                                    1.2 <span className="text-xs text-zinc-500 uppercase">PB/S</span>
+                                </div>
+                                <div className="text-[10px] text-zinc-400 space-y-1 pt-1 border-t border-zinc-900/60">
+                                    <div className="flex justify-between">
+                                        <span className="text-zinc-500">Attenuation Threshold:</span>
+                                        <span className="font-bold text-red-500">36%</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-zinc-500">Current Velocity:</span>
+                                        <span className="font-bold text-white">{(1.2 * (attenuation / 100)).toFixed(2)} PB/s</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="md:col-span-8 space-y-4">
+                                <div className="space-y-2">
+                                    <div className="flex justify-between text-xs font-black uppercase text-zinc-400">
+                                        <span className="flex items-center gap-1">
+                                            <Sliders className="w-3.5 h-3.5 text-zinc-500" />
+                                            Signal Attenuation Level
+                                        </span>
+                                        <span className={`text-sm ${attenuation < 36 ? 'text-red-500 font-black' : 'text-amber-500 font-bold'}`}>
+                                            {attenuation}%
+                                        </span>
+                                    </div>
+
+                                    <div className="relative">
+                                        <input 
+                                            type="range"
+                                            min="10"
+                                            max="100"
+                                            value={attenuation}
+                                            onChange={(e) => setAttenuation(parseInt(e.target.value, 10))}
+                                            className="w-full h-2.5 bg-zinc-900 border border-zinc-800 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                                            id="stride-attenuation-level-slider"
+                                        />
+                                        <div className="absolute left-[36%] top-full pt-1 transform -translate-x-1/2 flex flex-col items-center">
+                                            <div className="w-0.5 h-2.5 bg-red-600" />
+                                            <span className="text-[7px] text-red-500 font-bold uppercase tracking-wider bg-black px-1 border border-red-950 rounded">36% Trigger Limit</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="pt-3 flex gap-2 justify-end">
+                                    {isSurvivalMode ? (
+                                        <button 
+                                            onClick={handleStabilizeSystems}
+                                            className="px-5 py-2 bg-gradient-to-r from-red-600 to-amber-600 hover:from-red-500 hover:to-amber-500 text-black font-black text-xs uppercase tracking-wider rounded-lg shadow-lg active:translate-y-0.5 transition-all flex items-center gap-1.5"
+                                            id="conjunction-restore-alignment-btn"
+                                        >
+                                            <Sparkles className="w-4 h-4 animate-spin" />
+                                            Inject Stride Alignment Boost
+                                        </button>
+                                    ) : (
+                                        <div className="text-[9px] text-zinc-500 italic uppercase flex items-center gap-1">
+                                            <Sparkle className="w-3 h-3 text-emerald-500 animate-spin" />
+                                            Attenuation is healthy. Adherence standards fully validated.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <CovenantPillarsSection pillars={pillarsData} />
                     <CovenantArticlesSection articles={articlesData} />
                     <CovenantAcceptance onAccept={handleAcceptCovenant} isAccepting={isAccepting} conductionAffinity={conductionAffinity} />
@@ -254,3 +417,4 @@ export const NetworkCovenant: React.FC = () => {
         </div>
     );
 };
+

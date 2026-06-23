@@ -91,10 +91,10 @@ export const DataProvenanceLab: React.FC = () => {
           </div>
           <div>
             <h2 className="font-comic-header text-5xl text-white tracking-tighter italic leading-none uppercase">Data Provenance Lab</h2>
-            <p className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.4em] mt-1 italic flex items-center gap-2">
+            <div className="text-[10px] text-emerald-500 font-black uppercase tracking-[0.4em] mt-1 italic flex items-center gap-2">
                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
                Track Provenance, Labeling & Consent
-            </p>
+            </div>
           </div>
         </div>
       </div>

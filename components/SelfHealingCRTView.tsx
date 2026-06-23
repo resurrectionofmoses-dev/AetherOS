@@ -57,8 +57,21 @@ export const SelfHealingCRTView: React.FC = () => {
     }].slice(-50)); // Keep last 50 logs
   };
 
+  const isFirstCRTLogsRef = useRef(true);
+
   useEffect(() => {
-    if (logsEndRef.current) {
+    const element = logsEndRef.current;
+    if (element && element.parentElement) {
+      const container = element.parentElement;
+      const selection = window.getSelection();
+      const hasSelection = selection && selection.toString();
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 120;
+      
+      if (isFirstCRTLogsRef.current || (isNearBottom && !hasSelection)) {
+        element.scrollIntoView({ behavior: 'smooth' });
+        isFirstCRTLogsRef.current = false;
+      }
+    } else if (logsEndRef.current) {
       logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [logs]);

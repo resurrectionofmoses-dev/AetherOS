@@ -138,7 +138,7 @@ export const RoomOfPlayView: React.FC<RoomOfPlayViewProps> = ({ modules, onDelet
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-3.5-flash',
             contents: promptText,
             config: {
                 systemInstruction: "You are the Aether Maestro. Provide creative, conceptual descriptions of mixed software modules, focusing on synergy and new features. Use vivid, evocative language.",

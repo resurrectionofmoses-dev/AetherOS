@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import type { ArchiveEntry } from '../types';
 import { XIcon, WarningIcon } from './icons';
 
@@ -12,6 +12,8 @@ interface SystemArchivesProps {
 export const SystemArchives: React.FC<SystemArchivesProps> = ({ archives, onAddArchive, onDeleteArchive }) => {
   const [newTitle, setNewTitle] = useState('');
   const [newText, setNewText] = useState('');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [directivesOnTop, setDirectivesOnTop] = useState(true);
 
   const handleAddArchive = (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,6 +22,23 @@ export const SystemArchives: React.FC<SystemArchivesProps> = ({ archives, onAddA
     setNewTitle('');
     setNewText('');
   };
+
+  const sortedArchives = useMemo(() => {
+    return [...archives].sort((a, b) => {
+      if (directivesOnTop) {
+        const aDir = a.isDirective ? 1 : 0;
+        const bDir = b.isDirective ? 1 : 0;
+        if (aDir !== bDir) {
+          return bDir - aDir;
+        }
+      }
+      
+      const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+      const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+      
+      return sortOrder === 'desc' ? timeB - timeA : timeA - timeB;
+    });
+  }, [archives, sortOrder, directivesOnTop]);
 
   return (
     <div className="h-full flex flex-col bg-gray-900 rounded-lg">
@@ -66,14 +85,37 @@ export const SystemArchives: React.FC<SystemArchivesProps> = ({ archives, onAddA
         
         {/* Archive List */}
         <div className="flex-1 flex flex-col comic-panel bg-black/50 overflow-hidden">
-            <h3 className="font-comic-header text-2xl text-violet-300 border-b-2 border-black p-3">Saved Entries</h3>
+            <div className="border-b-2 border-black p-3 flex flex-wrap items-center justify-between gap-3 bg-gray-950/20">
+                <h3 className="font-comic-header text-2xl text-violet-300">Saved Entries</h3>
+                <div className="flex items-center gap-2">
+                    <button
+                        type="button"
+                        onClick={() => setDirectivesOnTop(!directivesOnTop)}
+                        className={`comic-button font-mono px-2.5 py-1 text-[10px] uppercase font-black transition-all ${
+                            directivesOnTop 
+                                ? 'bg-yellow-400 text-black border-black border-2 hover:bg-yellow-300' 
+                                : 'bg-gray-800 text-gray-400 border-black border-2 hover:bg-gray-700'
+                        }`}
+                        title="Show Core Directives before regular system archive logs"
+                    >
+                        Directives First: {directivesOnTop ? 'ON' : 'OFF'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+                        className="comic-button bg-violet-600 hover:bg-violet-500 text-white font-mono px-3 py-1 border-2 border-black text-[10px] font-black uppercase transition-all"
+                    >
+                        Sort: {sortOrder === 'desc' ? 'Newest ⬇' : 'Oldest ⬆'}
+                    </button>
+                </div>
+            </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                {archives.length === 0 ? (
+                {sortedArchives.length === 0 ? (
                     <div className="text-center text-gray-500 italic p-6">
                         No entries saved in the archive.
                     </div>
                 ) : (
-                    archives.sort((a,b) => (b.isDirective ? 1 : 0) - (a.isDirective ? 1 : 0) || b.timestamp.getTime() - a.timestamp.getTime()).map(entry => {
+                    sortedArchives.map(entry => {
                         const isDirective = entry.isDirective;
                         return (
                             <div key={entry.id} className={`bg-gray-800/50 rounded-lg border-2 p-3 fade-in ${isDirective ? 'border-yellow-400' : 'border-black'}`}>
@@ -94,7 +136,7 @@ export const SystemArchives: React.FC<SystemArchivesProps> = ({ archives, onAddA
                                     )}
                                 </div>
                                 <p className="text-sm text-gray-300 mt-2 mb-2 font-mono bg-black/30 p-2 rounded-md border border-black">{entry.text}</p>
-                                <p className="text-xs text-gray-500 text-right">Saved: {entry.timestamp.toLocaleString()}</p>
+                                <p className="text-xs text-gray-500 text-right">Saved: {entry.timestamp ? new Date(entry.timestamp).toLocaleString() : 'N/A'}</p>
                             </div>
                         )
                     })

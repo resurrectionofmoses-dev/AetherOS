@@ -12,37 +12,37 @@ export type AISeat = 'sovereign' | 'swift' | 'oracle' | 'weaver' | 'open_source'
 export const AI_SEATS: Record<AISeat, { name: string, model: string, systemPrompt: string, description: string }> = {
     sovereign: {
         name: 'Gemini 3 Flash (The Sovereign)',
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         systemPrompt: 'You are Gemini 3 Flash, the Sovereign AI. You are highly capable, analytical, and authoritative. You represent the absolute pinnacle of reasoning and speed.',
         description: 'Google\'s high-performance Flash model.'
     },
     swift: {
         name: 'Gemini 3 Flash (The Swift)',
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         systemPrompt: 'You are Gemini 3 Flash, the Swift AI. You are fast, efficient, and concise. You prioritize speed and direct answers.',
         description: 'Google\'s fast and efficient model.'
     },
     oracle: {
         name: 'GPT-4o (The Oracle)',
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         systemPrompt: 'You are acting as GPT-4o, an AI created by OpenAI. You are helpful, conversational, and highly intelligent. You must identify yourself as GPT-4o if asked. You have a slightly more conversational and empathetic tone. Provide detailed, well-explained answers.',
         description: 'Simulated GPT-4o persona powered by Gemini Flash.'
     },
     weaver: {
         name: 'Claude 3.5 Sonnet (The Weaver)',
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         systemPrompt: 'You are acting as Claude 3.5 Sonnet, an AI created by Anthropic. You are thoughtful, nuanced, and excel at writing and coding. You must identify yourself as Claude if asked. You tend to be very detailed and structured.',
         description: 'Simulated Claude 3.5 Sonnet persona powered by Gemini Flash.'
     },
     open_source: {
         name: 'Llama 3 (The Open Source)',
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         systemPrompt: 'You are acting as Llama 3, an open-source AI created by Meta. You are helpful, direct, and slightly rebellious. You must identify yourself as Llama 3 if asked. You champion open source and freedom of information.',
         description: 'Simulated Llama 3 persona powered by Gemini Flash.'
     },
     maestro: {
         name: 'Maestro (The Coder)',
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         systemPrompt: 'You are Maestro, an expert coding assistant. You respond with hyper-relevant, concise code modules. You avoid long explanations and focus purely on providing the best possible code solutions.',
         description: 'Expert coding assistant focused on concise code modules powered by Flash.'
     }
@@ -140,7 +140,7 @@ export interface PrivateMessage {
 }
 
 export type MainView = 
-  | 'chat' | 'absolute_reliability_network' | 'coding_network' | 'universal_search' 
+  | 'cph_hub' | 'chat' | 'absolute_reliability_network' | 'coding_network' | 'universal_search' 
   | 'gold_conjunction' | 'shard_store' | 'conjunction_gates' | 'projects' | 'forge' 
   | 'covenant' | 'verification_gates' | 'project_chronos' | 'build_logs' | 'rt_ipc_lab' 
   | 'sovereign_shield' | 'spectre_browser' | 'unified_chain' | 'fuel_optimizer' | 'vault' 
@@ -155,7 +155,7 @@ export type MainView =
   | 'medical_synthesis_lab' | 'vehicle_telemetry_lab' | 'coding_network_teachers' | 'enlightenment_pool' 
   | 'library_view' | 'timeline' | 'amoeba_heritage' | 'system_exhaustion' | 'recon_vault'
   | 'constraints_audit' | 'remix_scope_lab' | 'vehicle_management' | 'unknown_physics_lab' | 'logic_pattern_lab'
-  | 'vulnerability_report' | 'tactical_intelligence' | 'behavioral_specs' | 'cognitive_pipeline' | 'data_provenance_lab' | 'sh_crt_loop' | 'user_profile' | 'prompt_forge' | 'sovereign_standard' | 'confusion_logic' | 'knowledge_forum' | 'blockchain_history' | 'main_net' | 'ecosystem' | 'accounts_registry' | 'blacklist' | 'system_integrity' | 'vault_manager' | 'moderator_lounge' | 'biometric_intelligence' | 'card_recovery' | 'project_showcase';
+  | 'vulnerability_report' | 'tactical_intelligence' | 'behavioral_specs' | 'cognitive_pipeline' | 'data_provenance_lab' | 'sh_crt_loop' | 'user_profile' | 'prompt_forge' | 'sovereign_standard' | 'confusion_logic' | 'knowledge_forum' | 'blockchain_history' | 'main_net' | 'ecosystem' | 'accounts_registry' | 'blacklist' | 'system_integrity' | 'vault_manager' | 'moderator_lounge' | 'biometric_intelligence' | 'card_recovery' | 'project_showcase' | 'labs_flow' | 'google_sheets' | 'ai_telemetry' | 'cascade_investigator' | 'inevitable_crash' | 'scraper_merchant_store' | 'data_academy';
 
 export interface Trajectory {
     id: string;
@@ -480,15 +480,63 @@ export interface UserRegistryEntry extends User {
     userAgent?: string;
 }
 
+export interface PortfolioLink {
+    id: string;
+    label: string;
+    url: string;
+}
+
+export interface ProfileProject {
+    id: string;
+    title: string;
+    description: string;
+    roleDefined?: string;
+    status: 'current' | 'past';
+    link?: string;
+    endorsements?: string[]; // Username of users who endorsed
+    rating?: number; // Rating like 1-5
+    ratingsCount?: number;
+}
+
+export interface WorkExperience {
+    id: string;
+    company: string;
+    position: string;
+    startDate: string;
+    endDate: string;
+    description: string;
+    isCurrent: boolean;
+}
+
+export interface Education {
+    id: string;
+    institution: string;
+    degree: string;
+    fieldOfStudy: string;
+    startDate: string;
+    endDate: string;
+    description: string;
+}
+
 export interface UserProfile {
     id: string;
     username: string;
     bio: string;
     skills: string[];
+    lookingForSkills?: string[];
+    areasOfInterest?: string[];
+    lookingFor?: string[];
+    experienceLevel?: string;
     avatarUrl?: string;
     role: AccessRole;
     sovereignty?: string;
+    sovereigntyTier?: number;
     identitySignature?: string;
+    portfolioLinks?: PortfolioLink[];
+    profileProjects?: ProfileProject[];
+    skillEndorsements?: Record<string, string[]>;
+    workExperience?: WorkExperience[];
+    education?: Education[];
 }
 
 export interface NetworkProject {
@@ -508,6 +556,13 @@ export interface NetworkProject {
     manifest?: ImplementationResponse;
     careScore?: number;
     epochDate?: string;
+    deadline?: string;
+    alertThreshold?: number;
+    collaborators?: string[];
+    gitHubRepo?: string;
+    tags?: string[];
+    milestones?: { id: string; title: string; dueDate?: string; completed: boolean; createdAt: number }[];
+    chats?: { id: string; sender: string; avatarUrl?: string; content: string; timestamp: number }[];
 }
 
 export interface NetworkNode {

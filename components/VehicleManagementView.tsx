@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Vehicle } from '../types';
 import { ShieldIcon, ServerIcon, ActivityIcon, WrenchIcon, PlusIcon, TrashIcon, CheckIcon } from './icons';
+import { EngineTuningInterface } from './EngineTuningInterface';
 
 interface VehicleManagementViewProps {
     vehicles: Vehicle[];
@@ -9,6 +10,7 @@ interface VehicleManagementViewProps {
     onUpdateVehicle: (vehicle: Vehicle) => void;
     onDeleteVehicle: (id: string) => void;
     onSetActiveVehicle: (id: string) => void;
+    availableCPH?: number;
 }
 
 export const VehicleManagementView: React.FC<VehicleManagementViewProps> = ({
@@ -16,7 +18,8 @@ export const VehicleManagementView: React.FC<VehicleManagementViewProps> = ({
     onAddVehicle,
     onUpdateVehicle,
     onDeleteVehicle,
-    onSetActiveVehicle
+    onSetActiveVehicle,
+    availableCPH = 715
 }) => {
     const [isAdding, setIsAdding] = useState(false);
     const [newMake, setNewMake] = useState('');
@@ -265,8 +268,8 @@ export const VehicleManagementView: React.FC<VehicleManagementViewProps> = ({
             </div>
 
             {selectedVehicle && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-                    <div className="bg-black border-2 border-green-500/50 rounded-xl shadow-[0_0_30px_rgba(0,255,128,0.2)] max-w-2xl w-full overflow-hidden flex flex-col">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 overflow-y-auto">
+                    <div className="bg-black border-2 border-green-500/50 rounded-xl shadow-[0_0_30px_rgba(0,255,128,0.2)] max-w-5xl w-full overflow-hidden flex flex-col my-8">
                         <div className="p-6 border-b border-green-900/50 flex justify-between items-center bg-green-950/20">
                             <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 bg-green-600/10 border border-green-600 rounded-lg flex items-center justify-center">
@@ -276,7 +279,7 @@ export const VehicleManagementView: React.FC<VehicleManagementViewProps> = ({
                                     <h2 className="text-2xl font-black text-white uppercase tracking-tight">
                                         {selectedVehicle.year} {selectedVehicle.make} {selectedVehicle.model}
                                     </h2>
-                                    <p className="text-green-400 text-xs font-bold uppercase tracking-wider">Detailed Telemetry</p>
+                                    <p className="text-green-400 text-xs font-bold uppercase tracking-wider">ROM Modification Protocol</p>
                                 </div>
                             </div>
                             <button 
@@ -287,8 +290,8 @@ export const VehicleManagementView: React.FC<VehicleManagementViewProps> = ({
                             </button>
                         </div>
                         
-                        <div className="p-6 overflow-y-auto custom-scrollbar space-y-8">
-                            <div className="grid grid-cols-2 gap-6">
+                        <div className="p-6 overflow-y-auto custom-scrollbar space-y-8 max-h-[70vh]">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-4">
                                     <h3 className="text-sm font-black text-green-500 uppercase tracking-widest border-b border-green-900/30 pb-2">Identification</h3>
                                     <div className="space-y-2">
@@ -337,7 +340,7 @@ export const VehicleManagementView: React.FC<VehicleManagementViewProps> = ({
                             
                             <div className="space-y-4">
                                 <h3 className="text-sm font-black text-green-500 uppercase tracking-widest border-b border-green-900/30 pb-2">Live Telemetry</h3>
-                                <div className="grid grid-cols-3 gap-4">
+                                <div className="grid grid-cols-3 gap-4 pb-4">
                                     <div className="bg-black/40 border border-green-900/30 rounded-lg p-4 flex flex-col items-center justify-center">
                                         <span className="text-2xl font-black text-white">0</span>
                                         <span className="text-[10px] text-green-500 uppercase tracking-widest mt-1">MPH</span>
@@ -351,6 +354,15 @@ export const VehicleManagementView: React.FC<VehicleManagementViewProps> = ({
                                         <span className="text-[10px] text-green-500 uppercase tracking-widest mt-1">°F TEMP</span>
                                     </div>
                                 </div>
+
+                                <h3 className="text-sm font-black text-rose-500 uppercase tracking-widest border-b border-rose-950/40 pt-4 pb-2">ECU ROM Tuning Connection</h3>
+                                <EngineTuningInterface 
+                                    vin={selectedVehicle.vin || "VIN123456789"}
+                                    availableCPH={availableCPH}
+                                    onApplyTuning={(newSpec, cphCost) => {
+                                        console.log("ECU update received:", newSpec, "CPH: ", cphCost);
+                                    }}
+                                />
                             </div>
                         </div>
                         

@@ -17,7 +17,7 @@ export const NeuralNexusView: React.FC = () => {
         try {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
             const response = await ai.models.generateContent({
-                model: 'gemini-3-pro-preview',
+                model: 'gemini-3.5-flash',
                 contents: input,
                 config: {
                     systemInstruction: "You are the AetherOS Neural Architect. Your output must be a technical implementation summary for Project Chronos. Use terminology like K10 Hyper-Sharding, Witnessary, and PZIS. Focus on structural integrity and Absolute Abundance. Be brief, technical, and high-impact. Use markdown for structure.",

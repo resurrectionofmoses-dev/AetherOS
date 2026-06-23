@@ -68,7 +68,7 @@ export const PseudoRoleTesting: React.FC = () => {
         try {
             const response = await callWithRetry(async () => {
                 return await ai.models.generateContent({
-                    model: 'gemini-3-pro-preview',
+                    model: 'gemini-3.5-flash',
                     contents: `Conduct a Pseudorole Stress Test for the Role: "${selectedRole.role}". 
                     The description is: "${selectedRole.description}". 
                     1. Calculate Integrity (0-100).

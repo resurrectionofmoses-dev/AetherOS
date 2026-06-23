@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { AnimatePresence } from 'motion/react';
+import { AndroidTransition } from './components/AndroidTransition';
 import { v4 as uuidv4 } from 'uuid';
 import { Toaster } from 'sonner';
 import { GlobalErrorHandler, reportError, ErrorSeverity } from './components/GlobalErrorHandler';
@@ -13,6 +15,9 @@ import { EmergencyAlarmOverlay } from './components/EmergencyAlarmOverlay';
 import { StealthWatcher } from './components/StealthWatcher';
 import { PredictiveBanner } from './components/PredictiveBanner';
 import { SonicMetric } from './components/SonicMetric';
+import { ConjunctionThroughputMeter } from './components/ConjunctionThroughputMeter';
+import { LockdownOverlay } from './components/LockdownOverlay';
+import { MatrixCodeRain } from './components/MatrixCodeRain';
 import { TopNavBar } from './components/TopNavBar';
 import { TheShroud } from './components/TheShroud';
 import { WaveVisualizer } from './components/WaveVisualizer';
@@ -31,6 +36,8 @@ import { BreakCoordinator } from './components/BreakCoordinator';
 import { speechService } from './services/speechService';
 import { milestoneService } from './services/milestoneService';
 import { sttService } from './services/sttService';
+import { DownloadIcon } from './components/icons';
+import { VoiceHUDOverlay } from './components/VoiceHUDOverlay';
 
 import type { 
   MainView, SystemStatus, ChatMessage, ProjectBlueprint, 
@@ -44,6 +51,28 @@ import { AI_SEATS } from './types';
 import { TEACHER_PROFILES } from './constants';
 import type { TeacherProfile } from './types';
 
+const ALL_VIEWS_LIST: MainView[] = [
+  'chat', 'absolute_reliability_network', 'coding_network', 'universal_search', 
+  'gold_conjunction', 'shard_store', 'conjunction_gates', 'projects', 'forge', 
+  'covenant', 'verification_gates', 'project_chronos', 'build_logs', 'rt_ipc_lab', 
+  'sovereign_shield', 'spectre_browser', 'unified_chain', 'fuel_optimizer', 'vault', 
+  'healing_matrix', 'laws_justice_lab', 'requindor_scroll', 'omni_builder', 
+  'singularity_engine', 'diagnostics', 'communications', 'up_north', 'device_link', 
+  'bluetooth_bridge', 'launch_center', 'eliza_terminal', 'code_fall_lab', 
+  'alphabet_hexagon', 'powertrain_conjunction', 'hyper_spatial_lab', 'engineering_lab', 
+  'hard_code_lab', 'truth_lab', 'testing_lab', 'kinetics_lab', 'quantum_theory_lab', 
+  'chemistry_lab', 'race_lab', 'paleontology_lab', 'raw_mineral_lab', 'clothing_lab', 
+  'concepts_lab', 'sanitization_lab', 'windows_lab', 'linux_lab', 'mac_os_lab', 
+  'apple_lab', 'mission_lab', 'cell_phone_lab', 'sampling_lab', 'pornography_studio', 
+  'medical_synthesis_lab', 'vehicle_telemetry_lab', 'coding_network_teachers', 'enlightenment_pool', 
+  'library_view', 'timeline', 'amoeba_heritage', 'system_exhaustion', 'recon_vault', 
+  'constraints_audit', 'remix_scope_lab', 'vehicle_management', 'unknown_physics_lab', 'logic_pattern_lab', 
+  'vulnerability_report', 'tactical_intelligence', 'behavioral_specs', 'cognitive_pipeline', 'data_provenance_lab', 
+  'sh_crt_loop', 'user_profile', 'prompt_forge', 'sovereign_standard', 'confusion_logic', 'knowledge_forum', 
+  'blockchain_history', 'main_net', 'ecosystem', 'accounts_registry', 'blacklist', 'system_integrity', 
+  'vault_manager', 'moderator_lounge', 'biometric_intelligence', 'card_recovery', 'project_showcase', 'quantum_ledger' as any, 'ai_telemetry', 'inevitable_crash', 'scraper_merchant_store', 'data_academy'
+];
+
 export const App: React.FC = () => {
     const { user } = useAuth();
     const [currentView, setCurrentView] = useState<MainView | 'cellular_grid' | 'voice_authority' | 'constraints_audit' | 'quantum_ledger'>('chat');
@@ -55,6 +84,81 @@ export const App: React.FC = () => {
     const [acousticPressure, setAcousticPressure] = useState(0);
     const [harmonicStride, setHarmonicStride] = useState(1.2);
     const [quantumTick, setQuantumTick] = useState(0);
+
+    // Dedicated Acoustic & Activity Density States
+    const [isAcousticWarningOpen, setIsAcousticWarningOpen] = useState(false);
+    const [acousticThreshold, setAcousticThreshold] = useState(80.0);
+    const [isModulatorOpen, setIsModulatorOpen] = useState(false);
+    const [isMutedCooldown, setIsMutedCooldown] = useState(false);
+    const [muteTimerRemaining, setMuteTimerRemaining] = useState(0);
+    const [activityDensity, setActivityDensity] = useState(0);
+
+    const acousticThresholdRef = useRef(80.0);
+    const isMutedCooldownRef = useRef(false);
+
+    useEffect(() => {
+        acousticThresholdRef.current = acousticThreshold;
+    }, [acousticThreshold]);
+
+    useEffect(() => {
+        isMutedCooldownRef.current = isMutedCooldown;
+    }, [isMutedCooldown]);
+
+    const [userProfile, setUserProfile] = useState<UserProfile>({
+        id: 'OP-7734-X',
+        username: 'Aetheros_Prime',
+        bio: 'Lead architect of the Sovereign Shield. Specializing in recursive self-improvement and high-frequency cognitive pipelines.',
+        skills: ['TypeScript', 'React', 'Node.js', 'Quantum Logic', 'System Architecture'],
+        lookingForSkills: ['Python', 'AWS', 'Go', 'Rust', 'Solidity'],
+        experienceLevel: 'Senior / Lead Architect',
+        role: 'operator',
+        sovereignty: 'SOVEREIGN_SYSTEM',
+        sovereigntyTier: 3,
+        portfolioLinks: [
+            { id: 'link_1', label: 'GitHub', url: 'https://github.com/aetheros-prime' },
+            { id: 'link_2', label: 'Website', url: 'https://aetheros.network' }
+        ],
+        profileProjects: [
+            { id: 'proj_1', title: 'Sovereign Shield', roleDefined: 'Lead Architect', status: 'current', description: 'Real-time multi-dimensional defensive envelope and metric tracking system.' },
+            { id: 'proj_2', title: 'Cognitive Pipeline', roleDefined: 'Core Dev', status: 'past', description: 'Autonomous orchestration model integrating high-frequency token generation and feedback matrices.' }
+        ]
+    });
+
+// App.tsx
+    useEffect(() => {
+        if (user) {
+            setUserProfile(prev => {
+                const isGuest = user.role === 'guest';
+                const nextUsername = user.displayName || prev.username;
+                const nextRole = user.role || 'operator';
+                
+                // If nothing significant has changed, reuse the previous state reference
+                // to prevent downstream reference invalidation loops in components like UserProfileView
+                if (
+                    prev.username === nextUsername &&
+                    prev.role === nextRole &&
+                    (!isGuest || (prev.portfolioLinks && prev.portfolioLinks.some(l => l.id === 'glink_1')))
+                ) {
+                    return prev;
+                }
+
+                return {
+                    ...prev,
+                    username: nextUsername,
+                    role: nextRole,
+                    portfolioLinks: isGuest ? [
+                        { id: 'glink_1', label: 'Sandbox Portfolio', url: 'https://sandbox.aetheros.network/portfolio/guest' },
+                        { id: 'glink_2', label: 'Developer Code Hub', url: 'https://github.com/aetheros-prime/guest-observer' },
+                        { id: 'glink_3', label: 'Spectre Oracle Portal', url: 'https://spectre.oracle/pulse' }
+                    ] : prev.portfolioLinks,
+                    profileProjects: isGuest ? [
+                        { id: 'gproj_1', title: 'Lattice Alpha Simulator', roleDefined: 'QA Lead Tester', status: 'current', description: 'Simulated high-frequency sandbox testing environment for multi-dimensional consensus validations.' },
+                        { id: 'gproj_2', title: 'Aether Wave Demuxer', roleDefined: 'Lattice Observer', status: 'past', description: 'Historic low-frequency acoustic stream demultiplexer and signal decoder.' }
+                    ] : prev.profileProjects
+                };
+            });
+        }
+    }, [user]);
 
     // Chat State
     const [isInitializing, setIsInitializing] = useState(true);
@@ -72,6 +176,17 @@ export const App: React.FC = () => {
                 // Restore Kill Switch Status
                 const haltActive = await EmergencyKillSwitch.checkStatus();
                 setIsHalted(haltActive);
+
+                // Restore User Profile
+                const savedProfile = await safeStorage.getItem('aetheros_user_profile');
+                if (savedProfile) {
+                    try {
+                        const parsedProfile = JSON.parse(savedProfile);
+                        setUserProfile(parsedProfile);
+                    } catch (e) {
+                        console.error("[AetherOS] Failed to restore user profile", e);
+                    }
+                }
 
                 // Restore Chat History
                 const savedChat = await safeStorage.getItem('aetheros_chat_history');
@@ -180,6 +295,15 @@ export const App: React.FC = () => {
     }, [messages, isInitializing]);
 
     useEffect(() => {
+        const persistProfile = async () => {
+            if (!isInitializing) {
+                await safeStorage.setItem('aetheros_user_profile', JSON.stringify(userProfile));
+            }
+        };
+        persistProfile();
+    }, [userProfile, isInitializing]);
+
+    useEffect(() => {
         const seed = async () => {
             if (!isInitializing) {
                 await milestoneService.seedLegacyFindings();
@@ -267,8 +391,8 @@ export const App: React.FC = () => {
     const [evoLibrary, setEvoLibrary] = useState<EvoLibrary | null>(null);
     const [soundscape, setSoundscape] = useState<SoundscapeType>('VOID');
     const [governance, setGovernance] = useState<SystemGovernance>({ lawLevel: 0.42, symphonicFreedom: true, activeAccord: 'MAESTRO_SOLO_v5' });
-    const [unlockedViews, setUnlockedViews] = useState<MainView[]>(['chat', 'coding_network', 'projects', 'forge', 'system_exhaustion', 'recon_vault', 'constraints_audit', 'vehicle_management', 'library_view', 'unknown_physics_lab', 'logic_pattern_lab', 'blockchain_history', 'main_net', 'ecosystem', 'blacklist', 'accounts_registry', 'vault_manager', 'system_integrity', 'project_showcase']);
-    const [conjunctionProgress, setConjunctionProgress] = useState<ConjunctionProgress>({ level: 1, shards: 5000, unlockedViews: ['chat', 'constraints_audit'], globalAdrenaline: 42 });
+    const [unlockedViews, setUnlockedViews] = useState<MainView[]>(ALL_VIEWS_LIST);
+    const [conjunctionProgress, setConjunctionProgress] = useState<ConjunctionProgress>({ level: 5, shards: 99999, unlockedViews: ALL_VIEWS_LIST, globalAdrenaline: 100 });
     const [sisters, setSisters] = useState<SistersState>({ aethera: { active: false }, logica: { active: false }, sophia: { active: false } });
     const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([]);
     const [teachers, setTeachers] = useState<TeacherProfile[]>(TEACHER_PROFILES);
@@ -315,25 +439,7 @@ export const App: React.FC = () => {
         }, 1000); // Check every second for better precision
         return () => clearInterval(interval);
     }, []);
-    const [userProfile, setUserProfile] = useState<UserProfile>({
-        id: 'OP-7734-X',
-        username: 'Aetheros_Prime',
-        bio: 'Lead architect of the Sovereign Shield. Specializing in recursive self-improvement and high-frequency cognitive pipelines.',
-        skills: ['TypeScript', 'React', 'Node.js', 'Quantum Logic', 'System Architecture'],
-        role: 'operator',
-        sovereignty: 'SOVEREIGN_SYSTEM'
-    });
 
-    useEffect(() => {
-        if (user) {
-            setUserProfile(prev => ({
-                ...prev,
-                username: user.displayName || prev.username,
-                role: user.role || 'operator'
-            }));
-        }
-    }, [user]);
-    
     // Hardware/Peripheral State
     const [isHalted, setIsHalted] = useState(false);
     const [timeFormat, setTimeFormat] = useState<'12hr'|'24hr'>('24hr');
@@ -443,13 +549,39 @@ export const App: React.FC = () => {
         const handleGlobalKeyDown = (e: KeyboardEvent) => {
             const keyCode = e.keyCode || e.which || 0;
             const p = sonicLedger.record('KEY', `NOTE_0x${keyCode.toString(16)}`, 1);
-            setAcousticPressure(parseFloat(sonicLedger.getTotalPressure()));
+            
+            const now = Date.now();
+            const history = sonicLedger.getHistory();
+            const recentPulses = history.filter(pulseItem => now - pulseItem.timestamp < 10000);
+            const density = recentPulses.length;
+            setActivityDensity(density);
+            const computedPressure = Math.min(120.0, 30.0 + (density * 5.5));
+            setAcousticPressure(parseFloat(computedPressure.toFixed(2)));
+
             setHarmonicStride(sonicLedger.getSpectralStride() / 432);
+
+            if (computedPressure > acousticThresholdRef.current && !isMutedCooldownRef.current) {
+                setIsAcousticWarningOpen(true);
+            }
         };
         const handleGlobalClick = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
+            const isInsideInteractiveElements = target.closest('#acoustic-warning-modal') || target.closest('#acoustic-simulator-panel');
+            if (isInsideInteractiveElements) return;
+
             sonicLedger.record('CLICK', target.tagName || 'SONIC_VOID', 8);
-            setAcousticPressure(parseFloat(sonicLedger.getTotalPressure()));
+            
+            const now = Date.now();
+            const history = sonicLedger.getHistory();
+            const recentPulses = history.filter(pulseItem => now - pulseItem.timestamp < 10000);
+            const density = recentPulses.length;
+            setActivityDensity(density);
+            const computedPressure = Math.min(120.0, 30.0 + (density * 5.5));
+            setAcousticPressure(parseFloat(computedPressure.toFixed(2)));
+
+            if (computedPressure > acousticThresholdRef.current && !isMutedCooldownRef.current) {
+                setIsAcousticWarningOpen(true);
+            }
         };
 
         window.addEventListener('keydown', handleGlobalKeyDown);
@@ -464,7 +596,85 @@ export const App: React.FC = () => {
         };
     }, []);
 
+    // Mute countdown timer support
+    useEffect(() => {
+        let timer: NodeJS.Timeout;
+        if (isMutedCooldown && muteTimerRemaining > 0) {
+            timer = setTimeout(() => {
+                setMuteTimerRemaining(prev => {
+                    if (prev <= 1) {
+                        setIsMutedCooldown(false);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => clearTimeout(timer);
+    }, [isMutedCooldown, muteTimerRemaining]);
+
+    // Acoustic & Activity Density Heartbeat Tracker
+    useEffect(() => {
+        const acousticHeartbeatInterval = setInterval(() => {
+            const now = Date.now();
+            const history = sonicLedger.getHistory();
+            const recentPulses = history.filter(p => now - p.timestamp < 10000);
+            const density = recentPulses.length;
+            setActivityDensity(density);
+
+            // Compute acoustic pressure: base value 30.0 dB SPL + 5.5 dB per event
+            const computedPressure = Math.min(120.0, 30.0 + (density * 5.5));
+            setAcousticPressure(parseFloat(computedPressure.toFixed(2)));
+
+            // Check warning threshold limit
+            if (computedPressure > acousticThresholdRef.current && !isMutedCooldownRef.current) {
+                setIsAcousticWarningOpen(true);
+            }
+        }, 1000);
+
+        return () => clearInterval(acousticHeartbeatInterval);
+    }, []);
+
     const [isSystemFractured, setIsSystemFractured] = useState(false);
+
+    const handleExportBreachData = () => {
+        try {
+            const forensicPayload = {
+                incident_timestamp: new Date().toISOString(),
+                export_system_epoch: Date.now(),
+                is_system_fractured: isSystemFractured,
+                acoustic_pressure_db: acousticPressure,
+                harmonic_stride: harmonicStride,
+                activity_density: activityDensity,
+                current_view: currentView,
+                active_seat: activeSeat,
+                soundscape: soundscape,
+                device_link_status: deviceLinkStatus,
+                governance: governance,
+                is_halted: isHalted,
+                is_ghost_mode: isGhostMode,
+                total_messages: messages.length,
+                latest_alerts: currentAlert ? [currentAlert] : [],
+                forensic_hash: "0x" + Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+                signature_authority: "AETHEROS SYSTEM AUTOMATED DECAY CONTROLLER",
+                compliance_standard: "BIP-0341 TAPROOT DETECTOR INTEGRITY VALIDATION",
+                incident_details: {
+                    analysis_context: "POST-INCIDENT FORENSIC BREACH METRIC DUMP",
+                    system_integrity_locked: "T0_FINALITY"
+                }
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(forensicPayload, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `aetheros_forensic_breach_${Date.now()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        } catch (error) {
+            console.error("Failed to compile forensic breach data", error);
+        }
+    };
 
     const handleSendMessage = async (text: string) => {
         const isHaltEngaged = await EmergencyKillSwitch.checkStatus();
@@ -638,6 +848,36 @@ export const App: React.FC = () => {
             });
             return;
         }
+
+        // Log tab-switching activity with localized ISO time
+        const now = new Date();
+        const simplifiedTime = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+        const readableFrom = String(currentView).toUpperCase();
+        const readableTo = String(view).toUpperCase();
+        const logEntry = `[${simplifiedTime}] Switch: ${readableFrom} ➔ ${readableTo} (Armored)`;
+
+        try {
+            const currentLogs = localStorage.getItem('aetheros_tab_activity_logs');
+            let parsedLogs = [];
+            if (currentLogs) {
+                try {
+                    parsedLogs = JSON.parse(currentLogs);
+                } catch {
+                    parsedLogs = [];
+                }
+            }
+            parsedLogs.push(logEntry);
+            if (parsedLogs.length > 50) {
+                parsedLogs.shift();
+            }
+            localStorage.setItem('aetheros_tab_activity_logs', JSON.stringify(parsedLogs));
+        } catch (e) {
+            console.error("Tab switch log write error:", e);
+        }
+
+        // Dispatch Custom Event for real-time reactivity
+        window.dispatchEvent(new CustomEvent('aetheros_tab_switch', { detail: { from: currentView, to: view } }));
+
         setCurrentView(view);
     };
 
@@ -728,6 +968,9 @@ export const App: React.FC = () => {
                     setCurrentChannel(channel);
                 },
                 isSystemFractured: isSystemFractured,
+                onToggleFracture: (val?: boolean) => {
+                    setIsSystemFractured(prev => val !== undefined ? val : !prev);
+                },
                 onResetFracture: () => {
                     setIsSystemFractured(false);
                     setCurrentAlert(null);
@@ -777,7 +1020,7 @@ export const App: React.FC = () => {
             <Sidebar 
                 systemStatus={systemStatus} systemDetails={{}} currentView={currentView as MainView} onSetView={(v) => handleSetView(v as any)} 
                 currentDateTime={currentTime} timeFormat={timeFormat} onToggleTimeFormat={() => setTimeFormat(prev => prev === '12hr' ? '24hr' : '12hr')} 
-                unlockedViews={[...unlockedViews, 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any]} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
+                unlockedViews={[...unlockedViews, 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any, 'ai_telemetry' as any, 'cascade_investigator' as any, 'inevitable_crash' as any]} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
             />
             
             <main className={`flex-1 flex flex-col relative overflow-hidden transition-all duration-75 flex-hinge dpi-300-shield ${isTerminal ? 'terminal-mode font-mono bg-black text-green-500 border-l-2 border-green-900/40' : ''} ${isHalted ? 'brightness-50 grayscale pointer-events-none' : ''}`}>
@@ -793,15 +1036,60 @@ export const App: React.FC = () => {
                     />
                     <GuestBanner role={user?.role || 'guest'} />
                     <BreakCoordinator />
-                    <div className="absolute top-4 right-20 z-[60] flex items-center gap-6 pointer-events-none">
-                        <div className="pointer-events-auto">
+                    <div className="absolute top-4 right-20 z-[60] flex items-center gap-6 pointer-events-none animate-in fade-in duration-300">
+                        <div 
+                            className="pointer-events-auto cursor-pointer hover:scale-105 active:scale-95 transition-all duration-75 relative group" 
+                            onClick={() => setIsModulatorOpen(true)}
+                            title="Open Acoustic Modulator Control Console"
+                        >
                             <SonicMetric size="sm" value={acousticPressure} label="DB_SPL" unit="dB" colorClass="border-blue-600 text-blue-500" />
+                            <div className="absolute inset-x-0 -bottom-1 h-0.5 bg-blue-500/50 scale-x-0 group-hover:scale-x-100 transition-transform duration-110 rounded" />
                         </div>
                         <div className="pointer-events-auto">
-                            <SonicMetric size="sm" value={conjunctionProgress.shards} label="CELL_CPH" unit="CPH" colorClass="border-amber-600 text-amber-500" />
+                            <ConjunctionThroughputMeter 
+                                shards={conjunctionProgress.shards}
+                                activityDensity={activityDensity}
+                                isSystemFractured={isSystemFractured}
+                            />
                         </div>
                     </div>
-                    {renderContent()}
+                    <div id="aetheros-view-wrapper" className={`flex-1 min-h-0 flex flex-col relative ${isSystemFractured ? 'matrix-glitch-active' : ''}`}>
+                        {isSystemFractured && (
+                            <MatrixCodeRain 
+                                color="rgba(244, 63, 94, 0.28)" 
+                                fontSize={10} 
+                                speed={30} 
+                            />
+                        )}
+                        <AnimatePresence mode="wait">
+                            <AndroidTransition key={currentView} type="abc_fade_in" className="flex-1 min-h-0 flex flex-col">
+                                {renderContent()}
+                            </AndroidTransition>
+                        </AnimatePresence>
+                        {isSystemFractured && (
+                            <LockdownOverlay 
+                                isSystemFractured={isSystemFractured}
+                                onCloseLockdown={() => setIsSystemFractured(false)}
+                                isHalted={isHalted}
+                                onTriggerHalt={handleTriggerHalt}
+                                onResetHalt={handleResetHalt}
+                                onLogBreachData={handleExportBreachData}
+                                acousticPressure={acousticPressure}
+                                shards={conjunctionProgress.shards}
+                                activityDensity={activityDensity}
+                            />
+                        )}
+                        {isSystemFractured && (
+                            <button
+                                onClick={handleExportBreachData}
+                                className="absolute bottom-6 right-6 z-[200] bg-zinc-950/90 hover:bg-rose-950/50 text-rose-400 font-mono px-4 py-2 rounded-lg border-2 border-rose-500/80 font-black uppercase tracking-widest shadow-[0_0_20px_rgba(244,63,94,0.25)] hover:shadow-[0_0_25px_rgba(244,63,94,0.4)] flex items-center gap-2 hover:scale-105 active:scale-95 transition-all text-[10px] cursor-pointer"
+                                title="Export fractured system parameters for forensic post-incident tracing"
+                            >
+                                <DownloadIcon className="w-3.5 h-3.5 animate-pulse text-rose-500" />
+                                <span>Log Breach Data</span>
+                            </button>
+                        )}
+                    </div>
                 </TheShroud>
                 <PredictiveBanner alert={currentAlert} onFix={() => setCurrentAlert(null)} onDismiss={() => setCurrentAlert(null)} />
                 <AmbientSoundPlayer enabled={true} status={systemStatus} isHalted={isHalted} soundscape={soundscape} />
@@ -818,11 +1106,225 @@ export const App: React.FC = () => {
                     hasAlarm={currentAlert?.severity === 'HIGH' || currentAlert?.type === 'ERROR'}
                 />
                 <EmergencyAlarmOverlay isHalted={isHalted} />
+                <VoiceHUDOverlay />
                 <StealthWatcher 
                     isLocked={isGhostMode} 
                     dissonanceLevel={acousticPressure} 
                     stride={harmonicStride} 
                 />
+
+                {/* ACOUSTIC PRESSURE CRITICAL WARNING DIALOG */}
+                {isAcousticWarningOpen && (
+                    <div 
+                        id="acoustic-warning-modal"
+                        className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200"
+                    >
+                        <div className="bg-zinc-950 border-4 border-rose-600 rounded-xl max-w-lg w-full overflow-hidden shadow-[8px_8px_0_0_#e11d48] font-mono text-zinc-300">
+                            {/* Hazard Stripes */}
+                            <div className="h-6 bg-rose-600 flex items-center justify-center relative overflow-hidden">
+                                <div className="absolute inset-0 opacity-20 bg-[linear-gradient(45deg,#000_25%,transparent_25%,transparent_50%,#000_50%,#000_75%,transparent_75%,transparent)] bg-[size:20px_20px]" />
+                                <span className="text-[10px] font-black text-white uppercase tracking-[0.3em] animate-pulse">
+                                    CRITICAL METRIC OVERFLOW // DE-SYNCHRONIZATION DETECTED
+                                </span>
+                            </div>
+
+                            {/* Dialog Content */}
+                            <div className="p-6 space-y-6 animate-in slide-in-from-bottom duration-300">
+                                <div className="flex items-start gap-4">
+                                    <span className="text-4xl text-rose-500 animate-bounce">🚨</span>
+                                    <div className="space-y-1 flex-1">
+                                        <h3 className="text-sm font-black text-rose-500 uppercase tracking-widest">
+                                            RESONANCE BUFFER OVERLOAD
+                                        </h3>
+                                        <p className="text-[10px] text-zinc-500 uppercase">
+                                            Aetheros Interface Resonance Index
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <p className="text-xs text-zinc-400 leading-relaxed">
+                                    Continuous hyper-dense operator clicks and keypress sequences have overloaded the interface resonance buffers. Real-time acoustic coupling has exceeded safety limits, creating potential feedback loops in the system's core cognitive bridge.
+                                </p>
+
+                                {/* Live Metrics Display */}
+                                <div className="bg-zinc-900/60 border border-rose-950/50 p-4 rounded-lg space-y-3">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] text-zinc-500 uppercase font-bold text-zinc-400">ACOUSTIC LOAD:</span>
+                                        <span className="text-base font-black text-rose-500 animate-pulse">{acousticPressure} dB SPL</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] text-zinc-500 uppercase font-bold text-zinc-400">USER ACTIVITY DENSITY:</span>
+                                        <span className="text-xs font-bold text-white">{activityDensity} pulses/10s</span>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] text-zinc-500 uppercase font-bold text-zinc-400">WARNING THRESHOLD:</span>
+                                        <span className="text-xs text-rose-400/80">{acousticThreshold} dB SPL</span>
+                                    </div>
+
+                                    <div className="w-full bg-zinc-950 h-3 border border-zinc-850 rounded-full overflow-hidden relative">
+                                        {/* Danger Line */}
+                                        <div 
+                                            className="absolute top-0 bottom-0 border-r-2 border-dashed border-rose-500 z-10"
+                                            style={{ left: `${(acousticThreshold / 120) * 100}%` }}
+                                            title="Safety Limit"
+                                        />
+                                        {/* Level Fill */}
+                                        <div 
+                                            className="h-full bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500 transition-all duration-300"
+                                            style={{ width: `${(acousticPressure / 120) * 100}%` }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Options to mitigate */}
+                                <div className="space-y-3 pt-2">
+                                    <button
+                                        onClick={() => {
+                                            // Purge buffer and reset
+                                            sonicLedger.clear();
+                                            setAcousticPressure(30.0);
+                                            setActivityDensity(0);
+                                            setIsAcousticWarningOpen(false);
+                                        }}
+                                        className="w-full py-2 bg-rose-950/40 hover:bg-rose-900/40 border border-rose-500 text-rose-400 rounded text-xs font-black uppercase tracking-wider transition-all duration-75 active:scale-98 cursor-pointer"
+                                    >
+                                        ⚡ Emergency De-Escalation (Purge Sonic History)
+                                    </button>
+                                    
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => {
+                                                // Actively mute warning alerts for 30s
+                                                setIsMutedCooldown(true);
+                                                setMuteTimerRemaining(30);
+                                                setIsAcousticWarningOpen(false);
+                                            }}
+                                            className="flex-1 py-1.5 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-zinc-400 rounded text-[10px] uppercase font-bold tracking-wider transition-colors cursor-pointer"
+                                        >
+                                            🔕 Mute alerts for 30s
+                                        </button>
+                                        <button
+                                            onClick={() => setIsAcousticWarningOpen(false)}
+                                            className="flex-1 py-1.5 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-zinc-400 rounded text-[10px] uppercase font-bold tracking-wider transition-colors cursor-pointer text-center"
+                                        >
+                                            ✕ Close
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ACOUSTIC LEVEL MODULATOR & SIMULATOR */}
+                {isModulatorOpen && (
+                    <div 
+                        id="acoustic-simulator-panel"
+                        className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
+                    >
+                        <div className="bg-zinc-950 border-4 border-zinc-800 rounded-xl max-w-md w-full overflow-hidden shadow-[8px_8px_0_0_#10b981] font-mono text-zinc-300">
+                            {/* Header */}
+                            <div className="bg-zinc-900 border-b-4 border-zinc-800 p-4 flex justify-between items-center">
+                                <div className="flex items-center gap-2">
+                                    <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping" />
+                                    <h3 className="font-black text-emerald-400 text-xs uppercase tracking-widest">
+                                        RESONANCE CONFIGURATION HUB
+                                    </h3>
+                                </div>
+                                <button 
+                                    onClick={() => setIsModulatorOpen(false)}
+                                    className="text-zinc-500 hover:text-white font-bold cursor-pointer"
+                                >
+                                    ✕
+                                </button>
+                            </div>
+
+                            {/* Content */}
+                            <div className="p-6 space-y-6">
+                                <p className="text-[10px] text-zinc-500 uppercase leading-relaxed">
+                                    Access point to configure simulation trigger thresholds and manually push custom metric impulses.
+                                </p>
+
+                                {/* Section: Controls */}
+                                <div className="space-y-4">
+                                    <div>
+                                        <div className="flex justify-between items-center mb-1.5">
+                                            <span className="text-[10px] text-zinc-400 uppercase font-bold">WARNING TRIGGER THRESHOLD</span>
+                                            <span className="text-xs font-bold text-white">{acousticThreshold} dB SPL</span>
+                                        </div>
+                                        <input 
+                                            type="range"
+                                            min="50"
+                                            max="110"
+                                            step="5"
+                                            value={acousticThreshold}
+                                            onChange={(e) => setAcousticThreshold(Number(e.target.value))}
+                                            className="w-full accent-emerald-500 cursor-pointer h-1.5 bg-zinc-800 rounded-lg appearance-none"
+                                        />
+                                        <div className="flex justify-between text-[8px] text-zinc-600 mt-1">
+                                            <span>50 dB (SENSITIVE)</span>
+                                            <span>110 dB (LOADED)</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="border-t border-zinc-900 pt-4 space-y-3">
+                                        <span className="text-[10px] text-zinc-400 uppercase font-bold block">IMPULSE SIMULATOR</span>
+                                        
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    // Trigger 5 dummy click events to raise density
+                                                    for (let i = 0; i < 5; i++) {
+                                                        setTimeout(() => {
+                                                            sonicLedger.record('CLICK', 'SIMULATED_KEY', 6);
+                                                        }, i * 150);
+                                                    }
+                                                }}
+                                                className="px-3 py-2 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 text-emerald-400 rounded text-[10px] uppercase font-bold tracking-wider text-center cursor-pointer transition-colors"
+                                            >
+                                                ⚡ Inject Click Spike (+5 pulses)
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    // Trigger 15 heavy key sequence
+                                                    for (let i = 0; i < 15; i++) {
+                                                        setTimeout(() => {
+                                                            sonicLedger.record('KEY', 'SIMULATED_BURST', 8);
+                                                        }, i * 100);
+                                                    }
+                                                }}
+                                                className="px-3 py-2 bg-gradient-to-r from-rose-950/50 to-zinc-900 hover:brightness-110 border border-rose-900/50 hover:border-rose-700 text-rose-400 rounded text-[10px] uppercase font-bold tracking-wider text-center cursor-pointer transition-all"
+                                            >
+                                                🔥 Inject Dense Burst (+15)
+                                            </button>
+                                        </div>
+                                        <p className="text-[8px] text-zinc-500 leading-normal">
+                                            *Injecting denser pulses increases user activity density within the 10-second running window, pushing Acoustic Pressure past the trigger threshold.*
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Section: Status */}
+                                <div className="bg-zinc-900/40 border border-zinc-900 rounded p-3 text-[10px] space-y-2">
+                                    <div className="flex justify-between text-zinc-500">
+                                        <span>AMB_PRESSURE:</span>
+                                        <span className="text-white font-bold">{acousticPressure} dB</span>
+                                    </div>
+                                    <div className="flex justify-between text-zinc-500">
+                                        <span>ACTIVE_DENSITY:</span>
+                                        <span className="text-white font-bold">{activityDensity} pulses/10s</span>
+                                    </div>
+                                    <div className="flex justify-between text-zinc-500">
+                                        <span>MUTE_COOLDOWN:</span>
+                                        <span className={isMutedCooldown ? "text-amber-500 font-bold" : "text-zinc-600"}>
+                                            {isMutedCooldown ? `ACTIVE (${muteTimerRemaining}s)` : 'OFF'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
       </ErrorBoundary>

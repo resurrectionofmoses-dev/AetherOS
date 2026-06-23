@@ -129,10 +129,33 @@ export const ChatView: React.FC<ChatViewProps> = ({
     return filtered;
   }, [messages, searchQuery, startDate, endDate, senderFilter]);
 
+  const lastScrollMessagesLengthRef = useRef<number>(0);
+
   useEffect(() => {
-    if (scrollRef.current && !searchQuery && !startDate && !endDate && senderFilter === 'all') {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    const container = scrollRef.current;
+    if (!container) return;
+
+    if (searchQuery || startDate || endDate || senderFilter !== 'all') return;
+
+    const currentLength = messages.length;
+    const isInitialLoad = lastScrollMessagesLengthRef.current === 0;
+    const hasLengthIncreased = currentLength > lastScrollMessagesLengthRef.current;
+
+    if (isInitialLoad) {
+      container.scrollTop = container.scrollHeight;
+    } else if (hasLengthIncreased) {
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+      const lastMsg = messages[messages.length - 1];
+      const lastMsgIsUser = lastMsg && lastMsg.sender === 'user';
+      const selection = window.getSelection();
+      const hasSelection = selection && selection.toString();
+
+      if ((isNearBottom && !hasSelection) || lastMsgIsUser) {
+        container.scrollTop = container.scrollHeight;
+      }
     }
+
+    lastScrollMessagesLengthRef.current = currentLength;
   }, [messages, searchQuery, startDate, endDate, senderFilter]);
 
   const isAnyFilterActive = searchQuery || startDate || endDate || senderFilter !== 'all';
@@ -147,6 +170,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <span className="font-comic-header text-xl text-white italic uppercase tracking-tighter">Council of AI</span>
             </div>
             <button 
+              id="council-voice-toggle-btn"
+              name="council_voice_toggle"
               onClick={() => setIsVoiceEnabled(prev => !prev)}
               className={`flex items-center gap-1.5 px-2.5 py-1 rounded bg-zinc-900/80 border text-[9px] font-black uppercase tracking-wider transition-all shadow-[2px_2px_0_0_rgba(0,0,0,0.5)] active:translate-y-0.5 cursor-pointer ${
                 isVoiceEnabled 
@@ -172,6 +197,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
             {(Object.keys(AI_SEATS) as AISeat[]).map((seat) => (
               <button
                 key={seat}
+                id={`council-seat-select-btn-${seat}`}
+                name={`council_seat_${seat}`}
                 onClick={() => onSeatChange?.(seat)}
                 className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
                   activeSeat === seat 

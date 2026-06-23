@@ -46,6 +46,8 @@ class AutonomousFixer(FileSystemEventHandler):
     def __init__(self, root_path, authority_level):
         self.root_path = root_path
         self.authority_level = authority_level
+        self._last_processed = {}  # Track processing timestamps for rate-limiting
+        self._active_fixes = set() # Active locks on file paths to avoid infinite self-trigger loops
 
     def on_modified(self, event):
         if event.is_directory:
@@ -57,27 +59,54 @@ class AutonomousFixer(FileSystemEventHandler):
             return
         self.handle_fix(event.src_path)
 
+    def is_ignored(self, file_path):
+        """Filters out node_modules, build directories, and common transient files."""
+        ignored_patterns = ["node_modules", "dist", ".git", ".next", "build", "package-lock.json", "yarn.lock"]
+        normalized_path = file_path.replace("\\", "/")
+        return any(pattern in normalized_path for pattern in ignored_patterns)
+
     def handle_fix(self, file_path):
+        # Guard clause for non-existent files and ignored system modules
+        if not os.path.exists(file_path) or self.is_ignored(file_path):
+            return
+
+        # Cooldown & re-entrancy locking state validation
+        now = time.time()
+        if file_path in self._active_fixes:
+            return
+            
+        last_time = self._last_processed.get(file_path, 0)
+        if now - last_time < 1.2:  # Debounce events occurring in rapid succession (e.g., multiline editor save)
+            return
+
         _, ext = os.path.splitext(file_path)
         if ext in FIX_HANDLERS:
+            # Register processing lock to handle active edits safely
+            self._active_fixes.add(file_path)
             print(f"[AUTHORITY: {self.authority_level}] Intercepted change: {os.path.basename(file_path)}")
             
-            for cmd in FIX_HANDLERS[ext]:
-                try:
-                    # Context-aware command preparation
-                    full_cmd = cmd + [file_path] if ext not in ['.rs', '.go'] or 'fmt' in cmd[0] else cmd
-                    result = subprocess.run(full_cmd, capture_output=True, text=True)
-                    
-                    if result.returncode == 0:
-                        print(f"  [SYNAPSE: OK] {cmd[0]}")
-                    else:
-                        print(f"  [SYNAPSE: ERR] {cmd[0]} failed. Initiating Heuristic Repair...")
-                        if self.authority_level == "ABSOLUTE":
-                            self.attempt_heuristic_repair(file_path, result.stderr)
+            try:
+                for cmd in FIX_HANDLERS[ext]:
+                    try:
+                        # Context-aware command preparation
+                        full_cmd = cmd + [file_path] if ext not in ['.rs', '.go'] or 'fmt' in cmd[0] else cmd
+                        result = subprocess.run(full_cmd, capture_output=True, text=True)
                         
-                except FileNotFoundError:
-                    # Tool not installed
-                    pass
+                        if result.returncode == 0:
+                            print(f"  [SYNAPSE: OK] {cmd[0]}")
+                        else:
+                            print(f"  [SYNAPSE: ERR] {cmd[0]} failed. Initiating Heuristic Repair...")
+                            if self.authority_level == "ABSOLUTE":
+                                self.attempt_heuristic_repair(file_path, result.stderr or result.stdout)
+                            break  # Halt consecutive formatting commands on current broken iteration
+                            
+                    except FileNotFoundError:
+                        # Gracefully handle missing local linters/formatters
+                        pass
+            finally:
+                # Clear atomic state locks & stamp complete execution time
+                self._active_fixes.discard(file_path)
+                self._last_processed[file_path] = time.time()
 
     def attempt_heuristic_repair(self, file_path, error_msg):
         """

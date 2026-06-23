@@ -47,7 +47,7 @@ export class Summarizer {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         contents: { parts: [{ text: `Summarize into 4 concise lines preserving intent: ${textInput}` }] },
         config: {
           systemInstruction: MAESTRO_SYSTEM_PROMPT,
@@ -66,7 +66,7 @@ export class Summarizer {
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3.5-flash',
         contents: { parts: [{ text: `Distill into 1-2 lines capturing core intent and key facts: ${textInput}` }] },
         config: {
           systemInstruction: MAESTRO_SYSTEM_PROMPT,

@@ -52,7 +52,7 @@ export const UpNorthProtocol: React.FC<UpNorthProtocolProps> = ({ onSetView }) =
 
       const response = await callWithRetry(async () => {
         return await ai.models.generateContent({
-          model: 'gemini-3-pro-preview',
+          model: 'gemini-3.5-flash',
           contents,
           config: {
             systemInstruction: MAESTRO_SYSTEM_PROMPT,
@@ -127,7 +127,7 @@ export const UpNorthProtocol: React.FC<UpNorthProtocolProps> = ({ onSetView }) =
       const isAetherHeal = taskInput.toLowerCase().includes('aetherheal');
       const response = await callWithRetry(async () => {
         return await ai.models.generateContent({
-          model: 'gemini-3-pro-preview',
+          model: 'gemini-3.5-flash',
           contents: `Architects Reconciliation V22.11.02: Audit Data ${JSON.stringify(audit)}. 
           Perform reasoning for AetherHeal-3.4 (0x03E2). 
           Reconcile 0.02 drift, €5,068 savings, and 36% effectiveness. 

@@ -5,6 +5,7 @@ import { BrainIcon, GlobeIcon, ForgeIcon, VaultIcon, ShieldIcon, ActivityIcon, T
 import { useAuth } from '../contexts/AuthContext';
 import { EmergencyKillSwitch } from '../services/emergencyKillSwitch';
 import { ApiKeyInfoModal } from './ApiKeyInfoModal';
+import aetherosLogo from '../src/assets/images/aetheros_logo_1780191892733.png';
 
 interface TopNavBarProps {
     currentView: MainView;
@@ -20,6 +21,36 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ currentView, onSetView, is
     const { user, logout, toggleSeclusion } = useAuth();
     const [isApiModalOpen, setIsApiModalOpen] = useState(false);
     const [awayDuration, setAwayDuration] = useState<string>('');
+    const [isTabLogsOpen, setIsTabLogsOpen] = useState(false);
+    const [tabLogs, setTabLogs] = useState<string[]>([]);
+
+    useEffect(() => {
+        const loadLogs = () => {
+            try {
+                const currentLogs = localStorage.getItem('aetheros_tab_activity_logs');
+                if (currentLogs) {
+                    const parsed = JSON.parse(currentLogs);
+                    // Show newest first
+                    setTabLogs([...parsed].reverse());
+                } else {
+                    setTabLogs([]);
+                }
+            } catch (e) {
+                console.error("Failed to parse tab activity logs", e);
+            }
+        };
+
+        loadLogs();
+
+        const handleSwitchEvent = () => {
+            loadLogs();
+        };
+
+        window.addEventListener('aetheros_tab_switch', handleSwitchEvent);
+        return () => {
+            window.removeEventListener('aetheros_tab_switch', handleSwitchEvent);
+        };
+    }, []);
 
     useEffect(() => {
         if (user?.status !== 'active' && user?.lastActive) {
@@ -50,6 +81,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ currentView, onSetView, is
         { id: 'system_integrity', label: 'Audit', icon: ActivityIcon },
         { id: 'accounts_registry', label: 'Registry', icon: UserIcon },
         { id: 'sovereign_shield', label: 'Shield', icon: ShieldIcon },
+        { id: 'google_sheets', label: 'Ledger', icon: DatabaseIcon },
     ];
 
     if (user?.role === 'moderator' || user?.role === 'admin') {
@@ -71,6 +103,17 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ currentView, onSetView, is
         <div className="h-14 bg-black border-b-2 border-zinc-900 flex items-center justify-between px-6 z-40 flex-shrink-0 shadow-md">
             <nav className="flex items-center gap-2 h-full">
                 <div className="flex items-center px-4 gap-3 border-r-2 border-zinc-900 h-full mr-2">
+                    <motion.div 
+                        whileHover={{ scale: 1.15, rotate: 10 }}
+                        className="w-7 h-7 rounded border border-zinc-800 bg-zinc-950 overflow-hidden shadow-[0_0_8px_rgba(239,68,68,0.15)] shrink-0 hidden md:block"
+                    >
+                        <img 
+                            src={aetherosLogo} 
+                            alt="AetherOS Sovereign Shield" 
+                            className="w-full h-full object-cover scale-105"
+                            referrerPolicy="no-referrer"
+                        />
+                    </motion.div>
                     <div className="flex flex-col items-start">
                         <span className="text-[7px] font-black text-gray-500 uppercase tracking-widest">Hierarchy Status</span>
                         <div className="flex items-center gap-2">
@@ -149,6 +192,54 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ currentView, onSetView, is
                     <BrainIcon className="w-4 h-4" />
                     <span className="text-[9px] font-black uppercase tracking-widest hidden sm:inline">API INFO</span>
                 </motion.button>
+                <div className="relative">
+                    <motion.button 
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => setIsTabLogsOpen(!isTabLogsOpen)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 bg-purple-900/20 text-purple-500 border-purple-900/40 hover:bg-purple-900/40 hover:text-purple-400 hover:border-purple-500 transition-all ${isTabLogsOpen ? 'bg-purple-900/40 border-purple-500 text-purple-400' : ''}`}
+                        title="Tab Switching Activity Trace"
+                    >
+                        <ActivityIcon className="w-4 h-4 text-purple-400 animate-pulse" />
+                        <span className="text-[9px] font-black uppercase tracking-widest hidden sm:inline">TAB LOGS</span>
+                    </motion.button>
+
+                    {isTabLogsOpen && (
+                        <div className="absolute right-0 mt-2 w-80 bg-zinc-950 border-2 border-purple-900/60 rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.15)] z-50 p-4 font-mono select-none text-left">
+                            <div className="flex items-center justify-between border-b border-purple-950 pb-2 mb-3">
+                                <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest">Tab Switch Trace</span>
+                                <button 
+                                    className="text-[8px] px-1.5 py-0.5 bg-purple-950 text-purple-300 rounded hover:bg-purple-900 transition-all"
+                                    onClick={() => {
+                                        localStorage.removeItem('aetheros_tab_activity_logs');
+                                        setTabLogs([]);
+                                    }}
+                                >
+                                    CLEAR
+                                </button>
+                            </div>
+                            
+                            <div className="space-y-1.5 max-h-56 overflow-y-auto scrollbar-thin scrollbar-thumb-purple-900 pr-1 text-left">
+                                {tabLogs.length === 0 ? (
+                                    <div className="text-[9px] text-zinc-600 text-center py-6 italic">
+                                        No tab transitions logged. Switch tabs to record.
+                                    </div>
+                                ) : (
+                                    tabLogs.map((log, idx) => (
+                                        <div key={idx} className="text-[9px] bg-zinc-900/65 p-1.5 border border-purple-950/40 rounded text-purple-300/90 leading-tight">
+                                            {log}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            
+                            <div className="border-t border-purple-950/40 mt-3 pt-2 text-[8px] text-zinc-500 leading-normal flex items-center justify-between">
+                                <span>ARMORING:</span>
+                                <span className="text-emerald-400 font-bold uppercase tracking-tight">ACTIVE PERSISTENCE</span>
+                            </div>
+                        </div>
+                    )}
+                </div>
                 <motion.button 
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}

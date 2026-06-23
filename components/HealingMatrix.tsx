@@ -14,15 +14,76 @@ interface HealingMatrixProps {
 }
 
 export const HealingMatrix: React.FC<HealingMatrixProps> = ({ governance }) => {
-    const [isHealing, setIsHealing] = useState(false);
-    const [manifest, setManifest] = useState<HealingManifest | null>(null);
-    const [progress, setProgress] = useState(0);
-    const [currentStep, setCurrentStep] = useState('');
-    const [flowIntensity, setFlowIntensity] = useState(1.5);
-    const [colorDrift, setColorDrift] = useState(0);
+    // Persistent states synchronized with local storage
+    const [isHealing, setIsHealing] = useState(() => {
+        const saved = localStorage.getItem('aetheros_healing_matrix_isHealing');
+        return saved === 'true';
+    });
+    const [manifest, setManifest] = useState<HealingManifest | null>(() => {
+        const saved = localStorage.getItem('aetheros_healing_matrix_manifest');
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch {
+                return null;
+            }
+        }
+        return null;
+    });
+    const [progress, setProgress] = useState(() => {
+        const saved = localStorage.getItem('aetheros_healing_matrix_progress');
+        return saved ? Number(saved) : 0;
+    });
+    const [currentStep, setCurrentStep] = useState(() => {
+        return localStorage.getItem('aetheros_healing_matrix_currentStep') || '';
+    });
+    const [flowIntensity, setFlowIntensity] = useState(() => {
+        const saved = localStorage.getItem('aetheros_healing_matrix_flowIntensity');
+        return saved ? parseFloat(saved) : 1.5;
+    });
+    const [healingLogList, setHealingLogList] = useState<string[]>(() => {
+        const saved = localStorage.getItem('aetheros_healing_matrix_loglist');
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch {
+                return [];
+            }
+        }
+        return [];
+    });
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
     const isHealed = progress === 100 || manifest !== null;
+
+    // Persist changes to localStorage on set
+    useEffect(() => {
+        localStorage.setItem('aetheros_healing_matrix_isHealing', String(isHealing));
+    }, [isHealing]);
+
+    useEffect(() => {
+        if (manifest) {
+            localStorage.setItem('aetheros_healing_matrix_manifest', JSON.stringify(manifest));
+        } else {
+            localStorage.removeItem('aetheros_healing_matrix_manifest');
+        }
+    }, [manifest]);
+
+    useEffect(() => {
+        localStorage.setItem('aetheros_healing_matrix_progress', String(progress));
+    }, [progress]);
+
+    useEffect(() => {
+        localStorage.setItem('aetheros_healing_matrix_currentStep', currentStep);
+    }, [currentStep]);
+
+    useEffect(() => {
+        localStorage.setItem('aetheros_healing_matrix_flowIntensity', String(flowIntensity));
+    }, [flowIntensity]);
+
+    useEffect(() => {
+        localStorage.setItem('aetheros_healing_matrix_loglist', JSON.stringify(healingLogList));
+    }, [healingLogList]);
 
     const startHealing = async () => {
         setIsHealing(true);
@@ -45,17 +106,38 @@ export const HealingMatrix: React.FC<HealingMatrixProps> = ({ governance }) => {
                     return 100;
                 }
                 const inc = 2;
-                if (prev % 20 === 0 && stepIdx < steps.length) setCurrentStep(steps[stepIdx++]);
+                if (prev % 20 === 0 && stepIdx < steps.length) {
+                    const stepStr = steps[stepIdx++];
+                    setCurrentStep(stepStr);
+                    // Add to real logs
+                    setHealingLogList(l => [...l, `[PROCESS] ${stepStr} (Progress: ${prev}%)`].slice(-100));
+                }
                 return prev + inc;
             });
         }, 50);
 
-        const result = await SystemHealer.heal(DIAGNOSTIC_TROUBLE_CODES.slice(0, 2));
-        setManifest(result);
-        setIsHealing(false);
-        setProgress(100);
-        setCurrentStep("FLUID STATE: HEALED");
-        reportSuccess("SYSTEM_HEALED", "The Sovereign Bridge has been re-quantized and the spectral fractures have been sealed.");
+        try {
+            const result = await SystemHealer.heal(DIAGNOSTIC_TROUBLE_CODES.slice(0, 2));
+            setManifest(result);
+            setIsHealing(false);
+            setProgress(100);
+            setCurrentStep("FLUID STATE: HEALED");
+            
+            const timestamp = new Date().toISOString();
+            setHealingLogList(l => [
+                ...l,
+                `[SUCCESS] Conduction complete at ${timestamp}`,
+                `[SUCCESS] Merkle Proof: ${result.merkleProof}`,
+                `[SUCCESS] Digital Signature: ${result.signature || 'SIGN_OK'}`
+            ].slice(-100));
+
+            reportSuccess("SYSTEM_HEALED", "The Sovereign Bridge has been re-quantized and the spectral fractures have been sealed.");
+        } catch (e) {
+            setIsHealing(false);
+            setProgress(0);
+            setCurrentStep("Operational Fault on Restore");
+            setHealingLogList(l => [...l, `[ERROR] Conduit failed to synthesize: ${String(e)}`].slice(-100));
+        }
     };
 
     useEffect(() => {
@@ -280,6 +362,21 @@ export const HealingMatrix: React.FC<HealingMatrixProps> = ({ governance }) => {
                                     </div>
                                 </div>
 
+                                {/* Persistent Conduction Logs inside Healed Panel */}
+                                <div className="p-6 bg-black/60 border-2 border-cyan-950 rounded-2xl">
+                                    <span className="text-[9px] text-cyan-500 font-black uppercase tracking-wider block mb-2">
+                                        Chronicle Conduction Debug Trace
+                                    </span>
+                                    <div className="max-h-40 overflow-y-auto space-y-1 font-mono text-[9px] text-cyan-400">
+                                        {healingLogList.map((log, index) => (
+                                            <div key={index} className="truncate">
+                                                <span className="text-cyan-800 mr-2">&gt;</span>
+                                                {log}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
                                 <div className="flex justify-center pt-6">
                                     <div className="p-6 bg-black border-4 border-cyan-600 rounded-3xl flex flex-col items-center shadow-2xl">
                                         <span className="text-[7px] text-cyan-800 font-black uppercase mb-2">Maestro Current Signature</span>
@@ -288,12 +385,28 @@ export const HealingMatrix: React.FC<HealingMatrixProps> = ({ governance }) => {
                                 </div>
                             </div>
                         ) : (
-                            <div className="h-full flex flex-col items-center justify-center opacity-40">
-                                <div className="relative">
+                            <div className="h-full flex flex-col items-center justify-center">
+                                <div className="relative opacity-40">
                                     <SignalIcon className="w-48 h-48 animate-pulse text-cyan-900" />
                                     <ActivityIcon className="absolute inset-0 w-48 h-48 text-cyan-500/20 animate-spin-slow" />
                                 </div>
-                                <p className="font-comic-header text-5xl uppercase tracking-[0.3em] italic text-center text-cyan-900 mt-8">Awaiting Conjunction Flow</p>
+                                <p className="font-comic-header text-5xl uppercase tracking-[0.3em] italic text-center text-cyan-900/50 mt-8 mb-6">Awaiting Conjunction Flow</p>
+                                
+                                {healingLogList.length > 0 && (
+                                    <div className="w-full max-w-lg p-4 bg-zinc-950/80 border border-zinc-900 rounded-lg text-left mt-4">
+                                        <span className="text-[9px] text-zinc-500 font-black uppercase tracking-wider block mb-2">
+                                            Prior Conduction Trace Logs (AetherOS Storage)
+                                        </span>
+                                        <div className="max-h-24 overflow-y-auto space-y-1 font-mono text-[9px] text-zinc-400">
+                                            {healingLogList.map((log, index) => (
+                                                <div key={index} className="truncate">
+                                                    <span className="text-zinc-650 mr-1.5">&gt;</span>
+                                                    {log}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

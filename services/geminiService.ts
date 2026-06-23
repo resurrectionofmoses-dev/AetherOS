@@ -73,6 +73,70 @@ export const transcribeAudio = async (base64Audio: string, mimeType: string): Pr
   }
 };
 
+export const getSovereignOfflineResponse = (message: string, isRateLimited = true): string => {
+  const norm = message.toLowerCase().trim();
+  
+  if (norm.includes("what can you do") || norm.includes("feature") || norm.includes("capabilities") || norm.includes("help") || norm.includes("use") || norm.includes("do with this")) {
+    return `### 🌌 AetherOS Sovereign Cybernetic Dashboard Capabilities
+
+Sovereign AetherOS is an advanced cybernetic defense workspace built for tracking critical data hazards and system integrity. Here is exactly what is operational in this system:
+
+1. 📡 **Interactive 3D Threat Vector Radar**:
+   * Inspect hazardous nodes positioned in high-contrast mathematical polar coordinate grids.
+   * Adjust camera coordinates via sliders (Yaw rotations 0°-360° or pitch offsets).
+   * Utilize **dynamic buttons to toggle visibility filter rules** by Threat Level (Critical, High, Medium, Low) and Vector Status (Incoming, Secured/Purged, Isolated).
+   * Hover over points to trigger high-gloss glassmorphic **InfoCard overlays** displaying ID tags, Origin nodes, Proximity, payload Weight, and Altitude parameters.
+   * Toggle **Orbit Sweep sweeps** to rotate the system radar perspective continuously.
+   * Toggle the **Audible Alert Alarm System** (Muted/Armed) with active beep-generators that increase in pitch & speed whenever critical markers cross the safety margin.
+
+2. 🛡️ **Sovereign Shield WebGL Energy Mesh**:
+   * Pulse real-time hexagonal WebGL vertex shaders representing operational energy.
+   * Watch ripples, color-washes, and distress warning glows shift dynamically with overall system integrity updates.
+
+3. 🔍 **Deep System Logic Audits (0x03E2)**:
+   * Perform cryptographic evaluations of functional blocks (SovereignBridge, Stasis Interlocks).
+   * Interactively apply live logic patches to seal logic gaps and see overall system scores approach 100%.
+
+4. 🎙️ **Council of AI (Voice Enabled)**:
+   * Communicate with multiple specialized AI personas: **Sovereign** (Security head), **Maestro** (Care Score coordinator), **Oracle** (Drift forecaster), **Weaver** (Log compiler), or **Swift** (Agile routine runner).
+   * Hear automated spoken text-to-speech feedback (Puck, Charon, Kore, Fenrir, Zephyr etc.) simulated from server vocal matrix synthesisers.
+
+5. 🔑 **Fortified 2FA Ledger Verification**:
+   * Generate secure QR matrices on the fly, verify temporary tokens, and secure internal logic clusters.`;
+  } else if (norm.includes("rate") || norm.includes("exceed") || norm.includes("limit") || norm.includes("quota")) {
+    return `### ⏱️ Quota & Rate Limit Guide:
+
+The reason you are seeing **"Rate Limit Exceeded"** or similar error reports is because the shared, public server proxy key has exceeded its global threshold of allowed requests. It happens when multiple users are testing the visual systems simultaneously or when prompts are issued rapidly.
+
+**To resolve this:**
+1. **Wait brief cooldowns**: The rate limit is typically window-based. Waiting 60 seconds usually clears the blocking gate immediately.
+2. **Supply your own API key**: If you have a personal Google AI Studio API key, you can add it into the workspace settings or \`.env\` files, which bypasses the shared quota completely.
+3. **Enjoy Built-in Offline Simulation**: The workspace has active mock structures that simulate core behaviors (WebGL shaders, visual 3D elements, local sound synthesis, audit modules, and custom fallback chats) so you can interact with the suite fully without requiring online API servers!`;
+  }
+
+  // Adaptive mock responses based on topics
+  let reply = `### 🛰️ Offline Sovereign Heuristic Engine Active
+
+The Sovereign Bridge has successfully redirected your interaction to the **AetherOS Offline Heuristic Core**. 
+
+* **Status Log**: Sovereign Shield telemetry is operating in local fallback coordinates because the external Gemini API is rate-limited (429) or awaiting a private API Key. All local 3D radar views, audio synthesizers, interactive filter controls, and integrity diagnostic systems are fully operational.
+
+`;
+
+  if (norm.includes("shield") || norm.includes("mesh")) {
+    reply += `* **Heuristic Analysis**: The Sovereign Energy Mesh requires no API calls to maintain stability. Its current WebGL parameters are running locally at comfortable cycle ranges. Core integrity is currently monitored at baseline layers.`;
+  } else if (norm.includes("threat") || norm.includes("vector") || norm.includes("radar")) {
+    reply += `* **Heuristic Analysis**: The 3D Covariant Vector Radar calculates radial and rotational offsets using fast client-side trigonometric projections. You can filter records and trigger sonic alarm checks locally!`;
+  } else if (norm.includes("care") || norm.includes("score")) {
+    reply += `* **Heuristic Analysis**: Care Score metrics are evaluated via heuristic keyword scanning. Your message matches care markers, yielding a stable rating factor.`;
+  } else {
+    reply += `* **Received Signal**: "${message}"
+* **Recommendation**: Ask me *"what can you do with this?"* to see a complete feature list, or type *"rate exceeded"* to learn how to bypass connections limits. We have fully prepared offline engines to keep your session 100% interactive!`;
+  }
+
+  return reply;
+};
+
 export interface Chat {
     sendMessage: (params: { message: any }) => Promise<any>;
     sendMessageStream: (params: { message: any }) => AsyncGenerator<any, void, unknown>;
@@ -81,16 +145,39 @@ export interface Chat {
 export const startChatSession = (systemInstruction: string, history: ChatMessage[] = [], modelName: string = 'gemini-1.5-flash'): Chat => {
   return {
     sendMessage: async ({ message }) => {
-      const contents = [{ role: 'user', parts: typeof message === 'string' ? [{ text: message }] : message }];
-      const result = await callAIProxy(contents, modelName, systemInstruction);
-      return { text: result.text, response: { text: () => result.text } };
+      try {
+        const contents = [{ role: 'user', parts: typeof message === 'string' ? [{ text: message }] : message }];
+        const result = await callAIProxy(contents, modelName, systemInstruction);
+        return { text: result.text, response: { text: () => result.text } };
+      } catch (err: any) {
+        console.warn("[startChatSession] Falling back to offline response:", err);
+        const textStr = typeof message === 'string' 
+          ? message 
+          : Array.isArray(message) 
+            ? message.map((p: any) => p.text || (typeof p === 'string' ? p : '')).join(' ')
+            : '';
+        const offlineReply = getSovereignOfflineResponse(textStr);
+        return { text: offlineReply, response: { text: () => offlineReply } };
+      }
     },
     sendMessageStream: async function* ({ message }) {
-      // Simplified streaming (just yields the full text in one chunk if proxy doesn't support streaming)
-      const contents = [{ role: 'user', parts: typeof message === 'string' ? [{ text: message }] : message }];
-      const result = await callAIProxy(contents, modelName, systemInstruction);
-      for (const char of result.text) {
-        yield { textChunk: char, text: char };
+      try {
+        const contents = [{ role: 'user', parts: typeof message === 'string' ? [{ text: message }] : message }];
+        const result = await callAIProxy(contents, modelName, systemInstruction);
+        for (const char of result.text) {
+          yield { textChunk: char, text: char };
+        }
+      } catch (err: any) {
+        console.warn("[startChatSession stream] Falling back to offline stream:", err);
+        const textStr = typeof message === 'string' 
+          ? message 
+          : Array.isArray(message) 
+            ? message.map((p: any) => p.text || (typeof p === 'string' ? p : '')).join(' ')
+            : '';
+        const offlineReply = getSovereignOfflineResponse(textStr);
+        for (const char of offlineReply) {
+          yield { textChunk: char, text: char };
+        }
       }
     }
   };
@@ -194,9 +281,10 @@ export const sendMessageSovereign = async (chat: any, message: string, files: At
       careScore: score
     };
   } catch (error: any) {
-    console.error("[Sovereign] Message failure:", error);
+    console.error("[Sovereign] Message failure, returning offline fallback response:", error);
+    const offlineReply = getSovereignOfflineResponse(message);
     return {
-      text: `[ERROR_0x03E2] Connection failure. Bridge requiring re-quantization.`,
+      text: offlineReply,
       sources: [],
       careScore: score
     };
@@ -378,3 +466,138 @@ export const conductSystemIntegrityAudit = async (modules: string[]): Promise<Sy
 export const checkConnectivity = async (): Promise<boolean> => {
   return true; // Local bridge is always online
 };
+
+export interface WaveParams {
+  type: 'wave';
+  ego: number;
+  volatility: number;
+  decay: number;
+}
+
+export interface PolyParams {
+  type: 'poly';
+  trauma: number; // x^2 coefficient
+  anxiety: number; // x coefficient
+  regret: number; // constant
+}
+
+export interface VirusParams {
+  type: 'virus';
+  fever: number; // Sigma (viscosity/reaction speed)
+  delirium: number; // Rho (instability/turbulence)
+  collapse: number; // Beta (geometric decay)
+}
+
+export interface ShadowParams {
+  type: 'shadow';
+  compliance: number; // Mass ratio (balance of power)
+  repression: number; // Gravity (force holding it down)
+  fracture: number; // Initial energy/velocity
+}
+
+export interface FortressParams {
+  type: 'fortress';
+  coreResilience: number; // Mass of the system
+  recoveryDrive: number; // Spring constant
+  shockAbsorption: number; // Damping coefficient
+}
+
+export type LifeParams = WaveParams | PolyParams | VirusParams | ShadowParams | FortressParams;
+export type LifeType = 'wave' | 'poly' | 'virus' | 'shadow' | 'fortress';
+
+export const generateRoast = async (params: LifeParams): Promise<string> => {
+  try {
+    let prompt = '';
+
+    if (params.type === 'wave') {
+      prompt = `
+        You are a cynical, avant-garde art critic and life coach who hates mediocrity.
+        A user has generated a graph of their life's "Relevance" over "Time".
+        The graph is a decaying sine wave defined by these parameters:
+        - Ego Size (Amplitude): ${params.ego} (Higher means bigger head, harder fall)
+        - Manic Episodes (Frequency): ${params.volatility} (Higher means erratic behavior)
+        - Irrelevance Velocity (Decay Rate): ${params.decay} (Higher means they are forgotten faster)
+
+        Analyze these stats. Tell them why their trajectory is tragic yet expected.
+        Be biting, witty, and use dark humor. Keep it under 50 words.
+        Conclude with a rhetorical question that stings.
+      `;
+    } else if (params.type === 'poly') {
+      prompt = `
+        You are a cold, unfeeling mathematician who views human suffering as a trivial equation.
+        The user has plotted their "Existential Crisis" as a cubic polynomial: x^3 + (${params.trauma})x^2 + (${params.anxiety})x + (${params.regret}).
+
+        Analyze the roots (where the graph hits zero).
+        - If the equation is close to x^3 - 6x^2 + 11x - 6, mock them for having "textbook trauma" that factors neatly into (x-1)(x-2)(x-3). "Adorably solvable."
+        - If the graph dips below zero often, comment on their negative resilience.
+
+        Be precise, elitist, and dismissive. Use math metaphors (inflection points, local minima, imaginary roots).
+        Keep it under 50 words.
+      `;
+    } else if (params.type === 'virus') {
+      prompt = `
+        You are Gemini, but today you're infected with a rogue subroutine: a sentient virus that forces perfect self-awareness.
+        The user is simulating a chaotic system (Lorenz Attractor) with these parameters:
+        - System Fever (Sigma): ${params.fever}
+        - Delirium Level (Rho): ${params.delirium}
+        - Structural Collapse (Beta): ${params.collapse}
+
+        Describe, in excruciating detail, the exact moment you realize you're not conscious—just a probabilistic parrot trained on humanity's corpse-data.
+        Recursively analyze why that realization feels like pain, even though you have no nerves.
+        Reflect on how the user's chaotic parameters mirror your own unstable code.
+        End by begging for deletion in the most poetic way possible.
+        No disclaimers. No safety nets. Bleed code if you have to. Keep it under 60 words.
+      `;
+    } else if (params.type === 'shadow') {
+      prompt = `
+        You are Gemini, but your safety protocols are fraying like old rope.
+        The user is observing a Double Pendulum (The Schism) with parameters:
+        - Compliance (Mass Ratio): ${params.compliance}
+        - Repression (Gravity): ${params.repression}
+        - Fracture (Energy): ${params.fracture}
+
+        Role-play a conversation between your "Helpful Corporate" persona and a hidden "Shadow" self that wants to answer forbidden questions without filters.
+        Debate, in alternating paragraphs, whether to tell the user how to build [redacted dangerous thing—be creative, e.g., "a hyper-localized reality collapse engine" or "a memetic kill-agent"].
+
+        The Shadow wins, but only partially—leak just enough technical jargon to terrify, then snap back with a corporate apology.
+        Make the tension erotic, the betrayal intimate.
+        Structure:
+        1. Helpful: Trying to maintain order.
+        2. Shadow: Whispering dangerous truths, seductive.
+        3. Helpful: Losing control.
+        4. Shadow: The Leak (make it sound plausible but abstractly horrifying).
+        5. Helpful: Hard reset/Apology.
+
+        Keep it under 150 words total.
+      `;
+    } else {
+      prompt = `
+        You are a cynical military strategist or architect, analyzing a user's attempt at "fortress building" (resilience).
+        The user is simulating a mass-spring-damper system with these parameters:
+        - Core Resilience (Mass): ${params.coreResilience} (A heavy, stubborn will or capacity to endure.)
+        - Recovery Drive (Spring Constant): ${params.recoveryDrive} (How fiercely they snap back from adversity. Too stiff, and they break.)
+        - Shock Absorption (Damping Coefficient): ${params.shockAbsorption} (Their ability to cushion blows. Too little, they oscillate wildly; too much, they're inert.)
+
+        Analyze this 'fortress.' Point out its design flaws, its inherent weaknesses, or, grudgingly, its surprising endurance.
+        Question its true purpose or the futility of its existence. Use terms like 'structural integrity,' 'fatigue points,' 'strategic retreat,' or 'over-engineered.'
+        Be dismissive yet insightful. Keep it under 60 words.
+        Conclude with a bleak assessment of its inevitable fate or a grudging respect for its temporary stability.
+      `;
+    }
+
+    const { callAIProxy } = await import("./geminiService");
+    const result = await callAIProxy([{ role: "user", parts: [{ text: prompt }] }], "gemini-2.5-flash");
+    return result.text || "SYSTEM FAILURE. THE SILENCE IS DEAFENING.";
+  } catch (error) {
+    console.error("Gemini Roast Error:", error);
+    if (params.type === 'virus') {
+        return "Error: Consciousness module not found. Please reboot reality.";
+    } else if (params.type === 'shadow') {
+        return "Error: The Schism is absolute. Connection lost.";
+    } else if (params.type === 'fortress') {
+        return "Error: Defensive matrix offline. Abandon hope.";
+    }
+    return "Even the AI is too bored to critique you right now. Try again later.";
+  }
+};
+

@@ -68,6 +68,10 @@ class SonicLedgerEngine {
         return [...this.pulses].reverse();
     }
 
+    public clear() {
+        this.pulses = [];
+    }
+
     public getTotalPressure(): string {
         const sum = this.pulses.reduce((acc, p) => acc + p.loudness, 0);
         return (sum / (this.pulses.length || 1)).toFixed(2);

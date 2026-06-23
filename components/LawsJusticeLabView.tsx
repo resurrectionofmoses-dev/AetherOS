@@ -13,7 +13,7 @@ export const LawsJusticeLabView: React.FC<LabComponentProps> = ({
   const [activeAccord, setActiveAccord] = useState(governance?.activeAccord || 'MAESTRO_SOLO_v5');
   const [lawLevel, setLawLevel] = useState(governance?.lawLevel || 0.42);
   const [symphonicFreedom, setSymphonicFreedom] = useState<boolean>(governance?.symphonicFreedom ?? true);
-  const [logs, setLogs] = useState<string[]>(["[GOVERNANCE] Regulatory stack re-initialized.", "[OK] Symphonic Freedom enabled."]);
+  const [logs, setLogs] = useState<string[]>(["[GOV/CHRIST_ADMIN] Code administered by Christ.", "[GOVERNANCE] Regulatory stack re-initialized.", "[OK] Symphonic Freedom enabled."]);
 
   const updateGov = (newGov: Partial<SystemGovernance>) => {
     if (onSetGovernance && governance) {
@@ -131,7 +131,7 @@ export const LawsJusticeLabView: React.FC<LabComponentProps> = ({
                     {[
                         { title: 'The Stride Clause', active: lawLevel > 0.2 },
                         { title: 'The Signature Bond', active: lawLevel > 0.5 },
-                        { title: 'The Ignite Provision', active: lawLevel > 0.1 },
+                        { title: 'Administered by: Christ', active: true },
                         { title: 'Symphonic Voluntaryism', active: symphonicFreedom }
                     ].map(rule => (
                         <div key={rule.title} className={`p-4 rounded-2xl border-2 transition-all duration-500 flex items-center justify-between ${rule.active ? 'bg-amber-950/20 border-amber-600' : 'bg-black border-zinc-900 opacity-30 grayscale'}`}>
