@@ -69,6 +69,8 @@ export interface ProjectTask {
   dueDate?: string;
   priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   createdAt: number;
+  completedAt?: number;
+  status?: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
 }
 
 export interface ProjectBlueprint {
@@ -155,7 +157,7 @@ export type MainView =
   | 'medical_synthesis_lab' | 'vehicle_telemetry_lab' | 'coding_network_teachers' | 'enlightenment_pool' 
   | 'library_view' | 'timeline' | 'amoeba_heritage' | 'system_exhaustion' | 'recon_vault'
   | 'constraints_audit' | 'remix_scope_lab' | 'vehicle_management' | 'unknown_physics_lab' | 'logic_pattern_lab'
-  | 'vulnerability_report' | 'tactical_intelligence' | 'behavioral_specs' | 'cognitive_pipeline' | 'data_provenance_lab' | 'sh_crt_loop' | 'user_profile' | 'prompt_forge' | 'sovereign_standard' | 'confusion_logic' | 'knowledge_forum' | 'blockchain_history' | 'main_net' | 'ecosystem' | 'accounts_registry' | 'blacklist' | 'system_integrity' | 'vault_manager' | 'moderator_lounge' | 'biometric_intelligence' | 'card_recovery' | 'project_showcase' | 'labs_flow' | 'google_sheets' | 'ai_telemetry' | 'cascade_investigator' | 'inevitable_crash' | 'scraper_merchant_store' | 'data_academy';
+  | 'vulnerability_report' | 'tactical_intelligence' | 'behavioral_specs' | 'cognitive_pipeline' | 'data_provenance_lab' | 'sh_crt_loop' | 'user_profile' | 'prompt_forge' | 'sovereign_standard' | 'confusion_logic' | 'knowledge_forum' | 'blockchain_history' | 'main_net' | 'ecosystem' | 'accounts_registry' | 'blacklist' | 'system_integrity' | 'vault_manager' | 'moderator_lounge' | 'biometric_intelligence' | 'card_recovery' | 'project_showcase' | 'labs_flow' | 'google_sheets' | 'ai_telemetry' | 'cascade_investigator' | 'inevitable_crash' | 'scraper_merchant_store' | 'data_academy' | 'reputation_leaderboard' | 'aether_flow_orchestrator' | 'packaging_suite' | 'system_archives';
 
 export interface Trajectory {
     id: string;
@@ -312,6 +314,12 @@ export interface SovereignSearchResult {
         purity: number;
         providersReached: string[];
     };
+    executiveSummary?: string;
+    entities?: Array<{ name: string; type: string; significance: string }>;
+    timeline?: Array<{ epoch: string; event: string; implication: string }>;
+    followUps?: string[];
+    purityScore?: number;
+    noiseRatio?: number;
 }
 
 export interface PowertrainAudit {
@@ -537,6 +545,11 @@ export interface UserProfile {
     skillEndorsements?: Record<string, string[]>;
     workExperience?: WorkExperience[];
     education?: Education[];
+    reputationScore?: number;
+    forumUpvotes?: number;
+    projectLikes?: number;
+    badgeName?: string;
+    badgeClass?: string;
 }
 
 export interface NetworkProject {
@@ -941,3 +954,5 @@ export interface AuditLog {
     details: string;
     proofOfWork: string;
 }
+
+

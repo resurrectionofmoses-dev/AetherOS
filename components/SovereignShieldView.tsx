@@ -264,6 +264,7 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
     // Quantum Sovereign Cryptography State Space
     const [quantumKeys, setQuantumKeys] = useState<any | null>(null);
     const [isGeneratingKeys, setIsGeneratingKeys] = useState(false);
+    const isGeneratingKeysRef = useRef(false);
     const [msgChannel, setMsgChannel] = useState<'SHIELD_TO_CORE' | 'CORE_TO_SHIELD'>('SHIELD_TO_CORE');
     const [messageInput, setMessageInput] = useState('CRITICAL PROTOCOL G00-A2: Forcing ABS subnet node synchronization.');
     const [encryptedPayload, setEncryptedPayload] = useState<any | null>(null);
@@ -325,13 +326,14 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
 
     // Initialize Sovereign Shield project in collaboration hub if missing
     useEffect(() => {
-        if (!projects || !setProjects) return;
-        const exists = projects.some(p => p.title === 'Sovereign Shield');
+        if (!Array.isArray(projects) || !setProjects) return;
+        const exists = projects.some(p => p && p.title === 'Sovereign Shield');
         if (!exists) {
             setProjects(prev => {
-                if (prev.some(p => p.title === 'Sovereign Shield')) return prev;
+                const prevArray = Array.isArray(prev) ? prev : [];
+                if (prevArray.some(p => p && p.title === 'Sovereign Shield')) return prevArray;
                 return [
-                    ...prev,
+                    ...prevArray,
                     {
                         id: 'sovereign_shield_project_id',
                         title: 'Sovereign Shield',
@@ -369,7 +371,7 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
     }, [projects, setProjects]);
 
     // Extract primitive hash to avoid reference-based re-triggering loops
-    const shieldProjStringified = projects ? JSON.stringify(projects.find(p => p.title === 'Sovereign Shield')) : '';
+    const shieldProjStringified = Array.isArray(projects) ? JSON.stringify(projects.find(p => p && p.title === 'Sovereign Shield')) : '';
 
     useEffect(() => {
         if (!shieldProjStringified) return;
@@ -385,7 +387,7 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
             if (keyTask && !keyTask.completed && quantumKeys) {
                 setQuantumKeys(null);
                 addLog("[SYNC] Post-quantum keys cleared from Sovereign Collaboration Hub directive.", 'WARN');
-            } else if (keyTask && keyTask.completed && !quantumKeys && !isGeneratingKeys) {
+            } else if (keyTask && keyTask.completed && !quantumKeys && !isGeneratingKeysRef.current) {
                 handleGenerateFreshKeys();
             }
 
@@ -414,6 +416,8 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
     }, [shieldProjStringified]);
 
     const handleGenerateFreshKeys = async () => {
+        if (isGeneratingKeysRef.current) return;
+        isGeneratingKeysRef.current = true;
         setIsGeneratingKeys(true);
         addLog("Initiating high-entropy PQC-1028 seed sequence...", 'INFO');
         try {
@@ -429,6 +433,7 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
             addLog(`Key generation error: ${e.message}`, 'WARN');
         } finally {
             setIsGeneratingKeys(false);
+            isGeneratingKeysRef.current = false;
         }
     };
 

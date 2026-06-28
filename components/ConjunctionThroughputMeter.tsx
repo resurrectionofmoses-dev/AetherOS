@@ -6,12 +6,14 @@ interface ConjunctionThroughputMeterProps {
     shards: number;
     activityDensity: number;
     isSystemFractured?: boolean;
+    isSyncing?: boolean;
 }
 
 export const ConjunctionThroughputMeter: React.FC<ConjunctionThroughputMeterProps> = ({
     shards,
     activityDensity,
     isSystemFractured = false,
+    isSyncing = false,
 }) => {
     // Current target and smoothed state references
     const [displayThroughput, setDisplayThroughput] = useState(250.0);
@@ -153,11 +155,25 @@ export const ConjunctionThroughputMeter: React.FC<ConjunctionThroughputMeterProp
             </div>
 
             {/* Static Conjunction State indicator */}
-            <div className="flex flex-col items-end text-right font-mono border-l-2 border-zinc-900 pl-3 shrink-0">
-                <span className="text-[7px] font-black text-gray-500 uppercase tracking-widest">Bus Stride</span>
-                <span className={`text-[10px] font-bold ${isSystemFractured ? 'text-rose-400/90' : 'text-emerald-400/90'} tracking-wide mt-0.5`}>
-                    1.2 PB/s
-                </span>
+            <div className="flex flex-col items-end text-right font-mono border-l-2 border-zinc-900 pl-3 shrink-0 min-w-[64px]">
+                {isSyncing ? (
+                    <>
+                        <span className="text-[7px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping inline-block" />
+                            SYNCING
+                        </span>
+                        <span className="text-[9px] font-bold text-amber-400/90 tracking-wide mt-0.5 animate-pulse">
+                            SAVING...
+                        </span>
+                    </>
+                ) : (
+                    <>
+                        <span className="text-[7px] font-black text-gray-500 uppercase tracking-widest">Bus Stride</span>
+                        <span className={`text-[10px] font-bold ${isSystemFractured ? 'text-rose-400/90' : 'text-emerald-400/90'} tracking-wide mt-0.5`}>
+                            1.2 PB/s
+                        </span>
+                    </>
+                )}
             </div>
         </div>
     );

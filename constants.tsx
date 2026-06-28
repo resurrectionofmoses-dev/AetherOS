@@ -8,7 +8,7 @@ import {
     FireIcon, ClockIcon, EyeIcon, OptimizerIcon, VaultIcon,
     GavelIcon, WrenchIcon, BroadcastIcon, ShareIcon, FlagIcon, ZapIcon,
     MessageCircleIcon, BookIcon, AtomIcon, ConfusionIcon, ThumbsUpIcon, TagIcon, DatabaseIcon,
-    MovieIcon
+    MovieIcon, StarIcon
 } from './components/icons';
 
 export interface NavItem {
@@ -49,6 +49,8 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
           { view: 'medical_synthesis_lab' as any, text: 'MEDICAL SYNTHESIS', icon: ActivityIcon },
           { view: 'user_profile' as any, text: 'USER PROFILE', icon: UserIcon },
           { view: 'project_showcase' as any, text: 'PROJECT SHOWCASE', icon: ShareIcon },
+          { view: 'reputation_leaderboard' as any, text: 'REPUTATION LEADERBOARD', icon: StarIcon },
+          { view: 'aether_flow_orchestrator' as any, text: 'AETHER-FLOW ORCHESTRATOR', icon: ServerIcon },
           { view: 'prompt_forge' as any, text: 'PROMPT FORGE', icon: TerminalIcon },
           { view: 'forge', text: 'BLUEPRINT FORGE', icon: ForgeIcon },
           { view: 'covenant', text: 'NETWORK COVENANT', icon: RulesIcon },
@@ -63,6 +65,8 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
           { view: 'labs_flow' as any, text: 'SOVEREIGN LABS FLOW', icon: TerminalIcon },
           { view: 'project_chronos', text: 'PROJECT CHRONOS', icon: ClockIcon },
           { view: 'build_logs', text: 'BUILD LOGS', icon: TerminalIcon },
+          { view: 'packaging_suite', text: 'PACKAGING SUITE', icon: ForgeIcon },
+          { view: 'system_archives', text: 'SYSTEM ARCHIVES', icon: DatabaseIcon },
           { view: 'rt_ipc_lab', text: 'RT-IPC LAB', icon: SignalIcon },
           { view: 'sovereign_shield', text: 'SOVEREIGN SHIELD', icon: ShieldIcon },
           { view: 'sovereign_standard' as any, text: 'SOVEREIGN STANDARD', icon: ShieldIcon },

@@ -18,11 +18,37 @@ interface AuthContextType {
 
 const AFK_TIMEOUT = 15 * 60 * 1000; // 15 minutes in ms
 
+const memoryLocalRegistry: Record<string, string> = {};
+
+const safeLocal = {
+  getItem: (key: string): string | null => {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      return memoryLocalRegistry[key] || null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      memoryLocalRegistry[key] = value;
+    }
+  },
+  removeItem: (key: string): void => {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      delete memoryLocalRegistry[key];
+    }
+  }
+};
+
 const getMachineId = () => {
-    let mid = localStorage.getItem('aetheros_machine_id');
+    let mid = safeLocal.getItem('aetheros_machine_id');
     if (!mid) {
         mid = `NODE_${uuidv4().split('-')[0].toUpperCase()}`;
-        localStorage.setItem('aetheros_machine_id', mid);
+        safeLocal.setItem('aetheros_machine_id', mid);
     }
     return mid;
 };
@@ -36,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Function to sync user to mocked registry
   const syncToRegistry = useCallback((u: User) => {
-    const registry = JSON.parse(localStorage.getItem('aetheros_user_registry') || '[]');
+    const registry = JSON.parse(safeLocal.getItem('aetheros_user_registry') || '[]');
     const existingIdx = registry.findIndex((r: any) => r.uid === u.uid);
     
     // Attempt to guess location from TZ
@@ -59,13 +85,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         registry.push(entry);
     }
 
-    localStorage.setItem('aetheros_user_registry', JSON.stringify(registry));
+    safeLocal.setItem('aetheros_user_registry', JSON.stringify(registry));
     setUserRegistry(registry);
   }, []);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('aetheros_user');
-    const registry = JSON.parse(localStorage.getItem('aetheros_user_registry') || '[]');
+    const storedUser = safeLocal.getItem('aetheros_user');
+    const registry = JSON.parse(safeLocal.getItem('aetheros_user_registry') || '[]');
     setUserRegistry(registry);
 
     if (storedUser) {
@@ -140,7 +166,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
     const updatedUser = { ...user, seclusionActive: !user.seclusionActive };
     setUser(updatedUser);
-    localStorage.setItem('aetheros_user', JSON.stringify(updatedUser));
+    safeLocal.setItem('aetheros_user', JSON.stringify(updatedUser));
     syncToRegistry(updatedUser);
   };
 
@@ -184,7 +210,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           seclusionActive: true
       };
       setUser(userWithStatus);
-      localStorage.setItem('aetheros_user', JSON.stringify(userWithStatus));
+      safeLocal.setItem('aetheros_user', JSON.stringify(userWithStatus));
       syncToRegistry(userWithStatus);
     } else {
       throw new Error("INVALID_CREDENTIALS: The Sovereign Shield rejected your access key.");
@@ -195,7 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return;
     const updatedUser = { ...user, sovereignty };
     setUser(updatedUser);
-    localStorage.setItem('aetheros_user', JSON.stringify(updatedUser));
+    safeLocal.setItem('aetheros_user', JSON.stringify(updatedUser));
     syncToRegistry(updatedUser);
   };
 
@@ -217,7 +243,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         seclusionActive: false
     };
     setUser(userWithStatus);
-    localStorage.setItem('aetheros_user', JSON.stringify(userWithStatus));
+    safeLocal.setItem('aetheros_user', JSON.stringify(userWithStatus));
     syncToRegistry(userWithStatus);
     setLoading(false);
   };
@@ -225,7 +251,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     await new Promise(resolve => setTimeout(resolve, 400));
     setUser(null);
-    localStorage.removeItem('aetheros_user');
+    safeLocal.removeItem('aetheros_user');
   };
 
   const [biometricPrompt, setBiometricPrompt] = useState<{

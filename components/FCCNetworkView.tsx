@@ -25,22 +25,23 @@ interface FCCNetworkViewProps {
 }
 
 export const FCCNetworkView: React.FC<FCCNetworkViewProps> = ({ projects, setProjects }) => {
-    const [selectedId, setSelectedId] = useState<string | null>(projects[0]?.id || null);
+    const safeProjects = Array.isArray(projects) ? projects : [];
+    const [selectedId, setSelectedId] = useState<string | null>(safeProjects[0]?.id || null);
     const [isAdding, setIsAdding] = useState(false); // Corrected from isAddingProject
     const [newTitle, setNewTitle] = useState(''); // Corrected from newProjectTitle
     const [isGenerating, setIsGenerating] = useState<string | null>(null);
     const [newTaskText, setNewTaskText] = useState('');
 
     const activeProject = useMemo(() => 
-        projects.find(p => p.id === selectedId) || null
-    , [projects, selectedId]);
+        safeProjects.find(p => p && p.id === selectedId) || null
+    , [safeProjects, selectedId]);
 
     const globalStats = useMemo(() => ({
-        total: projects.length,
-        harmonized: projects.filter(p => p.isWisdomHarmonized).length,
-        avgFight: projects.length ? Math.round(projects.reduce((acc, p) => acc + p.fightVector, 0) / projects.length) : 0,
+        total: safeProjects.length,
+        harmonized: safeProjects.filter(p => p && p.isWisdomHarmonized).length,
+        avgFight: safeProjects.length ? Math.round(safeProjects.reduce((acc, p) => acc + (p?.fightVector || 0), 0) / safeProjects.length) : 0,
         stride: 1.2
-    }), [projects]);
+    }), [safeProjects]);
 
     const addTask = () => {
         if (!newTaskText.trim() || !selectedId) return;
@@ -132,10 +133,10 @@ export const FCCNetworkView: React.FC<FCCNetworkViewProps> = ({ projects, setPro
                     <div className="aero-panel bg-black/40 border-amber-500/20 p-2.5 flex flex-col min-h-0 flex-1">
                          <div className="flex items-center justify-between mb-2 border-b border-white/5 pb-0.5">
                             <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Logic Shards</h3>
-                            <span className="text-[7px] font-mono text-amber-700">[{projects.length}]</span>
+                            <span className="text-[7px] font-mono text-amber-700">[{safeProjects.length}]</span>
                          </div>
                          <div className="flex-1 overflow-y-auto space-y-1.5 custom-scrollbar pr-1">
-                            {projects.map(p => (
+                            {safeProjects.map(p => (
                                 <button
                                     key={p.id}
                                     onClick={() => setSelectedId(p.id)}

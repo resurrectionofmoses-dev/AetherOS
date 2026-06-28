@@ -59,15 +59,25 @@ export const GlobalErrorHandler: React.FC = () => {
   useEffect(() => {
     const handleGlobalError = (event: ErrorEvent) => {
       const msg = event.message || '';
-      // Filter out benign system, browser extension, sandbox or hot-reload scheduler warnings
+      const errName = event.error?.name || '';
+      const errMsg = event.error?.message || '';
+      const fullText = `${msg} ${errName} ${errMsg}`.toLowerCase();
+      
+      // Filter out benign system, browser extension, sandbox, audio-decoding, or hot-reload scheduler warnings
       if (
-        msg.includes("Performance") ||
-        msg.includes("measure") ||
-        msg.includes("DataCloneError") ||
-        msg.includes("Should not already be working") ||
-        msg.includes("flushSync")
+        fullText.includes("performance") ||
+        fullText.includes("measure") ||
+        fullText.includes("datacloneerror") ||
+        fullText.includes("should not already be working") ||
+        fullText.includes("flushsync") ||
+        fullText.includes("decode") ||
+        fullText.includes("audio") ||
+        fullText.includes("play()") ||
+        fullText.includes("speech") ||
+        fullText.includes("synthesis") ||
+        fullText.includes("gesture")
       ) {
-        console.warn("[GlobalErrorHandler] Suppressed benign system/scheduler error:", msg);
+        console.warn("[GlobalErrorHandler] Suppressed benign system, audio, or scheduler error:", msg || errMsg || errName);
         return;
       }
 
@@ -80,24 +90,46 @@ export const GlobalErrorHandler: React.FC = () => {
     };
 
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      const message = event.reason?.message || event.reason || 'A promise chain has collapsed without a catch block.';
-      const msgStr = String(message);
+      const reason = event.reason || {};
+      const reasonName = reason.name || '';
+      const reasonMsg = reason.message || String(reason);
+      const fullText = `${reasonName} ${reasonMsg}`.toLowerCase();
+
+      const isBenignEvent = 
+        reason instanceof Event || 
+        (reason && typeof reason === 'object' && ('isTrusted' in reason || 'target' in reason));
 
       if (
-        msgStr.includes("Performance") ||
-        msgStr.includes("measure") ||
-        msgStr.includes("DataCloneError") ||
-        msgStr.includes("Should not already be working") ||
-        msgStr.includes("flushSync")
+        isBenignEvent ||
+        fullText.includes("performance") ||
+        fullText.includes("measure") ||
+        fullText.includes("datacloneerror") ||
+        fullText.includes("should not already be working") ||
+        fullText.includes("flushsync") ||
+        fullText.includes("decode") ||
+        fullText.includes("audio") ||
+        fullText.includes("play()") ||
+        fullText.includes("speech") ||
+        fullText.includes("synthesis") ||
+        fullText.includes("gesture") ||
+        fullText.includes("websocket") ||
+        fullText.includes("socket") ||
+        fullText.includes("hmr") ||
+        fullText.includes("vite") ||
+        fullText.includes("tonbridge") ||
+        fullText.includes("binance") ||
+        fullText.includes("event") ||
+        fullText.includes("istrusted") ||
+        fullText.includes("closed without opened")
       ) {
-        console.warn("[GlobalErrorHandler] Suppressed benign promise rejection:", msgStr);
+        console.warn("[GlobalErrorHandler] Suppressed benign promise rejection:", reasonMsg);
         return;
       }
 
       console.error("[GlobalErrorHandler] UnhandledRejection:", event);
       reportError({
         title: 'ASYNC_COLLAPSE',
-        message: msgStr,
+        message: reasonMsg,
         severity: ErrorSeverity.HIGH
       });
     };

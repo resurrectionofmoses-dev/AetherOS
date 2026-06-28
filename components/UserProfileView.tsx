@@ -30,6 +30,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { safeStorage } from '../services/safeStorage';
 import { reputationService } from '../services/reputationService';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 
 interface ApiKey {
     id: string;
@@ -42,9 +43,10 @@ interface UserProfileViewProps {
     profile: UserProfile;
     projects: NetworkProject[];
     onUpdateProfile: (updates: Partial<UserProfile>) => void;
+    onSetView?: (view: string) => void;
 }
 
-export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, projects, onUpdateProfile }) => {
+export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, projects, onUpdateProfile, onSetView }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState<UserProfile>(profile);
     
@@ -102,17 +104,19 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
             currentReserve = { ...reserveState };
         }
         
-        const asset = currentReserve.reserves.find((r: any) => r.subtype === subtype);
+        const asset = (currentReserve?.reserves || [])?.find?.((r: any) => r && r.subtype === subtype);
         if (asset) {
             asset.quantity = newQty;
             asset.totalValue = asset.quantity * asset.cphPerUnit;
         }
         
-        const totalValue = currentReserve.reserves.reduce((acc: number, curr: any) => acc + curr.totalValue, 0);
-        currentReserve.totalBackedCPH = totalValue;
-        currentReserve.netResourceBalance = totalValue;
-        currentReserve.cphInStorage = totalValue - currentReserve.cphInCirculation;
-        if (currentReserve.cphInStorage < 0) currentReserve.cphInStorage = 0;
+        const totalValue = (currentReserve?.reserves || []).reduce((acc: number, curr: any) => acc + (curr?.totalValue || 0), 0);
+        if (currentReserve) {
+            currentReserve.totalBackedCPH = totalValue;
+            currentReserve.netResourceBalance = totalValue;
+            currentReserve.cphInStorage = totalValue - (currentReserve.cphInCirculation || 0);
+            if (currentReserve.cphInStorage < 0) currentReserve.cphInStorage = 0;
+        }
 
         localStorage.setItem('aetheros_resource_reserve', JSON.stringify(currentReserve));
         setReserveState(currentReserve);
@@ -130,18 +134,22 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
             currentReserve = { ...reserveState };
         }
 
-        currentReserve.reserves.forEach((asset: any) => {
-            if (asset.subtype === 'solar_power') asset.quantity += 500;
-            if (asset.subtype === 'grain') asset.quantity += 100;
-            if (asset.subtype === 'iron_ore') asset.quantity += 250;
-            asset.totalValue = asset.quantity * asset.cphPerUnit;
+        (currentReserve?.reserves || []).forEach((asset: any) => {
+            if (asset) {
+                if (asset.subtype === 'solar_power') asset.quantity = (asset.quantity || 0) + 500;
+                if (asset.subtype === 'grain') asset.quantity = (asset.quantity || 0) + 100;
+                if (asset.subtype === 'iron_ore') asset.quantity = (asset.quantity || 0) + 250;
+                asset.totalValue = asset.quantity * (asset.cphPerUnit || 0);
+            }
         });
 
-        const totalValue = currentReserve.reserves.reduce((acc: number, curr: any) => acc + curr.totalValue, 0);
-        currentReserve.totalBackedCPH = totalValue;
-        currentReserve.netResourceBalance = totalValue;
-        currentReserve.cphInStorage = totalValue - currentReserve.cphInCirculation;
-        if (currentReserve.cphInStorage < 0) currentReserve.cphInStorage = 0;
+        const totalValue = (currentReserve?.reserves || []).reduce((acc: number, curr: any) => acc + (curr?.totalValue || 0), 0);
+        if (currentReserve) {
+            currentReserve.totalBackedCPH = totalValue;
+            currentReserve.netResourceBalance = totalValue;
+            currentReserve.cphInStorage = totalValue - (currentReserve.cphInCirculation || 0);
+            if (currentReserve.cphInStorage < 0) currentReserve.cphInStorage = 0;
+        }
 
         localStorage.setItem('aetheros_resource_reserve', JSON.stringify(currentReserve));
         setReserveState(currentReserve);
@@ -235,12 +243,14 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
 
     // Active Reputation Calculation (Dynamic tracking based on safeStorage data)
     const [reputationScore, setReputationScore] = useState<number>(0);
+    const [reputationInfo, setReputationInfo] = useState<any>(null);
 
     const loadAndUpdateReputation = async () => {
         try {
             const username = profile.username || 'Aetheros_Prime';
             const repInfo = await reputationService.calculateReputation(username);
             setReputationScore(repInfo.reputationScore);
+            setReputationInfo(repInfo);
         } catch (e) {
             console.error("Failed to calculate real-time Reputation metrics:", e);
         }
@@ -254,6 +264,18 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
         window.addEventListener('focus', handleFocus);
         return () => window.removeEventListener('focus', handleFocus);
     }, [profile.username]);
+
+    useEffect(() => {
+        // Automatic background simulation of incoming peer endorsements while browsing
+        const interval = setInterval(() => {
+            if (isEditing) return;
+            // 20% chance every 45 seconds to receive a random peer endorsement
+            if (Math.random() < 0.20) {
+                handleReceivePeerEndorsement();
+            }
+        }, 45000);
+        return () => clearInterval(interval);
+    }, [editForm.skills, skillEndorsements, isEditing]);
 
     useEffect(() => {
         const persistKeys = async () => {
@@ -327,11 +349,84 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
         });
     };
 
+    // Function to simulate receiving a peer endorsement
+    const handleReceivePeerEndorsement = (forcedSkillName?: string, forcedPeerName?: string) => {
+        const availablePeers = ['CyberWeaver_X', 'Validator_Solo', 'AcousticWeaver', 'Operator-Beta', 'Operator-Alpha', 'Operator-Gamma'];
+        const currentSkills = editForm.skills || [];
+        
+        if (currentSkills.length === 0) {
+            toast.error("No core skills listed on your profile to endorse. Please add a skill first!", {
+                description: "The AetherOS node requires at least one active parameter.",
+            });
+            return;
+        }
+
+        const peerName = forcedPeerName || availablePeers[Math.floor(Math.random() * availablePeers.length)];
+        const skillName = forcedSkillName || currentSkills[Math.floor(Math.random() * currentSkills.length)];
+
+        const voters = skillEndorsements[skillName] || [];
+        
+        if (voters.includes(peerName)) {
+            // Already endorsed by this peer, so let's find one that hasn't
+            const nonVotedSkills = currentSkills.filter(s => !(skillEndorsements[s] || []).includes(peerName));
+            if (nonVotedSkills.length > 0) {
+                const newSkill = nonVotedSkills[Math.floor(Math.random() * nonVotedSkills.length)];
+                const nextVoters = [...(skillEndorsements[newSkill] || []), peerName];
+                const nextEndorsements = {
+                    ...skillEndorsements,
+                    [newSkill]: nextVoters
+                };
+                setSkillEndorsements(nextEndorsements);
+                onUpdateProfile({
+                    ...editForm,
+                    skillEndorsements: nextEndorsements
+                });
+                toast.success(`@${peerName} endorsed your proficiency in ${newSkill}!`, {
+                    description: "Your reputation has been enhanced in the AetherOS lattice network.",
+                    duration: 6000,
+                });
+                setTimeout(() => {
+                    loadAndUpdateReputation();
+                }, 500);
+            } else {
+                toast.info(`@${peerName} has already fully endorsed all of your listed proficiencies!`, {
+                    description: "High density of peer validation attained.",
+                });
+            }
+            return;
+        }
+
+        const nextVoters = [...voters, peerName];
+        const nextEndorsements = {
+            ...skillEndorsements,
+            [skillName]: nextVoters
+        };
+
+        setSkillEndorsements(nextEndorsements);
+        
+        // Propagate changes to parent and save
+        onUpdateProfile({
+            ...editForm,
+            skillEndorsements: nextEndorsements
+        });
+
+        // Trigger the Toaster notification with a clean, high-contrast, professional design
+        toast.success(`@${peerName} endorsed your proficiency in ${skillName}!`, {
+            description: "Your reputation has been enhanced in the AetherOS lattice network.",
+            duration: 6000,
+        });
+
+        // Refresh reputation score
+        setTimeout(() => {
+            loadAndUpdateReputation();
+        }, 500);
+    };
+
     // Endorse and rate portfolio projects
     const handleEndorseProject = (projId: string) => {
         const currentUser = 'Operator-You';
-        const nextProjs = profileProjects.map(p => {
-            if (p.id === projId) {
+        const nextProjs = (profileProjects || [])?.map?.(p => {
+            if (p && p.id === projId) {
                 const voters = p.endorsements || [];
                 const nextVoters = voters.includes(currentUser)
                     ? voters.filter(v => v !== currentUser)
@@ -345,8 +440,8 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
     };
 
     const handleRateProject = (projId: string, value: number) => {
-        const nextProjs = profileProjects.map(p => {
-            if (p.id === projId) {
+        const nextProjs = (profileProjects || [])?.map?.(p => {
+            if (p && p.id === projId) {
                 const currentCount = p.ratingsCount || 0;
                 const newCount = currentCount + 1;
                 // Simple average formula
@@ -371,15 +466,15 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
             description: 'Maintained and deployed highly secure full-stack gateways.',
             isCurrent: true
         };
-        setWorkExperience([...workExperience, newExp]);
+        setWorkExperience([...(workExperience || []), newExp]);
     };
 
     const handleRemoveExperience = (id: string) => {
-        setWorkExperience(workExperience.filter(e => e.id !== id));
+        setWorkExperience((workExperience || []).filter(e => e && e.id !== id));
     };
 
     const handleUpdateExperience = (id: string, field: keyof WorkExperience, value: any) => {
-        setWorkExperience(workExperience.map(e => e.id === id ? { ...e, [field]: value } : e));
+        setWorkExperience((workExperience || [])?.map?.(e => e && e.id === id ? { ...e, [field]: value } : e));
     };
 
     // Education state handlers
@@ -393,15 +488,15 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
             endDate: '2024-06-01',
             description: 'Focused on type-safe compilation targets.'
         };
-        setEducation([...education, newEdu]);
+        setEducation([...(education || []), newEdu]);
     };
 
     const handleRemoveEducation = (id: string) => {
-        setEducation(education.filter(e => e.id !== id));
+        setEducation((education || []).filter(e => e && e.id !== id));
     };
 
     const handleUpdateEducation = (id: string, field: keyof Education, value: any) => {
-        setEducation(education.map(e => e.id === id ? { ...e, [field]: value } : e));
+        setEducation((education || [])?.map?.(e => e && e.id === id ? { ...e, [field]: value } : e));
     };
 
     const handleAddLookingForSkill = () => {
@@ -450,11 +545,11 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
             expirationDate: new Date(Date.now() + 31536000000).toISOString().split('T')[0], // 1 year
             createdAt: Date.now()
         };
-        setApiKeys([...apiKeys, newKey]);
+        setApiKeys([...(apiKeys || []), newKey]);
     };
 
     const handleRevokeKey = async (id: string) => {
-        setApiKeys(apiKeys.filter(k => k.id !== id));
+        setApiKeys((apiKeys || []).filter(k => k && k.id !== id));
     };
 
     const handleAddLink = () => {
@@ -463,15 +558,15 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
             label: 'GitHub Repository',
             url: 'https://'
         };
-        setPortfolioLinks([...portfolioLinks, newLink]);
+        setPortfolioLinks([...(portfolioLinks || []), newLink]);
     };
 
     const handleRemoveLink = (id: string) => {
-        setPortfolioLinks(portfolioLinks.filter(l => l.id !== id));
+        setPortfolioLinks((portfolioLinks || []).filter(l => l && l.id !== id));
     };
 
     const handleUpdateLink = (id: string, field: keyof PortfolioLink, value: string) => {
-        setPortfolioLinks(portfolioLinks.map(l => l.id === id ? { ...l, [field]: value } : l));
+        setPortfolioLinks((portfolioLinks || [])?.map?.(l => l && l.id === id ? { ...l, [field]: value } : l));
     };
 
     const handleAddProject = () => {
@@ -486,19 +581,35 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
             ratingsCount: 1,
             endorsements: []
         };
-        setProfileProjects([...profileProjects, newProj]);
+        setProfileProjects([...(profileProjects || []), newProj]);
     };
 
     const handleRemoveProject = (id: string) => {
-        setProfileProjects(profileProjects.filter(p => p.id !== id));
+        setProfileProjects((profileProjects || []).filter(p => p && p.id !== id));
     };
 
     const handleUpdateProject = (id: string, field: keyof ProfileProject, value: any) => {
-        setProfileProjects(profileProjects.map(p => p.id === id ? { ...p, [field]: value } : p));
+        setProfileProjects((profileProjects || [])?.map?.(p => p && p.id === id ? { ...p, [field]: value } : p));
     };
 
-    const currentProjects = profileProjects.filter(p => p.status === 'current');
-    const pastProjects = profileProjects.filter(p => p.status === 'past');
+    const currentProjects = (profileProjects || []).filter(p => p && p.status === 'current');
+    const pastProjects = (profileProjects || []).filter(p => p && p.status === 'past');
+
+    const activeBadgeName = reputationInfo?.badgeName || (
+        reputationScore >= 100 ? 'AetherOS Legendary Legend' :
+        reputationScore >= 60 ? 'Elite Conduit' :
+        reputationScore >= 30 ? 'Sovereign Architect' :
+        reputationScore >= 10 ? 'Qualified Verifier' :
+        'Initiative Node'
+    );
+
+    const activeBadgeClass = reputationInfo?.badgeClass || (
+        reputationScore >= 100 ? 'bg-fuchsia-950/80 text-fuchsia-400 border-fuchsia-500/50 shadow-[0_0_12px_rgba(217,70,239,0.3)]' :
+        reputationScore >= 60 ? 'bg-rose-950/80 text-rose-400 border-rose-500/45 shadow-[0_0_8px_rgba(244,63,94,0.3)] animate-pulse' :
+        reputationScore >= 30 ? 'bg-amber-950/80 text-amber-400 border-amber-500/40 shadow-[0_0_6px_rgba(245,158,11,0.2)]' :
+        reputationScore >= 10 ? 'bg-teal-950/80 text-teal-400 border-teal-500/30' :
+        'bg-zinc-900 text-zinc-400 border-zinc-800'
+    );
 
     return (
         <div id="user-profile-view-root" className="h-full flex flex-col bg-[#020202] text-zinc-100 font-mono p-6 overflow-y-auto custom-scrollbar">
@@ -581,8 +692,17 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                 </div>
                             ) : (
                                 <>
-                                    <div className="flex items-center gap-3">
+                                    <div className="flex flex-wrap items-center gap-3">
                                         <h1 id="view-username" className="text-3xl font-extrabold text-white tracking-tight">{profile.username}</h1>
+                                        <button 
+                                            id="prominent-reputation-badge"
+                                            onClick={() => onSetView && onSetView('reputation_leaderboard')}
+                                            className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 border shadow-[0_0_12px_rgba(0,0,0,0.6)] transition-all cursor-pointer hover:scale-105 active:scale-95 ${activeBadgeClass}`}
+                                            title={`Holistic Reputation Badge: ${activeBadgeName}. Click to view Leaderboard.`}
+                                        >
+                                            <Award className="w-4 h-4 text-current" />
+                                            <span>{activeBadgeName}</span>
+                                        </button>
                                         <span className="text-zinc-700 text-xs font-black select-none">//</span>
                                         <span className="text-xs text-zinc-500 uppercase font-black tracking-widest">Active Node</span>
                                     </div>
@@ -612,13 +732,18 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                         <span className="text-zinc-800 text-xs font-black">//</span>
 
                                         {/* Real-time Reputation Badge System */}
-                                        <span id="reputation-badge" className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border transition-all ${
-                                            reputationScore >= 100 ? 'bg-fuchsia-950/80 text-fuchsia-400 border-fuchsia-500/50 shadow-[0_0_12px_rgba(217,70,239,0.3)]' :
-                                            reputationScore >= 60 ? 'bg-rose-950/80 text-rose-400 border-rose-500/45 shadow-[0_0_8px_rgba(244,63,94,0.3)] animate-pulse' :
-                                            reputationScore >= 30 ? 'bg-amber-955/80 text-amber-400 border-amber-500/40 shadow-[0_0_6px_rgba(245,158,11,0.2)]' :
-                                            reputationScore >= 10 ? 'bg-teal-950/80 text-teal-400 border-teal-500/30' :
-                                            'bg-zinc-900 text-zinc-400 border-zinc-800'
-                                        }`} title={`Reputation points computed from forum answers and project showcase: ${reputationScore}`}>
+                                        <button 
+                                            id="reputation-badge" 
+                                            onClick={() => onSetView && onSetView('reputation_leaderboard')}
+                                            className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border transition-all ${
+                                                reputationScore >= 100 ? 'bg-fuchsia-950/80 text-fuchsia-400 border-fuchsia-500/50 shadow-[0_0_12px_rgba(217,70,239,0.3)] hover:scale-105' :
+                                                reputationScore >= 60 ? 'bg-rose-950/80 text-rose-400 border-rose-500/45 shadow-[0_0_8px_rgba(244,63,94,0.3)] animate-pulse hover:scale-105' :
+                                                reputationScore >= 30 ? 'bg-amber-955/80 text-amber-400 border-amber-500/40 shadow-[0_0_6px_rgba(245,158,11,0.2)] hover:scale-105' :
+                                                reputationScore >= 10 ? 'bg-teal-950/80 text-teal-400 border-teal-500/30 hover:scale-105' :
+                                                'bg-zinc-900 text-zinc-400 border-zinc-800 hover:scale-105'
+                                            } cursor-pointer`} 
+                                            title={`Click to view Leaderboard. Reputation points: ${reputationScore}`}
+                                        >
                                             <Award className="w-3.5 h-3.5 text-current" />
                                             <span>REP: {reputationScore}</span>
                                             <span className="text-current/30 font-mono text-[9px]">|</span>
@@ -629,7 +754,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                                  reputationScore >= 10 ? 'Qualified Verifier' :
                                                  'Initiative Node'}
                                             </span>
-                                        </span>
+                                        </button>
 
                                         <span className="text-zinc-800 text-xs font-black">//</span>
                                         <div className="flex items-center gap-1.5">
@@ -664,13 +789,24 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                 </button>
                             </div>
                         ) : (
-                            <button 
-                                id="btn-profile-edit"
-                                onClick={() => setIsEditing(true)} 
-                                className="px-5 py-2.5 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl hover:bg-zinc-800 hover:text-white transition-all flex items-center gap-2 text-xs font-black uppercase tracking-wider cursor-pointer hover:border-zinc-700"
-                            >
-                                <EditIcon className="w-3.5 h-3.5 text-blue-400" /> Edit Metadata
-                            </button>
+                            <div className="flex gap-2">
+                                {onSetView && (
+                                    <button 
+                                        id="btn-view-leaderboard"
+                                        onClick={() => onSetView('reputation_leaderboard')} 
+                                        className="px-4 py-2.5 bg-rose-950/40 border border-rose-900 text-rose-400 rounded-xl hover:bg-rose-900/20 transition-all flex items-center gap-2 text-xs font-black uppercase tracking-wider cursor-pointer font-bold"
+                                    >
+                                        <Star className="w-3.5 h-3.5" /> View Leaderboard
+                                    </button>
+                                )}
+                                <button 
+                                    id="btn-profile-edit"
+                                    onClick={() => setIsEditing(true)} 
+                                    className="px-5 py-2.5 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl hover:bg-zinc-800 hover:text-white transition-all flex items-center gap-2 text-xs font-black uppercase tracking-wider cursor-pointer hover:border-zinc-700"
+                                >
+                                    <EditIcon className="w-3.5 h-3.5 text-blue-400" /> Edit Metadata
+                                </button>
+                            </div>
                         )}
                     </div>
                 </motion.div>
@@ -752,15 +888,26 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                             className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 shadow-lg relative overflow-hidden"
                         >
                             <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
-                            <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 mb-4 flex items-center gap-2">
-                                <CodeIcon className="w-3.5 h-3.5 text-purple-400" /> Core Skills & Endorsements
-                            </h3>
+                            <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+                                <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 flex items-center gap-2">
+                                    <CodeIcon className="w-3.5 h-3.5 text-purple-400" /> Core Skills & Endorsements
+                                </h3>
+                                {!isEditing && (
+                                    <button
+                                        onClick={() => handleReceivePeerEndorsement()}
+                                        className="text-[8px] font-mono tracking-wider text-purple-400 hover:text-purple-300 bg-purple-500/10 border border-purple-500/25 hover:border-purple-500/50 px-2 py-1 rounded cursor-pointer transition-all flex items-center gap-1 uppercase"
+                                        title="Simulate receiving an endorsement from a network peer"
+                                    >
+                                        <SparklesIcon className="w-2.5 h-2.5 animate-pulse text-purple-400" /> Sim Recv Endorsement
+                                    </button>
+                                )}
+                            </div>
                             
                             <div className="flex flex-col gap-2 mb-4">
                                 <AnimatePresence>
-                                    {(isEditing ? editForm.skills : editForm.skills || []).map(skill => {
-                                        const endorseCount = (skillEndorsements[skill] || []).length;
-                                        const alreadyEndorsed = (skillEndorsements[skill] || []).includes('Operator-You');
+                                    {((isEditing ? editForm?.skills : editForm?.skills) || [])?.map?.(skill => {
+                                        const endorseCount = (skillEndorsements?.[skill] || []).length;
+                                        const alreadyEndorsed = (skillEndorsements?.[skill] || []).includes('Operator-You');
                                         return (
                                             <motion.div 
                                                 key={skill} 
@@ -862,7 +1009,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                             <div className="space-y-3">
                                 {isEditing ? (
                                     <div className="space-y-4">
-                                        {portfolioLinks.map((link, idx) => (
+                                        {(portfolioLinks || [])?.map?.((link, idx) => (
                                             <div key={link.id} className="p-3 bg-black/40 border border-zinc-905 border-zinc-900 rounded-xl space-y-2 relative group hover:border-zinc-800 transition-colors">
                                                 <button 
                                                     id={`btn-remove-link-${link.id}`}
@@ -900,7 +1047,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
-                                        {portfolioLinks.map(link => (
+                                        {(portfolioLinks || [])?.map?.(link => (
                                             <a 
                                                 id={`link-node-${link.id}`}
                                                 key={link.id}
@@ -955,7 +1102,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                             </div>
 
                             <div className="space-y-3">
-                                {(reserveState?.reserves || []).map((asset: any) => {
+                                {(reserveState?.reserves || [])?.map?.((asset: any) => {
                                     let IconComponent = GlobeIcon;
                                     let iconColor = "text-amber-500 bg-amber-950/20 border-amber-500/10";
                                     if (asset.subtype === 'solar_power') {
@@ -1050,7 +1197,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                             <div className="space-y-4">
                                 {isEditing ? (
                                     <div className="space-y-4">
-                                        {workExperience.map((exp) => (
+                                        {(workExperience || [])?.map?.((exp) => (
                                             <div key={exp.id} className="p-4 bg-black/40 border border-zinc-900 rounded-2xl relative space-y-3 hover:border-zinc-800 transition-colors">
                                                 <button 
                                                     onClick={() => handleRemoveExperience(exp.id)}
@@ -1129,7 +1276,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                     </div>
                                 ) : (
                                     <div className="relative border-l border-zinc-900 ml-4 pl-6 space-y-6">
-                                        {workExperience.map((exp) => (
+                                        {(workExperience || [])?.map?.((exp) => (
                                             <div key={exp.id} className="relative select-text">
                                                 {/* Timeline Node Ring */}
                                                 <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-zinc-950 border-2 border-orange-500 flex items-center justify-center">
@@ -1186,7 +1333,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                             <div className="space-y-4">
                                 {isEditing ? (
                                     <div className="space-y-4">
-                                        {education.map((edu) => (
+                                        {(education || [])?.map?.((edu) => (
                                             <div key={edu.id} className="p-4 bg-black/40 border border-zinc-900 rounded-2xl relative space-y-3 hover:border-zinc-800 transition-colors">
                                                 <button 
                                                     onClick={() => handleRemoveEducation(edu.id)}
@@ -1262,7 +1409,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                     </div>
                                 ) : (
                                     <div className="relative border-l border-zinc-900 ml-4 pl-6 space-y-6">
-                                        {education.map((edu) => (
+                                        {(education || [])?.map?.((edu) => (
                                             <div key={edu.id} className="relative select-text">
                                                 <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-zinc-950 border-2 border-violet-500 flex items-center justify-center">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
@@ -1329,7 +1476,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                             <div className="space-y-6">
                                 {isEditing ? (
                                     <div className="space-y-6">
-                                        {profileProjects.map((p, idx) => (
+                                        {(profileProjects || [])?.map?.((p, idx) => (
                                             <div key={p.id} className="bg-black/40 border border-zinc-900 p-4 rounded-2xl space-y-4 group relative hover:border-zinc-800 transition-colors">
                                                 <div className="flex justify-between items-center bg-zinc-950/60 p-2 px-3 rounded-lg border border-zinc-900">
                                                     <span className="text-[9px] uppercase font-black text-emerald-400 tracking-wider flex items-center gap-1.5 select-none">
@@ -1422,7 +1569,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                             </div>
                                             
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {currentProjects.map(p => {
+                                                {(currentProjects || [])?.map?.(p => {
                                                     const averageRating = p.rating || 5;
                                                     const endorseCount = (p.endorsements || []).length;
                                                     const alreadyEndorsed = (p.endorsements || []).includes('Operator-You');
@@ -1516,7 +1663,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                             </div>
 
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {pastProjects.map(p => {
+                                                {(pastProjects || [])?.map?.(p => {
                                                     const averageRating = p.rating || 5;
                                                     const alreadyEndorsed = (p.endorsements || []).includes('Operator-You');
                                                     return (
@@ -1665,7 +1812,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 select-text">
-                                        {apiKeys.map(key => (
+                                        {(apiKeys || [])?.map?.(key => (
                                             <div key={key.id} className="bg-black/40 border border-zinc-900 rounded-xl p-4 group hover:border-amber-500/20 transition-all flex flex-col justify-between">
                                                 <div>
                                                     <div className="flex justify-between items-start gap-4 mb-2 select-none">

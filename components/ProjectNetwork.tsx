@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MusicIcon, ActivityIcon, ZapIcon, CheckCircleIcon, FireIcon, CodeIcon, TerminalIcon, PlusIcon, BotIcon, ShieldIcon, XIcon, StarIcon, BrainIcon } from './icons';
+import { safeStorage } from '../services/safeStorage';
 import { 
   Clock, 
   AlertTriangle, 
@@ -17,15 +18,17 @@ import {
   BellRing,
   Activity,
   Heart,
-  Volume
+  Volume,
+  Check
 } from 'lucide-react';
-import { getSophisticatedColor } from '../utils';
+import { getSophisticatedColor, calculateHistoricalSpeed, estimateTaskCompletion } from '../utils';
 import type { NetworkProject, UserProfile } from '../types';
 import { suggestBlueprintTasks } from '../services/geminiService';
 import { SonicMetric } from './SonicMetric';
 import { Modal } from './Modal';
 import { reportError, ErrorSeverity } from './GlobalErrorHandler';
 import { v4 as uuidv4 } from 'uuid';
+import { KanbanBoard } from './KanbanBoard';
 
 interface ProjectNetworkProps {
     profile?: UserProfile;
@@ -40,11 +43,185 @@ interface ProjectNetworkProps {
     onAddProject?: (title: string, desc: string, priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL', deadline?: string, collaborators?: string[], gitHubRepo?: string, tags?: string[]) => void;
 }
 
+interface PredictiveProjectCardProps {
+    p: NetworkProject;
+    now: number;
+    conjunctionState: any;
+    playOperatorBeep: (freq?: number, type?: OscillatorType, duration?: number) => void;
+    playCompletionBeep: () => void;
+}
+
+const PredictiveProjectCard: React.FC<PredictiveProjectCardProps> = ({ p, now, conjunctionState, playOperatorBeep, playCompletionBeep }) => {
+    const totalMilestones = p.milestones?.length || 0;
+    const completedMilestones = p.milestones?.filter(m => m.completed).length || 0;
+    const totalTasks = p.tasks?.length || 0;
+    const completedTasks = p.tasks?.filter(t => t.completed).length || 0;
+    
+    const conjunctionLevel = conjunctionState?.level || 5;
+    const levelModifier = 1 + (conjunctionLevel * 0.05);
+    
+    // Local storage for custom boosts
+    const boostedKey = `aetheros_boosted_project_${p.id}`;
+    const [localBoost, setLocalBoost] = useState<number>(() => {
+        try {
+            return parseInt(localStorage.getItem(boostedKey) || '0', 10);
+        } catch {
+            return 0;
+        }
+    });
+    
+    const boostModifier = 1 + (localBoost * 0.002);
+    const velocityMultiplier = levelModifier * boostModifier;
+    
+    // Estimate duration
+    const baseDurationMs = 12 * 24 * 60 * 60 * 1000; // 12 days
+    let ratio = 0.15; // default minimum progress
+    if (totalMilestones > 0) {
+        ratio = (completedMilestones / totalMilestones) * 0.75 + 0.25;
+    } else if (totalTasks > 0) {
+        ratio = (completedTasks / totalTasks) * 0.75 + 0.25;
+    }
+    
+    // Priority scaling
+    let priorityScale = 1.0;
+    if (p.priority === 'Critical') priorityScale = 0.55;
+    else if (p.priority === 'High') priorityScale = 0.75;
+    else if (p.priority === 'Low') priorityScale = 1.35;
+    
+    const remainingMs = (baseDurationMs * (1 - Math.min(0.95, ratio)) * priorityScale) / velocityMultiplier;
+    const forecastedDate = new Date(now + remainingMs);
+    
+    // Confidence rating
+    let confidence = 55;
+    if (totalMilestones > 0) confidence += 15;
+    if (completedMilestones > 0) confidence += 15;
+    if (totalTasks > 3) confidence += 10;
+    confidence = Math.min(98, confidence);
+
+    const handleBoost = async () => {
+        const currentShards = conjunctionState?.shards || 0;
+        if (currentShards < 250) {
+            playOperatorBeep(250, 'sawtooth', 0.2);
+            alert("Insufficient Shard Reserves! Standard Conjunction level is active but manual Boost requires 250 Shards.");
+            return;
+        }
+        
+        const nextShards = currentShards - 250;
+        const updatedProgress = { ...conjunctionState, shards: nextShards };
+        
+        // Save
+        await safeStorage.setItem('aetheros_conjunction_progress', JSON.stringify(updatedProgress));
+        
+        // Custom store boost
+        const nextBoost = localBoost + 250;
+        try {
+            localStorage.setItem(boostedKey, String(nextBoost));
+        } catch {
+            // suppress errors
+        }
+        setLocalBoost(nextBoost);
+        
+        // Dispatch custom event to sync with App.tsx and ourselves
+        window.dispatchEvent(new CustomEvent('aetheros_conjunction_updated', {
+            detail: updatedProgress
+        }));
+        
+        playCompletionBeep();
+    };
+
+    return (
+        <div className="p-4 bg-[#0a0a16] border-2 border-amber-600/30 rounded-2xl flex flex-col justify-between transition-all duration-300 hover:border-amber-500/65 group relative overflow-hidden shadow-lg">
+            <div className="absolute top-0 right-0 p-1 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Sparkles className="w-12 h-12 text-amber-500 font-mono" />
+            </div>
+            
+            <div className="flex justify-between items-start mb-2.5">
+                <div className="min-w-0 text-left">
+                    <span className="text-xs font-black uppercase text-white truncate block">{p.title}</span>
+                    <span className="text-[8px] text-gray-500 font-mono tracking-widest uppercase block mt-0.5">{p.status} // {p.priority || 'MEDIUM'} PRIORITY</span>
+                </div>
+                <span className="text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded font-black border border-amber-500/20">{confidence}% CONFIDENCE</span>
+            </div>
+
+            <div className="bg-black/50 border border-white/5 rounded-xl p-2.5 mb-3 text-left">
+                <span className="text-[8px] text-zinc-500 uppercase block tracking-wider">Estimated Project Completion</span>
+                <h4 className="font-comic-header text-base text-amber-500 uppercase italic tracking-tight mt-0.5">
+                    {forecastedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                </h4>
+                <p className="text-[8px] text-zinc-400 italic font-mono mt-1">
+                    ~{Math.max(1, Math.round(remainingMs / (24 * 60 * 60 * 1000)))} days remaining based on historical velocity
+                </p>
+            </div>
+
+            {/* Progress bars & Conjunction velocity metrics */}
+            <div className="space-y-1.5 text-left mb-3">
+                <div className="flex justify-between text-[8px] font-mono font-bold uppercase text-gray-400">
+                    <span>Milestones/Tasks Coherence</span>
+                    <span>{Math.round(ratio * 100)}%</span>
+                </div>
+                <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-gradient-to-r from-amber-600 to-amber-400 h-full" style={{ width: `${ratio * 100}%` }} />
+                </div>
+                <div className="flex justify-between text-[8px] text-zinc-500 italic">
+                    <span>Velocity Rate: {velocityMultiplier.toFixed(2)}x</span>
+                    <span>Boosts: +{localBoost} Shards</span>
+                </div>
+            </div>
+
+            {/* Interactivity: Boost allocation */}
+            <button 
+                onClick={handleBoost}
+                className="w-full py-2 rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all bg-amber-600/10 border border-amber-500/30 text-amber-400 hover:bg-amber-500 hover:text-black cursor-pointer shadow-md"
+            >
+                <Sparkles className="w-3.5 h-3.5" />
+                Allocate Shard Booster (-250 Shards)
+            </button>
+        </div>
+    );
+};
+
 export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, projects, isSystemFractured = false, onToggleFracture, onDeleteProject, onToggleTask, onAddTask, onDeleteTask, onUpdateProject, onAddProject }) => {
+    const safeProjects = Array.isArray(projects) ? projects : [];
     const [now, setNow] = useState(Date.now());
     const [systemUptime, setSystemUptime] = useState(0);
     const [isAudible, setIsAudible] = useState(true);
     const [showAddProject, setShowAddProject] = useState(false);
+    const [chronosMode, setChronosMode] = useState<'standard' | 'predictive'>('standard');
+    const [conjunctionState, setConjunctionState] = useState<any>(() => {
+        try {
+            const saved = localStorage.getItem('aetheros_conjunction_progress');
+            if (saved && !saved.includes('"iv"')) {
+                return JSON.parse(saved);
+            }
+            return { level: 5, shards: 99999, globalAdrenaline: 100 };
+        } catch (e) {
+            return { level: 5, shards: 99999, globalAdrenaline: 100 };
+        }
+    });
+
+    useEffect(() => {
+        const handleConjunctionUpdatedLocal = (e: any) => {
+            if (e.detail) {
+                setConjunctionState((prev: any) => ({ ...prev, ...e.detail }));
+            }
+        };
+        window.addEventListener('aetheros_conjunction_updated', handleConjunctionUpdatedLocal);
+        return () => window.removeEventListener('aetheros_conjunction_updated', handleConjunctionUpdatedLocal);
+    }, []);
+
+    useEffect(() => {
+        const loadProgress = async () => {
+            try {
+                const saved = await safeStorage.getItem('aetheros_conjunction_progress');
+                if (saved) {
+                    setConjunctionState(JSON.parse(saved));
+                }
+            } catch (e) {
+                console.error("Error loading conjunction progress from safeStorage:", e);
+            }
+        };
+        loadProgress();
+    }, []);
     
     // Collaborators & network nodes tracking
     const [networkProfiles, setNetworkProfiles] = useState<any[]>([]);
@@ -52,10 +229,26 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
     const [managingCollabsFor, setManagingCollabsFor] = useState<string | null>(null);
 
     useEffect(() => {
-        const stored = localStorage.getItem('aetheros_network_profiles');
-        if (stored) {
-            setNetworkProfiles(JSON.parse(stored));
-        }
+        const loadProfiles = async () => {
+            try {
+                const stored = await safeStorage.getItem('aetheros_network_profiles');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed)) {
+                        setNetworkProfiles(parsed);
+                    } else {
+                        console.warn("[AetherOS] networkProfiles parsed value is not an array:", parsed);
+                        setNetworkProfiles([]);
+                    }
+                } else {
+                    setNetworkProfiles([]);
+                }
+            } catch (e) {
+                console.error("Error loading network profiles from safeStorage:", e);
+                setNetworkProfiles([]);
+            }
+        };
+        loadProfiles();
     }, [showAddProject, managingCollabsFor]);
 
     // New Project Intake state variables
@@ -81,6 +274,11 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
     
     // Active Tab tracking per project card
     const [activeCardTabs, setActiveCardTabs] = useState<Record<string, 'tasks' | 'milestones' | 'chat'>>({});
+    const [taskLayoutModes, setTaskLayoutModes] = useState<Record<string, 'list' | 'kanban'>>({});
+    const [draggedOverCol, setDraggedOverCol] = useState<Record<string, string | null>>({});
+    const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+    const [activeInlineAdd, setActiveInlineAdd] = useState<{ projectId: string, columnId: string } | null>(null);
+    const [inlineAddText, setInlineAddText] = useState('');
     
     // Node Search / Invitation filters
     const [nodeSearchQuery, setNodeSearchQuery] = useState('');
@@ -216,7 +414,7 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
     useEffect(() => {
         if (!isAudible) return;
         const secondsTick = Math.floor(now / 1000);
-        const hasCriticalProject = projects.some(p => {
+        const hasCriticalProject = safeProjects.some(p => {
             if (p.status === 'DONE') return false;
             const targetTime = p.deadline ? new Date(p.deadline).getTime() : (p.epochDate ? new Date(p.epochDate).getTime() : null);
             if (!targetTime) return false;
@@ -228,7 +426,7 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
         if (hasCriticalProject && secondsTick % 5 === 0 && (now % 1000 < 150)) {
             playAlertBeep();
         }
-    }, [now, isAudible, projects]);
+    }, [now, isAudible, safeProjects]);
 
     const handleAddTask = (projectId: string) => {
         const text = taskInputs[projectId];
@@ -270,7 +468,7 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
 
     const handleSendProjectChat = (projectId: string, contentStr: string) => {
         playOperatorBeep(880, 'sine', 0.05);
-        const activeProj = projects.find(proj => proj.id === projectId);
+        const activeProj = (safeProjects || [])?.find?.(proj => proj && proj.id === projectId);
         if (!activeProj) return;
 
         const myUserName = profile?.username || 'user';
@@ -291,13 +489,14 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
             let responderUsername = 'Spectre_AI';
             let avatar = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=100&q=80';
 
+            const profilesArray = Array.isArray(networkProfiles) ? networkProfiles : [];
             if (otherCollabs.length > 0) {
                 const chosen = otherCollabs[Math.floor(Math.random() * otherCollabs.length)];
                 responderUsername = chosen;
-                const fetchedProfile = networkProfiles.find(p => p.username === chosen);
+                const fetchedProfile = (profilesArray || [])?.find?.(p => p && p.username === chosen);
                 if (fetchedProfile?.avatarUrl) avatar = fetchedProfile.avatarUrl;
-            } else if (networkProfiles.length > 0) {
-                const choice = networkProfiles[Math.floor(Math.random() * networkProfiles.length)];
+            } else if (profilesArray.length > 0) {
+                const choice = profilesArray[Math.floor(Math.random() * profilesArray.length)];
                 responderUsername = choice.username;
                 if (choice.avatarUrl) avatar = choice.avatarUrl;
             }
@@ -321,7 +520,7 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
             };
 
             // Locate latest and append response
-            const latestProj = projects.find(proj => proj.id === projectId);
+            const latestProj = (safeProjects || [])?.find?.(proj => proj && proj.id === projectId);
             if (latestProj) {
                 onUpdateProject?.(latestProj.id, { chats: [...(latestProj.chats || []), replyMsg] });
             }
@@ -329,17 +528,21 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
         }, 1500);
     };
 
+    const speedStats = calculateHistoricalSpeed(safeProjects);
+
     const stats = {
-        totalResonators: projects.length,
-        avgGain: projects.length ? Math.round(projects.reduce((a, b) => a + b.fightVector, 0) / projects.length) : 0,
-        spectralNoise: projects.length ? Math.round(projects.reduce((a, b) => a + b.crazyLevel, 0) / projects.length) : 0,
+        totalResonators: safeProjects.length,
+        avgGain: safeProjects.length ? Math.round(safeProjects.reduce((a, b) => a + (b.fightVector || 0), 0) / safeProjects.length) : 0,
+        spectralNoise: safeProjects.length ? Math.round(safeProjects.reduce((a, b) => a + (b.crazyLevel || 0), 0) / safeProjects.length) : 0,
+        avgSpeedHours: speedStats.averageSpeedHours,
     };
 
     const allAvailableProjectTags = Array.from(
-        new Set(projects.flatMap(p => p.tags || []))
+        new Set(safeProjects.flatMap(p => p.tags || []))
     ).sort();
 
-    const filteredProjects = projects.filter(p => {
+    const filteredProjects = safeProjects.filter(p => {
+        if (!p) return false;
         if (projectStatusFilter !== 'ALL' && p.status !== projectStatusFilter) return false;
         
         if (projectCompletionFilter !== 'ALL') {
@@ -407,6 +610,7 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                     <SonicMetric size="sm" value={stats.totalResonators} label="CHAMBERS" unit="Nodes" colorClass="border-blue-600 text-blue-500" />
                     <SonicMetric size="sm" value={stats.avgGain} label="RESONANCE" unit="dB" colorClass="border-amber-600 text-amber-500" />
                     <SonicMetric size="sm" value={stats.spectralNoise} label="NOISE_THD" unit="%" colorClass="border-red-600 text-red-500" />
+                    <SonicMetric size="sm" value={stats.avgSpeedHours} label="FINISH SPEED" unit="Hrs/Task" colorClass="border-purple-600 text-purple-500" />
                 </div>
             </div>
 
@@ -514,6 +718,22 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-3">
+                        {/* Predictive Mode Toggle */}
+                        <button 
+                            onClick={() => {
+                                playOperatorBeep(chronosMode === 'standard' ? 900 : 700, 'sine', 0.1);
+                                setChronosMode(chronosMode === 'standard' ? 'predictive' : 'standard');
+                            }}
+                            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10px] font-bold uppercase transition-all ${
+                                chronosMode === 'predictive' 
+                                ? 'bg-amber-500/20 border-amber-500 text-amber-400 font-black shadow-[0_0_15px_rgba(245,158,11,0.2)]' 
+                                : 'bg-black border-zinc-800 text-zinc-450 hover:border-amber-500/40 hover:text-amber-300'
+                            }`}
+                        >
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                            Mode: {chronosMode === 'predictive' ? '🔮 FORECASTING' : '⏱️ STANDARD'}
+                        </button>
+
                         {/* Audio Toggle */}
                         <button 
                             onClick={() => {
@@ -617,10 +837,10 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                                 <div className="flex flex-col gap-1.5 text-left">
                                     <label className="text-[9px] font-black text-purple-400 uppercase tracking-widest">co-concurring nodes</label>
                                     <div className="flex flex-wrap gap-1 bg-black/40 border border-zinc-850 rounded-xl p-2 min-h-[38px] max-h-[100px] overflow-y-auto custom-scrollbar">
-                                        {networkProfiles.length === 0 ? (
+                                        {(!Array.isArray(networkProfiles) || networkProfiles.length === 0) ? (
                                             <span className="text-[8px] text-zinc-600 italic uppercase">No nodes scanned.</span>
                                         ) : (
-                                            networkProfiles.map((prof: any) => {
+                                            ((Array.isArray(networkProfiles) ? networkProfiles : []) || [])?.map?.((prof: any) => {
                                                 const isSelected = selectedCollaborators.includes(prof.username);
                                                 return (
                                                     <button
@@ -678,65 +898,96 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
 
                 {/* Grid Timelines */}
                 <div className="space-y-3">
-                    <span className="text-[9px] font-black tracking-widest text-gray-500 uppercase block text-left">Cognitive Timeline Monitors</span>
-                    {projects.filter(p => p.deadline || p.epochDate).length === 0 ? (
-                        <div className="p-4 bg-zinc-950/40 rounded-2xl border border-dashed border-zinc-800/80 text-center text-[10px] text-zinc-500 uppercase tracking-wide">
-                            GRID CHRONOS: No target deadlines deployed. Click "Create Target Node" or enter "Deadline" inside an active Project Chamber.
-                        </div>
+                    <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] font-black tracking-widest text-gray-500 uppercase block text-left">
+                            {chronosMode === 'predictive' ? '🔮 CHRONOS PREDICTIVE FORECASTING ENGINE' : 'Cognitive Timeline Monitors'}
+                        </span>
+                        {chronosMode === 'predictive' && (
+                            <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-2.5 py-0.5 rounded text-[8px] text-amber-400 font-bold font-mono">
+                                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-ping" />
+                                CONJUNCTION EFFECT: LEVEL {conjunctionState?.level || 5} ({(1 + (conjunctionState?.level || 5) * 0.05).toFixed(2)}x Base velocity multiplier)
+                            </div>
+                        )}
+                    </div>
+                    {chronosMode === 'predictive' ? (
+                        safeProjects.length === 0 ? (
+                            <div className="p-4 bg-zinc-950/40 rounded-2xl border border-dashed border-zinc-800/80 text-center text-[10px] text-zinc-500 uppercase tracking-wide">
+                                PREDICTIVE CHRONOS: No active project nodes available to analyze.
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {(safeProjects || [])?.map?.(p => (
+                                    <PredictiveProjectCard 
+                                        key={p.id}
+                                        p={p}
+                                        now={now}
+                                        conjunctionState={conjunctionState}
+                                        playOperatorBeep={playOperatorBeep}
+                                        playCompletionBeep={playCompletionBeep}
+                                    />
+                                ))}
+                            </div>
+                        )
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {projects.filter(p => p.deadline || p.epochDate).map(p => {
-                                const targetTime = p.deadline ? new Date(p.deadline).getTime() : (p.epochDate ? new Date(p.epochDate).getTime() : null);
-                                if (!targetTime) return null;
-                                
-                                const remaining = targetTime - now;
-                                const isCritical = p.status !== 'DONE' && remaining > 0 && remaining <= (p.alertThreshold || 3600) * 1000;
-                                const isElapsed = remaining <= 0;
-                                
-                                // Color styles
-                                let accentBg = "bg-zinc-950 border-zinc-900 text-zinc-400";
-                                let progressColor = "bg-blue-500";
-                                if (isElapsed && p.status !== 'DONE') {
-                                    accentBg = "bg-rose-950/20 border-red-900/60 text-rose-400 font-bold";
-                                    progressColor = "bg-red-600";
-                                } else if (isCritical) {
-                                    accentBg = "bg-yellow-950/30 border-amber-600/60 text-amber-500 font-black animate-pulse shadow-[0_0_15px_rgba(217,119,6,0.1)]";
-                                    progressColor = "bg-gradient-to-r from-amber-500 to-red-500";
-                                } else if (p.status === 'DONE') {
-                                    accentBg = "bg-emerald-950/10 border-emerald-900/40 text-emerald-500";
-                                    progressColor = "bg-emerald-500";
-                                }
+                        safeProjects.filter(p => p && (p.deadline || p.epochDate)).length === 0 ? (
+                            <div className="p-4 bg-zinc-950/40 rounded-2xl border border-dashed border-zinc-800/80 text-center text-[10px] text-zinc-500 uppercase tracking-wide">
+                                GRID CHRONOS: No target deadlines deployed. Click "Create Target Node" or enter "Deadline" inside an active Project Chamber.
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {(safeProjects || [])?.filter?.(p => p && (p.deadline || p.epochDate))?.map?.(p => {
+                                    const targetTime = p.deadline ? new Date(p.deadline).getTime() : (p.epochDate ? new Date(p.epochDate).getTime() : null);
+                                    if (!targetTime) return null;
+                                    
+                                    const remaining = targetTime - now;
+                                    const isCritical = p.status !== 'DONE' && remaining > 0 && remaining <= (p.alertThreshold || 3600) * 1000;
+                                    const isElapsed = remaining <= 0;
+                                    
+                                    // Color styles
+                                    let accentBg = "bg-zinc-950 border-zinc-900 text-zinc-400";
+                                    let progressColor = "bg-blue-500";
+                                    if (isElapsed && p.status !== 'DONE') {
+                                        accentBg = "bg-rose-950/20 border-red-900/60 text-rose-400 font-bold";
+                                        progressColor = "bg-red-600";
+                                    } else if (isCritical) {
+                                        accentBg = "bg-yellow-950/30 border-amber-600/60 text-amber-500 font-black animate-pulse shadow-[0_0_15px_rgba(217,119,6,0.1)]";
+                                        progressColor = "bg-gradient-to-r from-amber-500 to-red-500";
+                                    } else if (p.status === 'DONE') {
+                                        accentBg = "bg-emerald-950/10 border-emerald-900/40 text-emerald-500";
+                                        progressColor = "bg-emerald-500";
+                                    }
 
-                                // Format string
-                                let timeString = "ELAPSED";
-                                if (!isElapsed) {
-                                    const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
-                                    const hrs = Math.floor((remaining / (1000 * 60 * 60)) % 24);
-                                    const mins = Math.floor((remaining / 1000 / 60) % 60);
-                                    const secs = Math.floor((remaining / 1000) % 60);
-                                    const ms = Math.floor((remaining % 1000) / 100);
-                                    timeString = `${days > 0 ? `${days}d ` : ''}${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms}`;
-                                }
+                                    // Format string
+                                    let timeString = "ELAPSED";
+                                    if (!isElapsed) {
+                                        const days = Math.floor(remaining / (1000 * 60 * 60 * 24));
+                                        const hrs = Math.floor((remaining / (1000 * 60 * 60)) % 24);
+                                        const mins = Math.floor((remaining / 1000 / 60) % 60);
+                                        const secs = Math.floor((remaining / 1000) % 60);
+                                        const ms = Math.floor((remaining % 1000) / 100);
+                                        timeString = `${days > 0 ? `${days}d ` : ''}${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}.${ms}`;
+                                    }
 
-                                return (
-                                    <div key={p.id} className={`p-3.5 rounded-xl border flex flex-col justify-between transition-all duration-300 ${accentBg}`}>
-                                        <div className="flex items-center justify-between gap-2 mb-1.5 min-w-0">
-                                            <span className="text-[11px] font-black uppercase tracking-tight truncate max-w-[140px] text-left">{p.title}</span>
-                                            <span className="text-[10px] font-mono font-black tabular-nums">{timeString}</span>
+                                    return (
+                                        <div key={p.id} className={`p-3.5 rounded-xl border flex flex-col justify-between transition-all duration-300 ${accentBg}`}>
+                                            <div className="flex items-center justify-between gap-2 mb-1.5 min-w-0">
+                                                <span className="text-[11px] font-black uppercase tracking-tight truncate max-w-[140px] text-left">{p.title}</span>
+                                                <span className="text-[10px] font-mono font-black tabular-nums">{timeString}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between text-[8px] text-gray-500 uppercase font-bold mt-1">
+                                                <span className="flex items-center gap-1">
+                                                    {isElapsed && p.status !== 'DONE' ? <AlertTriangle className="w-3 h-3 text-red-500 animate-pulse" /> : <Clock className="w-3 h-3 text-blue-400" />}
+                                                    {p.status === 'DONE' ? 'SYSTEM SECURED' : (isElapsed ? 'OVERDUE' : (isCritical ? '⚠️ CRISIS POINT' : 'STABLE'))}
+                                                </span>
+                                                <span className="italic truncate max-w-[120px] text-right">
+                                                    {p.status === 'DONE' ? 'IDLE' : SIMULATED_DOING_STATUSES[Math.floor((now + p.id.charCodeAt(0)*1000)/3000) % SIMULATED_DOING_STATUSES.length].substring(0, 20)}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div className="flex items-center justify-between text-[8px] text-gray-500 uppercase font-bold mt-1">
-                                            <span className="flex items-center gap-1">
-                                                {isElapsed && p.status !== 'DONE' ? <AlertTriangle className="w-3 h-3 text-red-500 animate-pulse" /> : <Clock className="w-3 h-3 text-blue-400" />}
-                                                {p.status === 'DONE' ? 'SYSTEM SECURED' : (isElapsed ? 'OVERDUE' : (isCritical ? '⚠️ CRISIS POINT' : 'STABLE'))}
-                                            </span>
-                                            <span className="italic truncate max-w-[120px] text-right">
-                                                {p.status === 'DONE' ? 'IDLE' : SIMULATED_DOING_STATUSES[Math.floor((now + p.id.charCodeAt(0)*1000)/3000) % SIMULATED_DOING_STATUSES.length].substring(0, 20)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                    );
+                                })}
+                            </div>
+                        )
                     )}
                 </div>
             </div>
@@ -809,7 +1060,7 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                         className="bg-black border border-emerald-900/50 focus:border-emerald-500/80 rounded px-3 py-1 text-sm text-emerald-400 focus:outline-none font-bold font-mono"
                     >
                         <option value="ALL">All Skill Tags</option>
-                        {allAvailableProjectTags.map(tag => (
+                        {(allAvailableProjectTags || [])?.map?.(tag => (
                             <option key={tag} value={tag}>#{tag}</option>
                         ))}
                     </select>
@@ -819,10 +1070,68 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
             <div className="flex-1 overflow-y-auto space-y-8 custom-scrollbar pr-2 relative z-10">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-20">
                     <AnimatePresence>
-                        {filteredProjects.map(p => {
+                        {(filteredProjects || [])?.map?.(p => {
                             const theme = getSophisticatedColor(p.id + p.title);
                             const currentFilter = taskFilters[p.id] || 'all';
                             const currentSort = taskSorts[p.id] || 'default';
+                            const layoutMode = taskLayoutModes[p.id] || 'kanban';
+
+                            const handleDropTask = (e: React.DragEvent, targetStatus: 'TODO' | 'IN_PROGRESS' | 'DONE') => {
+                                e.preventDefault();
+                                setDraggedOverCol(prev => ({ ...prev, [p.id]: null }));
+                                try {
+                                    const dataStr = e.dataTransfer.getData('text/plain');
+                                    if (!dataStr) return;
+                                    const data = JSON.parse(dataStr);
+                                    if (data.projectId !== p.id) return;
+                                    
+                                    const taskToUpdate = (p.tasks || [])?.find?.(t => t && t.id === data.taskId);
+                                    if (!taskToUpdate) return;
+
+                                    const updatedTasks = (p.tasks || [])?.map?.(t => 
+                                        t.id === data.taskId 
+                                            ? { ...t, status: targetStatus, completed: targetStatus === 'DONE' } 
+                                            : t
+                                    );
+                                    onUpdateProject?.(p.id, { tasks: updatedTasks });
+                                    if (isAudible) playOperatorBeep(650, 'sine', 0.08);
+                                } catch (err) {
+                                    console.error("Failed to process task drop:", err);
+                                }
+                            };
+
+                            const cycleTaskStatus = (task: any) => {
+                                const currentStatus = task.status || (task.completed ? 'DONE' : 'TODO');
+                                const statusOrder: Array<'TODO' | 'IN_PROGRESS' | 'DONE'> = ['TODO', 'IN_PROGRESS', 'DONE'];
+                                const nextIndex = (statusOrder.indexOf(currentStatus as any) + 1) % statusOrder.length;
+                                const nextStatus = statusOrder[nextIndex];
+                                
+                                const updatedTasks = (p.tasks || [])?.map?.(t => 
+                                    t.id === task.id 
+                                        ? { ...t, status: nextStatus, completed: nextStatus === 'DONE' } 
+                                        : t
+                                );
+                                onUpdateProject?.(p.id, { tasks: updatedTasks });
+                                if (isAudible) playOperatorBeep(700, 'sine', 0.05);
+                            };
+
+                            const handleInlineAddTask = (columnId: string) => {
+                                if (!inlineAddText.trim()) return;
+                                const newTask = {
+                                    id: uuidv4(),
+                                    text: inlineAddText.trim(),
+                                    completed: columnId === 'DONE',
+                                    status: columnId as 'TODO' | 'IN_PROGRESS' | 'DONE',
+                                    dueDate: '',
+                                    priority: 'MEDIUM' as const,
+                                    createdAt: Date.now()
+                                };
+                                const updatedTasks = [...(p.tasks || []), newTask];
+                                onUpdateProject?.(p.id, { tasks: updatedTasks });
+                                setInlineAddText('');
+                                setActiveInlineAdd(null);
+                                if (isAudible) playOperatorBeep(750, 'sine', 0.05);
+                            };
 
                             let filteredTasks = p.tasks ? [...p.tasks] : [];
 
@@ -988,7 +1297,7 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                                         <div className="bg-black/20 p-3 rounded-xl border border-white/5 space-y-1.5">
                                             <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest block">Technology domains & required skills</span>
                                             <div className="flex flex-wrap items-center gap-1.5">
-                                                {(p.tags || []).map((tag) => (
+                                                {(p.tags || [])?.map?.((tag) => (
                                                     <span 
                                                         key={tag} 
                                                         onClick={(e) => {
@@ -1046,8 +1355,9 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                                     <div className="flex flex-wrap items-center gap-2.5 mb-6 p-4 bg-purple-950/5 border border-purple-900/10 rounded-2xl z-10 relative">
                                         <span className="text-[9px] font-black text-purple-400 uppercase tracking-widest leading-none">Collaborator Nodes:</span>
                                         <div className="flex -space-x-1.5 overflow-hidden">
-                                            {(p.collaborators || []).map((username: string) => {
-                                                const memberNode = networkProfiles.find((profile: any) => profile.username === username);
+                                            {(p.collaborators || [])?.map?.((username: string) => {
+                                                const profilesArray = Array.isArray(networkProfiles) ? networkProfiles : [];
+                                                const memberNode = (profilesArray || [])?.find?.((profile: any) => profile && profile.username === username);
                                                 return (
                                                     <div 
                                                         key={username}
@@ -1243,7 +1553,7 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                                                 </span>
                                             </div>
                                             <div className="space-y-1 max-h-24 overflow-y-auto text-[8px] uppercase text-zinc-500">
-                                                {activeOps[p.id].logs.map((line, idx) => (
+                                                {(activeOps[p.id]?.logs || [])?.map?.((line, idx) => (
                                                     <div key={idx} className="leading-tight text-zinc-400 truncate text-left">
                                                         {line}
                                                     </div>
@@ -1304,8 +1614,35 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                                     <div className="flex-1 min-h-[220px] flex flex-col justify-between mb-8 relative z-10">
                                         {(activeCardTabs[p.id] || 'tasks') === 'tasks' && (
                                             <div className="space-y-4">
-                                                <div className="flex justify-between items-center border-b border-black/20 pb-1">
-                                                    <span className="text-[9px] font-black uppercase text-gray-500 tracking-widest">Sonic Objectives</span>
+                                                <div className="flex flex-wrap justify-between items-center border-b border-black/20 pb-1.5 gap-2">
+                                                    <div className="flex items-center gap-3">
+                                                        <span className="text-[9px] font-black uppercase text-zinc-400 tracking-widest flex items-center gap-1.5">
+                                                            <BarChart2 className="w-3.5 h-3.5 text-blue-500" /> Interactive Task Flow
+                                                        </span>
+                                                        <div className="flex items-center gap-1 bg-zinc-950/60 p-0.5 rounded-lg border border-white/5 ml-2">
+                                                            <button
+                                                                onClick={() => setTaskLayoutModes(prev => ({ ...prev, [p.id]: 'kanban' }))}
+                                                                className={`px-2 py-0.5 rounded-md text-[8px] font-mono uppercase font-bold transition-all cursor-pointer ${
+                                                                    layoutMode === 'kanban' 
+                                                                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' 
+                                                                    : 'text-zinc-500 hover:text-zinc-300 border border-transparent'
+                                                                }`}
+                                                            >
+                                                                Kanban
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setTaskLayoutModes(prev => ({ ...prev, [p.id]: 'list' }))}
+                                                                className={`px-2 py-0.5 rounded-md text-[8px] font-mono uppercase font-bold transition-all cursor-pointer ${
+                                                                    layoutMode === 'list' 
+                                                                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' 
+                                                                    : 'text-zinc-500 hover:text-zinc-300 border border-transparent'
+                                                                }`}
+                                                            >
+                                                                List
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
                                                     <div className="flex items-center gap-2">
                                                         <select 
                                                             value={currentFilter} 
@@ -1330,63 +1667,105 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                                                         <span className="text-[9px] font-mono text-gray-600 ml-2">[{p.tasks?.filter(t => t.completed).length || 0} / {p.tasks?.length || 0} TUNED]</span>
                                                     </div>
                                                 </div>
-                                                <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar pr-2">
-                                                    <AnimatePresence initial={false}>
-                                                        {filteredTasks.map(task => (
-                                                            <motion.div 
-                                                                key={task.id}
-                                                                layout
-                                                                initial={{ opacity: 0, x: -10 }}
-                                                                animate={{ opacity: 1, x: 0 }}
-                                                                exit={{ opacity: 0, x: 10 }}
-                                                                whileHover={{ x: 2 }}
-                                                                onClick={() => onToggleTask(p.id, task.id)}
-                                                                className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all border-2 group/task ${
-                                                                    task.completed 
-                                                                    ? 'bg-emerald-900/30 border-emerald-600/40' 
-                                                                    : 'bg-black/20 border-transparent hover:bg-black/40 text-gray-400'
-                                                                }`}
-                                                            >
-                                                                <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${task.completed ? 'bg-emerald-600 border-emerald-500' : 'bg-black border-zinc-800'}`}>
-                                                                    {task.completed && <CheckCircleIcon className="w-3.5 h-3.5 text-black" />}
-                                                                </div>
-                                                                <div className="flex flex-col flex-1 min-w-0">
-                                                                    <div className="flex items-center justify-between w-full">
-                                                                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                                            <span className={`text-xs font-bold uppercase transition-all duration-300 truncate ${task.completed ? 'line-through text-emerald-500/50 italic opacity-60' : 'text-gray-200'}`}>
-                                                                                {task.text}
-                                                                            </span>
-                                                                            {task.priority && (
-                                                                                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border flex-shrink-0 ${
-                                                                                    task.priority === 'CRITICAL' ? 'bg-red-900/50 text-red-400 border-red-500/50' :
-                                                                                    task.priority === 'HIGH' ? 'bg-orange-900/50 text-orange-400 border-orange-500/50' :
-                                                                                    task.priority === 'MEDIUM' ? 'bg-blue-900/50 text-blue-400 border-blue-500/50' :
-                                                                                    'bg-gray-800 text-gray-400 border-gray-600'
-                                                                                }`}>
-                                                                                    {task.priority}
+
+                                                
+                                                
+{layoutMode === 'kanban' ? (
+                                                    <KanbanBoard
+                                                        project={p}
+                                                        tasks={filteredTasks}
+                                                        onToggleTask={onToggleTask}
+                                                        onDeleteTask={onDeleteTask}
+                                                        onUpdateProject={onUpdateProject}
+                                                        playOperatorBeep={playOperatorBeep}
+                                                        isAudible={isAudible}
+                                                        speedStats={speedStats}
+                                                    />
+                                                ) : (
+                                                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                                                        {filteredTasks.length === 0 ? (
+                                                            <div className="text-[10px] text-zinc-600 uppercase tracking-widest py-12 text-center border border-dashed border-zinc-900/40 rounded-xl">
+                                                                No Objectives Found
+                                                            </div>
+                                                        ) : (
+                                                            (filteredTasks || [])?.map?.(task => {
+                                                                const estimation = !task.completed && speedStats?.averageSpeedMs
+                                                                    ? estimateTaskCompletion(task, speedStats.averageSpeedMs)
+                                                                    : null;
+                                                                const statusLabel = task.status || (task.completed ? 'DONE' : 'TODO');
+                                                                
+                                                                return (
+                                                                    <div 
+                                                                        key={task.id}
+                                                                        className={`p-3 rounded-xl border flex items-center justify-between gap-4 transition-all duration-200 ${
+                                                                            task.completed 
+                                                                                ? 'bg-emerald-950/15 border-emerald-500/10 text-emerald-300' 
+                                                                                : 'bg-zinc-900/30 border-zinc-850 hover:border-zinc-700/60 text-zinc-200'
+                                                                        }`}
+                                                                    >
+                                                                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                                            <button
+                                                                                onClick={() => onToggleTask(p.id, task.id)}
+                                                                                className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-all ${
+                                                                                    task.completed 
+                                                                                        ? 'bg-emerald-500 border-emerald-400' 
+                                                                                        : 'bg-black/60 border-zinc-700 hover:border-zinc-500'
+                                                                                }`}
+                                                                            >
+                                                                                {task.completed && <Check className="w-3 h-3 text-black stroke-[3]" />}
+                                                                            </button>
+                                                                            
+                                                                            <div className="min-w-0 flex-1">
+                                                                                <span className={`text-[10px] font-bold uppercase tracking-tight block ${task.completed ? 'line-through text-emerald-500/45 italic' : ''}`}>
+                                                                                    {task.text}
+                                                                                </span>
+                                                                                <div className="flex gap-2 items-center mt-1">
+                                                                                    <span className={`text-[7px] font-mono font-black uppercase px-1 py-0.2 rounded ${
+                                                                                        statusLabel === 'DONE' ? 'bg-emerald-950/40 text-emerald-400 border border-emerald-900/30' :
+                                                                                        statusLabel === 'IN_PROGRESS' ? 'bg-amber-950/40 text-amber-500 border border-amber-900/30' :
+                                                                                        'bg-zinc-900 text-zinc-400 border border-zinc-800'
+                                                                                    }`}>
+                                                                                        {statusLabel}
+                                                                                    </span>
+                                                                                    {task.priority && (
+                                                                                        <span className={`text-[6.5px] font-black px-1 py-0.2 rounded border ${
+                                                                                            task.priority === 'CRITICAL' ? 'bg-red-950/40 text-red-400 border-red-500/20' :
+                                                                                            task.priority === 'HIGH' ? 'bg-orange-950/40 text-orange-400 border-orange-500/20' :
+                                                                                            task.priority === 'MEDIUM' ? 'bg-blue-950/40 text-blue-400 border-blue-500/20' :
+                                                                                            'bg-zinc-900 text-zinc-500 border-zinc-850'
+                                                                                        }`}>
+                                                                                            {task.priority}
+                                                                                        </span>
+                                                                                    )}
+                                                                                    {task.dueDate && (
+                                                                                        <span className="text-[6.5px] font-mono text-zinc-500 flex items-center gap-1">
+                                                                                            📅 {task.dueDate}
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        
+                                                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                                                            {estimation?.isBehindSchedule && (
+                                                                                <span className="text-[6.5px] text-amber-500 flex items-center gap-0.5" title={estimation.statusLabel}>
+                                                                                    <AlertTriangle className="w-2.5 h-2.5 animate-pulse" />
                                                                                 </span>
                                                                             )}
+                                                                            <button
+                                                                                onClick={() => onDeleteTask(p.id, task.id)}
+                                                                                className="text-zinc-600 hover:text-red-400 font-mono text-[9px] px-1.5"
+                                                                            >
+                                                                                ✕
+                                                                            </button>
                                                                         </div>
-                                                                        <motion.button 
-                                                                            whileHover={{ scale: 1.2, color: "#f87171" }}
-                                                                            whileTap={{ scale: 0.9 }}
-                                                                            onClick={(e) => { e.stopPropagation(); onDeleteTask(p.id, task.id); }}
-                                                                            className="opacity-0 group-hover/task:opacity-100 text-gray-700 transition-all ml-2"
-                                                                            title="Purge Objective"
-                                                                        >
-                                                                            <XIcon className="w-3 h-3" />
-                                                                        </motion.button>
                                                                     </div>
-                                                                    {task.dueDate && (
-                                                                        <span className={`text-[8px] font-mono mt-1 ${task.completed ? 'text-gray-600' : 'text-amber-500/70'}`}>
-                                                                            DUE: {task.dueDate}
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            </motion.div>
-                                                        ))}
-                                                    </AnimatePresence>
-                                                </div>
+                                                                );
+                                                            })
+                                                        )}
+                                                    </div>
+                                                )}
+
                                                 
                                                 <div className="flex flex-col gap-2">
                                                     <div className="flex gap-2">
@@ -1453,12 +1832,12 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                                                             No milestones deployed for this node.
                                                         </div>
                                                     ) : (
-                                                        p.milestones.map(ms => (
+                                                        (p.milestones || [])?.map?.(ms => (
                                                             <div 
                                                                 key={ms.id}
                                                                 onClick={() => {
                                                                     playOperatorBeep(640, 'sine', 0.05);
-                                                                    const nextMilestones = (p.milestones || []).map(m => m.id === ms.id ? { ...m, completed: !m.completed } : m);
+                                                                    const nextMilestones = (p.milestones || [])?.map?.(m => m.id === ms.id ? { ...m, completed: !m.completed } : m);
                                                                     onUpdateProject?.(p.id, { milestones: nextMilestones });
                                                                 }}
                                                                 className={`flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-all border-2 ${
@@ -1580,7 +1959,7 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                                                             📟 Channel initialized. Introduce transmission below.
                                                         </div>
                                                     ) : (
-                                                        p.chats.map(chat => {
+                                                        (p.chats || [])?.map?.(chat => {
                                                             const isMe = chat.sender === (profile?.username || 'user');
                                                             return (
                                                                 <div 
@@ -1749,11 +2128,11 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                     </p>
                     
                     <div className="space-y-1.5 max-h-[260px] overflow-y-auto custom-scrollbar pr-1">
-                        {networkProfiles.length === 0 ? (
+                        {(!Array.isArray(networkProfiles) || networkProfiles.length === 0) ? (
                             <div className="p-4 text-center text-xs text-zinc-500 italic">No node profiles scanned in the local ecosystem.</div>
                         ) : (
-                            networkProfiles.map((prof: any) => {
-                                const activeProj = projects.find(proj => proj.id === managingCollabsFor);
+                            ((Array.isArray(networkProfiles) ? networkProfiles : []) || [])?.map?.((prof: any) => {
+                                const activeProj = (safeProjects || [])?.find?.(proj => proj && proj.id === managingCollabsFor);
                                 const isInvited = (activeProj?.collaborators || []).includes(prof.username);
                                 
                                 return (

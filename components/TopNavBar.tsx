@@ -211,7 +211,9 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ currentView, onSetView, is
                                 <button 
                                     className="text-[8px] px-1.5 py-0.5 bg-purple-950 text-purple-300 rounded hover:bg-purple-900 transition-all"
                                     onClick={() => {
-                                        localStorage.removeItem('aetheros_tab_activity_logs');
+                                        try {
+                                            localStorage.removeItem('aetheros_tab_activity_logs');
+                                        } catch (e) {}
                                         setTabLogs([]);
                                     }}
                                 >

@@ -18,6 +18,8 @@ import { NetworkCovenant } from './components/NetworkCovenant';
 import { VerificationGatesView } from './components/VerificationGatesView';
 import { ChronosDashboard } from './components/ChronosDashboard';
 import { BuildLogsView } from './components/BuildLogsView';
+import { PackagingSuite } from './components/PackagingSuite';
+import { SystemArchives } from './components/SystemArchives';
 import { RTIPCLabView } from './components/RTIPCLabView';
 import { SovereignShieldView } from './components/SovereignShieldView';
 import { SpectreBrowserView } from './components/SpectreBrowserView';
@@ -108,13 +110,24 @@ import { InevitableCrashView } from './components/InevitableCrashView';
 import { CentralProcessingHubView } from './components/CentralProcessingHubView';
 import { ScraperMerchantStoreView } from './components/ScraperMerchantStoreView';
 import { DataAcademyView } from './components/DataAcademyView';
+import { ReputationLeaderboardView } from './components/ReputationLeaderboardView';
+import { AetherFlowOrchestratorView } from './components/AetherFlowOrchestratorView';
 import { v4 as uuidv4 } from 'uuid';
 
 export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
+    'aether_flow_orchestrator': () => <AetherFlowOrchestratorView />,
     'ai_telemetry': () => <AITelemetryView />,
     'inevitable_crash': () => <InevitableCrashView />,
     'eurodemux_core': () => <EurodemuxView />,
-    'google_sheets': (props) => <GoogleSheetsView onAddLog={props.onAddLog} />,
+    'google_sheets': (props) => (
+        <GoogleSheetsView 
+            onAddLog={props.onAddLog} 
+            projects={props.projects} 
+            setProjects={props.setProjects} 
+            blueprints={props.blueprints} 
+            setBlueprints={props.setBlueprints} 
+        />
+    ),
     'moderator_lounge': () => <ModeratorLoungeView />,
     'live_patch_obs': () => <LivePatchObservationView />,
     'accounts_registry': () => <AccountManagerView />,
@@ -181,12 +194,27 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
               onUpdateProfile={props.onUpdateProfile}
               onNavigateToAgent={() => props.onSetView('chat')} 
               onSetDirective={() => {}} 
+              progress={props.progress}
           />
         </div>
     ),
     'universal_search': () => <UniversalSearchBridge />,
     'gold_conjunction': () => <GoldConjunction />,
-    'shard_store': (props) => <ShardStoreView shards={props.shards} onPurchase={() => true} onIgniteSister={() => {}} sisters={props.sisters} />,
+    'shard_store': (props) => (
+        <ShardStoreView 
+            shards={props.shards} 
+            onPurchase={props.onPurchase} 
+            onIgniteSister={props.onIgniteSister} 
+            sisters={props.sisters}
+            purchasedItems={props.purchasedItems}
+            setPurchasedItems={props.setPurchasedItems}
+            rubyFilterActive={props.rubyFilterActive}
+            setRubyFilterActive={props.setRubyFilterActive}
+            strideSurgeTimeLeft={props.strideSurgeTimeLeft}
+            setStrideSurgeTimeLeft={props.setStrideSurgeTimeLeft}
+            onActionReward={props.onActionReward}
+        />
+    ),
     'conjunction_gates': (props) => <ConjunctionGatesView progress={props.progress} onUnlock={() => true} onSetView={props.onSetView} />,
     'projects': (props) => (
         <div className="flex-1 flex flex-col flex-hinge overflow-hidden">
@@ -196,9 +224,9 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
                 isSystemFractured={props.isSystemFractured}
                 onToggleFracture={props.onToggleFracture}
                 onDeleteProject={(id) => props.setProjects((p: any[]) => p.filter(proj => proj.id !== id))} 
-                onToggleTask={(projectId, taskId) => props.setProjects((prev: any[]) => prev.map(p => p.id === projectId ? { ...p, tasks: p.tasks.map((t: any) => t.id === taskId ? { ...t, completed: !t.completed } : t) } : p))} 
+                onToggleTask={(projectId, taskId) => props.setProjects((prev: any[]) => prev.map(p => p.id === projectId ? { ...p, tasks: p.tasks.map((t: any) => t.id === taskId ? { ...t, completed: !t.completed, status: !t.completed ? 'DONE' : 'TODO', completedAt: !t.completed ? Date.now() : undefined } : t) } : p))} 
                 onDeleteTask={(projectId, taskId) => props.setProjects((prev: any[]) => prev.map(p => p.id === projectId ? { ...p, tasks: p.tasks.filter((t: any) => t.id !== taskId) } : p))}
-                onAddTask={(projectId, text, dueDate, priority) => props.setProjects((prev: any[]) => prev.map(p => p.id === projectId ? { ...p, tasks: [...(p.tasks || []), { id: uuidv4(), text, completed: false, dueDate, priority, createdAt: Date.now() }] } : p))} 
+                onAddTask={(projectId, text, dueDate, priority) => props.setProjects((prev: any[]) => prev.map(p => p.id === projectId ? { ...p, tasks: [...(p.tasks || []), { id: uuidv4(), text, completed: false, status: 'TODO', dueDate, priority, createdAt: Date.now() }] } : p))} 
                 onUpdateProject={(id, updates) => props.setProjects((prev: any[]) => prev.map(p => p.id === id ? { ...p, ...updates } : p))} 
                 onAddProject={(title, desc, priority, deadline, collaborators, gitHubRepo, tags) => props.setProjects((prev: any[]) => [...prev, { id: uuidv4(), title, description: desc, priority, deadline, status: 'IDEATING', fightVector: 50, crazyLevel: 50, tasks: [], isWisdomHarmonized: false, timestamp: new Date(), collaborators: collaborators || [], gitHubRepo, tags: tags || [] }])}
             />
@@ -212,7 +240,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
                 onUpdateBlueprintStatus={(id, s) => props.setBlueprints((prev: any[]) => prev.map(b => b.id === id ? { ...b, status: s } : b))} 
                 onDeleteBlueprint={(id) => props.setBlueprints((prev: any[]) => prev.filter(b => b.id !== id))} 
                 onAddTaskToBlueprint={(bpId, task) => props.setBlueprints((prev: any[]) => prev.map(b => b.id === bpId ? { ...b, tasks: [...b.tasks, task] } : b))} 
-                onToggleTask={(bpId, taskId) => props.setBlueprints((prev: any[]) => prev.map(b => b.id === bpId ? { ...b, tasks: b.tasks.map((t: any) => t.id === taskId ? { ...t, completed: !t.completed } : t) } : b))} 
+                onToggleTask={(bpId, taskId) => props.setBlueprints((prev: any[]) => prev.map(b => b.id === bpId ? { ...b, tasks: b.tasks.map((t: any) => t.id === taskId ? { ...t, completed: !t.completed, completedAt: !t.completed ? Date.now() : undefined } : t) } : b))} 
                 onDeleteTask={(bpId, taskId) => props.setBlueprints((prev: any[]) => prev.map(b => b.id === bpId ? { ...b, tasks: b.tasks.filter((t: any) => t.id !== taskId) } : b))} 
             />
         </div>
@@ -246,7 +274,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'requindor_scroll': () => <FineRScroll />,
     'omni_builder': (props) => <OmniBuilderUI shards={props.shards} />,
     'singularity_engine': (props) => <SingularityEngineView knowledgeBaseSize={1000000} onConsumeKnowledge={() => {}} onProjectize={() => {}} onGoToNetwork={() => props.onSetView('coding_network')} />,
-    'diagnostics': (props) => <DiagnosticsCenter onSetView={props.onSetView} systemStatus={props.systemStatus} onUpdateSystemStatus={() => {}} />,
+    'diagnostics': (props) => <DiagnosticsCenter onSetView={props.onSetView} systemStatus={props.systemStatus} onUpdateSystemStatus={props.onUpdateSystemStatus} />,
     'communications': (props) => <CommunicationsView injectedCommand={null} onCommandInjected={() => {}} onNewBroadcast={props.onNewBroadcast} broadcasts={props.broadcasts} onCancelBroadcast={props.onCancelBroadcast} />,
     'up_north': (props) => <UpNorthProtocol onSetView={props.onSetView} />,
     'device_link': (props) => <DeviceLinkView status={props.status} device={props.device} onConnect={props.onConnect} onDisconnect={props.onDisconnect} lastModule={props.lastModule} />,
@@ -321,7 +349,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'cognitive_pipeline': (props) => <CognitivePipelineView onClose={() => props.onSetView('sovereign_shield')} />,
     'data_provenance_lab': () => <DataProvenanceLab />,
     'sh_crt_loop': () => <SelfHealingCRTView />,
-    'user_profile': (props) => <UserProfileView profile={props.profile} projects={props.projects} onUpdateProfile={(updates) => props.onUpdateProfile(updates)} />,
+    'user_profile': (props) => <UserProfileView profile={props.profile} projects={props.projects} onUpdateProfile={(updates) => props.onUpdateProfile(updates)} onSetView={props.onSetView} />,
     'prompt_forge': () => <PromptForge />,
     'voice_authority': () => <VoiceAuthorityView />,
     'cellular_grid': () => <CellularGrid />,
@@ -336,4 +364,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'cph_hub': () => <CentralProcessingHubView />,
     'scraper_merchant_store': () => <ScraperMerchantStoreView />,
     'data_academy': (props) => <DataAcademyView profile={props.profile} />,
+    'reputation_leaderboard': (props) => <ReputationLeaderboardView profile={props.profile} onSetView={props.onSetView} />,
+    'packaging_suite': () => <PackagingSuite />,
+    'system_archives': (props) => <SystemArchives archives={props.archives} onAddArchive={props.onAddArchive} onDeleteArchive={props.onDeleteArchive} />,
 };

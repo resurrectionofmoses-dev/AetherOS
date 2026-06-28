@@ -115,6 +115,147 @@ class ReputationService {
         }
         return 'bg-teal-950/80 text-teal-400 border-teal-500/30'; // Per Profile default class matching index
     }
+
+    /**
+     * Generates a fully dynamic leaderboard list of users in the network
+     * based on real-time safeStorage activity mixed with legendary node presets.
+     */
+    async getLeaderboard(currentUsername: string): Promise<LeaderboardUser[]> {
+        const normalizedCurrent = currentUsername || 'Aetheros_Prime';
+        
+        // Dynamic stats map for authors in the network
+        const dynamicStats: Record<string, { forumUpvotes: number; projectLikes: number }> = {};
+
+        // 1. Gather all forum upvotes
+        try {
+            const savedForum = await safeStorage.getItem('AETHER_FORUM_DATA');
+            if (savedForum) {
+                const questions = JSON.parse(savedForum);
+                if (Array.isArray(questions)) {
+                    questions.forEach((q: any) => {
+                        if (q.author) {
+                            if (!dynamicStats[q.author]) dynamicStats[q.author] = { forumUpvotes: 0, projectLikes: 0 };
+                            dynamicStats[q.author].forumUpvotes += (q.upvotes || 0);
+                        }
+                        if (Array.isArray(q.answers)) {
+                            q.answers.forEach((a: any) => {
+                                if (a.author) {
+                                    if (!dynamicStats[a.author]) dynamicStats[a.author] = { forumUpvotes: 0, projectLikes: 0 };
+                                    dynamicStats[a.author].forumUpvotes += (a.upvotes || 0);
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+        } catch (e) {
+            console.error("Leaderboard forum parse failure:", e);
+        }
+
+        // 2. Gather all project showcase likes
+        try {
+            const savedProjects = await safeStorage.getItem('aetheros_showcase_projects');
+            if (savedProjects) {
+                const projectsList = JSON.parse(savedProjects);
+                if (Array.isArray(projectsList)) {
+                    projectsList.forEach((p: any) => {
+                        const author = p.author || 'Aetheros_Prime';
+                        if (!dynamicStats[author]) dynamicStats[author] = { forumUpvotes: 0, projectLikes: 0 };
+                        if (Array.isArray(p.likes)) {
+                            dynamicStats[author].projectLikes += p.likes.length;
+                        }
+                    });
+                }
+            }
+        } catch (e) {
+            console.error("Leaderboard projects parse failure:", e);
+        }
+
+        // Presets of network players with baselines
+        const presets: Record<string, { role: string; baseForum: number; baseProject: number }> = {
+            'Maestro': { role: 'System Administrator', baseForum: 140, baseProject: 45 },
+            'Sovereign_Admin': { role: 'Core Architect', baseForum: 85, baseProject: 30 },
+            'CHAIN-X_VERIFIER': { role: 'Automated QC Node', baseForum: 65, baseProject: 15 },
+            'Logic_Maestro': { role: 'Senior Conduit Developer', baseForum: 48, baseProject: 18 },
+            'NullPointer_Whisperer': { role: 'Expert Member', baseForum: 32, baseProject: 10 },
+            'Byte_Surgeon': { role: 'Active Conduit', baseForum: 20, baseProject: 6 },
+            'Quantum_Coder': { role: 'Enthusiastic Node', baseForum: 12, baseProject: 4 },
+            'Decentralized_Scribe': { role: 'Initiative Node', baseForum: 4, baseProject: 2 },
+        };
+
+        // Combine presets and dynamic stats
+        const usersMap: Record<string, LeaderboardUser> = {};
+
+        // Initialize presets
+        Object.entries(presets).forEach(([username, meta]) => {
+            const dynamic = dynamicStats[username] || { forumUpvotes: 0, projectLikes: 0 };
+            const finalForum = meta.baseForum + dynamic.forumUpvotes;
+            const finalProject = meta.baseProject + dynamic.projectLikes;
+            const score = finalForum + finalProject;
+            
+            usersMap[username] = {
+                username,
+                forumUpvotes: finalForum,
+                projectLikes: finalProject,
+                reputationScore: score,
+                badgeName: this.getBadgeName(score),
+                badgeClass: this.getBadgeClass(score),
+                role: meta.role,
+                isCurrentUser: username === normalizedCurrent
+            };
+        });
+
+        // Add or merge current user (if different from presets, or ensure current user is represented)
+        const currentUserStats = dynamicStats[normalizedCurrent] || { forumUpvotes: 0, projectLikes: 0 };
+        if (usersMap[normalizedCurrent]) {
+            // Already initialized as preset, mark as current user
+            usersMap[normalizedCurrent].isCurrentUser = true;
+        } else {
+            // New user, calculate their score
+            const score = currentUserStats.forumUpvotes + currentUserStats.projectLikes;
+            usersMap[normalizedCurrent] = {
+                username: normalizedCurrent,
+                forumUpvotes: currentUserStats.forumUpvotes,
+                projectLikes: currentUserStats.projectLikes,
+                reputationScore: score,
+                badgeName: this.getBadgeName(score),
+                badgeClass: this.getBadgeClass(score),
+                role: 'Sovereign operator',
+                isCurrentUser: true
+            };
+        }
+
+        // Add any other dynamic authors who are not presets
+        Object.entries(dynamicStats).forEach(([username, stats]) => {
+            if (!usersMap[username]) {
+                const score = stats.forumUpvotes + stats.projectLikes;
+                usersMap[username] = {
+                    username,
+                    forumUpvotes: stats.forumUpvotes,
+                    projectLikes: stats.projectLikes,
+                    reputationScore: score,
+                    badgeName: this.getBadgeName(score),
+                    badgeClass: this.getBadgeClass(score),
+                    role: 'Conduit Peer',
+                    isCurrentUser: username === normalizedCurrent
+                };
+            }
+        });
+
+        // Convert to array and sort descending by reputation score
+        return Object.values(usersMap).sort((a, b) => b.reputationScore - a.reputationScore);
+    }
+}
+
+export interface LeaderboardUser {
+    username: string;
+    reputationScore: number;
+    forumUpvotes: number;
+    projectLikes: number;
+    badgeName: string;
+    badgeClass: string;
+    role: string;
+    isCurrentUser?: boolean;
 }
 
 export const reputationService = new ReputationService();

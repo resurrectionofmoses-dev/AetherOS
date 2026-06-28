@@ -53,8 +53,8 @@ export const useShieldReconciliation = ({
 
     // Get the Sovereign Shield project from the collaboration hub
     const shieldProject = useMemo(() => {
-        if (!projects) return null;
-        return projects.find(p => p.title === 'Sovereign Shield') || null;
+        const projectsArray = Array.isArray(projects) ? projects : [];
+        return projectsArray.find(p => p && p.title === 'Sovereign Shield') || null;
     }, [projects]);
 
     // Compute active divergences

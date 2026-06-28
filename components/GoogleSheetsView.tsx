@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   googleSignIn, 
   googleSignOut, 
@@ -6,6 +6,7 @@ import {
 } from '../services/firebaseAuthService';
 import { User } from 'firebase/auth';
 import { useAuth } from '../contexts/AuthContext';
+import Markdown from 'react-markdown';
 import { 
   FileSpreadsheet, 
   Lock, 
@@ -28,9 +29,16 @@ import {
   Binary,
   TrendingUp,
   BarChart2,
-  Info
+  Info,
+  Sparkles,
+  PlusCircle,
+  History,
+  Search,
+  Network
 } from 'lucide-react';
-import {
+import type { NetworkProject, ProjectBlueprint, ProjectTask } from '../types';
+import { D3VelocityChart } from './D3VelocityChart';
+import { 
   ResponsiveContainer,
   BarChart,
   Bar,
@@ -41,11 +49,19 @@ import {
   PieChart,
   Pie,
   Legend,
-  CartesianGrid
+  CartesianGrid,
+  AreaChart,
+  Area,
+  LineChart,
+  Line
 } from 'recharts';
 
 interface GoogleSheetsViewProps {
   onAddLog?: (msg: string, type: 'INFO' | 'WARN' | 'SUCCESS') => void;
+  projects?: NetworkProject[];
+  setProjects?: React.Dispatch<React.SetStateAction<NetworkProject[]>>;
+  blueprints?: ProjectBlueprint[];
+  setBlueprints?: React.Dispatch<React.SetStateAction<ProjectBlueprint[]>>;
 }
 
 interface SpreadsheetMetadata {
@@ -55,13 +71,28 @@ interface SpreadsheetMetadata {
   sheets: string[];
 }
 
-export const GoogleSheetsView: React.FC<GoogleSheetsViewProps> = ({ onAddLog }) => {
+export const GoogleSheetsView: React.FC<GoogleSheetsViewProps> = ({ 
+  onAddLog, 
+  projects = [], 
+  setProjects, 
+  blueprints = [], 
+  setBlueprints 
+}) => {
   const { user } = useAuth();
   // Auth states
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
+
+  // Column Mapping states
+  const [titleColIndex, setTitleColIndex] = useState<number>(2);
+  const [dateColIndex, setDateColIndex] = useState<number>(0);
+  const [priorityColIndex, setPriorityColIndex] = useState<number>(1);
+  const [statusColIndex, setStatusColIndex] = useState<number>(-1);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('');
+  const [newProjTitle, setNewProjTitle] = useState<string>('');
+  const [importMode, setImportMode] = useState<'tasks' | 'milestones'>('milestones');
 
   // Sheets states
   const [spreadsheetUrlOrId, setSpreadsheetUrlOrId] = useState('');
@@ -75,6 +106,13 @@ export const GoogleSheetsView: React.FC<GoogleSheetsViewProps> = ({ onAddLog }) 
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [editingCell, setEditingCell] = useState<{ row: number; col: number; originalValue: string; value: string } | null>(null);
 
+  // Advanced feature states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [chartView, setChartView] = useState<'averages' | 'categories' | 'timeline' | 'trends' | 'velocity'>('velocity');
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // New Row fields
   const [newRowValues, setNewRowValues] = useState<string[]>(['', '', '', '', '']);
 
@@ -87,7 +125,8 @@ export const GoogleSheetsView: React.FC<GoogleSheetsViewProps> = ({ onAddLog }) 
         columnCount: 0,
         numericMetrics: [],
         characterDensityMetrics: [],
-        categoryDistribution: []
+        categoryDistribution: [],
+        timelineDistribution: []
       };
     }
 
@@ -102,6 +141,8 @@ export const GoogleSheetsView: React.FC<GoogleSheetsViewProps> = ({ onAddLog }) 
     const characterDensityMetrics: Array<{ column: string; avgLength: number }> = [];
     // 3. Category distribution (typically column index 1 is Category)
     const categoryCounts: Record<string, number> = {};
+    // 4. Calculate logs over time (column index 0 is Timestamp)
+    const timelineCounts: Record<string, number> = {};
 
     headers.forEach((header, colIdx) => {
       let numericSum = 0;
@@ -152,10 +193,36 @@ export const GoogleSheetsView: React.FC<GoogleSheetsViewProps> = ({ onAddLog }) 
       }
     });
 
+    // Populate timeline distribution based on Column A (Timestamp)
+    rows.forEach((row) => {
+      const cellValue = row[0];
+      if (cellValue) {
+        try {
+          const str = String(cellValue).trim();
+          let dateStr = str;
+          if (str.includes('T')) {
+            dateStr = str.split('T')[0]; // YYYY-MM-DD
+          } else if (str.includes(' ')) {
+            dateStr = str.split(' ')[0];
+          }
+          if (dateStr.length >= 6) {
+            timelineCounts[dateStr] = (timelineCounts[dateStr] || 0) + 1;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    });
+
     const categoryDistribution = Object.entries(categoryCounts).map(([name, value]) => ({
       name,
       value
     }));
+
+    const timelineDistribution = Object.entries(timelineCounts)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-10); // Show last 10 points
 
     return {
       hasData: true,
@@ -163,9 +230,118 @@ export const GoogleSheetsView: React.FC<GoogleSheetsViewProps> = ({ onAddLog }) 
       columnCount,
       numericMetrics,
       characterDensityMetrics,
-      categoryDistribution
+      categoryDistribution,
+      timelineDistribution
     };
   }, [sheetData]);
+
+  // Dynamic filtered rows
+  const filteredRows = useMemo(() => {
+    if (!sheetData || sheetData.length <= 1) return [];
+    const rows = sheetData.slice(1);
+    if (!searchTerm.trim()) return rows;
+    const term = searchTerm.toLowerCase().trim();
+    return rows.filter((row) => {
+      return row.some((cell) => String(cell).toLowerCase().includes(term));
+    });
+  }, [sheetData, searchTerm]);
+
+  // Helper to parse dates into Date objects safely for sorting
+  const parseDateObj = (str: string): Date => {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) return d;
+    
+    // Try custom parsing for MM/DD/YYYY or DD/MM/YYYY
+    const parts = str.split('/');
+    if (parts.length === 3) {
+      const p0 = parseInt(parts[0], 10);
+      const p1 = parseInt(parts[1], 10);
+      let year = parseInt(parts[2], 10);
+      if (year < 100) year += 2000; // handle 2-digit years
+      
+      // Assume MM/DD/YYYY
+      const customDate = new Date(year, p0 - 1, p1);
+      if (!isNaN(customDate.getTime())) return customDate;
+    }
+    return new Date(0); // Epoch fallback for invalid dates
+  };
+
+  // Memoized Milestone Completion Trend Analysis
+  const trendData = useMemo(() => {
+    if (!sheetData || sheetData.length <= 1) return [];
+    const rows = sheetData.slice(1);
+    
+    // Group by date
+    const groups: Record<string, { date: string; completed: number; pending: number; total: number; dateObj: Date }> = {};
+    
+    rows.forEach((row) => {
+      // 1. Extract Date
+      let dateStr = 'No Date';
+      if (dateColIndex !== -1 && row[dateColIndex]) {
+        const rawVal = String(row[dateColIndex]).trim();
+        if (rawVal) {
+          // Clean up string representation of timestamp/date
+          dateStr = rawVal.replace(' UTC', '').split('T')[0].split(' ')[0];
+        }
+      }
+      
+      // 2. Extract Completion Status
+      let isCompleted = false;
+      if (statusColIndex !== -1 && row[statusColIndex] !== undefined) {
+        const statusRaw = String(row[statusColIndex]).trim().toLowerCase();
+        if (['true', 'done', 'completed', 'complete', 'success', 'yes', '1', 'stable'].includes(statusRaw)) {
+          isCompleted = true;
+        }
+      } else {
+        // Fallback heuristics: check if any cell in the row has keywords indicating completion or success
+        const rowStr = row.join(' ').toUpperCase();
+        if (rowStr.includes('SUCCESS') || rowStr.includes('STABLE') || rowStr.includes('DONE') || rowStr.includes('COMPLETED') || rowStr.includes('TRUE')) {
+          isCompleted = true;
+        }
+      }
+      
+      if (!groups[dateStr]) {
+        groups[dateStr] = {
+          date: dateStr,
+          completed: 0,
+          pending: 0,
+          total: 0,
+          dateObj: parseDateObj(dateStr)
+        };
+      }
+      
+      if (isCompleted) {
+        groups[dateStr].completed += 1;
+      } else {
+        groups[dateStr].pending += 1;
+      }
+      groups[dateStr].total += 1;
+    });
+    
+    // Convert to array and sort chronologically
+    const sortedPoints = Object.values(groups).sort((a, b) => {
+      return a.dateObj.getTime() - b.dateObj.getTime();
+    });
+    
+    // Compute cumulative metrics
+    let cumulativeTotal = 0;
+    let cumulativeCompleted = 0;
+    
+    return sortedPoints.map((p) => {
+      cumulativeTotal += p.total;
+      cumulativeCompleted += p.completed;
+      const rate = cumulativeTotal > 0 ? Math.round((cumulativeCompleted / cumulativeTotal) * 100) : 0;
+      return {
+        date: p.date,
+        completed: p.completed,
+        pending: p.pending,
+        total: p.total,
+        cumulativeCompleted,
+        cumulativeTotal,
+        completionRate: rate
+      };
+    });
+  }, [sheetData, dateColIndex, statusColIndex]);
 
   // Log templates lists (to simulate loading system milestones & threat logs for export)
   const systemEventsTemplate = [
@@ -199,6 +375,181 @@ export const GoogleSheetsView: React.FC<GoogleSheetsViewProps> = ({ onAddLog }) 
       localStorage.removeItem('aetheros_active_spreadsheet');
     }
   }, [activeSpreadsheet]);
+
+  // Auto-map columns when spreadsheet data updates
+  useEffect(() => {
+    if (sheetData && sheetData.length > 0) {
+      const headers = sheetData[0];
+      if (headers && headers.length > 0) {
+        // Auto-detect Title/Description column
+        const tIndex = headers.findIndex(h => {
+          const s = String(h).toLowerCase();
+          return s.includes('description') || s.includes('metrics') || s.includes('title') || s.includes('task') || s.includes('name');
+        });
+        if (tIndex !== -1) setTitleColIndex(tIndex);
+        else setTitleColIndex(Math.min(2, headers.length - 1));
+
+        // Auto-detect Due Date column
+        const dIndex = headers.findIndex(h => {
+          const s = String(h).toLowerCase();
+          return s.includes('timestamp') || s.includes('date') || s.includes('due') || s.includes('time');
+        });
+        if (dIndex !== -1) setDateColIndex(dIndex);
+        else setDateColIndex(0);
+
+        // Auto-detect Priority/Category column
+        const pIndex = headers.findIndex(h => {
+          const s = String(h).toLowerCase();
+          return s.includes('category') || s.includes('priority') || s.includes('type');
+        });
+        if (pIndex !== -1) setPriorityColIndex(pIndex);
+        else setPriorityColIndex(Math.min(1, headers.length - 1));
+
+        // Auto-detect Status column
+        const sIndex = headers.findIndex(h => {
+          const s = String(h).toLowerCase();
+          return s.includes('status') || s.includes('completed') || s.includes('done') || s.includes('state');
+        });
+        if (sIndex !== -1) setStatusColIndex(sIndex);
+        else setStatusColIndex(-1);
+      }
+    }
+  }, [sheetData]);
+
+  // Synchronize Google Sheet Columns into Project Task Network as Actionable Milestones / Tasks
+  const handleSyncSheetToProject = () => {
+    if (!sheetData || sheetData.length <= 1) {
+      if (onAddLog) onAddLog("Sync error: No data rows found in the active worksheet.", "WARN");
+      return;
+    }
+
+    let targetProjId = selectedProjectId;
+
+    // Create a new project if "NEW" or no project selected
+    if (!targetProjId || targetProjId === 'NEW') {
+      const title = newProjTitle.trim() || `Sheets Sync: ${activeSpreadsheet?.title || 'Active Document'}`;
+      const newProjId = `proj_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 7)}`;
+      
+      const newProj: NetworkProject = {
+        id: newProjId,
+        title: title,
+        description: `Synchronized milestone network from Google Sheet worksheet: ${selectedSheet || 'Main Tab'}`,
+        fightVector: 60,
+        crazyLevel: 45,
+        status: 'BUILDING',
+        isWisdomHarmonized: true,
+        timestamp: new Date(),
+        tasks: [],
+        milestones: [],
+        collaborators: currentUser?.displayName ? [currentUser.displayName] : ['Lead Analyst'],
+        tags: ['Google Sheets', 'Sync', 'Milestones']
+      };
+
+      if (setProjects) {
+        setProjects(prev => [...prev, newProj]);
+      }
+      targetProjId = newProjId;
+      setSelectedProjectId(newProjId);
+      setNewProjTitle('');
+      if (onAddLog) onAddLog(`Provisioned new network project: "${title}"`, 'SUCCESS');
+    }
+
+    const rowsToParse = sheetData.slice(1);
+    const newlyCreatedTasks: ProjectTask[] = [];
+    const newlyCreatedMilestones: { id: string; title: string; dueDate?: string; completed: boolean; createdAt: number }[] = [];
+
+    rowsToParse.forEach((row, idx) => {
+      const titleValue = row[titleColIndex] ? String(row[titleColIndex]).trim() : '';
+      if (!titleValue) return; // Skip rows without text/title
+
+      // Parse date/timestamp
+      let dateValue = dateColIndex !== -1 && row[dateColIndex] ? String(row[dateColIndex]).trim() : '';
+      if (dateValue && dateValue.includes('UTC')) {
+        dateValue = dateValue.replace(' UTC', '').trim();
+      }
+
+      // Parse priority
+      const priorityValRaw = priorityColIndex !== -1 && row[priorityColIndex] ? String(row[priorityColIndex]).trim().toUpperCase() : 'MEDIUM';
+      let normalizedPriority: 'Low' | 'Medium' | 'High' | 'Critical' = 'Medium';
+      let taskPriority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' = 'MEDIUM';
+
+      if (priorityValRaw.includes('CRITICAL') || priorityValRaw.includes('THREAT') || priorityValRaw.includes('RED')) {
+        normalizedPriority = 'Critical';
+        taskPriority = 'CRITICAL';
+      } else if (priorityValRaw.includes('HIGH') || priorityValRaw.includes('ALERT') || priorityValRaw.includes('ORANGE')) {
+        normalizedPriority = 'High';
+        taskPriority = 'HIGH';
+      } else if (priorityValRaw.includes('LOW') || priorityValRaw.includes('INFO') || priorityValRaw.includes('BACKUP') || priorityValRaw.includes('GREEN')) {
+        normalizedPriority = 'Low';
+        taskPriority = 'LOW';
+      }
+
+      // Parse completed status
+      let isCompleted = false;
+      if (statusColIndex !== -1 && row[statusColIndex]) {
+        const statusRaw = String(row[statusColIndex]).trim().toLowerCase();
+        if (['true', 'done', 'completed', 'complete', 'success', 'yes', '1', 'stable'].includes(statusRaw)) {
+          isCompleted = true;
+        }
+      } else {
+        // Simple auto completion based on backup or status category
+        if (priorityValRaw.includes('BACKUP') || priorityValRaw.includes('SUCCESS') || priorityValRaw.includes('STABLE')) {
+          isCompleted = true;
+        }
+      }
+
+      const uniqueId = `sheet_sync_${idx}_${Date.now().toString(36)}`;
+
+      if (importMode === 'tasks') {
+        newlyCreatedTasks.push({
+          id: uniqueId,
+          text: titleValue,
+          completed: isCompleted,
+          dueDate: dateValue || undefined,
+          priority: taskPriority,
+          createdAt: Date.now(),
+          completedAt: isCompleted ? Date.now() : undefined
+        });
+      } else {
+        newlyCreatedMilestones.push({
+          id: uniqueId,
+          title: titleValue,
+          dueDate: dateValue || undefined,
+          completed: isCompleted,
+          createdAt: Date.now()
+        });
+      }
+    });
+
+    if (newlyCreatedTasks.length === 0 && newlyCreatedMilestones.length === 0) {
+      if (onAddLog) onAddLog("Sync warning: No valid milestone data parsed from the active worksheet rows.", "WARN");
+      return;
+    }
+
+    if (setProjects) {
+      setProjects(prev => prev.map(p => {
+        if (p.id === targetProjId) {
+          if (importMode === 'tasks') {
+            return {
+              ...p,
+              tasks: [...p.tasks, ...newlyCreatedTasks]
+            };
+          } else {
+            return {
+              ...p,
+              milestones: [...(p.milestones || []), ...newlyCreatedMilestones]
+            };
+          }
+        }
+        return p;
+      }));
+    }
+
+    if (onAddLog) {
+      const count = importMode === 'tasks' ? newlyCreatedTasks.length : newlyCreatedMilestones.length;
+      onAddLog(`Successfully mapped ${count} ${importMode} directly from Sheet into Project Network!`, 'SUCCESS');
+    }
+  };
 
   // Google Sign In Trigger
   const handleConnect = async () => {
@@ -539,6 +890,270 @@ This will commit immediately to live Google Sheets.`;
     }
   };
 
+  // Creates a new worksheet (tab) inside the existing active spreadsheet.
+  const handleCreateWorksheet = async () => {
+    if (!accessToken || !activeSpreadsheet) return;
+    const title = prompt("Enter the title for the new worksheet tab:", "AetherOS Sec Tab");
+    if (!title) return;
+
+    setIsDataLoading(true);
+    setErrorText(null);
+
+    try {
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${activeSpreadsheet.id}:batchUpdate`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: title
+                }
+              }
+            }
+          ]
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to create worksheet: HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      const addedSheetTitle = data.replies?.[0]?.addSheet?.properties?.title || title;
+
+      // Update active spreadsheet metadata with the new sheet list
+      const updatedSheets = [...activeSpreadsheet.sheets, addedSheetTitle];
+      const updatedMeta = {
+        ...activeSpreadsheet,
+        sheets: updatedSheets
+      };
+
+      setActiveSpreadsheet(updatedMeta);
+      setSelectedSheet(addedSheetTitle);
+      
+      if (onAddLog) onAddLog(`Created and mounted new worksheet tab: ${addedSheetTitle}`, 'SUCCESS');
+      
+      // Auto-initialize column headers for the new tab
+      await initializeSheetColumns(activeSpreadsheet.id, addedSheetTitle);
+    } catch (err: any) {
+      console.error(err);
+      setErrorText(`Worksheet creation fault: ${err.message}`);
+    } finally {
+      setIsDataLoading(false);
+    }
+  };
+
+  // Clears all data rows (except header row) inside active selected sheet.
+  const handleClearSheetData = async () => {
+    if (!accessToken || !activeSpreadsheet || !selectedSheet) return;
+
+    if (!window.confirm(`CLEAR ALL ACTIVE LEDGER DATA?\n\nThis will purge all data from row 2 downwards in tab [${selectedSheet}]. This action is irreversible.`)) {
+      return;
+    }
+
+    setIsDataLoading(true);
+    setErrorText(null);
+
+    try {
+      const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${activeSpreadsheet.id}/values/${encodeURIComponent(selectedSheet)}!A2:Z100:clear`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        throw new Error(`Clear operation failed with status HTTP ${res.status}`);
+      }
+
+      if (onAddLog) onAddLog(`Ledger data purged for tab: ${selectedSheet}`, 'SUCCESS');
+      await loadSheetData();
+    } catch (err: any) {
+      console.error(err);
+      setErrorText(`Purge error: ${err.message}`);
+    } finally {
+      setIsDataLoading(false);
+    }
+  };
+
+  // Packages sheet data and analyzes it using Gemini via backend proxy.
+  const handleAIAnalyzeSheet = async () => {
+    if (!sheetData || sheetData.length <= 1) {
+      alert("No worksheet records to analyze! Please populate the sheet first.");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setErrorText(null);
+    setAiAnalysis(null);
+
+    if (onAddLog) onAddLog(`Transmitting active ledger to forensic AI processor...`, 'INFO');
+
+    try {
+      // Summarize first 100 rows
+      const headers = sheetData[0];
+      const rows = sheetData.slice(1, 100);
+      const payloadString = JSON.stringify({
+        headers,
+        rows,
+        totalRowCount: sheetData.length - 1,
+        worksheetName: selectedSheet,
+        spreadsheetTitle: activeSpreadsheet?.title
+      });
+
+      const response = await fetch('/api/ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          modelName: 'gemini-2.5-flash',
+          contents: {
+            parts: [{
+              text: `Please perform a forensic analysis of the following Google Sheet ledger. Check for any patterns, highlight critical system milestones, detect anomalous or warning entries, verify character/numeric densities, summarize activities, and suggest secure protocols. Present your analysis in clear, professional markdown sections (e.g. EXECUTIVE SUMMARY, DETECTED ANOMALIES/THREATS, TRENDS & OBSERVATIONS, AUDIT SUGGESTIONS).
+              
+              SPREADSHEET DATA:
+              ${payloadString}`
+            }]
+          },
+          systemInstruction: "You are the AetherOS Sovereign Sheet Analyst, a highly advanced forensic AI module. You analyze structured spreadsheet logging data with absolute precision, utilizing an authoritative, clear, tech-polished aesthetic. Output clean, professional markdown."
+        })
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || `Server responded with HTTP ${response.status}`);
+      }
+
+      const resData = await response.json();
+      setAiAnalysis(resData.text);
+      if (onAddLog) onAddLog(`Forensic sheet ledger analysis successfully compiled.`, 'SUCCESS');
+    } catch (err: any) {
+      console.error(err);
+      setErrorText(`AI analysis failed: ${err.message}`);
+      if (onAddLog) onAddLog(`AI Analysis error: ${err.message}`, 'WARN');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  // Generates and downloads a local CSV copy of the active worksheet data.
+  const handleDownloadCSV = () => {
+    if (!sheetData || sheetData.length === 0) return;
+    
+    // Generate CSV content
+    const csvContent = sheetData.map(row => 
+      row.map(cell => {
+        const val = String(cell || '').replace(/"/g, '""'); // Escape double quotes
+        return `"${val}"`;
+      }).join(',')
+    ).join('\n');
+
+    // Create a blob and trigger download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `${activeSpreadsheet?.title || 'Sovereign_Ledger'}_${selectedSheet}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    if (onAddLog) onAddLog(`Exported ledger worksheet as local CSV payload.`, 'SUCCESS');
+  };
+
+  // Uploads and parses CSV/JSON logs, appending them in bulk.
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string;
+      if (!text) return;
+
+      try {
+        let rowsToAppend: string[][] = [];
+
+        if (file.name.endsWith('.json')) {
+          // Parse JSON logs
+          const parsed = JSON.parse(text);
+          if (Array.isArray(parsed)) {
+            // Map items to standard: [Timestamp, Category, Description, PoW, Source]
+            rowsToAppend = parsed.map(item => [
+              item.timestamp || item.Timestamp || new Date().toISOString(),
+              item.category || item.Category || 'IMPORT',
+              item.description || item.Description || item.info || item.title || 'Imported Log Entry',
+              item.pow || item.PoW || item.certificate || '-',
+              item.source || item.Source || item.node || 'IMPORTED_NODE'
+            ]);
+          } else {
+            throw new Error("JSON file must contain an array of log entries.");
+          }
+        } else {
+          // Parse basic CSV
+          const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+          if (lines.length <= 1) {
+            throw new Error("CSV is empty or lacks headers/data rows.");
+          }
+          
+          rowsToAppend = lines.slice(1).map(line => {
+            // Split on comma, ignoring inside quotes
+            const matches = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g) || line.split(',');
+            return matches.map(cell => cell.replace(/^"|"$/g, '').trim());
+          });
+        }
+
+        if (rowsToAppend.length === 0) {
+          throw new Error("No valid data rows found to import.");
+        }
+
+        // Request user confirmation prior to data mutation
+        const confirmed = window.confirm(`BATCH LEDGER SYNC IMPORT:\n\nDetected ${rowsToAppend.length} rows inside [${file.name}].\n\nWould you like to write these entries live into Google Sheets?`);
+        if (!confirmed) return;
+
+        setIsDataLoading(true);
+        setErrorText(null);
+
+        // Upload in batch
+        const range = `${selectedSheet}!A1`;
+        const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${activeSpreadsheet!.id}/values/${range}:append?valueInputOption=USER_ENTERED`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            values: rowsToAppend
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error(`Batch upload failed with HTTP code ${res.status}`);
+        }
+
+        if (onAddLog) onAddLog(`Batch import complete: ${rowsToAppend.length} entries written to ledger.`, 'SUCCESS');
+        await loadSheetData();
+      } catch (err: any) {
+        console.error(err);
+        alert(err.message || 'Error processing file');
+        if (onAddLog) onAddLog(`File import fault: ${err.message}`, 'WARN');
+      } finally {
+        setIsDataLoading(false);
+        // Reset file input value to allow uploading same file again
+        if (fileInputRef.current) fileInputRef.current.value = '';
+      }
+    };
+    reader.readAsText(file);
+  };
+
   return (
     <div id="aetheros-google-sheets-dashboard" className="flex-1 flex flex-col p-6 bg-zinc-950 font-sans text-zinc-300 overflow-y-auto selection:bg-red-950 select-none">
       
@@ -708,15 +1323,34 @@ This will commit immediately to live Google Sheets.`;
                   </div>
                 </div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col gap-2">
                   <button 
                     onClick={() => loadSheetData()}
-                    className="flex-1 py-1 px-3 bg-zinc-900 hover:bg-zinc-800 text-[10px] border border-zinc-800 hover:border-zinc-700 text-white rounded-lg flex items-center justify-center gap-1.5 font-bold uppercase tracking-wider transition-colors"
+                    className="w-full py-2 px-3 bg-zinc-900 hover:bg-zinc-800 text-[10px] border border-zinc-800 hover:border-zinc-700 text-white rounded-lg flex items-center justify-center gap-1.5 font-bold uppercase tracking-wider transition-colors"
                     disabled={isDataLoading}
                   >
                     <RefreshCw className={`w-3 h-3 ${isDataLoading ? 'animate-spin' : ''}`} />
                     Sync Data
                   </button>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button 
+                      onClick={handleCreateWorksheet}
+                      className="py-1.5 px-2 bg-emerald-950 hover:bg-emerald-900/80 text-[9px] border border-emerald-900/60 text-emerald-400 rounded-lg flex items-center justify-center gap-1 font-bold uppercase tracking-wider transition-colors"
+                      disabled={isDataLoading}
+                    >
+                      <Plus className="w-3 h-3" />
+                      New Tab
+                    </button>
+                    <button 
+                      onClick={handleClearSheetData}
+                      className="py-1.5 px-2 bg-red-950/40 hover:bg-red-950/60 text-[9px] border border-red-900/40 text-red-400 rounded-lg flex items-center justify-center gap-1 font-bold uppercase tracking-wider transition-colors"
+                      disabled={isDataLoading}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Clear Tab
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -778,6 +1412,49 @@ This will commit immediately to live Google Sheets.`;
                 </div>
               )}
             </div>
+
+            {/* Advanced Search & Payload Import/Export Toolbar */}
+            {currentUser && activeSpreadsheet && sheetData.length > 0 && (
+              <div className="flex flex-col md:flex-row items-center gap-3 mb-4 p-3 bg-zinc-950/80 border border-zinc-900 rounded-xl">
+                {/* Search Box */}
+                <div className="relative w-full md:flex-1">
+                  <Search className="w-3.5 h-3.5 text-zinc-500 absolute top-2.5 left-3" />
+                  <input 
+                    type="text"
+                    placeholder="Search ledger cells..."
+                    className="w-full bg-black pl-9 pr-3 py-1.5 border border-zinc-850 rounded-lg text-xs text-white focus:outline-none focus:border-red-500 select-text font-mono"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+
+                {/* Import / Export Controls */}
+                <div className="flex gap-2 w-full md:w-auto justify-end shrink-0">
+                  <button
+                    onClick={handleDownloadCSV}
+                    className="flex-1 md:flex-none py-1.5 px-3 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-zinc-300 hover:text-white rounded-lg text-[9px] font-extrabold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Download className="w-3 h-3 text-red-500" />
+                    Export CSV
+                  </button>
+
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex-1 md:flex-none py-1.5 px-3 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 text-zinc-300 hover:text-white rounded-lg text-[9px] font-extrabold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Upload className="w-3 h-3 text-emerald-400" />
+                    Import Logs
+                  </button>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    className="hidden" 
+                    accept=".json,.csv" 
+                    onChange={handleFileUpload} 
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Editing Overlay Cell popup */}
             {editingCell && (
@@ -849,34 +1526,59 @@ This will commit immediately to live Google Sheets.`;
                     </tr>
                   </thead>
                   <tbody>
-                    {sheetData.slice(1).map((row, rIdx) => (
-                      <tr 
-                        key={rIdx} 
-                        className="border-b border-zinc-900/60 hover:bg-zinc-900/20 transition-colors"
-                      >
-                        {Array.from({ length: 5 }).map((_, cIdx) => {
-                          const val = row[cIdx] || '';
-                          return (
-                            <td key={cIdx} className="p-3 truncate max-w-[150px] font-mono pr-2" title={val}>
-                              {val}
-                            </td>
-                          );
-                        })}
-                        <td className="p-3 text-right">
-                          <button 
-                            onClick={() => setEditingCell({
-                              row: rIdx + 1, // Skip header row
-                              col: 0,
-                              originalValue: row[0] || '',
-                              value: row[0] || ''
-                            })}
-                            className="text-[9px] font-black text-red-500 px-2 py-1 bg-red-950/20 border border-red-900/30 hover:border-red-500 hover:bg-red-950/40 rounded transition-all mr-1.5"
-                          >
-                            Edit Row
-                          </button>
+                    {filteredRows.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="p-8 text-center text-zinc-600 font-mono text-[11px] italic">
+                          No spreadsheet rows match the filter criterion.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      filteredRows.map((row, rIdx) => {
+                        const category = String(row[1] || '').toUpperCase();
+                        let rowBg = "hover:bg-zinc-900/20";
+                        let categoryBorder = "border-zinc-900/60";
+
+                        if (category === "THREAT") {
+                          rowBg = "bg-red-950/5 hover:bg-red-950/10";
+                          categoryBorder = "border-red-955/20";
+                        } else if (category === "MILESTONE") {
+                          rowBg = "bg-emerald-950/5 hover:bg-emerald-950/10";
+                          categoryBorder = "border-emerald-955/20";
+                        } else if (category === "BACKUP") {
+                          rowBg = "bg-blue-950/5 hover:bg-blue-950/10";
+                          categoryBorder = "border-blue-955/20";
+                        }
+
+                        return (
+                          <tr 
+                            key={rIdx} 
+                            className={`border-b ${categoryBorder} ${rowBg} transition-colors`}
+                          >
+                            {Array.from({ length: 5 }).map((_, cIdx) => {
+                              const val = row[cIdx] || '';
+                              return (
+                                <td key={cIdx} className="p-3 truncate max-w-[150px] font-mono pr-2" title={val}>
+                                  {val}
+                                </td>
+                              );
+                            })}
+                            <td className="p-3 text-right">
+                              <button 
+                                onClick={() => setEditingCell({
+                                  row: rIdx + 1, // Skip header row
+                                  col: 0,
+                                  originalValue: row[0] || '',
+                                  value: row[0] || ''
+                                })}
+                                className="text-[9px] font-black text-red-500 px-2 py-1 bg-red-950/20 border border-red-900/30 hover:border-red-500 hover:bg-red-950/40 rounded transition-all mr-1.5"
+                              >
+                                Edit Row
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               )}
@@ -968,7 +1670,212 @@ This will commit immediately to live Google Sheets.`;
                 </div>
               </div>
             )}
+
+            {/* Forensic AI Sheet Analyst Component */}
+            {activeSpreadsheet && sheetData.length > 1 && (
+              <div className="mt-6 pt-5 border-t border-zinc-900 text-left">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                  <div>
+                    <span className="text-[10px] text-red-500 font-extrabold uppercase tracking-widest block flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-red-400 animate-pulse" />
+                      Forensic AI Sheets Analyst
+                    </span>
+                    <p className="text-[9px] text-zinc-600 mt-0.5">Generate trend summaries and structural audit vectors from ledger data.</p>
+                  </div>
+                  <button
+                    onClick={handleAIAnalyzeSheet}
+                    disabled={isAnalyzing}
+                    className="py-1.5 px-3 bg-red-950 hover:bg-red-900 border border-red-900 text-red-400 hover:text-white rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors shrink-0"
+                  >
+                    {isAnalyzing ? (
+                      <>
+                        <RefreshCw className="w-3 h-3 animate-spin" />
+                        Analyzing Ledger...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3 h-3" />
+                        Analyze Sheet
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {aiAnalysis && (
+                  <div className="bg-black/80 border border-zinc-900 rounded-xl p-4 max-h-[300px] overflow-y-auto text-[11px] font-mono text-zinc-300 leading-relaxed selection:bg-red-950 animate-in slide-in-from-bottom-2 duration-300">
+                    <div className="markdown-body text-zinc-300">
+                      <Markdown>{aiAnalysis}</Markdown>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
+
+          {/* Google Sheets Workspace - Project Task Network Mapper */}
+          {currentUser && activeSpreadsheet && sheetData.length > 0 && (
+            <div className="bg-zinc-900/40 border-2 border-zinc-900 rounded-2xl p-5 text-left flex flex-col mt-6 animate-in slide-in-from-bottom-2 duration-300">
+              <div className="border-b border-zinc-900 pb-3 mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <span className="text-[10px] text-emerald-400 font-extrabold uppercase tracking-widest block flex items-center gap-1.5">
+                    <Network className="w-3.5 h-3.5" />
+                    Google Sheets Workspace Mapper
+                  </span>
+                  <h3 className="text-sm font-bold text-white tracking-tight mt-0.5">Project Network Integration</h3>
+                </div>
+                <span className="text-[9px] text-zinc-500 font-mono bg-zinc-900 border border-zinc-800 px-2 py-0.5 rounded-lg">
+                  RECORDS DETECTED: {sheetData.length - 1}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Select Target Project */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[10px] text-zinc-500 font-black uppercase block mb-1">Target Project Node</label>
+                    <div className="relative">
+                      <select 
+                        value={selectedProjectId}
+                        onChange={(e) => setSelectedProjectId(e.target.value)}
+                        className="w-full bg-black border border-zinc-850 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-emerald-500 appearance-none"
+                      >
+                        <option value="">-- Choose Project Node --</option>
+                        <option value="NEW">+ Provision New Project Node</option>
+                        {(Array.isArray(projects) ? projects : []).map(p => (
+                          <option key={p.id} value={p.id}>{p.title}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-4 h-4 text-zinc-500 absolute top-2.5 right-3 pointer-events-none" />
+                    </div>
+                  </div>
+
+                  {(!selectedProjectId || selectedProjectId === 'NEW') && (
+                    <div className="animate-in fade-in duration-200">
+                      <label className="text-[10px] text-zinc-500 font-black uppercase block mb-1">New Project Name</label>
+                      <input 
+                        type="text"
+                        placeholder="Enter project name..."
+                        className="w-full bg-black border border-zinc-850 rounded-lg py-2 px-3 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono select-text"
+                        value={newProjTitle}
+                        onChange={(e) => setNewProjTitle(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="text-[10px] text-zinc-500 font-black uppercase block mb-1">Mapping Import Mode</label>
+                    <div className="grid grid-cols-2 gap-2 bg-black border border-zinc-850 p-1 rounded-lg">
+                      <button
+                        type="button"
+                        onClick={() => setImportMode('milestones')}
+                        className={`py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-md transition-all ${importMode === 'milestones' ? 'bg-emerald-950 text-emerald-400 border border-emerald-900' : 'text-zinc-500 hover:text-zinc-300'}`}
+                      >
+                        Actionable Milestones
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImportMode('tasks')}
+                        className={`py-1.5 px-3 text-[10px] font-black uppercase tracking-wider rounded-md transition-all ${importMode === 'tasks' ? 'bg-emerald-950 text-emerald-400 border border-emerald-900' : 'text-zinc-500 hover:text-zinc-300'}`}
+                      >
+                        Actionable Tasks
+                      </button>
+                    </div>
+                    <p className="text-[9px] text-zinc-650 mt-1 leading-normal">
+                      {importMode === 'milestones' 
+                        ? "Maps sheet columns directly into the project's milestones timeline." 
+                        : "Maps sheet columns as standard interactive tasks inside the project."}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Column Configurations */}
+                <div className="space-y-4 bg-zinc-950/60 p-4 border border-zinc-900 rounded-xl">
+                  <span className="text-[9px] text-zinc-500 font-extrabold uppercase tracking-wider block border-b border-zinc-900 pb-1.5">
+                    Column Mapping Matrix
+                  </span>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[9px] text-zinc-650 font-black uppercase block mb-1">Milestone/Task Title</label>
+                      <div className="relative">
+                        <select 
+                          value={titleColIndex}
+                          onChange={(e) => setTitleColIndex(Number(e.target.value))}
+                          className="w-full bg-black border border-zinc-850 rounded-lg py-1.5 px-2 text-[10px] text-white focus:outline-none focus:border-emerald-500 appearance-none font-mono"
+                        >
+                          {sheetData[0]?.map((col, idx) => (
+                            <option key={idx} value={idx}>Col {String.fromCharCode(65 + idx)}: {col}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-zinc-500 absolute top-2 right-2 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[9px] text-zinc-650 font-black uppercase block mb-1">Target / Due Date</label>
+                      <div className="relative">
+                        <select 
+                          value={dateColIndex}
+                          onChange={(e) => setDateColIndex(Number(e.target.value))}
+                          className="w-full bg-black border border-zinc-850 rounded-lg py-1.5 px-2 text-[10px] text-white focus:outline-none focus:border-emerald-500 appearance-none font-mono"
+                        >
+                          <option value={-1}>None / Today</option>
+                          {sheetData[0]?.map((col, idx) => (
+                            <option key={idx} value={idx}>Col {String.fromCharCode(65 + idx)}: {col}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-zinc-500 absolute top-2 right-2 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[9px] text-zinc-650 font-black uppercase block mb-1">Priority / Category</label>
+                      <div className="relative">
+                        <select 
+                          value={priorityColIndex}
+                          onChange={(e) => setPriorityColIndex(Number(e.target.value))}
+                          className="w-full bg-black border border-zinc-850 rounded-lg py-1.5 px-2 text-[10px] text-white focus:outline-none focus:border-emerald-500 appearance-none font-mono"
+                        >
+                          <option value={-1}>None / Default</option>
+                          {sheetData[0]?.map((col, idx) => (
+                            <option key={idx} value={idx}>Col {String.fromCharCode(65 + idx)}: {col}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-zinc-500 absolute top-2 right-2 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[9px] text-zinc-650 font-black uppercase block mb-1">Completion Status</label>
+                      <div className="relative">
+                        <select 
+                          value={statusColIndex}
+                          onChange={(e) => setStatusColIndex(Number(e.target.value))}
+                          className="w-full bg-black border border-zinc-850 rounded-lg py-1.5 px-2 text-[10px] text-white focus:outline-none focus:border-emerald-500 appearance-none font-mono"
+                        >
+                          <option value={-1}>Auto Detect / Default</option>
+                          {sheetData[0]?.map((col, idx) => (
+                            <option key={idx} value={idx}>Col {String.fromCharCode(65 + idx)}: {col}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-3.5 h-3.5 text-zinc-500 absolute top-2 right-2 pointer-events-none" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-5 pt-4 border-t border-zinc-900 flex justify-end">
+                <button
+                  onClick={handleSyncSheetToProject}
+                  className="py-2 px-5 bg-emerald-950 hover:bg-emerald-900 border border-emerald-900 text-emerald-400 hover:text-white rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-colors duration-200"
+                >
+                  <Network className="w-4 h-4" />
+                  Synchronize Columns to Network
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1076,63 +1983,283 @@ This will commit immediately to live Google Sheets.`;
 
             {/* Visual breakdown widget 2: Graphical Column Average Values (Numerical Averages or Fallback character density averages) */}
             <div className="lg:col-span-8 bg-zinc-950/80 border border-zinc-900 rounded-2xl p-4 flex flex-col">
-              <div className="flex items-center justify-between mb-4">
+              {/* Analytical Visualizations Switcher */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2 border-b border-zinc-900 pb-3">
                 <div>
-                  <span className="text-[9px] text-zinc-500 block font-bold uppercase tracking-wider">Average Values Distribution</span>
-                  <p className="text-[9px] text-zinc-500 font-sans mt-0.5">
-                    {analyticsData.numericMetrics.length > 0 
+                  <span className="text-[9px] text-zinc-500 block font-bold uppercase tracking-wider">Analytical Visualizations</span>
+                  <p className="text-[9px] text-zinc-650 font-sans mt-0.5">
+                    {chartView === 'velocity' && "D3-driven 'Actual vs. Projected' milestone completion trends, showing task velocity."}
+                    {chartView === 'trends' && "Cumulative milestone completions and completion rate trend over time."}
+                    {chartView === 'averages' && (analyticsData.numericMetrics.length > 0 
                       ? "Calculated mathematical mean values from numeric worksheet columns." 
-                      : "Calculated fallback average text length (character density) per column."}
+                      : "Calculated fallback average text length (character density) per column.")}
+                    {chartView === 'categories' && "Interactive categorization density and frequency balance."}
+                    {chartView === 'timeline' && "Chronological event volume density mapped across dates."}
                   </p>
                 </div>
-                <div className="flex items-center gap-1 bg-zinc-900/40 p-1 rounded-md border border-zinc-900 shrink-0">
-                  <span className="text-[8px] px-1.5 py-0.5 rounded uppercase font-black font-mono bg-zinc-950 text-emerald-400 border border-zinc-900">
-                    {analyticsData.numericMetrics.length > 0 ? 'Pure Metrics' : 'Char Length Fallback'}
-                  </span>
+                
+                <div className="flex gap-1.5 bg-zinc-900 p-1 rounded-xl border border-zinc-850 self-start sm:self-center overflow-x-auto max-w-full">
+                  <button
+                    onClick={() => setChartView('velocity')}
+                    className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all whitespace-nowrap ${chartView === 'velocity' ? 'bg-black text-emerald-400 border border-zinc-850' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  >
+                    Velocity (D3)
+                  </button>
+                  <button
+                    onClick={() => setChartView('trends')}
+                    className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all whitespace-nowrap ${chartView === 'trends' ? 'bg-black text-emerald-400 border border-zinc-850' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  >
+                    Trends
+                  </button>
+                  <button
+                    onClick={() => setChartView('averages')}
+                    className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all whitespace-nowrap ${chartView === 'averages' ? 'bg-black text-emerald-400 border border-zinc-850' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  >
+                    Means
+                  </button>
+                  <button
+                    onClick={() => setChartView('categories')}
+                    className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all whitespace-nowrap ${chartView === 'categories' ? 'bg-black text-emerald-400 border border-zinc-850' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  >
+                    Frequencies
+                  </button>
+                  <button
+                    onClick={() => setChartView('timeline')}
+                    className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all whitespace-nowrap ${chartView === 'timeline' ? 'bg-black text-emerald-400 border border-zinc-850' : 'text-zinc-500 hover:text-zinc-300'}`}
+                  >
+                    Timeline
+                  </button>
                 </div>
               </div>
 
-              {/* Bar Chart representing data averages */}
-              <div className="flex-1 min-h-[160px] h-44 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={(analyticsData.numericMetrics.length > 0 ? analyticsData.numericMetrics : analyticsData.characterDensityMetrics) as any[]}
-                    margin={{ top: 5, right: 10, left: -25, bottom: 5 }}
-                  >
-                    <CartesianGrid stroke="#18181b" strokeDasharray="3 3" vertical={false} />
-                    <XAxis 
-                      dataKey="column" 
-                      stroke="#52525b" 
-                      fontSize={8} 
-                      tickLine={false} 
-                      axisLine={false}
-                    />
-                    <YAxis 
-                      stroke="#52525b" 
-                      fontSize={8} 
-                      tickLine={false} 
-                      axisLine={false}
-                      domain={[0, 'auto']}
-                    />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '8px' }}
-                      labelClassName="text-white text-[10px] font-mono font-bold"
-                      itemStyle={{ color: '#10b981', fontSize: '9px', fontFamily: 'monospace' }}
-                      formatter={(value: any) => [value, analyticsData.numericMetrics.length > 0 ? "Average Value" : "Avg Characters"]}
-                    />
-                    <Bar 
-                      dataKey={analyticsData.numericMetrics.length > 0 ? "average" : "avgLength"} 
-                      fill="#ef4444" 
-                      radius={[4, 4, 0, 0]} 
-                      maxBarSize={32}
+              {/* Chart Render Selector */}
+              <div className={`flex-1 w-full ${chartView === 'velocity' ? 'min-h-[260px] h-auto' : 'min-h-[160px] h-44'}`}>
+                {chartView === 'velocity' && (
+                  <D3VelocityChart 
+                    sheetData={sheetData} 
+                    dateColIndex={dateColIndex} 
+                    statusColIndex={statusColIndex} 
+                    titleColIndex={titleColIndex} 
+                  />
+                )}
+
+                {chartView === 'trends' && (
+                  <div className="flex-grow min-h-[160px] h-44 w-full">
+                    {trendData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={trendData}
+                          margin={{ top: 5, right: 10, left: -25, bottom: 5 }}
+                        >
+                          <CartesianGrid stroke="#18181b" strokeDasharray="3 3" vertical={false} />
+                          <XAxis 
+                            dataKey="date" 
+                            stroke="#52525b" 
+                            fontSize={8} 
+                            tickLine={false} 
+                            axisLine={false}
+                          />
+                          <YAxis 
+                            yAxisId="left"
+                            stroke="#52525b" 
+                            fontSize={8} 
+                            tickLine={false} 
+                            axisLine={false}
+                            domain={[0, 'auto']}
+                          />
+                          <YAxis 
+                            yAxisId="right"
+                            orientation="right"
+                            stroke="#10b981" 
+                            fontSize={8} 
+                            tickLine={false} 
+                            axisLine={false}
+                            domain={[0, 100]}
+                            unit="%"
+                          />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '8px' }}
+                            labelClassName="text-white text-[10px] font-mono font-bold"
+                            itemStyle={{ fontSize: '9px', fontFamily: 'monospace' }}
+                          />
+                          <Legend 
+                            verticalAlign="top" 
+                            height={20} 
+                            iconType="circle"
+                            iconSize={6}
+                            wrapperStyle={{ fontSize: '8px', fontFamily: 'monospace', marginTop: '-10px' }} 
+                          />
+                          <Line 
+                            yAxisId="left"
+                            type="monotone" 
+                            dataKey="cumulativeTotal" 
+                            name="Total Scope"
+                            stroke="#71717a" 
+                            strokeWidth={1.5}
+                            dot={{ r: 2 }}
+                            activeDot={{ r: 4 }}
+                          />
+                          <Line 
+                            yAxisId="left"
+                            type="monotone" 
+                            dataKey="cumulativeCompleted" 
+                            name="Completed"
+                            stroke="#3b82f6" 
+                            strokeWidth={2}
+                            dot={{ r: 3 }}
+                            activeDot={{ r: 5 }}
+                          />
+                          <Line 
+                            yAxisId="right"
+                            type="monotone" 
+                            dataKey="completionRate" 
+                            name="Completion %"
+                            stroke="#10b981" 
+                            strokeWidth={2}
+                            strokeDasharray="4 4"
+                            dot={false}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="text-zinc-650 text-xs italic flex flex-col items-center justify-center h-full text-center p-4">
+                        <span>No chronological trend data could be computed.</span>
+                        <span className="text-[10px] text-zinc-500 mt-1">Make sure you have selected columns for Target Date and Completion Status above.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {chartView === 'averages' && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={(analyticsData.numericMetrics.length > 0 ? analyticsData.numericMetrics : analyticsData.characterDensityMetrics) as any[]}
+                      margin={{ top: 5, right: 10, left: -25, bottom: 5 }}
                     >
-                      {(analyticsData.numericMetrics.length > 0 ? analyticsData.numericMetrics : analyticsData.characterDensityMetrics).map((entry, index) => {
-                        const colors = ['#ef4444', '#10b981', '#f59e0b', '#06b6d4', '#8b5cf6'];
-                        return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
-                      })}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                      <CartesianGrid stroke="#18181b" strokeDasharray="3 3" vertical={false} />
+                      <XAxis 
+                        dataKey="column" 
+                        stroke="#52525b" 
+                        fontSize={8} 
+                        tickLine={false} 
+                        axisLine={false}
+                      />
+                      <YAxis 
+                        stroke="#52525b" 
+                        fontSize={8} 
+                        tickLine={false} 
+                        axisLine={false}
+                        domain={[0, 'auto']}
+                      />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '8px' }}
+                        labelClassName="text-white text-[10px] font-mono font-bold"
+                        itemStyle={{ color: '#10b981', fontSize: '9px', fontFamily: 'monospace' }}
+                        formatter={(value: any) => [value, analyticsData.numericMetrics.length > 0 ? "Average Value" : "Avg Characters"]}
+                      />
+                      <Bar 
+                        dataKey={analyticsData.numericMetrics.length > 0 ? "average" : "avgLength"} 
+                        fill="#ef4444" 
+                        radius={[4, 4, 0, 0]} 
+                        maxBarSize={32}
+                      >
+                        {(analyticsData.numericMetrics.length > 0 ? analyticsData.numericMetrics : analyticsData.characterDensityMetrics).map((entry, index) => {
+                          const colors = ['#ef4444', '#10b981', '#f59e0b', '#06b6d4', '#8b5cf6'];
+                          return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                        })}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+
+                {chartView === 'categories' && (
+                  <div className="flex-grow min-h-[160px] h-44 w-full flex items-center justify-center">
+                    {analyticsData.categoryDistribution.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={analyticsData.categoryDistribution}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={35}
+                            outerRadius={55}
+                            paddingAngle={4}
+                            dataKey="value"
+                          >
+                            {analyticsData.categoryDistribution.map((entry, index) => {
+                              const colors = ['#ef4444', '#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'];
+                              return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                            })}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '8px' }}
+                            itemStyle={{ fontSize: '10px', fontFamily: 'monospace' }}
+                          />
+                          <Legend 
+                            verticalAlign="bottom" 
+                            height={24} 
+                            iconType="circle"
+                            iconSize={6}
+                            wrapperStyle={{ fontSize: '8px', fontFamily: 'monospace' }} 
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="text-zinc-600 text-xs italic">No category distribution loaded. Sync log templates above.</div>
+                    )}
+                  </div>
+                )}
+
+                {chartView === 'timeline' && (
+                  <div className="flex-grow min-h-[160px] h-44 w-full">
+                    {analyticsData.timelineDistribution.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart
+                          data={analyticsData.timelineDistribution}
+                          margin={{ top: 5, right: 10, left: -25, bottom: 5 }}
+                        >
+                          <defs>
+                            <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid stroke="#18181b" strokeDasharray="3 3" vertical={false} />
+                          <XAxis 
+                            dataKey="date" 
+                            stroke="#52525b" 
+                            fontSize={8} 
+                            tickLine={false} 
+                            axisLine={false}
+                          />
+                          <YAxis 
+                            stroke="#52525b" 
+                            fontSize={8} 
+                            tickLine={false} 
+                            axisLine={false}
+                            domain={[0, 'auto']}
+                          />
+                          <Tooltip
+                            contentStyle={{ backgroundColor: '#09090b', borderColor: '#27272a', borderRadius: '8px' }}
+                            labelClassName="text-white text-[10px] font-mono font-bold"
+                            itemStyle={{ color: '#10b981', fontSize: '9px', fontFamily: 'monospace' }}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="count" 
+                            stroke="#10b981" 
+                            fillOpacity={1} 
+                            fill="url(#colorCount)" 
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="text-zinc-650 text-xs italic flex items-center justify-center h-full">
+                        No temporal timeline timestamps detected. Ensure Column A has date/timestamp entries.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Summary / legend card */}

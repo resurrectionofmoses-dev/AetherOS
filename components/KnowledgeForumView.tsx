@@ -36,6 +36,8 @@ interface Question {
     locked?: boolean;
     flaggedCount?: number;
     tags?: string[];
+    skillLevel?: 'Beginner' | 'Intermediate' | 'Expert';
+    postType?: 'Question' | 'Tutorial' | 'Discussion';
 }
 
 interface AnsweringDialogProps {
@@ -447,6 +449,14 @@ export const KnowledgeForumView: React.FC = () => {
     const [addressingQuestionId, setAddressingQuestionId] = useState<string | null>(null);
     const [userProfile, setUserProfile] = useState<{ username: string } | null>(null);
 
+    // Filters for Technology, Skill Levels, and Post Types
+    const [selectedSkillLevel, setSelectedSkillLevel] = useState<'All' | 'Beginner' | 'Intermediate' | 'Expert'>('All');
+    const [selectedPostType, setSelectedPostType] = useState<'All' | 'Question' | 'Tutorial' | 'Discussion'>('All');
+
+    // New thread inputs for Skill Level and Post Type
+    const [newSkillLevel, setNewSkillLevel] = useState<'Beginner' | 'Intermediate' | 'Expert'>('Intermediate');
+    const [newPostType, setNewPostType] = useState<'Question' | 'Tutorial' | 'Discussion'>('Question');
+
     // Signature options for custom question posting
     const [newQuestionSignMode, setNewQuestionSignMode] = useState<'profile' | 'anonymous'>('profile');
     const [newQuestionAnonName, setNewQuestionAnonName] = useState('Anonymous_User');
@@ -556,7 +566,9 @@ In essence, a blockchain system designed with an infinite payload space would be
                         pinned: true,
                         locked: false,
                         flaggedCount: 0,
-                        tags: ['dlt', 'payload', 'blockchain', 'consensus']
+                        tags: ['dlt', 'payload', 'blockchain', 'consensus'],
+                        skillLevel: 'Expert',
+                        postType: 'Tutorial'
                     },
                     {
                         id: uuidv4(),
@@ -578,7 +590,9 @@ In essence, a blockchain system designed with an infinite payload space would be
                         pinned: false,
                         locked: false,
                         flaggedCount: 0,
-                        tags: ['shards', 'latency', 'conjunction']
+                        tags: ['shards', 'latency', 'conjunction'],
+                        skillLevel: 'Intermediate',
+                        postType: 'Question'
                     }
                 ];
                 setQuestions(seed);
@@ -634,13 +648,17 @@ In essence, a blockchain system designed with an infinite payload space would be
             pinned: false,
             locked: false,
             flaggedCount: 0,
-            tags: parsedTags
+            tags: parsedTags,
+            skillLevel: newSkillLevel,
+            postType: newPostType
         };
 
         setQuestions([newQuestion, ...questions]);
         setNewTitle('');
         setNewContent('');
         setNewTags('');
+        setNewSkillLevel('Intermediate');
+        setNewPostType('Question');
         setNewQuestionSignMode('profile');
         setNewQuestionAnonName('Anonymous_User');
         setIsPosting(false);
@@ -865,7 +883,9 @@ In essence, a blockchain system designed with an infinite payload space would be
                              q.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
                              (q.tags && q.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())));
         const matchesCategory = !selectedCategory || q.category === selectedCategory;
-        return matchesSearch && matchesCategory;
+        const matchesSkillLevel = selectedSkillLevel === 'All' || q.skillLevel === selectedSkillLevel;
+        const matchesPostType = selectedPostType === 'All' || q.postType === selectedPostType;
+        return matchesSearch && matchesCategory && matchesSkillLevel && matchesPostType;
     });
 
     // Sort Questions: Pinned threads first, then newest first
@@ -950,6 +970,49 @@ In essence, a blockchain system designed with an infinite payload space would be
                                     </button>
                                 );
                             })}
+                        </div>
+
+                        {/* Skill Level Filter */}
+                        <div className="space-y-2 pt-4 border-t border-zinc-900">
+                            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Skill Levels</h3>
+                            <div className="grid grid-cols-2 gap-1.5">
+                                {['All', 'Beginner', 'Intermediate', 'Expert'].map(level => (
+                                    <button
+                                        key={level}
+                                        type="button"
+                                        onClick={() => setSelectedSkillLevel(level as any)}
+                                        className={`px-2 py-1.5 rounded-lg text-[9px] font-black uppercase text-center transition-all border ${
+                                            selectedSkillLevel === level
+                                                ? 'bg-emerald-600 text-white border-emerald-500 shadow-md'
+                                                : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-white'
+                                        }`}
+                                    >
+                                        {level}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Post Type Filter */}
+                        <div className="space-y-2 pt-4 border-t border-zinc-900">
+                            <h3 className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Post Type</h3>
+                            <div className="space-y-1">
+                                {['All', 'Question', 'Tutorial', 'Discussion'].map(type => (
+                                    <button
+                                        key={type}
+                                        type="button"
+                                        onClick={() => setSelectedPostType(type as any)}
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-[9px] font-black uppercase transition-all flex items-center justify-between border ${
+                                            selectedPostType === type
+                                                ? 'bg-emerald-600 text-white border-emerald-500 shadow-md'
+                                                : 'bg-zinc-900/60 text-zinc-400 border-zinc-800 hover:bg-zinc-800 hover:text-white'
+                                        }`}
+                                    >
+                                        <span>{type === 'Tutorial' ? 'Tutorial / Guide' : type}</span>
+                                        {selectedPostType === type && <CheckIcon className="w-3 h-3 text-white" />}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     </div>
 
@@ -1081,6 +1144,34 @@ In essence, a blockchain system designed with an infinite payload space would be
                                         </div>
                                     </div>
 
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Target Skill Level</label>
+                                            <select 
+                                                value={newSkillLevel}
+                                                onChange={e => setNewSkillLevel(e.target.value as any)}
+                                                className="w-full bg-black border-2 border-zinc-800 rounded-xl p-4 text-white font-black text-xs focus:border-emerald-500 outline-none transition-all appearance-none"
+                                            >
+                                                <option value="Beginner">BEGINNER</option>
+                                                <option value="Intermediate">INTERMEDIATE</option>
+                                                <option value="Expert">EXPERT</option>
+                                            </select>
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Post Type</label>
+                                            <select 
+                                                value={newPostType}
+                                                onChange={e => setNewPostType(e.target.value as any)}
+                                                className="w-full bg-black border-2 border-zinc-800 rounded-xl p-4 text-white font-black text-xs focus:border-emerald-500 outline-none transition-all appearance-none"
+                                            >
+                                                <option value="Question">QUESTION</option>
+                                                <option value="Tutorial">TUTORIAL / GUIDE</option>
+                                                <option value="Discussion">GENERAL DISCUSSION</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
                                     {newQuestionSignMode === 'anonymous' && (
                                         <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
                                             <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Ghost Alias Handle</label>
@@ -1175,6 +1266,28 @@ In essence, a blockchain system designed with an infinite payload space would be
                                             <span className="text-[8px] font-black bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded border border-zinc-700 uppercase tracking-widest">
                                                 {question.category}
                                             </span>
+                                            {question.postType && (
+                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded border uppercase tracking-widest ${
+                                                    question.postType === 'Tutorial' 
+                                                        ? 'bg-amber-950 text-amber-400 border-amber-500/50' 
+                                                        : question.postType === 'Discussion'
+                                                        ? 'bg-purple-950 text-purple-400 border-purple-500/50'
+                                                        : 'bg-emerald-950 text-emerald-400 border-emerald-500/50'
+                                                }`}>
+                                                    {question.postType === 'Tutorial' ? 'Tutorial / Guide' : question.postType}
+                                                </span>
+                                            )}
+                                            {question.skillLevel && (
+                                                <span className={`text-[8px] font-black px-2 py-0.5 rounded border uppercase tracking-widest ${
+                                                    question.skillLevel === 'Expert' 
+                                                        ? 'bg-rose-950 text-rose-400 border-rose-500/50' 
+                                                        : question.skillLevel === 'Intermediate'
+                                                        ? 'bg-blue-950 text-blue-400 border-blue-500/50'
+                                                        : 'bg-teal-950 text-teal-400 border-teal-500/50'
+                                                }`}>
+                                                    {question.skillLevel}
+                                                </span>
+                                            )}
                                             <span className="text-[8px] font-black text-zinc-650 uppercase tracking-widest">
                                                 Posted by {question.author} • {new Date(question.timestamp).toLocaleDateString()}
                                             </span>

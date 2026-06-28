@@ -14,6 +14,7 @@ export const GoldConjunction: React.FC = () => {
     const [currentShard, setCurrentShard] = useState<GoldShard | null>(null);
     const [history, setHistory] = useState<GoldShard[]>([]);
     const [shake, setShake] = useState(false);
+    const [languageMode, setLanguageMode] = useState<'gold' | 'english'>('gold');
     const particlesRef = useRef<HTMLDivElement>(null);
 
     const handleStamp = async (e: React.FormEvent) => {
@@ -105,7 +106,34 @@ export const GoldConjunction: React.FC = () => {
                     <div className="p-6 border-b-4 border-[#fbbf24]/20 bg-white/5 flex items-center justify-between relative z-20">
                         <div className="flex items-center gap-4">
                             <TerminalIcon className="w-6 h-6 text-white" />
-                            <span className="text-xs font-black uppercase text-[#fbbf24] tracking-[0.2em]">Aur-um Logic Manifest</span>
+                            <span className="text-xs font-black uppercase text-[#fbbf24] tracking-[0.2em]">
+                                {languageMode === 'gold' ? 'Aur-um Logic Manifest' : 'Gold Conjunction Manifest'}
+                            </span>
+                        </div>
+                        {/* Interactive Language Toggle Option */}
+                        <div className="flex items-center gap-1 bg-black p-1 rounded-xl border border-[#fbbf24]/20">
+                            <button
+                                type="button"
+                                onClick={() => setLanguageMode('gold')}
+                                className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                                    languageMode === 'gold' 
+                                        ? 'bg-[#fbbf24] text-black shadow-lg shadow-[#fbbf24]/20' 
+                                        : 'text-[#fbbf24]/50 hover:text-[#fbbf24]/80'
+                                }`}
+                            >
+                                Native Gold
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setLanguageMode('english')}
+                                className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                                    languageMode === 'english' 
+                                        ? 'bg-[#fbbf24] text-black shadow-lg shadow-[#fbbf24]/20' 
+                                        : 'text-[#fbbf24]/50 hover:text-[#fbbf24]/80'
+                                }`}
+                            >
+                                English
+                            </button>
                         </div>
                     </div>
 
@@ -118,7 +146,9 @@ export const GoldConjunction: React.FC = () => {
                                         <p className="text-3xl font-comic-header text-white italic">{currentShard.id}</p>
                                     </div>
                                     <div className="text-right">
-                                        <p className="text-[10px] text-[#fbbf24]/40 font-black uppercase tracking-widest">Weight Class</p>
+                                        <p className="text-[10px] text-[#fbbf24]/40 font-black uppercase tracking-widest">
+                                            {languageMode === 'gold' ? 'Weight Class' : 'Significance Rating'}
+                                        </p>
                                         <p className={`text-3xl font-comic-header ${currentShard.valueClass === 1 ? 'text-[#fbbf24]' : 'text-gray-500'}`}>
                                             0{currentShard.valueClass}
                                         </p>
@@ -128,27 +158,34 @@ export const GoldConjunction: React.FC = () => {
                                 <div className="p-10 bg-gradient-to-br from-[#1a1a1a] to-black border-4 border-[#fbbf24] rounded-[3rem] mb-8 relative group overflow-hidden shadow-[0_0_100px_rgba(251,191,36,0.1)]">
                                     {/* Embossed Text Effect */}
                                     <h4 className="text-[10px] font-black text-[#fbbf24]/60 uppercase mb-6 flex items-center gap-2">
-                                        <ShieldIcon className="w-4 h-4" /> Embossed Conjunction
+                                        <ShieldIcon className="w-4 h-4" /> 
+                                        {languageMode === 'gold' ? 'Embossed Conjunction' : 'Embossed Decoded Intent'}
                                     </h4>
                                     <div 
-                                        className="text-6xl font-comic-header text-[#fbbf24] uppercase tracking-tighter italic text-center drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)]"
+                                        className="text-5xl lg:text-6xl font-comic-header text-[#fbbf24] uppercase tracking-tighter italic text-center drop-shadow-[0_4px_4px_rgba(0,0,0,0.8)] leading-tight"
                                         style={{ textShadow: '2px 2px 0px #000, -2px -2px 0px #fff4' }}
                                     >
-                                        {currentShard.goldTranslation}
+                                        {languageMode === 'gold' ? currentShard.goldTranslation : currentShard.originalIntent}
                                     </div>
                                     <p className="text-center mt-8 text-[10px] text-[#fbbf24]/30 uppercase tracking-[0.5em] font-black">
-                                        Manifested Weight: {currentShard.weight.toFixed(0)}μ
+                                        {languageMode === 'gold' ? 'Manifested Weight' : 'Physical Resonance'}: {currentShard.weight.toFixed(0)}μ
                                     </p>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-8">
                                     <div className="p-6 bg-black border-2 border-[#fbbf24]/10 rounded-2xl">
-                                        <p className="text-[8px] font-black text-gray-700 uppercase mb-2">Original Intent</p>
-                                        <p className="text-xs text-gray-400 italic">"{currentShard.originalIntent}"</p>
+                                        <p className="text-[8px] font-black text-gray-700 uppercase mb-2">
+                                            {languageMode === 'gold' ? 'Original Intent' : 'Native Gold Terminology'}
+                                        </p>
+                                        <p className="text-xs text-[#fbbf24]/80 italic">
+                                            "{languageMode === 'gold' ? currentShard.originalIntent : currentShard.goldTranslation}"
+                                        </p>
                                     </div>
                                     <div className="p-6 bg-black border-2 border-[#fbbf24]/10 rounded-2xl flex flex-col justify-center items-center">
                                         <ScaleIcon className="w-8 h-8 text-[#fbbf24]/40 mb-2" />
-                                        <p className="text-[8px] font-black text-[#fbbf24] uppercase">Reliability Shard</p>
+                                        <p className="text-[8px] font-black text-[#fbbf24] uppercase">
+                                            {languageMode === 'gold' ? 'Reliability Shard' : 'Consistency Lock'}
+                                        </p>
                                         <p className="text-xs text-white">SYNC_0x03E2</p>
                                     </div>
                                 </div>
@@ -157,15 +194,15 @@ export const GoldConjunction: React.FC = () => {
                             <div className="h-full flex flex-col items-center justify-center opacity-10 space-y-8">
                                 <GemIcon className="w-48 h-48 animate-spin-slow" />
                                 <p className="font-comic-header text-5xl uppercase tracking-[0.3em] text-center max-w-lg italic">
-                                    "Krak-um Aur-um Dohm-um"
+                                    {languageMode === 'gold' ? '"Krak-um Aur-um Dohm-um"' : '"Pound the Gold and build the Dome"'}
                                 </p>
                             </div>
                         )}
                     </div>
 
                     <div className="p-4 bg-white/5 border-t-2 border-black/40 flex justify-between items-center text-[8px] font-black uppercase text-gray-700 tracking-widest relative z-20">
-                        <span>Status: {isStamping ? 'STAMPING' : 'STABLE'}</span>
-                        <span>Stride: 1.2 PB/s | Conductor Mode: GIFTED</span>
+                        <span>{languageMode === 'gold' ? 'Status' : 'System State'}: {isStamping ? 'STAMPING' : 'STABLE'}</span>
+                        <span>{languageMode === 'gold' ? 'Stride' : 'Bandwidth'}: 1.2 PB/s | {languageMode === 'gold' ? 'Conductor Mode' : 'Modulation'}: GIFTED</span>
                     </div>
                 </div>
             </div>

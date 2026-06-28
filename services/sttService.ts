@@ -43,7 +43,12 @@ class STTService {
             };
 
             this.recognition.onerror = (event: any) => {
-                console.error("STTService Error:", event.error);
+                const isBenign = event.error === 'no-speech' || event.error === 'aborted';
+                if (isBenign) {
+                    console.warn("STTService Notice (benign):", event.error);
+                } else {
+                    console.error("STTService Error:", event.error);
+                }
                 this.isListening = false;
                 this.notify(false, '', false);
                 if (this.onEndCallback) {

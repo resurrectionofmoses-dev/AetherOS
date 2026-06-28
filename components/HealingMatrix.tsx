@@ -13,14 +13,39 @@ interface HealingMatrixProps {
   governance?: SystemGovernance;
 }
 
+const memoryLocal: Record<string, string> = {};
+const safeLocal = {
+    getItem: (key: string): string | null => {
+        try {
+            return localStorage.getItem(key);
+        } catch {
+            return memoryLocal[key] || null;
+        }
+    },
+    setItem: (key: string, value: string): void => {
+        try {
+            localStorage.setItem(key, value);
+        } catch {
+            memoryLocal[key] = value;
+        }
+    },
+    removeItem: (key: string): void => {
+        try {
+            localStorage.removeItem(key);
+        } catch {
+            delete memoryLocal[key];
+        }
+    }
+};
+
 export const HealingMatrix: React.FC<HealingMatrixProps> = ({ governance }) => {
     // Persistent states synchronized with local storage
     const [isHealing, setIsHealing] = useState(() => {
-        const saved = localStorage.getItem('aetheros_healing_matrix_isHealing');
+        const saved = safeLocal.getItem('aetheros_healing_matrix_isHealing');
         return saved === 'true';
     });
     const [manifest, setManifest] = useState<HealingManifest | null>(() => {
-        const saved = localStorage.getItem('aetheros_healing_matrix_manifest');
+        const saved = safeLocal.getItem('aetheros_healing_matrix_manifest');
         if (saved) {
             try {
                 return JSON.parse(saved);
@@ -31,18 +56,21 @@ export const HealingMatrix: React.FC<HealingMatrixProps> = ({ governance }) => {
         return null;
     });
     const [progress, setProgress] = useState(() => {
-        const saved = localStorage.getItem('aetheros_healing_matrix_progress');
+        const saved = safeLocal.getItem('aetheros_healing_matrix_progress');
         return saved ? Number(saved) : 0;
     });
     const [currentStep, setCurrentStep] = useState(() => {
-        return localStorage.getItem('aetheros_healing_matrix_currentStep') || '';
+        return safeLocal.getItem('aetheros_healing_matrix_currentStep') || '';
     });
     const [flowIntensity, setFlowIntensity] = useState(() => {
-        const saved = localStorage.getItem('aetheros_healing_matrix_flowIntensity');
+        const saved = safeLocal.getItem('aetheros_healing_matrix_flowIntensity');
         return saved ? parseFloat(saved) : 1.5;
     });
+    const [derivationPath, setDerivationPath] = useState(() => {
+        return safeLocal.getItem('aetheros_healing_matrix_derivationPath') || "m/84'/0'/2147483647'";
+    });
     const [healingLogList, setHealingLogList] = useState<string[]>(() => {
-        const saved = localStorage.getItem('aetheros_healing_matrix_loglist');
+        const saved = safeLocal.getItem('aetheros_healing_matrix_loglist');
         if (saved) {
             try {
                 return JSON.parse(saved);
@@ -58,31 +86,35 @@ export const HealingMatrix: React.FC<HealingMatrixProps> = ({ governance }) => {
 
     // Persist changes to localStorage on set
     useEffect(() => {
-        localStorage.setItem('aetheros_healing_matrix_isHealing', String(isHealing));
+        safeLocal.setItem('aetheros_healing_matrix_isHealing', String(isHealing));
     }, [isHealing]);
 
     useEffect(() => {
         if (manifest) {
-            localStorage.setItem('aetheros_healing_matrix_manifest', JSON.stringify(manifest));
+            safeLocal.setItem('aetheros_healing_matrix_manifest', JSON.stringify(manifest));
         } else {
-            localStorage.removeItem('aetheros_healing_matrix_manifest');
+            safeLocal.removeItem('aetheros_healing_matrix_manifest');
         }
     }, [manifest]);
 
     useEffect(() => {
-        localStorage.setItem('aetheros_healing_matrix_progress', String(progress));
+        safeLocal.setItem('aetheros_healing_matrix_progress', String(progress));
     }, [progress]);
 
     useEffect(() => {
-        localStorage.setItem('aetheros_healing_matrix_currentStep', currentStep);
+        safeLocal.setItem('aetheros_healing_matrix_currentStep', currentStep);
     }, [currentStep]);
 
     useEffect(() => {
-        localStorage.setItem('aetheros_healing_matrix_flowIntensity', String(flowIntensity));
+        safeLocal.setItem('aetheros_healing_matrix_flowIntensity', String(flowIntensity));
     }, [flowIntensity]);
 
     useEffect(() => {
-        localStorage.setItem('aetheros_healing_matrix_loglist', JSON.stringify(healingLogList));
+        safeLocal.setItem('aetheros_healing_matrix_derivationPath', derivationPath);
+    }, [derivationPath]);
+
+    useEffect(() => {
+        safeLocal.setItem('aetheros_healing_matrix_loglist', JSON.stringify(healingLogList));
     }, [healingLogList]);
 
     const startHealing = async () => {
@@ -117,7 +149,7 @@ export const HealingMatrix: React.FC<HealingMatrixProps> = ({ governance }) => {
         }, 50);
 
         try {
-            const result = await SystemHealer.heal(DIAGNOSTIC_TROUBLE_CODES.slice(0, 2));
+            const result = await SystemHealer.heal(DIAGNOSTIC_TROUBLE_CODES.slice(0, 2), derivationPath);
             setManifest(result);
             setIsHealing(false);
             setProgress(100);
@@ -259,14 +291,53 @@ export const HealingMatrix: React.FC<HealingMatrixProps> = ({ governance }) => {
                         </h3>
                         
                         {!manifest && (
-                            <button 
-                                onClick={startHealing}
-                                disabled={isHealing}
-                                className="vista-button w-full py-8 bg-cyan-600 hover:bg-cyan-500 text-black font-black uppercase text-2xl tracking-[0.2em] rounded-3xl shadow-[0_20px_50px_rgba(0,242,255,0.3)] transition-all flex items-center justify-center gap-4 border-b-8 border-cyan-900 active:translate-y-1 group"
-                            >
-                                {isHealing ? <SpinnerIcon className="w-10 h-10 animate-spin" /> : <ZapIcon className="w-10 h-10 group-hover:scale-125 transition-transform" />}
-                                <span>{isHealing ? 'RE-FLUIDIZING...' : 'CONDUCT /HEAL'}</span>
-                            </button>
+                            <div className="space-y-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider block">Conduit Derivation Path</label>
+                                    <input 
+                                        type="text"
+                                        value={derivationPath}
+                                        onChange={e => setDerivationPath(e.target.value)}
+                                        placeholder="m/84'/0'/2147483647'"
+                                        disabled={isHealing}
+                                        className="w-full px-4 py-3 bg-slate-950 border-2 border-cyan-900/40 rounded-xl text-white font-mono text-xs focus:border-cyan-400 focus:outline-none placeholder-gray-800"
+                                    />
+                                </div>
+                                
+                                <div className="space-y-2">
+                                    <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider block">SACRED HEALING PRESETS:</span>
+                                    <div className="flex flex-col gap-1.5">
+                                        {[
+                                            "m/84'/0'/2147483647'",
+                                            "m/49'/0'/x'/0/0",
+                                            "m/44'/0'/0'/0/x"
+                                        ].map((path) => (
+                                            <button
+                                                key={path}
+                                                type="button"
+                                                onClick={() => setDerivationPath(path)}
+                                                disabled={isHealing}
+                                                className={`text-left font-mono text-[10px] px-3 py-1.5 border rounded-lg transition-all ${
+                                                    derivationPath === path
+                                                        ? "bg-cyan-500/15 border-cyan-400 text-cyan-400 shadow-[0_0_10px_rgba(0,242,255,0.15)]"
+                                                        : "bg-slate-900/40 border-slate-800 text-gray-400 hover:border-cyan-900"
+                                                }`}
+                                            >
+                                                {path}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <button 
+                                    onClick={startHealing}
+                                    disabled={isHealing}
+                                    className="vista-button w-full py-8 bg-cyan-600 hover:bg-cyan-500 text-black font-black uppercase text-2xl tracking-[0.2em] rounded-3xl shadow-[0_20px_50px_rgba(0,242,255,0.3)] transition-all flex items-center justify-center gap-4 border-b-8 border-cyan-900 active:translate-y-1 group"
+                                >
+                                    {isHealing ? <SpinnerIcon className="w-10 h-10 animate-spin" /> : <ZapIcon className="w-10 h-10 group-hover:scale-125 transition-transform" />}
+                                    <span>{isHealing ? 'RE-FLUIDIZING...' : 'CONDUCT /HEAL'}</span>
+                                </button>
+                            </div>
                         )}
 
                         {manifest && (
@@ -278,6 +349,12 @@ export const HealingMatrix: React.FC<HealingMatrixProps> = ({ governance }) => {
                                         <p className="text-lg font-comic-header text-white">LAMINAR FLOW SECURED</p>
                                     </div>
                                 </div>
+
+                                <div className="p-4 bg-cyan-950/20 border-2 border-cyan-500/30 rounded-2xl flex justify-between items-center text-xs font-mono">
+                                    <span className="text-cyan-600 uppercase font-bold text-[9px]">ACTIVE CONDUIT</span>
+                                    <span className="text-cyan-400 font-bold">{derivationPath}</span>
+                                </div>
+
                                 <button 
                                     onClick={() => { setManifest(null); setProgress(0); }}
                                     className="w-full py-3 bg-zinc-900 text-gray-500 font-black uppercase text-[10px] rounded-xl border-2 border-black hover:text-white transition-all shadow-lg"

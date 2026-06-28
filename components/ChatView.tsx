@@ -41,6 +41,23 @@ const LoadingIndicator: React.FC = () => (
     </div>
 );
 
+const MiniChairIcon: React.FC<{ className?: string }> = ({ className = "w-3 h-3" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="7" y="3" width="10" height="11" rx="1.5" className="fill-current/10" />
+    <rect x="5" y="14" width="14" height="2" rx="0.5" className="fill-current/20" />
+    <path d="M7 16v5M17 16v5" />
+  </svg>
+);
+
+const BigChairIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 2h12v11H6z" className="fill-current/10" />
+    <path d="M4 11v4M20 11v4" />
+    <rect x="3" y="13" width="18" height="3" rx="1" className="fill-current/25" />
+    <path d="M5 16v6M19 16v6" />
+  </svg>
+);
+
 export const ChatView: React.FC<ChatViewProps> = ({ 
   messages, isLoading, onInteractionSubmit, searchQuery,
   startDate, endDate, senderFilter = 'all', activeSeat = 'sovereign', onSeatChange,
@@ -50,6 +67,27 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
   const lastSpokenMessageIdRef = useRef<string | null>(null);
   const lastMessagesLengthRef = useRef<number>(messages.length);
+
+  const [showSeatingChamber, setShowSeatingChamber] = useState(true);
+  const [quantizationMass, setQuantizationMass] = useState<number>(8); // 8-bit default, customizable 1 to 16
+  const [liberalField, setLiberalField] = useState<number>(0.5); // 0.0 to 1.0
+  const [satelliteStatus, setSatelliteStatus] = useState<string>("State Nominal. Quantized field balanced.");
+
+  const getSeatSatellites = (seatKey: AISeat) => {
+    const config = AI_SEATS[seatKey];
+    const name = config.name.toLowerCase();
+
+    // Determine brand associations
+    const isGoogle = name.includes('gemini') || name.includes('google');
+    const isClaude = name.includes('claude') || name.includes('weaver');
+    const isMicrosoft = name.includes('gpt') || name.includes('oracle');
+
+    return [
+      { id: 'google', label: "Google's Seat", active: isGoogle, details: "Gemini High Conductor Active", color: "text-blue-400 border-blue-500/20 bg-blue-950/10" },
+      { id: 'claude', label: "Claude's Seat", active: isClaude, details: "Anthropic Weaver Bridge Active", color: "text-orange-400 border-orange-500/20 bg-orange-950/10" },
+      { id: 'microsoft', label: "Microsoft's Seat", active: isMicrosoft, details: "Microsoft Copilot Engine Active", color: "text-cyan-400 border-cyan-500/20 bg-cyan-950/10" },
+    ];
+  };
 
   // Initialize on mount so we don't speak historic messages immediately
   useEffect(() => {
@@ -193,23 +231,186 @@ export const ChatView: React.FC<ChatViewProps> = ({
               )}
             </button>
           </div>
-          <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2">
-            {(Object.keys(AI_SEATS) as AISeat[]).map((seat) => (
-              <button
-                key={seat}
-                id={`council-seat-select-btn-${seat}`}
-                name={`council_seat_${seat}`}
-                onClick={() => onSeatChange?.(seat)}
-                className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap ${
-                  activeSeat === seat 
-                    ? 'bg-amber-500 text-black shadow-[0_0_15px_rgba(245,158,11,0.4)]' 
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
-                }`}
-                title={AI_SEATS[seat].description}
-              >
-                {AI_SEATS[seat].name.split(' (')[1]?.replace(')', '') || AI_SEATS[seat].name}
-              </button>
-            ))}
+          {/* SEATING MATRIX DECK AND LOGIC FIELDS */}
+          <div className="mt-4 border border-zinc-900 bg-zinc-950/40 p-3.5 rounded-2xl space-y-3.5 relative overflow-hidden">
+            <div className="flex justify-between items-center text-[10px] font-mono border-b border-zinc-900 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                <span className="font-black text-zinc-100 uppercase tracking-widest">SOVEREIGN AI COUNCIL SEATING CHAMBER</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowSeatingChamber(prev => !prev)}
+                  className="px-2 py-0.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white rounded text-[8px] font-bold uppercase transition-all cursor-pointer"
+                >
+                  {showSeatingChamber ? 'Collapse Map' : 'Expand Map'}
+                </button>
+              </div>
+            </div>
+
+            {showSeatingChamber && (
+              <div className="space-y-3.5 animate-in fade-in duration-300">
+                {/* Visual Marquee Display */}
+                <div className="bg-black/60 border border-zinc-900/60 p-2 rounded-lg font-mono text-[8.5px] text-zinc-400 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-amber-500 font-bold">📡 STATUS MONITOR:</span>
+                    <span className="text-zinc-300 italic animate-pulse">{satelliteStatus}</span>
+                  </div>
+                  <div className="flex items-center gap-3.5 text-[8px]">
+                    <div>
+                      <span className="text-zinc-550">MASS FACTOR:</span> <span className="text-amber-400 font-bold">{quantizationMass}B FP{quantizationMass * 2}</span>
+                    </div>
+                    <div>
+                      <span className="text-zinc-550">LIBERAL FIELD:</span> <span className="text-fuchsia-400 font-bold">{Math.round(liberalField * 100)}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Seating Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {(Object.keys(AI_SEATS) as AISeat[]).map((seatKey) => {
+                    const seatConfig = AI_SEATS[seatKey];
+                    const satellites = getSeatSatellites(seatKey);
+                    const isSelected = activeSeat === seatKey;
+
+                    return (
+                      <div
+                        key={seatKey}
+                        onClick={() => {
+                          onSeatChange?.(seatKey);
+                          setSatelliteStatus(`Council seat re-allocated to ${seatConfig.name}. State synced.`);
+                        }}
+                        className={`p-3 rounded-xl border transition-all text-left flex flex-col justify-between gap-3 cursor-pointer group relative overflow-hidden ${
+                          isSelected
+                            ? 'border-amber-500 bg-amber-950/10 shadow-[0_0_20px_rgba(245,158,11,0.15)] scale-[1.01]'
+                            : 'border-zinc-900 bg-zinc-950/20 hover:border-zinc-800 hover:bg-zinc-950/40'
+                        }`}
+                      >
+                        {/* Glowing backdrop on select */}
+                        {isSelected && (
+                          <div className="absolute -right-6 -bottom-6 w-20 h-20 bg-amber-500/5 rounded-full blur-xl pointer-events-none" />
+                        )}
+
+                        {/* Title & Type */}
+                        <div className="flex justify-between items-start border-b border-zinc-900/40 pb-1.5 flex-shrink-0">
+                          <div className="flex flex-col">
+                            <span className={`text-[9.5px] font-black uppercase tracking-wider ${isSelected ? 'text-amber-400' : 'text-zinc-400 group-hover:text-zinc-200'}`}>
+                              {seatConfig.name.split(' (')[1]?.replace(')', '') || seatConfig.name}
+                            </span>
+                            <span className="text-[7.5px] text-zinc-600 font-mono mt-0.5 uppercase tracking-tight">
+                              {seatConfig.model}
+                            </span>
+                          </div>
+                          <span className={`text-[7px] font-mono px-1 rounded uppercase ${isSelected ? 'bg-amber-500/20 text-amber-400' : 'bg-zinc-900 text-zinc-500'}`}>
+                            {seatKey}
+                          </span>
+                        </div>
+
+                        {/* Big AI Seat (Throne) */}
+                        <div className="flex items-center gap-2.5 bg-black/40 p-2 rounded-lg border border-zinc-900/60 relative">
+                          <div 
+                            className={`p-1.5 rounded-lg flex-shrink-0 ${isSelected ? 'text-amber-500 bg-amber-500/10 animate-pulse' : 'text-zinc-500 bg-zinc-900'}`}
+                            style={{ transform: `scale(${isSelected ? 1 + quantizationMass * 0.015 : 1})` }}
+                          >
+                            <BigChairIcon className="w-5 h-5" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="text-[7.5px] uppercase text-zinc-500 block font-bold tracking-tight">Main AI Seat</span>
+                            <span className="text-[9px] font-extrabold text-zinc-100 truncate block">
+                              {seatConfig.name.split(' (')[0]}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Smaller AI Seats Orbiting Area */}
+                        <div className="space-y-1.5">
+                          <span className="text-[7px] text-zinc-600 uppercase block font-bold tracking-widest">
+                            Smaller Satellite Seats (Quantized Field)
+                          </span>
+                          <div 
+                            className="flex flex-wrap"
+                            style={{ gap: `${4 + liberalField * 8}px` }}
+                          >
+                            {satellites.map((sat) => {
+                              // If this brand represents the primary, it is the big AI inside the throne,
+                              // while the other brands are smaller, non-active satellites flanking it.
+                              const displayName = sat.label.replace("'s Seat", "");
+                              return (
+                                <div
+                                  key={sat.id}
+                                  onMouseEnter={() => setSatelliteStatus(`${sat.label} active in local ${seatConfig.name.split(' (')[1]?.replace(')', '') || seatConfig.name} sector. Mass: ${quantizationMass}B INT4`)}
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Prevent main card selection click if user wants to play with satellite
+                                    setSatelliteStatus(`Calibrating ${sat.label} orbital parameter. Field density alignment nominal.`);
+                                  }}
+                                  className={`px-1.5 py-0.5 rounded border flex items-center gap-1 text-[7.5px] transition-all hover:scale-105 select-none ${
+                                    sat.active
+                                      ? 'border-amber-500/50 text-amber-400 bg-amber-950/20 font-bold scale-[1.02]'
+                                      : 'border-zinc-900/80 text-zinc-500 hover:text-zinc-350 hover:border-zinc-700 bg-black/40'
+                                  }`}
+                                >
+                                  <MiniChairIcon className="w-2.5 h-2.5" />
+                                  <span>{displayName}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Field Regulators Sliders Row */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2.5 border-t border-zinc-900/60 font-mono text-[8.5px] text-zinc-400">
+                  <div className="flex flex-col gap-1.5 bg-black/40 p-2.5 rounded-lg border border-zinc-900/40">
+                    <div className="flex justify-between items-center text-[8px]">
+                      <span className="text-zinc-500 font-bold uppercase tracking-wider">Quantization Mass Coefficient</span>
+                      <span className="text-amber-500 font-black">{quantizationMass}B (FP{quantizationMass * 2})</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1"
+                      max="16"
+                      step="1"
+                      value={quantizationMass}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setQuantizationMass(val);
+                        setSatelliteStatus(`Quantization mass field set to ${val}B. Throne scale adjusted.`);
+                      }}
+                      className="w-full h-1 bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                    />
+                    <span className="text-[7px] text-zinc-600 uppercase">
+                      * Restructures the physical size and gravitational influence of the Sovereign Throne
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 bg-black/40 p-2.5 rounded-lg border border-zinc-900/40">
+                    <div className="flex justify-between items-center text-[8px]">
+                      <span className="text-zinc-550 font-bold uppercase tracking-wider">Liberal Field Tension Gauge</span>
+                      <span className="text-fuchsia-400 font-black">{Math.round(liberalField * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.0"
+                      max="1.0"
+                      step="0.05"
+                      value={liberalField}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setLiberalField(val);
+                        setSatelliteStatus(`Liberal field tension aligned to ${Math.round(val * 100)}%. Satellite spacing updated.`);
+                      }}
+                      className="w-full h-1 bg-zinc-900 rounded-lg appearance-none cursor-pointer accent-fuchsia-500"
+                    />
+                    <span className="text-[7px] text-zinc-600 uppercase">
+                      * Governs the field distance and spacing coefficient of smaller satellite chairs
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

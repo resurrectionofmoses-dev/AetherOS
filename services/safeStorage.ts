@@ -19,13 +19,23 @@ interface CryptoPackage {
 
 const CRYPTO_ENGINE = {
   getSalt: () => {
-    let salt = localStorage.getItem(SALT_KEY);
-    if (!salt) {
-      const newSalt = window.crypto.getRandomValues(new Uint8Array(16));
-      salt = btoa(String.fromCharCode(...newSalt));
-      localStorage.setItem(SALT_KEY, salt);
+    try {
+      let salt = localStorage.getItem(SALT_KEY);
+      if (!salt) {
+        const newSalt = window.crypto.getRandomValues(new Uint8Array(16));
+        salt = btoa(String.fromCharCode(...newSalt));
+        try {
+          localStorage.setItem(SALT_KEY, salt);
+        } catch (e) {
+          // Ignore write restriction
+        }
+      }
+      return new Uint8Array(atob(salt).split('').map(c => c.charCodeAt(0)));
+    } catch (e) {
+      // Return stable fallback salt if localStorage access is blocked
+      const fallbackSaltBase = "AETHER_STABLE_MEMORY_SALT_DEGRADATION";
+      return new TextEncoder().encode(fallbackSaltBase).slice(0, 16);
     }
-    return new Uint8Array(atob(salt).split('').map(c => c.charCodeAt(0)));
   },
 
   getDerivedKey: async (passphrase: string) => {
@@ -112,39 +122,63 @@ export const safeStorage = {
 
   getItem: async (key: string): Promise<string | null> => {
     try {
-      const val = localStorage.getItem(key);
+      let val: string | null = null;
+      try {
+        val = localStorage.getItem(key);
+      } catch (e) {
+        // Suppress storage read restrictions
+      }
       if (!val) {
         return memoryStorage[key] ? await CRYPTO_ENGINE.decrypt(memoryStorage[key]) : null;
       }
       return await CRYPTO_ENGINE.decrypt(val);
     } catch (e) {
       console.warn(`[AetherOS] Storage access restricted for key: ${key}`);
-      return memoryStorage[key] ? await CRYPTO_ENGINE.decrypt(memoryStorage[key]) : null;
+      try {
+        return memoryStorage[key] ? await CRYPTO_ENGINE.decrypt(memoryStorage[key]) : null;
+      } catch (inner) {
+        return null;
+      }
     }
   },
   setItem: async (key: string, value: string): Promise<void> => {
-    // PRE-WRITE BACKUP (D:\ simulation)
-    const existing = localStorage.getItem(key);
-    if (existing) {
-        const backupKey = `D:\\VAULT_BACKUP\\${key}_${new Date().getTime()}.enc`;
-        try {
-            localStorage.setItem(backupKey, existing);
-            // Limit backups to last 5 per key to avoid storage overflow
-            const allBackups = Object.keys(localStorage).filter(k => k.startsWith(`D:\\VAULT_BACKUP\\${key}`));
-            if (allBackups.length > 5) {
-                allBackups.sort().slice(0, allBackups.length - 5).forEach(k => localStorage.removeItem(k));
-            }
-        } catch (e) {
-            console.warn("[AetherOS] D:\\ Vault Backup Overflow. Maintaining current state.");
-        }
-    }
-
-    const encrypted = await CRYPTO_ENGINE.encrypt(value);
     try {
-      localStorage.setItem(key, encrypted);
+      // PRE-WRITE BACKUP (D:\ simulation)
+      let existing: string | null = null;
+      try {
+        existing = localStorage.getItem(key);
+      } catch (e) {
+        // Suppress storage read restrictions
+      }
+      if (existing) {
+          const backupKey = `D:\\VAULT_BACKUP\\${key}_${new Date().getTime()}.enc`;
+          try {
+              localStorage.setItem(backupKey, existing);
+              // Limit backups to last 5 per key to avoid storage overflow
+              const allBackups = Object.keys(localStorage).filter(k => k.startsWith(`D:\\VAULT_BACKUP\\${key}`));
+              if (allBackups.length > 5) {
+                  allBackups.sort().slice(0, allBackups.length - 5).forEach(k => {
+                      try {
+                          localStorage.removeItem(k);
+                      } catch (e) {
+                          // Ignore backup removal failures
+                      }
+                  });
+              }
+          } catch (e) {
+              console.warn("[AetherOS] D:\\ Vault Backup Overflow. Maintaining current state.");
+          }
+      }
+
+      const encrypted = await CRYPTO_ENGINE.encrypt(value);
+      try {
+        localStorage.setItem(key, encrypted);
+      } catch (e) {
+        console.warn(`[AetherOS] Storage write restricted. Siphoning to memory for key: ${key}`);
+        memoryStorage[key] = encrypted;
+      }
     } catch (e) {
-      console.warn(`[AetherOS] Storage write restricted. Siphoning to memory for key: ${key}`);
-      memoryStorage[key] = encrypted;
+      console.error("[AetherOS] safeStorage.setItem top-level catch:", e);
     }
   },
   removeItem: (key: string): void => {

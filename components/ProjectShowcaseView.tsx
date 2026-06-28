@@ -177,6 +177,7 @@ const CATEGORIES = [
 
 export const ProjectShowcaseView: React.FC = () => {
   const [projects, setProjects] = useState<ShowcaseProject[]>([]);
+  const safeProjects = Array.isArray(projects) ? projects : [];
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedTech, setSelectedTech] = useState<string | null>(null);
@@ -233,7 +234,8 @@ export const ProjectShowcaseView: React.FC = () => {
       try {
         const stored = await safeStorage.getItem('aetheros_showcase_projects');
         if (stored) {
-          setProjects(JSON.parse(stored));
+          const parsed = JSON.parse(stored);
+          setProjects(Array.isArray(parsed) ? parsed : DEFAULT_PROJECTS);
         } else {
           setProjects(DEFAULT_PROJECTS);
           await safeStorage.setItem('aetheros_showcase_projects', JSON.stringify(DEFAULT_PROJECTS));
@@ -259,7 +261,7 @@ export const ProjectShowcaseView: React.FC = () => {
 
   const handleToggleLike = async (projId: string) => {
     const activeUsername = currentUserProfile?.username || 'Aetheros_Prime';
-    const updated = projects.map(p => {
+    const updated = (projects || []).map(p => {
       if (p.id === projId) {
         const currentLikes = p.likes || [];
         const hasLiked = currentLikes.includes(activeUsername);
@@ -287,7 +289,7 @@ export const ProjectShowcaseView: React.FC = () => {
       text: commentInput.trim(),
       timestamp: new Date().toISOString()
     };
-    const updated = projects.map(p => {
+    const updated = (projects || []).map(p => {
       if (p.id === projId) {
         const currentComments = p.comments || [];
         return { ...p, comments: [...currentComments, newComment] };
@@ -366,7 +368,7 @@ export const ProjectShowcaseView: React.FC = () => {
   const handleDeleteProject = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to remove this project from your showcase?')) {
-      const updated = projects.filter(p => p.id !== id);
+      const updated = (projects || []).filter(p => p && p.id !== id);
       saveProjects(updated);
       toast.success('Showcase project removed.');
       if (selectedProject?.id === id) {
@@ -405,11 +407,11 @@ Shared via AetherOS Sovereign Hub`;
 
   // Get all unique technologies list for filtering
   const allTechnologies = Array.from(
-    new Set(projects.flatMap(p => p.technologies))
+    new Set((safeProjects || []).flatMap(p => p ? p.technologies : []))
   );
 
   // Filter project cards logic
-  const filteredProjects = projects.filter(proj => {
+  const filteredProjects = (safeProjects || []).filter(proj => {
     const matchesSearch = 
       proj.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       proj.shortDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -1281,6 +1283,64 @@ Shared via AetherOS Sovereign Hub`;
                          <option value="video">Interactive Video</option>
                        </select>
                      </div>
+                  </div>
+
+                  {/* Drag & Drop File Upload or Click to Upload for screenshots */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[10px] font-mono uppercase text-gray-500 font-bold">Or Upload Project Screenshot (PNG, JPG, WEBP)</label>
+                    <div 
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        const file = e.dataTransfer.files?.[0];
+                        if (file && file.type.startsWith('image/')) {
+                          const reader = new FileReader();
+                          reader.onload = (event) => {
+                            if (event.target?.result) {
+                              setNewMediaUrl(event.target.result as string);
+                              setNewMediaType('image');
+                              toast.success("Screenshot loaded successfully!");
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        } else {
+                          toast.error("Please drop an image file.");
+                        }
+                      }}
+                      onClick={() => {
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = 'image/*';
+                        input.onchange = (e: any) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              if (event.target?.result) {
+                                setNewMediaUrl(event.target.result as string);
+                                setNewMediaType('image');
+                                toast.success("Screenshot loaded successfully!");
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        };
+                        input.click();
+                      }}
+                      className="border-2 border-dashed border-white/10 hover:border-red-500/50 hover:bg-white/5 bg-[#090915] rounded-xl p-4 text-center cursor-pointer transition-all space-y-1.5"
+                    >
+                      {newMediaUrl && newMediaUrl.startsWith('data:image/') ? (
+                        <div className="flex flex-col items-center gap-1.5 justify-center">
+                          <img src={newMediaUrl} className="max-h-20 rounded border border-white/10 object-contain" alt="Preview" referrerPolicy="no-referrer" />
+                          <span className="text-[10px] text-emerald-450 font-mono">✓ Screenshot attached! Click to replace.</span>
+                        </div>
+                      ) : (
+                        <div className="py-2">
+                          <p className="text-gray-300 font-bold text-[11px]">Drag and drop project screenshot here or click to choose file</p>
+                          <p className="text-[9px] text-gray-500 font-mono mt-0.5">Supports PNG, JPG, WEBP (encoded directly in browser storage)</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Interconnected Metric Auditor Array builder */}

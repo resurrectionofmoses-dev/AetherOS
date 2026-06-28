@@ -6,6 +6,32 @@ import {
   Play, Maximize2, Minimize2, ChevronRight, Info, RefreshCw, BarChart2 
 } from 'lucide-react';
 import { sttService } from '../services/sttService';
+import { speechService } from '../services/speechService';
+
+const playOperatorBeep = (freq = 800, type: OscillatorType = 'sine', duration = 0.08) => {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(0.04, ctx.currentTime);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    setTimeout(() => {
+      osc.stop();
+      ctx.close();
+    }, duration * 1000);
+  } catch (e) {
+    console.warn("Audio Context block or unsupported:", e);
+  }
+};
+
+const playCompletionBeep = () => {
+  playOperatorBeep(880, 'sine', 0.1);
+  setTimeout(() => playOperatorBeep(1100, 'sine', 0.15), 100);
+};
 
 // Define the Love Test blueprint from the user requirements
 interface LoveTest {
@@ -32,13 +58,174 @@ const CATEGORY_SCOPES = [
   { cat: "Celebration", signals: ["celebrate love today", "share love milestone", "today is our love anniversary", "love wins", "throw a love party", "mark this love moment forever", "love celebration for everyone", "we made it through love", "toast to love", "love is worth celebrating"] }
 ];
 
-export const VoiceHUDOverlay: React.FC = () => {
+interface VoiceHUDOverlayProps {
+  currentView?: string;
+  onSetView?: (view: any) => void;
+}
+
+const VIEW_COMMANDS: Record<string, string[]> = {
+  chat: ['Clear Memory', 'Open Projects', 'Check System Status', 'Go to Sovereign Shield'],
+  projects: ['Check System Status', 'Open Chat', 'Sync Blueprints', 'Go to Code Fall Lab'],
+  voice_authority: ['Check System Status', 'Conduct Shard', 'Switch to Neural Voice', 'Go to Chat'],
+  constraints_audit: ['Run System Audit', 'Purge Vulnerabilities', 'Acknowledge Deviations', 'Go to Build Logs'],
+  sovereign_shield: ['Restore Quantum Shield', 'Audit Shield Coordinates', 'Acknowledge Threats', 'Go to Diagnostics'],
+  diagnostics: ['Run System Diagnostics', 'Check Temperature', 'Clear Error Cache', 'Go to Sovereign Shield'],
+  project_chronos: ['Show Overdue Tasks', 'Speed Up Time Allocator', 'Align Chronos', 'Go to Quantum Ledger'],
+  default: ['Open Projects', 'Check System Status', 'Open Chat', 'Go to Sovereign Shield']
+};
+
+export const NAVIGATION_MAPPINGS = [
+  { keywords: ['chat', 'open chat', 'go to chat', 'switch to chat'], view: 'chat', label: 'Chat View' },
+  { keywords: ['project network', 'open projects', 'go to projects', 'switch to projects', 'projects'], view: 'projects', label: 'Projects' },
+  { keywords: ['open forge', 'go to forge', 'switch to forge', 'forge', 'blueprints'], view: 'forge', label: 'Forge (Blueprints)' },
+  { keywords: ['voice authority', 'open voice authority', 'go to voice authority', 'switch to voice authority'], view: 'voice_authority', label: 'Voice Authority' },
+  { keywords: ['constraints audit', 'open constraints audit', 'go to constraints audit', 'switch to constraints audit'], view: 'constraints_audit', label: 'Constraints Audit' },
+  { keywords: ['sovereign shield', 'open sovereign shield', 'go to sovereign shield', 'switch to sovereign shield'], view: 'sovereign_shield', label: 'Sovereign Shield' },
+  { keywords: ['diagnostics', 'open diagnostics', 'go to diagnostics', 'switch to diagnostics'], view: 'diagnostics', label: 'Diagnostics' },
+  { keywords: ['project chronos', 'open project chronos', 'go to project chronos', 'switch to project chronos', 'chronos'], view: 'project_chronos', label: 'Project Chronos' },
+  { keywords: ['cellular grid', 'open cellular grid', 'go to cellular grid', 'switch to cellular grid'], view: 'cellular_grid', label: 'Cellular Grid' },
+  { keywords: ['quantum ledger', 'open quantum ledger', 'go to quantum ledger', 'switch to quantum ledger'], view: 'quantum_ledger', label: 'Quantum Ledger' },
+  { keywords: ['aether flow orchestrator', 'open aether flow', 'go to aether flow', 'switch to aether flow'], view: 'aether_flow_orchestrator', label: 'Aether Flow Orchestrator' },
+  { keywords: ['ai telemetry', 'open ai telemetry', 'go to ai telemetry', 'switch to ai telemetry'], view: 'ai_telemetry', label: 'AI Telemetry' },
+  { keywords: ['inevitable crash', 'open inevitable crash', 'go to inevitable crash', 'switch to inevitable crash'], view: 'inevitable_crash', label: 'Inevitable Crash' },
+  { keywords: ['eurodemux core', 'open eurodemux', 'go to eurodemux', 'switch to eurodemux'], view: 'eurodemux_core', label: 'Eurodemux Core' },
+  { keywords: ['google sheets', 'open google sheets', 'go to google sheets', 'switch to google sheets'], view: 'google_sheets', label: 'Google Sheets' },
+  { keywords: ['moderator lounge', 'open moderator lounge', 'go to moderator lounge', 'switch to moderator lounge'], view: 'moderator_lounge', label: 'Moderator Lounge' },
+  { keywords: ['live patch observation', 'open live patch', 'go to live patch', 'switch to live patch'], view: 'live_patch_obs', label: 'Live Patch Obs' },
+  { keywords: ['accounts registry', 'open accounts registry', 'go to accounts registry', 'switch to accounts registry', 'accounts'], view: 'accounts_registry', label: 'Accounts Registry' },
+  { keywords: ['vault manager', 'open vault manager', 'go to vault manager', 'switch to vault manager'], view: 'vault_manager', label: 'Vault Manager' },
+  { keywords: ['system integrity', 'open system integrity', 'go to system integrity', 'switch to system integrity'], view: 'system_integrity', label: 'System Integrity' },
+  { keywords: ['blacklist', 'open blacklist', 'go to blacklist', 'switch to blacklist'], view: 'blacklist', label: 'Blacklist' },
+  { keywords: ['absolute reliability network', 'open absolute reliability', 'go to absolute reliability', 'switch to absolute reliability'], view: 'absolute_reliability_network', label: 'Absolute Reliability' },
+  { keywords: ['coding network', 'open coding network', 'go to coding network', 'switch to coding network'], view: 'coding_network', label: 'Coding Network' },
+  { keywords: ['universal search', 'open universal search', 'go to universal search', 'switch to universal search'], view: 'universal_search', label: 'Universal Search' },
+  { keywords: ['gold conjunction', 'open gold conjunction', 'go to gold conjunction', 'switch to gold conjunction'], view: 'gold_conjunction', label: 'Gold Conjunction' },
+  { keywords: ['shard store', 'open shard store', 'go to shard store', 'switch to shard store'], view: 'shard_store', label: 'Shard Store' },
+  { keywords: ['conjunction gates', 'open conjunction gates', 'go to conjunction gates', 'switch to conjunction gates'], view: 'conjunction_gates', label: 'Conjunction Gates' },
+  { keywords: ['covenant', 'open covenant', 'go to covenant', 'switch to covenant'], view: 'covenant', label: 'Covenant' },
+  { keywords: ['verification gates', 'open verification gates', 'go to verification gates', 'switch to verification gates'], view: 'verification_gates', label: 'Verification Gates' },
+  { keywords: ['build logs', 'open build logs', 'go to build logs', 'switch to build logs'], view: 'build_logs', label: 'Build Logs' },
+  { keywords: ['rt ipc lab', 'open rt ipc lab', 'go to rt ipc lab', 'switch to rt ipc lab', 'real time ipc lab', 'real-time ipc lab'], view: 'rt_ipc_lab', label: 'RT IPC Lab' },
+  { keywords: ['spectre browser', 'open spectre browser', 'go to spectre browser', 'switch to spectre browser'], view: 'spectre_browser', label: 'Spectre Browser' },
+  { keywords: ['unified chain', 'open unified chain', 'go to unified chain', 'switch to unified chain'], view: 'unified_chain', label: 'Unified Chain' },
+  { keywords: ['fuel optimizer', 'open fuel optimizer', 'go to fuel optimizer', 'switch to fuel optimizer', 'fuel efficiency optimizer'], view: 'fuel_optimizer', label: 'Fuel Optimizer' },
+  { keywords: ['operations vault', 'open operations vault', 'go to operations vault', 'switch to operations vault', 'vault'], view: 'vault', label: 'Operations Vault' },
+  { keywords: ['healing matrix', 'open healing matrix', 'go to healing matrix', 'switch to healing matrix'], view: 'healing_matrix', label: 'Healing Matrix' },
+  { keywords: ['laws and justice lab', 'open laws and justice lab', 'go to laws and justice lab', 'switch to laws and justice lab', 'laws justice lab'], view: 'laws_justice_lab', label: 'Laws & Justice Lab' },
+  { keywords: ['requindor scroll', 'open requindor scroll', 'go to requindor scroll', 'switch to requindor scroll'], view: 'requindor_scroll', label: 'Requindor Scroll' },
+  { keywords: ['omni builder', 'open omni builder', 'go to omni builder', 'switch to omni builder'], view: 'omni_builder', label: 'Omni Builder' },
+  { keywords: ['singularity engine', 'open singularity engine', 'go to singularity engine', 'switch to singularity engine'], view: 'singularity_engine', label: 'Singularity Engine' },
+  { keywords: ['communications', 'open communications', 'go to communications', 'switch to communications'], view: 'communications', label: 'Communications' },
+  { keywords: ['up north', 'open up north', 'go to up north', 'switch to up north'], view: 'up_north', label: 'Up North' },
+  { keywords: ['device link', 'open device link', 'go to device link', 'switch to device link'], view: 'device_link', label: 'Device Link' },
+  { keywords: ['bluetooth bridge', 'open bluetooth bridge', 'go to bluetooth bridge', 'switch to bluetooth bridge'], view: 'bluetooth_bridge', label: 'Bluetooth Bridge' },
+  { keywords: ['launch center', 'open launch center', 'go to launch center', 'switch to launch center'], view: 'launch_center', label: 'Launch Center' },
+  { keywords: ['eliza terminal', 'open eliza terminal', 'go to eliza terminal', 'switch to eliza terminal'], view: 'eliza_terminal', label: 'Eliza Terminal' },
+  { keywords: ['code fall lab', 'open code fall lab', 'go to code fall lab', 'switch to code fall lab'], view: 'code_fall_lab', label: 'Code Fall Lab' },
+  { keywords: ['alphabet hexagon', 'open alphabet hexagon', 'go to alphabet hexagon', 'switch to alphabet hexagon'], view: 'alphabet_hexagon', label: 'Alphabet Hexagon' },
+  { keywords: ['powertrain conjunction', 'open powertrain conjunction', 'go to powertrain conjunction', 'switch to powertrain conjunction'], view: 'powertrain_conjunction', label: 'Powertrain Conjunction' },
+  { keywords: ['hyper spatial lab', 'open hyper spatial lab', 'go to hyper spatial lab', 'switch to hyper spatial lab'], view: 'hyper_spatial_lab', label: 'Hyper Spatial Lab' },
+  { keywords: ['engineering lab', 'open engineering lab', 'go to engineering lab', 'switch to engineering lab'], view: 'engineering_lab', label: 'Engineering Lab' },
+  { keywords: ['hard code lab', 'open hard code lab', 'go to hard code lab', 'switch to hard code lab'], view: 'hard_code_lab', label: 'Hard Code Lab' },
+  { keywords: ['truth lab', 'open truth lab', 'go to truth lab', 'switch to truth lab'], view: 'truth_lab', label: 'Truth Lab' },
+  { keywords: ['testing lab', 'open testing lab', 'go to testing lab', 'switch to testing lab'], view: 'testing_lab', label: 'Testing Lab' },
+  { keywords: ['kinetics lab', 'open kinetics lab', 'go to kinetics lab', 'switch to kinetics lab'], view: 'kinetics_lab', label: 'Kinetics Lab' },
+  { keywords: ['quantum theory lab', 'open quantum theory lab', 'go to quantum theory lab', 'switch to quantum theory lab'], view: 'quantum_theory_lab', label: 'Quantum Theory Lab' },
+  { keywords: ['chemistry lab', 'open chemistry lab', 'go to chemistry lab', 'switch to chemistry lab'], view: 'chemistry_lab', label: 'Chemistry Lab' },
+  { keywords: ['race lab', 'open race lab', 'go to race lab', 'switch to race lab'], view: 'race_lab', label: 'Race Lab' },
+  { keywords: ['medical synthesis lab', 'open medical synthesis lab', 'go to medical synthesis lab', 'switch to medical synthesis lab'], view: 'medical_synthesis_lab', label: 'Medical Synthesis' },
+  { keywords: ['paleontology lab', 'open paleontology lab', 'go to paleontology lab', 'switch to paleontology lab'], view: 'paleontology_lab', label: 'Paleontology Lab' },
+  { keywords: ['raw mineral lab', 'open raw mineral lab', 'go to raw mineral lab', 'switch to raw mineral lab'], view: 'raw_mineral_lab', label: 'Raw Mineral Lab' },
+  { keywords: ['clothing lab', 'open clothing lab', 'go to clothing lab', 'switch to clothing lab'], view: 'clothing_lab', label: 'Clothing Lab' },
+  { keywords: ['concepts lab', 'open concepts lab', 'go to concepts lab', 'switch to concepts lab'], view: 'concepts_lab', label: 'Concepts Lab' },
+  { keywords: ['sanitization lab', 'open sanitization lab', 'go to sanitization lab', 'switch to sanitization lab'], view: 'sanitization_lab', label: 'Sanitization Lab' },
+  { keywords: ['remix scope lab', 'open remix scope lab', 'go to remix scope lab', 'switch to remix scope lab'], view: 'remix_scope_lab', label: 'Remix Scope Lab' },
+  { keywords: ['windows lab', 'open windows lab', 'go to windows lab', 'switch to windows lab'], view: 'windows_lab', label: 'Windows Lab' },
+  { keywords: ['linux lab', 'open linux lab', 'go to linux lab', 'switch to linux lab'], view: 'linux_lab', label: 'Linux Lab' },
+  { keywords: ['mac os lab', 'open mac os lab', 'go to mac os lab', 'switch to mac os lab'], view: 'mac_os_lab', label: 'Mac OS Lab' },
+  { keywords: ['apple lab', 'open apple lab', 'go to apple lab', 'switch to apple lab'], view: 'apple_lab', label: 'Apple Lab' },
+  { keywords: ['mission lab', 'open mission lab', 'go to mission lab', 'switch to mission lab'], view: 'mission_lab', label: 'Mission Lab' },
+  { keywords: ['cell phone lab', 'open cell phone lab', 'go to cell phone lab', 'switch to cell phone lab'], view: 'cell_phone_lab', label: 'Cell Phone Lab' },
+  { keywords: ['sampling lab', 'open sampling lab', 'go to sampling lab', 'switch to sampling lab'], view: 'sampling_lab', label: 'Sampling Lab' },
+  { keywords: ['pornography studio', 'open pornography studio', 'go to pornography studio', 'switch to pornography studio'], view: 'pornography_studio', label: 'Pornography Studio' },
+  { keywords: ['vehicle telemetry lab', 'open vehicle telemetry lab', 'go to vehicle telemetry lab', 'switch to vehicle telemetry lab'], view: 'vehicle_telemetry_lab', label: 'Vehicle Telemetry' },
+  { keywords: ['coding network teachers', 'open coding network teachers', 'go to coding network teachers', 'switch to coding network teachers'], view: 'coding_network_teachers', label: 'Teachers' },
+  { keywords: ['enlightenment pool', 'open enlightenment pool', 'go to enlightenment pool', 'switch to enlightenment pool'], view: 'enlightenment_pool', label: 'Enlightenment Pool' },
+  { keywords: ['library view', 'open library view', 'go to library view', 'switch to library view', 'library'], view: 'library_view', label: 'Library' },
+  { keywords: ['timeline', 'open timeline', 'go to timeline', 'switch to timeline'], view: 'timeline', label: 'Timeline' },
+  { keywords: ['amoeba heritage', 'open amoeba heritage', 'go to amoeba heritage', 'switch to amoeba heritage'], view: 'amoeba_heritage', label: 'Amoeba Heritage' },
+  { keywords: ['system exhaustion', 'open system exhaustion', 'go to system exhaustion', 'switch to system exhaustion'], view: 'system_exhaustion', label: 'System Exhaustion' },
+  { keywords: ['vehicle management', 'open vehicle management', 'go to vehicle management', 'switch to vehicle management'], view: 'vehicle_management', label: 'Vehicle Management' },
+  { keywords: ['unknown physics lab', 'open unknown physics lab', 'go to unknown physics lab', 'switch to unknown physics lab'], view: 'unknown_physics_lab', label: 'Unknown Physics Lab' },
+  { keywords: ['logic pattern lab', 'open logic pattern lab', 'go to logic pattern lab', 'switch to logic pattern lab'], view: 'logic_pattern_lab', label: 'Logic Pattern Lab' },
+  { keywords: ['confusion logic', 'open confusion logic', 'go to confusion logic', 'switch to confusion logic'], view: 'confusion_logic', label: 'Confusion Logic' },
+  { keywords: ['knowledge forum', 'open knowledge forum', 'go to knowledge forum', 'switch to knowledge forum'], view: 'knowledge_forum', label: 'Knowledge Forum' },
+  { keywords: ['main net', 'open main net', 'go to main net', 'switch to main net'], view: 'main_net', label: 'Main Net' },
+  { keywords: ['ecosystem', 'open ecosystem', 'go to ecosystem', 'switch to ecosystem'], view: 'ecosystem', label: 'Ecosystem' },
+  { keywords: ['vulnerability report', 'open vulnerability report', 'go to vulnerability report', 'switch to vulnerability report'], view: 'vulnerability_report', label: 'Vulnerability Report' },
+  { keywords: ['tactical intelligence', 'open tactical intelligence', 'go to tactical intelligence', 'switch to tactical intelligence'], view: 'tactical_intelligence', label: 'Tactical Intelligence' },
+  { keywords: ['behavioral specs', 'open behavioral specs', 'go to behavioral specs', 'switch to behavioral specs'], view: 'behavioral_specs', label: 'Behavioral Specs' },
+  { keywords: ['cognitive pipeline', 'open cognitive pipeline', 'go to cognitive pipeline', 'switch to cognitive pipeline'], view: 'cognitive_pipeline', label: 'Cognitive Pipeline' },
+  { keywords: ['data provenance lab', 'open data provenance lab', 'go to data provenance lab', 'switch to data provenance lab'], view: 'data_provenance_lab', label: 'Data Provenance Lab' },
+  { keywords: ['self healing crt view', 'open self healing loop', 'go to self healing loop', 'switch to self healing loop', 'self healing crt loop', 'sh crt loop'], view: 'sh_crt_loop', label: 'Self Healing Loop' },
+  { keywords: ['user profile', 'open user profile', 'go to user profile', 'switch to user profile', 'profile'], view: 'user_profile', label: 'User Profile' },
+  { keywords: ['prompt forge', 'open prompt forge', 'go to prompt forge', 'switch to prompt forge'], view: 'prompt_forge', label: 'Prompt Forge' },
+  { keywords: ['sovereign standard', 'open sovereign standard', 'go to sovereign standard', 'switch to sovereign standard'], view: 'sovereign_standard', label: 'Sovereign Standard' },
+  { keywords: ['blockchain history', 'open blockchain history', 'go to blockchain history', 'switch to blockchain history'], view: 'blockchain_history', label: 'Blockchain History' },
+  { keywords: ['biometric intelligence', 'open biometric intelligence', 'go to biometric intelligence', 'switch to biometric intelligence'], view: 'biometric_intelligence', label: 'Biometric Intelligence' },
+  { keywords: ['card recovery', 'open card recovery', 'go to card recovery', 'switch to card recovery'], view: 'card_recovery', label: 'Card Recovery' },
+  { keywords: ['project showcase', 'open project showcase', 'go to project showcase', 'switch to project showcase'], view: 'project_showcase', label: 'Project Showcase' },
+  { keywords: ['labs flow', 'open labs flow', 'go to labs flow', 'switch to labs flow'], view: 'labs_flow', label: 'Labs Flow' },
+  { keywords: ['cascade inspector', 'open cascade inspector', 'go to cascade inspector', 'switch to cascade inspector', 'cascade investigator'], view: 'cascade_investigator', label: 'Cascade Inspector' },
+  { keywords: ['central processing hub', 'open central processing hub', 'go to central processing hub', 'switch to central processing hub', 'cph hub'], view: 'cph_hub', label: 'Central Processing Hub' },
+  { keywords: ['scraper merchant store', 'open scraper merchant store', 'go to scraper merchant store', 'switch to scraper merchant store'], view: 'scraper_merchant_store', label: 'Scraper Merchant Store' },
+  { keywords: ['data academy', 'open data academy', 'go to data academy', 'switch to data academy'], view: 'data_academy', label: 'Data Academy' },
+  { keywords: ['reputation leaderboard', 'open reputation leaderboard', 'go to reputation leaderboard', 'switch to reputation leaderboard'], view: 'reputation_leaderboard', label: 'Reputation Leaderboard' },
+];
+
+export const VoiceHUDOverlay: React.FC<VoiceHUDOverlayProps> = ({ currentView = 'chat', onSetView }) => {
   // Core Speech HUD controls
   const [active, setActive] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [isInterim, setIsInterim] = useState(false);
   const [forceVisible, setForceVisible] = useState(false); // Enable previewing the Quantum interface offline
+  const [lastExecutedNav, setLastExecutedNav] = useState<{ label: string; view: string } | null>(null);
+
+  // Unified State Machine tracking variables for voice phases
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+
+  // Subscribe to speech service playback state
+  useEffect(() => {
+    try {
+      const unsubscribeSpeech = speechService.subscribe((playing) => {
+        setIsSpeaking(!!playing);
+      });
+      return () => unsubscribeSpeech();
+    } catch (err) {
+      console.error("Guarded against SpeechService subscription failure:", err);
+    }
+  }, []);
+
+  // Explicitly defined Voice Phase State Machine to identify and prevent missing state transitions
+  const currentVoicePhase = useMemo<'idle' | 'listening' | 'processing' | 'speaking'>(() => {
+    try {
+      if (active === true) {
+        return 'listening';
+      }
+      if (isProcessing === true) {
+        return 'processing';
+      }
+      if (isSpeaking === true) {
+        return 'speaking';
+      }
+      return 'idle';
+    } catch (err) {
+      console.error("State Machine validation caught unexpected exception:", err);
+      return 'idle';
+    }
+  }, [active, isProcessing, isSpeaking]);
 
   // Active view tab inside HUD
   const [selectedTab, setSelectedTab] = useState<'TRANSMITTER' | 'BLOCK_QUBIT' | 'MORTALITY' | 'LOVE_TESTS'>('TRANSMITTER');
@@ -69,6 +256,213 @@ export const VoiceHUDOverlay: React.FC = () => {
   const [topologyShots, setTopologyShots] = useState<TopologyShot[]>([
     { id: "TS-01", timestamp: "16:47:02", alphaSq: 1.0, betaSq: 0.0, latitude: "90.0° N", longitude: "0.0°", spotLabel: "North Pole (Hebrews 11:1 - Absolute Faith)" }
   ]);
+
+  // Missing quantum states tracker
+  interface MissingQubitState {
+    id: string;
+    name: string;
+    coord: string;
+    desc: string;
+    resolved: boolean;
+    icon: string;
+  }
+  const [missingStates, setMissingStates] = useState<MissingQubitState[]>([
+    { id: "MQS-01", name: 'Pure Superposition |+⟩ (Faith Anchor)', coord: 'θ = 90.0°, φ = 0.0°', desc: 'Absolute phase alignment of Faith; perfect coherence with zero decay.', resolved: false, icon: '🌟' },
+    { id: "MQS-02", name: 'Sovereign Hope State |+i⟩ (Imaginary Momentum)', coord: 'θ = 90.0°, φ = 90.0°', desc: 'The complex imaginary axis state representing forward momentum under stress.', resolved: false, icon: '🔮' },
+    { id: "MQS-03", name: 'Orthogonal Antidote |-⟩ (Anti-Friction)', coord: 'θ = 90.0°, φ = 180.0°', desc: 'The protective boundary state that neutralizes incoming negative harmonic drift.', resolved: false, icon: '🛡️' },
+    { id: "MQS-04", name: 'Maximum Entangled Bell State |Ψ⁻⟩', coord: 'Bell State Superposition', desc: 'Symmetric twin coherence mapping that completely bypasses side-channel constraints.', resolved: false, icon: '🧬' }
+  ]);
+  const [isScanningStates, setIsScanningStates] = useState(false);
+  const [scanStateLogs, setScanStateLogs] = useState<string[]>([]);
+
+  const handleScanMissingStates = () => {
+    if (isScanningStates) return;
+    setIsScanningStates(true);
+    setScanStateLogs(["[SCAN] Initializing quantum state sweep...", "[SCAN] Calibrating Bloch Sphere interferometers..."]);
+    
+    let step = 0;
+    const interval = setInterval(() => {
+      // Rapidly oscillate the state vector to look like scanning!
+      setQubitAlpha(Math.random());
+      setQubitBeta(Math.random());
+      
+      step++;
+      if (step === 1) {
+        setScanStateLogs(prev => [...prev, "[SCAN] Analyzing phase angles for Pure Superposition |+⟩..."]);
+      } else if (step === 2) {
+        setScanStateLogs(prev => [...prev, "🌟 [RESOLVED] Pure Superposition State |+⟩ synchronized!"]);
+        setMissingStates(prev => prev.map(s => s.id === "MQS-01" ? { ...s, resolved: true } : s));
+        playOperatorBeep(880, 'sine', 0.1);
+      } else if (step === 3) {
+        setScanStateLogs(prev => [...prev, "[SCAN] Projecting imaginary vectors for Sovereign Hope State |+i⟩..."]);
+      } else if (step === 4) {
+        setScanStateLogs(prev => [...prev, "🔮 [RESOLVED] Sovereign Hope State |+i⟩ aligned successfully!"]);
+        setMissingStates(prev => prev.map(s => s.id === "MQS-02" ? { ...s, resolved: true } : s));
+        playOperatorBeep(980, 'triangle', 0.1);
+      } else if (step === 5) {
+        setScanStateLogs(prev => [...prev, "[SCAN] Re-coupling orthogonal limits for Antidote |-⟩..."]);
+      } else if (step === 6) {
+        setScanStateLogs(prev => [...prev, "🛡️ [RESOLVED] Orthogonal Antidote |-⟩ locked in standard shield!"]);
+        setMissingStates(prev => prev.map(s => s.id === "MQS-03" ? { ...s, resolved: true } : s));
+        playOperatorBeep(1100, 'sine', 0.1);
+      } else if (step === 7) {
+        setScanStateLogs(prev => [...prev, "[SCAN] Entangling multi-node sub-lattices..."]);
+      } else if (step === 8) {
+        setScanStateLogs(prev => [...prev, "🧬 [RESOLVED] Bell State |Ψ⁻⟩ fully active! All missing states localized."]);
+        setMissingStates(prev => prev.map(s => s.id === "MQS-04" ? { ...s, resolved: true } : s));
+        clearInterval(interval);
+        setIsScanningStates(false);
+        // Reset qubit coordinates to a healthy stable standard state
+        setQubitAlpha(0.94);
+        setQubitBeta(0.18);
+        playCompletionBeep();
+      }
+    }, 400);
+  };
+
+  const animateQubitTransition = (targetAlpha: number, targetBeta: number, logMsg: string) => {
+    const duration = 600;
+    const start = Date.now();
+    const startAlpha = qubitAlpha;
+    const startBeta = qubitBeta;
+
+    const animate = () => {
+      const now = Date.now();
+      const elapsed = now - start;
+      const progress = Math.min(1, elapsed / duration);
+      // cubic easeOut
+      const ease = 1 - Math.pow(1 - progress, 3);
+
+      setQubitAlpha(startAlpha + (targetAlpha - startAlpha) * ease);
+      setQubitBeta(startBeta + (targetBeta - startBeta) * ease);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setQubitAlpha(targetAlpha);
+        setQubitBeta(targetBeta);
+        setScanStateLogs(prev => [...prev, `[GATE] ${logMsg}`]);
+      }
+    };
+    requestAnimationFrame(animate);
+  };
+
+  const applyHadamardGate = () => {
+    if (isScanningStates) return;
+    playOperatorBeep(720, 'triangle', 0.1);
+    const a = qubitAlpha;
+    const b = qubitBeta;
+    let newA = (a + b) / Math.SQRT2;
+    let newB = (a - b) / Math.SQRT2;
+    const norm = Math.sqrt(newA * newA + newB * newB);
+    if (norm > 0) {
+      newA /= norm;
+      newB /= norm;
+    }
+    animateQubitTransition(newA, newB, "Hadamard (H-Gate) applied: Created superposition state.");
+  };
+
+  const applyPauliXGate = () => {
+    if (isScanningStates) return;
+    playOperatorBeep(640, 'sine', 0.1);
+    animateQubitTransition(qubitBeta, qubitAlpha, "Pauli-X applied: Swapped |0⟩ and |1⟩ amplitudes.");
+  };
+
+  const applyPauliZGate = () => {
+    if (isScanningStates) return;
+    playOperatorBeep(820, 'sine', 0.1);
+    animateQubitTransition(qubitAlpha, -qubitBeta, "Pauli-Z applied: Inverted phase angle coefficient.");
+  };
+
+  const applyGroundState = () => {
+    if (isScanningStates) return;
+    playOperatorBeep(440, 'sine', 0.2);
+    animateQubitTransition(1.0, 0.0, "Reset: State grounded to pure |0⟩ (Absolute Faith).");
+  };
+
+  const handleResolveIndividualState = (stateId: string) => {
+    if (isScanningStates) return;
+    
+    const state = missingStates.find(s => s.id === stateId);
+    if (!state) return;
+    
+    setIsScanningStates(true);
+    setScanStateLogs(prev => [
+      ...prev,
+      `[TRANSITION] Aligning qubit vector to ${state.name} (${state.coord})...`
+    ]);
+
+    let targetAlpha = 1.0;
+    let targetBeta = 0.0;
+    let spotLabel = "";
+
+    if (stateId === "MQS-01") {
+      targetAlpha = 0.707;
+      targetBeta = 0.707;
+      spotLabel = "Pure Superposition |+⟩ (Faith Anchor)";
+    } else if (stateId === "MQS-02") {
+      targetAlpha = 0.707;
+      targetBeta = 0.707;
+      spotLabel = "Sovereign Hope State |+i⟩ (Imaginary Momentum)";
+    } else if (stateId === "MQS-03") {
+      targetAlpha = 0.707;
+      targetBeta = -0.707;
+      spotLabel = "Orthogonal Antidote |-⟩ (Anti-Friction)";
+    } else if (stateId === "MQS-04") {
+      targetAlpha = 0.0;
+      targetBeta = 1.0;
+      spotLabel = "Maximum Entangled Bell State |Ψ⁻⟩";
+    }
+
+    const duration = 800;
+    const start = Date.now();
+    const startAlpha = qubitAlpha;
+    const startBeta = qubitBeta;
+
+    playOperatorBeep(660, 'sine', 0.12);
+    setTimeout(() => playOperatorBeep(880, 'sine', 0.12), 150);
+
+    const animate = () => {
+      const now = Date.now();
+      const elapsed = now - start;
+      const progress = Math.min(1, elapsed / duration);
+      const ease = 1 - Math.pow(1 - progress, 3); // cubic easeOut
+
+      setQubitAlpha(startAlpha + (targetAlpha - startAlpha) * ease);
+      setQubitBeta(startBeta + (targetBeta - startBeta) * ease);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      } else {
+        setQubitAlpha(targetAlpha);
+        setQubitBeta(targetBeta);
+        
+        setMissingStates(prev => prev.map(s => s.id === stateId ? { ...s, resolved: true } : s));
+        setScanStateLogs(prev => [
+          ...prev,
+          `${state.icon} [RESOLVED] ${state.name} successfully locked & verified.`
+        ]);
+        
+        const thetaRad = Math.acos(Math.sqrt(Math.min(1.0, targetAlpha * targetAlpha)));
+        const thetaDeg = (thetaRad * (180 / Math.PI)).toFixed(1);
+        const newShot: TopologyShot = {
+          id: `TS-${String(topologyShots.length + 1).padStart(2, '0')}`,
+          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+          alphaSq: parseFloat((targetAlpha * targetAlpha).toFixed(3)),
+          betaSq: parseFloat((targetBeta * targetBeta).toFixed(3)),
+          latitude: `${(90 - parseFloat(thetaDeg)).toFixed(1)}° ${parseFloat(thetaDeg) > 90 ? 'S' : 'N'}`,
+          longitude: `${(Math.sin(Date.now()) * 180).toFixed(1)}° W`,
+          spotLabel: spotLabel
+        };
+        setTopologyShots(prev => [newShot, ...prev]);
+
+        playCompletionBeep();
+        setIsScanningStates(false);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  };
 
   // Unified Love Gating 100 Tests Bank
   const loveTests: LoveTest[] = useMemo(() => {
@@ -140,14 +534,58 @@ export const VoiceHUDOverlay: React.FC = () => {
   const [metabolicMultiplier, setMetabolicMultiplier] = useState(1.0); // lifestyle scale multiplier
   const [graceModeActive, setGraceModeActive] = useState(true);
 
+  // Helper to parse speech text and switch tab
+  const parseNavigationCommand = (text: string): string | null => {
+    const textCleaned = text.toLowerCase().trim().replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"']/g, "");
+    
+    for (const item of NAVIGATION_MAPPINGS) {
+      for (const kw of item.keywords) {
+        const kwCleaned = kw.toLowerCase().trim();
+        if (textCleaned === kwCleaned || textCleaned.includes(kwCleaned)) {
+          return item.view;
+        }
+      }
+    }
+    return null;
+  };
+
+  const onSetViewRef = useRef(onSetView);
+  useEffect(() => {
+    onSetViewRef.current = onSetView;
+  }, [onSetView]);
+
   // Subscribe to Speech Service changes
   useEffect(() => {
     const unsubscribe = sttService.subscribe((isListening, text, interim) => {
-      setActive(isListening);
-      if (text) {
-        setTranscript(text);
+      const safeListening = !!isListening;
+      const safeText = text || '';
+      const safeInterim = !!interim;
+
+      setActive(safeListening);
+      if (safeText) {
+        setTranscript(safeText);
+        
+        if (!safeInterim) {
+          // Final command received, transition to processing phase
+          setIsProcessing(true);
+          const matchedView = parseNavigationCommand(safeText);
+          if (matchedView && onSetViewRef.current) {
+            try {
+              onSetViewRef.current(matchedView);
+              const label = NAVIGATION_MAPPINGS.find(m => m?.view === matchedView)?.label || matchedView;
+              setLastExecutedNav({ label, view: matchedView });
+              setTimeout(() => setLastExecutedNav(null), 4000);
+            } catch (err) {
+              console.error("Null-reference guard / Error executing view navigation:", err);
+            }
+          }
+          // Cooldown to transition back to idle or another active state
+          setTimeout(() => {
+            setIsProcessing(false);
+          }, 1500);
+        }
       }
-      setIsInterim(interim ?? false);
+      setIsInterim(safeInterim);
     });
     return () => unsubscribe();
   }, []);
@@ -403,23 +841,64 @@ export const VoiceHUDOverlay: React.FC = () => {
   }, [stressLevel, graceModeActive]);
 
   const commandStatus = useMemo(() => {
-    if (!active) return { text: 'STANDBY', color: 'text-zinc-500', bg: 'bg-zinc-950/40' };
+    try {
+      if (currentVoicePhase === 'listening') {
+        const textLower = (transcript || '').toLowerCase();
+        if (textLower.includes('status') || textLower.includes('diagnose') || textLower.includes('system')) {
+          return { text: 'DIAGNOSTIC CRACK_DECODING', color: 'text-amber-400', bg: 'bg-amber-950/20' };
+        }
+        if (textLower.includes('activate') || textLower.includes('breach') || textLower.includes('override')) {
+          return { text: 'PROTOCOL OVERRIDE EMULATION', color: 'text-rose-500 font-extrabold shadow-[0_0_10px_#f43f5e]', bg: 'bg-rose-950/30' };
+        }
+        if (textLower.includes('clear') || textLower.includes('purge') || textLower.includes('reset')) {
+          return { text: 'MEMORY PURGE FLUSHING', color: 'text-purple-400', bg: 'bg-purple-950/20' };
+        }
+        if (transcript.length > 0) {
+          return { text: 'PAULI-MATRIX FLOW STREAMING', color: 'text-fuchsia-400', bg: 'bg-fuchsia-950/20' };
+        }
+        return { text: 'AWAITING RECOGNITION...', color: 'text-sky-400', bg: 'bg-sky-950/20' };
+      }
+      if (currentVoicePhase === 'processing') {
+        return { text: 'COGNITIVE RESOLVING', color: 'text-cyan-400 font-bold', bg: 'bg-cyan-950/30 border border-cyan-500/20' };
+      }
+      if (currentVoicePhase === 'speaking') {
+        return { text: 'SYNTHESIS ACTIVE', color: 'text-pink-400 font-bold', bg: 'bg-pink-950/30 border border-pink-500/20' };
+      }
+      return { text: 'STANDBY', color: 'text-zinc-500', bg: 'bg-zinc-950/40' };
+    } catch (err) {
+      console.error("commandStatus calculation exception guarded:", err);
+      return { text: 'STANDBY', color: 'text-zinc-500', bg: 'bg-zinc-950/40' };
+    }
+  }, [currentVoicePhase, transcript]);
+
+  const suggestedCommands = useMemo(() => {
+    return VIEW_COMMANDS[currentView] || VIEW_COMMANDS.default;
+  }, [currentView]);
+
+  const handleCommandClick = (cmd: string) => {
+    setActive(false); // Finished simulating active listening
+    setIsProcessing(true);
+    setTranscript(cmd || '');
+    setIsInterim(false);
     
-    const textLower = transcript.toLowerCase();
-    if (textLower.includes('status') || textLower.includes('diagnose') || textLower.includes('system')) {
-      return { text: 'DIAGNOSTIC CRACK_DECODING', color: 'text-amber-400', bg: 'bg-amber-950/20' };
+    if (onSetViewRef.current) {
+      const matchedView = parseNavigationCommand(cmd || '');
+      if (matchedView) {
+        try {
+          onSetViewRef.current(matchedView);
+          const label = NAVIGATION_MAPPINGS.find(m => m?.view === matchedView)?.label || matchedView;
+          setLastExecutedNav({ label, view: matchedView });
+          setTimeout(() => setLastExecutedNav(null), 4000);
+        } catch (err) {
+          console.error("Error executing handleCommandClick navigation:", err);
+        }
+      }
     }
-    if (textLower.includes('activate') || textLower.includes('breach') || textLower.includes('override')) {
-      return { text: 'PROTOCOL OVERRIDE EMULATION', color: 'text-rose-500 font-extrabold shadow-[0_0_10px_#f43f5e]', bg: 'bg-rose-950/30' };
-    }
-    if (textLower.includes('clear') || textLower.includes('purge') || textLower.includes('reset')) {
-      return { text: 'MEMORY PURGE FLUSHING', color: 'text-purple-400', bg: 'bg-purple-950/20' };
-    }
-    if (transcript.length > 0) {
-      return { text: 'PAULI-MATRIX FLOW STREAMING', color: 'text-fuchsia-400', bg: 'bg-fuchsia-950/20' };
-    }
-    return { text: 'AWAITING RECOGNITION...', color: 'text-sky-400', bg: 'bg-sky-950/20' };
-  }, [active, transcript]);
+
+    setTimeout(() => {
+      setIsProcessing(false);
+    }, 1500);
+  };
 
   // Render glowing small floating trigger when minimized or inactive
   const isCurrentlyShowing = (active || forceVisible) && !isMinimized;
@@ -445,7 +924,7 @@ export const VoiceHUDOverlay: React.FC = () => {
           <div className="absolute inset-0 bg-radial-gradient from-fuchsia-500/20 to-transparent blur-sm animate-pulse" />
           
           <AnimatePresence mode="wait">
-            {active ? (
+            {currentVoicePhase === 'listening' ? (
               <motion.div
                 key="listening"
                 initial={{ scale: 0 }}
@@ -458,6 +937,26 @@ export const VoiceHUDOverlay: React.FC = () => {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-fuchsia-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-fuchsia-500"></span>
                 </span>
+              </motion.div>
+            ) : currentVoicePhase === 'processing' ? (
+              <motion.div
+                key="processing"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0 }}
+                className="relative flex items-center justify-center"
+              >
+                <RefreshCw className="w-4 h-4 text-cyan-400 animate-spin" />
+              </motion.div>
+            ) : currentVoicePhase === 'speaking' ? (
+              <motion.div
+                key="speaking"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0 }}
+                className="relative flex items-center justify-center"
+              >
+                <Volume2 className="w-4 h-4 text-pink-400 animate-bounce" />
               </motion.div>
             ) : (
               <motion.div
@@ -508,6 +1007,31 @@ export const VoiceHUDOverlay: React.FC = () => {
                   </motion.div>
                 </div>
               )}
+
+              {/* Voice Command Execution Toast */}
+              <AnimatePresence>
+                {lastExecutedNav && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                    className="absolute top-3 left-3 right-3 z-[60] bg-zinc-950/95 border-2 border-emerald-500/80 backdrop-blur-xl p-3.5 rounded-xl shadow-[0_0_25px_rgba(16,185,129,0.25)] flex items-center justify-between font-mono"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-400/80 flex items-center justify-center text-emerald-400 shrink-0">
+                        <CheckCircle2 className="w-4.5 h-4.5 animate-bounce" />
+                      </div>
+                      <div className="text-left">
+                        <span className="text-[9px] font-black text-emerald-400 tracking-wider uppercase">🎙️ VOICE COMMAND EXECUTION</span>
+                        <p className="text-xs text-zinc-100 font-bold mt-0.5">ROUTING TO: <span className="text-emerald-300 font-black">{lastExecutedNav.label}</span></p>
+                      </div>
+                    </div>
+                    <span className="text-[8px] bg-emerald-950 text-emerald-300 border border-emerald-500/40 px-2 py-0.5 rounded font-black uppercase">
+                      LATTICE OK
+                    </span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Pulsing Light Elements */}
               <div className="absolute -top-16 -left-16 w-44 h-44 bg-fuchsia-500/10 rounded-full blur-3xl pointer-events-none animate-pulse" />
@@ -572,6 +1096,35 @@ export const VoiceHUDOverlay: React.FC = () => {
                   <Heart className="w-3 h-3" />
                   💖 love_gating_100
                 </button>
+              </div>
+
+              {/* Contextual Voice Command Suggestions */}
+              <div className="z-10 bg-zinc-950/40 border border-fuchsia-950/40 rounded-xl p-3 flex flex-col md:flex-row md:items-center justify-between gap-3 text-[9.5px] font-mono">
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-center w-5 h-5 rounded-full bg-fuchsia-500/10 border border-fuchsia-500/30 text-fuchsia-400 shrink-0">
+                    <Info className="w-3 h-3" />
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 font-bold uppercase tracking-wider">Contextual Voice Help</span>
+                    <p className="text-zinc-500 text-[8px]">Suggestions matched to the active "{currentView.replace(/_/g, ' ')}" view</p>
+                  </div>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-zinc-500 uppercase font-bold text-[8px] mr-1">Say or Click:</span>
+                  {suggestedCommands.map((cmd) => (
+                    <motion.button
+                      key={cmd}
+                      whileHover={{ scale: 1.05, borderColor: 'rgba(217,70,239,0.5)', backgroundColor: 'rgba(217,70,239,0.05)' }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleCommandClick(cmd)}
+                      className="px-2 py-1 bg-black/40 text-fuchsia-400 rounded border border-fuchsia-500/20 font-bold transition-all pointer-events-auto cursor-pointer"
+                      title={`Simulate: "${cmd}"`}
+                    >
+                      "{cmd}"
+                    </motion.button>
+                  ))}
+                </div>
               </div>
 
               {/* Grid content view mapping */}
@@ -656,6 +1209,34 @@ export const VoiceHUDOverlay: React.FC = () => {
                       </div>
                     </div>
 
+                    {/* Voice Interaction State Machine Monitor */}
+                    <div className="bg-zinc-950/40 border border-zinc-900 p-3.5 rounded-xl font-mono text-[8px] flex flex-col gap-2">
+                      <div className="flex justify-between items-center text-zinc-500 uppercase tracking-widest text-[8.5px]">
+                        <span className="flex items-center gap-1">
+                          <Cpu className="w-3.5 h-3.5 text-fuchsia-400 animate-pulse" /> Unified Voice Phase State Machine Check:
+                        </span>
+                        <span className="text-zinc-600 text-[7px] bg-emerald-950/30 text-emerald-400 px-1 border border-emerald-500/10 rounded uppercase font-bold">ZERO DEADLOCK GUARD</span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div className={`p-2 rounded-lg border text-center transition-all ${currentVoicePhase === 'idle' ? 'bg-zinc-900 border-zinc-700 text-zinc-200 font-extrabold shadow-[0_0_12px_rgba(255,255,255,0.08)]' : 'bg-black/40 border-zinc-900/60 text-zinc-600'}`}>
+                          <div className="font-bold text-[9px]">1. IDLE</div>
+                          <div className="text-[7px] text-zinc-500 mt-0.5">STANDBY_RES_OK</div>
+                        </div>
+                        <div className={`p-2 rounded-lg border text-center transition-all ${currentVoicePhase === 'listening' ? 'bg-fuchsia-950/45 border-fuchsia-500/40 text-fuchsia-300 font-extrabold shadow-[0_0_12px_rgba(217,70,239,0.18)]' : 'bg-black/40 border-zinc-900/60 text-zinc-600'}`}>
+                          <div className="font-bold text-[9px]">2. LISTENING</div>
+                          <div className="text-[7px] text-fuchsia-500 mt-0.5">EARS_ENGAGED</div>
+                        </div>
+                        <div className={`p-2 rounded-lg border text-center transition-all ${currentVoicePhase === 'processing' ? 'bg-cyan-950/45 border-cyan-500/40 text-cyan-300 font-extrabold shadow-[0_0_12px_rgba(6,182,212,0.18)] animate-pulse' : 'bg-black/40 border-zinc-900/60 text-zinc-600'}`}>
+                          <div className="font-bold text-[9px]">3. PROCESSING</div>
+                          <div className="text-[7px] text-cyan-500 mt-0.5">DECODING_INTENT</div>
+                        </div>
+                        <div className={`p-2 rounded-lg border text-center transition-all ${currentVoicePhase === 'speaking' ? 'bg-pink-950/45 border-pink-500/40 text-pink-300 font-extrabold shadow-[0_0_12px_rgba(236,72,153,0.18)]' : 'bg-black/40 border-zinc-900/60 text-zinc-600'}`}>
+                          <div className="font-bold text-[9px]">4. SPEAKING</div>
+                          <div className="text-[7px] text-pink-500 mt-0.5">TTS_RESONANCE</div>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Stress Biometrics Engine Card */}
                     <div className="bg-zinc-950/60 border border-zinc-900 rounded-xl p-4 space-y-3 font-mono text-[9px] text-zinc-400">
                       <div className="flex justify-between items-center">
@@ -703,6 +1284,42 @@ export const VoiceHUDOverlay: React.FC = () => {
                             <p className={`font-black uppercase tracking-wider mt-0.5 text-[8.5px] ${stressTier === 'CALM' ? 'text-emerald-400' : 'text-amber-400'}`}>
                               {stressTier === 'CRITICAL' ? 'PANIC_LOCK_COLLAPSE' : stressTier === 'HIGH' ? 'COGNITIVE_FRICTION_ALIGNED' : 'CALM_GRACE_RESONANCE'}
                             </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Hands-Free Command Directory with Search */}
+                    <div className="bg-zinc-950/40 border border-zinc-900 rounded-xl p-4 space-y-3 font-mono text-[9px]">
+                      <div className="flex justify-between items-center">
+                        <span className="text-zinc-400 uppercase font-black tracking-widest text-[9.5px] flex items-center gap-1.5">
+                          <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                          Hands-Free Lab Navigation Directory
+                        </span>
+                        <span className="text-[8px] text-zinc-600 bg-zinc-900/40 border border-zinc-900 px-1.5 py-0.5 rounded font-black">
+                          {NAVIGATION_MAPPINGS.length} LABS REGISTERED
+                        </span>
+                      </div>
+                      
+                      <div className="text-[8px] text-zinc-500 leading-relaxed">
+                        AetherOS responds dynamically to any of the verbal invocation templates below. Say <span className="text-emerald-400 font-bold">"Open [Lab Name]"</span>, <span className="text-emerald-400 font-bold">"Go to [Lab Name]"</span>, or <span className="text-emerald-400 font-bold">"Switch to [Lab Name]"</span> to instantly execute safe neural tab switches hands-free.
+                      </div>
+
+                      {/* Interactive Search and Categorized List of Commands */}
+                      <div className="space-y-2 pt-1 border-t border-zinc-900/50">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-1.5 max-h-[140px] overflow-y-auto pr-1">
+                          {NAVIGATION_MAPPINGS.slice(0, 16).map((item) => (
+                            <button
+                              key={item.view}
+                              onClick={() => handleCommandClick(`Open ${item.label.replace(/\s*\(.*\)/, '')}`)}
+                              className={`flex flex-col items-start p-1.5 rounded bg-black/30 border text-left hover:bg-emerald-950/10 hover:border-emerald-500/40 transition-all cursor-pointer ${currentView === item.view ? 'border-emerald-500/50 bg-emerald-950/5 text-emerald-400' : 'border-zinc-900 text-zinc-400'}`}
+                            >
+                              <span className="font-bold text-[8.5px] truncate w-full">{item.label}</span>
+                              <span className="text-[7px] text-zinc-600 mt-0.5 truncate w-full">"Open {item.label.split(' ')[0]}"</span>
+                            </button>
+                          ))}
+                          <div className="col-span-full py-1 text-center text-[7.5px] text-zinc-500 bg-zinc-900/20 rounded border border-dashed border-zinc-900">
+                            + {NAVIGATION_MAPPINGS.length - 16} additional quantum sub-labs reachable via voice recognition
                           </div>
                         </div>
                       </div>
@@ -809,10 +1426,49 @@ export const VoiceHUDOverlay: React.FC = () => {
                               <span>{qubitAlpha.toFixed(3)}|0⟩ + {qubitBeta.toFixed(3)}|1⟩</span>
                             </div>
                           </div>
+
+                          {/* Quantum Operator Gates */}
+                          <div className="mt-3 pt-2 border-t border-zinc-900/80 space-y-1.5">
+                            <span className="text-fuchsia-400 text-[8px] font-bold uppercase tracking-wider block">Apply Operator Gates (Manual Transitions):</span>
+                            <div className="grid grid-cols-4 gap-1">
+                              <button
+                                onClick={applyHadamardGate}
+                                disabled={isScanningStates}
+                                title="Hadamard (Superposition H-Gate)"
+                                className="py-1 px-1 bg-zinc-900 hover:bg-fuchsia-950/30 border border-zinc-800 hover:border-fuchsia-500/30 rounded text-center text-zinc-300 hover:text-fuchsia-400 text-[8px] font-bold transition-all cursor-pointer"
+                              >
+                                [ H ]
+                              </button>
+                              <button
+                                onClick={applyPauliXGate}
+                                disabled={isScanningStates}
+                                title="Pauli-X (NOT / Bit-Flip Gate)"
+                                className="py-1 px-1 bg-zinc-900 hover:bg-fuchsia-950/30 border border-zinc-800 hover:border-fuchsia-500/30 rounded text-center text-zinc-300 hover:text-fuchsia-400 text-[8px] font-bold transition-all cursor-pointer"
+                              >
+                                [ X ]
+                              </button>
+                              <button
+                                onClick={applyPauliZGate}
+                                disabled={isScanningStates}
+                                title="Pauli-Z (Phase-Flip Gate)"
+                                className="py-1 px-1 bg-zinc-900 hover:bg-fuchsia-950/30 border border-zinc-800 hover:border-fuchsia-500/30 rounded text-center text-zinc-300 hover:text-fuchsia-400 text-[8px] font-bold transition-all cursor-pointer"
+                              >
+                                [ Z ]
+                              </button>
+                              <button
+                                onClick={applyGroundState}
+                                disabled={isScanningStates}
+                                title="Ground state to |0>"
+                                className="py-1 px-1 bg-zinc-900 hover:bg-rose-950/30 border border-zinc-800 hover:border-rose-500/30 rounded text-center text-zinc-300 hover:text-rose-400 text-[8px] font-bold transition-all cursor-pointer"
+                              >
+                                [ RST ]
+                              </button>
+                            </div>
+                          </div>
                         </div>
 
                         {/* Captured Shots History list */}
-                        <div className="bg-zinc-950/80 p-2 rounded-lg border border-zinc-900/50 space-y-1 max-h-[85px] overflow-y-auto">
+                        <div className="bg-zinc-950/80 p-2 mt-2 rounded-lg border border-zinc-900/50 space-y-1 max-h-[85px] overflow-y-auto">
                           <span className="text-zinc-500 text-[8px] uppercase tracking-wider font-bold">Recorded Topology Roll:</span>
                           {topologyShots.map(shot => (
                             <div key={shot.id} className="flex justify-between items-center text-[7.5px] border-b border-zinc-900/30 py-0.5 last:border-b-0 text-zinc-400">
@@ -822,6 +1478,83 @@ export const VoiceHUDOverlay: React.FC = () => {
                             </div>
                           ))}
                         </div>
+                      </div>
+
+                    </div>
+
+                    {/* Missing Qubit States Recovery Terminal */}
+                    <div className="bg-black/80 border border-zinc-900 rounded-xl p-4 mt-3 space-y-3 font-mono text-[9px]">
+                      <div className="flex justify-between items-center border-b border-zinc-900 pb-2">
+                        <div className="flex items-center gap-1.5">
+                          <Cpu className="w-4 h-4 text-fuchsia-400 animate-spin" style={{ animationDuration: '6s' }} />
+                          <div className="text-left">
+                            <span className="text-white font-bold uppercase tracking-wider text-[10px] block">Quantum Missing States Finder</span>
+                            <span className="text-[7.5px] text-zinc-500 uppercase block">Localize and reconcile missing coordinates on the Bloch Sphere</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={handleScanMissingStates}
+                          disabled={isScanningStates}
+                          className={`py-1.5 px-3 rounded text-[8px] font-black uppercase tracking-wider transition-all pointer-events-auto shadow-md ${
+                            isScanningStates 
+                              ? 'bg-fuchsia-950/40 text-fuchsia-400 border border-fuchsia-500/20 animate-pulse'
+                              : 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white hover:shadow-[0_0_15px_rgba(217,70,239,0.3)]'
+                          }`}
+                        >
+                          {isScanningStates ? '🛰️ SCANNING SPHERE...' : '🔮 SCAN FOR MISSING STATES'}
+                        </button>
+                      </div>
+
+                      {/* Scanning progress log output */}
+                      {scanStateLogs.length > 0 && (
+                        <div className="bg-black border border-zinc-900/60 p-2.5 rounded-lg space-y-1 max-h-[75px] overflow-y-auto text-zinc-400 text-[8px] leading-tight select-none text-left">
+                          {scanStateLogs.map((log, index) => (
+                            <div key={index} className="flex gap-1.5">
+                              <span className="text-zinc-600 font-bold">[{index + 1}]</span>
+                              <span className={log.includes('[RESOLVED]') ? 'text-emerald-400 font-bold' : ''}>{log}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Missing States Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                        {missingStates.map(state => (
+                          <button 
+                            key={state.id} 
+                            type="button"
+                            onClick={() => handleResolveIndividualState(state.id)}
+                            disabled={isScanningStates}
+                            className={`w-full text-left p-3 rounded-xl border transition-all flex justify-between items-center pointer-events-auto cursor-pointer outline-none ${
+                              state.resolved 
+                                ? 'bg-emerald-950/20 border-emerald-500/40 hover:border-emerald-400/60 shadow-[0_0_10px_rgba(16,185,129,0.05)] text-emerald-300' 
+                                : 'bg-zinc-950/45 border-zinc-900 hover:border-fuchsia-500/30 text-zinc-500 hover:text-zinc-400'
+                            }`}
+                          >
+                            <div className="space-y-1 text-left min-w-0 pr-2">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="text-sm flex-shrink-0">{state.icon}</span>
+                                <h4 className={`text-[9.5px] font-bold uppercase truncate ${state.resolved ? 'text-emerald-400' : 'text-zinc-400'}`}>
+                                  {state.name}
+                                </h4>
+                              </div>
+                              <p className="text-[7.5px] text-zinc-500 truncate">{state.coord}</p>
+                              <p className={`text-[8px] leading-snug line-clamp-2 ${state.resolved ? 'text-zinc-400' : 'text-zinc-600'}`}>
+                                {state.desc}
+                              </p>
+                            </div>
+
+                            <div className="flex-shrink-0">
+                              <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border ${
+                                state.resolved 
+                                  ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                                  : 'bg-zinc-900 border-zinc-850 text-zinc-500'
+                              }`}>
+                                {state.resolved ? 'RESOLVED' : 'MISSING'}
+                              </span>
+                            </div>
+                          </button>
+                        ))}
                       </div>
 
                     </div>

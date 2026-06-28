@@ -1,0 +1,13 @@
+{
+  "monitored_spans": [
+    {
+      "name": "broadcastEpochAnchor",
+      "service": "aetheros.ai.conjunction.service",
+      "visualization_type": "NetworkEpochVisualizer",
+      "data_bindings": {
+        "latency_ms": "duration_ms",
+        "compute_load": "system.load"
+      }
+    }
+  ]
+}

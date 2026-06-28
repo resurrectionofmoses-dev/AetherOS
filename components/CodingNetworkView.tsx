@@ -14,6 +14,7 @@ import { generateProjectKnowHow } from '../services/geminiService';
 import { v4 as uuidv4 } from 'uuid';
 import { CPHManager, CPHDisplay } from '../services/cphManager';
 import { toast } from 'sonner';
+import { milestoneService } from '../services/milestoneService';
 
 const getSpecialtyBadge = (specialty: string) => {
     switch(specialty) {
@@ -72,13 +73,15 @@ interface CodingNetworkViewProps {
   onUpdateProfile?: (updates: Partial<UserProfile>) => void;
   onNavigateToAgent: () => void;
   onSetDirective: (directive: any) => void;
+  progress?: any;
 }
 
-export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, setProjects, agents, setAgents, profile, onUpdateProfile }) => {
+export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, setProjects, agents, setAgents, profile, onUpdateProfile, progress }) => {
+    const safeProjects = Array.isArray(projects) ? projects : [];
     const [title, setTitle] = useState('');
     const [desc, setDesc] = useState('');
     const [selectedAuthority, setSelectedAuthority] = useState(FINTECH_AUTHORITIES[0].id);
-    const [viewMode, setViewMode] = useState<'SHARDS' | 'SQUAD' | 'COLLAB' | 'PROFILES' | 'MATCHES'>('SHARDS');
+    const [viewMode, setViewMode] = useState<'SHARDS' | 'SQUAD' | 'COLLAB' | 'PROFILES' | 'MATCHES' | 'FORECAST'>('SHARDS');
     const [marketplace, setMarketplace] = useState<HireableAgent[]>([]);
     const [isManifesting, setIsManifesting] = useState(false);
     const [taskInputs, setTaskInputs] = useState<Record<string, string>>({});
@@ -91,6 +94,153 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     const [selectedProfileNode, setSelectedProfileNode] = useState<any | null>(null);
     const [offeringInput, setOfferingInput] = useState('');
     const [lookingInput, setLookingInput] = useState('');
+
+    // --- PREDICTIVE TIMELINE / FORECAST STATES ---
+    const [projectBoosts, setProjectBoosts] = useState<Record<string, number>>({});
+    const [projectShards, setProjectShards] = useState<Record<string, number>>({});
+    const [agentAssignments, setAgentAssignments] = useState<Record<string, string>>({});
+    const [optimizationMode, setOptimizationMode] = useState<'MANUAL' | 'MIN_TIME' | 'BALANCED'>('MANUAL');
+
+    const historicalMilestones = useMemo(() => {
+        return milestoneService.getMilestones().reverse();
+    }, [viewMode]);
+
+    const velocityMetrics = useMemo(() => {
+        if (historicalMilestones.length < 2) {
+            return { avgDays: 1.5, velocityLabel: "Standard Calibration" };
+        }
+        let totalDiff = 0;
+        for (let i = 1; i < historicalMilestones.length; i++) {
+            const diffMs = historicalMilestones[i].date.getTime() - historicalMilestones[i-1].date.getTime();
+            totalDiff += diffMs;
+        }
+        const avgMs = totalDiff / (historicalMilestones.length - 1);
+        const avgDays = Math.max(0.1, avgMs / (1000 * 60 * 60 * 24));
+        
+        let label = "Stable Drift";
+        if (avgDays < 0.5) label = "Hyper-velocity (Quantum)";
+        else if (avgDays < 1.2) label = "Optimal Stride";
+        else if (avgDays > 3.0) label = "Sluggish (Stasis warning)";
+        
+        return { avgDays, velocityLabel: label };
+    }, [historicalMilestones]);
+
+    const baseSpeedMultiplier = useMemo(() => {
+        const levelMultiplier = 1 + (progress?.level || 1) * 0.12;
+        const adrenalineMultiplier = 1 + ((progress?.globalAdrenaline || 50) - 50) / 150;
+        return levelMultiplier * adrenalineMultiplier;
+    }, [progress?.level, progress?.globalAdrenaline]);
+
+    const calculateProjectForecast = (project: NetworkProject) => {
+        const remainingTasks = project.tasks?.filter(t => !t.completed) || [];
+        const remainingTasksCount = remainingTasks.length;
+        if (remainingTasksCount === 0) {
+            return { duration: 0, date: new Date(), remainingTasks };
+        }
+        
+        const baseTaskTime = velocityMetrics.avgDays * 1.5; 
+        const baseDurationDays = remainingTasksCount * baseTaskTime;
+        
+        const localBoost = projectBoosts[project.id] || 0;
+        const localShard = projectShards[project.id] || 0;
+        
+        const localAdrenalineFactor = 1 + (localBoost / 100) * 0.7;
+        const shardBoostFactor = 1 + (localShard / 500) * 1.2;
+        
+        const assignedAgentsCount = Object.values(agentAssignments).filter(pId => pId === project.id).length;
+        const agentFactor = 1 + (assignedAgentsCount * 0.35);
+        
+        const totalMultiplier = baseSpeedMultiplier * localAdrenalineFactor * shardBoostFactor * agentFactor;
+        const durationDays = Math.max(0.2, baseDurationDays / totalMultiplier);
+        
+        const completionDate = new Date();
+        completionDate.setTime(Date.now() + durationDays * 24 * 60 * 60 * 1000);
+        
+        return { duration: durationDays, date: completionDate, remainingTasks };
+    };
+
+    const handleShardChange = (projectId: string, value: number) => {
+        const currentAllocated = Object.entries(projectShards)
+            .filter(([pId]) => pId !== projectId)
+            .reduce((sum, [_, val]) => sum + val, 0);
+        
+        const maxAllowed = (progress?.shards || 0) - currentAllocated;
+        const targetValue = Math.min(value, Math.max(0, maxAllowed));
+        
+        setProjectShards(prev => ({
+            ...prev,
+            [projectId]: targetValue
+        }));
+    };
+
+    const handleOptimize = (mode: 'MIN_TIME' | 'BALANCED') => {
+        const availableShards = progress?.shards || 0;
+        if (availableShards <= 0 && mode === 'MIN_TIME') {
+            toast.error("No active Conjunction Shards available for allocation.");
+            return;
+        }
+        
+        const nextShards: Record<string, number> = {};
+        const nextBoosts: Record<string, number> = {};
+        
+        if (mode === 'MIN_TIME') {
+            const activeProjects = safeProjects.filter(p => (p.tasks?.filter(t => !t.completed).length || 0) > 0);
+            if (activeProjects.length === 0) {
+                toast.info("All projects already fully synchronized.");
+                return;
+            }
+            
+            const totalRemainingTasks = activeProjects.reduce((sum, p) => sum + (p.tasks?.filter(t => !t.completed).length || 0), 0);
+            
+            let shardsAllocatedSoFar = 0;
+            activeProjects.forEach((p, idx) => {
+                const tasksCount = p.tasks?.filter(t => !t.completed).length || 0;
+                let allocated = Math.floor((tasksCount / totalRemainingTasks) * availableShards);
+                if (idx === activeProjects.length - 1) {
+                    allocated = availableShards - shardsAllocatedSoFar;
+                }
+                shardsAllocatedSoFar += allocated;
+                nextShards[p.id] = allocated;
+                nextBoosts[p.id] = 80;
+            });
+            
+            setProjectShards(nextShards);
+            setProjectBoosts(nextBoosts);
+            toast.success("Greedy Conjunction Matrix optimized for Minimum Total Duration!");
+        } else {
+            const activeProjects = safeProjects.filter(p => (p.tasks?.filter(t => !t.completed).length || 0) > 0);
+            if (activeProjects.length === 0) {
+                toast.info("No projects requiring allocation.");
+                return;
+            }
+            const equalShard = Math.floor(availableShards / activeProjects.length);
+            activeProjects.forEach(p => {
+                nextShards[p.id] = equalShard;
+                nextBoosts[p.id] = 40;
+            });
+            setProjectShards(nextShards);
+            setProjectBoosts(nextBoosts);
+            toast.success("Balanced distribution model applied across all channels.");
+        }
+    };
+
+    const handleCommitProjection = async () => {
+        const lines = (safeProjects || [])?.map?.(p => {
+            const tasksCount = p.tasks?.filter(t => !t.completed).length || 0;
+            const boost = projectBoosts[p.id] || 0;
+            const shardsAlloc = projectShards[p.id] || 0;
+            const forecastResult = calculateProjectForecast(p);
+            return `- ${p.title}: Projected ${forecastResult.duration.toFixed(1)} days remaining (${tasksCount} tasks, Boost: ${boost}%, Shards: ${shardsAlloc})`;
+        }).join('\n');
+        
+        await milestoneService.addMilestone(
+            "Predictive Timeline Synced",
+            `Chronos Forecast Matrix synchronized:\n${lines}\nLevel Multiplier: ${baseSpeedMultiplier.toFixed(2)}x`,
+            'WISDOM',
+            true
+        );
+        toast.success("Predictive timeline recorded in system milestones!");
+    };
 
     useEffect(() => {
         const loadProfiles = async () => {
@@ -197,12 +347,12 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
             ];
 
             try {
-                const stored = await localStorage.getItem('aetheros_network_profiles');
+                const stored = await safeStorage.getItem('aetheros_network_profiles');
                 if (stored) {
                     setNetworkProfiles(JSON.parse(stored));
                 } else {
                     setNetworkProfiles(MOCK_PROFILES_PRESEEDED);
-                    await localStorage.setItem('aetheros_network_profiles', JSON.stringify(MOCK_PROFILES_PRESEEDED));
+                    await safeStorage.setItem('aetheros_network_profiles', JSON.stringify(MOCK_PROFILES_PRESEEDED));
                 }
             } catch (e) {
                 setNetworkProfiles(MOCK_PROFILES_PRESEEDED);
@@ -212,7 +362,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     }, []);
 
     const calculateCompatibility = (dev1: any, dev2: any) => {
-        if (!dev1 || !dev2) return { score: 0, reasons: [], offers: [], seeks: [], shared: [] };
+        if (!dev1 || !dev2) return { score: 0, reasons: [], offers: [], seeks: [], shared: [], weightedEndorsementScore: 0 };
         
         const dev1Skills = dev1.skills || [];
         const dev1Looking = dev1.lookingForSkills || [];
@@ -248,7 +398,33 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
             reasons.push(`Shared technical interests: ${sharedSkills.join(', ')}`);
         }
 
-        score = Math.min(Math.max(score, 10), 98);
+        // Peer Endorsements Factor
+        let endorsementBonus = 0;
+        let endorsedSkillsCount = 0;
+        const dev2Endorsements = dev2.skillEndorsements || {};
+        
+        Object.entries(dev2Endorsements).forEach(([skill, endorsers]) => {
+            const list = endorsers as string[];
+            if (list && list.length > 0) {
+                const isRelevant = 
+                    dev2OffersToDev1.some((s: string) => s.toLowerCase() === skill.toLowerCase()) ||
+                    sharedSkills.some((s: string) => s.toLowerCase() === skill.toLowerCase());
+                
+                if (isRelevant) {
+                    endorsementBonus += list.length * 6; // +6 points per peer endorsement on matching skills
+                } else {
+                    endorsementBonus += list.length * 2; // +2 points per peer endorsement on other skills
+                }
+                endorsedSkillsCount += 1;
+            }
+        });
+
+        if (endorsementBonus > 0) {
+            score += endorsementBonus;
+            reasons.push(`Peer Endorsement Factor: +${endorsementBonus} score bonus from ${endorsedSkillsCount} peer-verified proficiencies`);
+        }
+
+        score = Math.min(Math.max(score, 10), 100);
 
         if (dev1OffersToDev2.length === 0 && dev2OffersToDev1.length === 0 && sharedSkills.length === 0) {
             score = 15;
@@ -260,14 +436,30 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
             reasons,
             offers: dev1OffersToDev2,
             seeks: dev2OffersToDev1,
-            shared: sharedSkills
+            shared: sharedSkills,
+            weightedEndorsementScore: endorsementBonus
         };
+    };
+
+    const getProjectMatchScore = (project: NetworkProject) => {
+        if (!profile || !project) return { score: 0, matchedTags: [] };
+        const mySkills = (profile.skills || [])?.map?.(s => s.toLowerCase());
+        const matchedTags = (project.tags || []).filter(t => mySkills.includes(t.toLowerCase()));
+        
+        if (matchedTags.length === 0) return { score: 0, matchedTags: [] };
+        
+        let score = 0;
+        if (matchedTags.length === 1) score = 45;
+        else if (matchedTags.length === 2) score = 75;
+        else score = 95;
+        
+        return { score, matchedTags };
     };
 
     const handleToggleEndorseSkill = async (profileId: string, skillName: string) => {
         const myUsername = profile?.username || 'Aetheros_Prime';
         
-        const updatedProfiles = networkProfiles.map(p => {
+        const updatedProfiles = (networkProfiles || [])?.map?.(p => {
             if (p.id === profileId) {
                 const endorsements = p.skillEndorsements || {};
                 const currentEndorsers = endorsements[skillName] || [];
@@ -279,6 +471,34 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                 } else {
                     nextEndorsers = [...currentEndorsers, myUsername];
                     toast.success(`Endorsed ${skillName} on @${p.username}!`);
+
+                    // Simulating peer endorsement reciprocity
+                    setTimeout(() => {
+                        if (profile && profile.skills && profile.skills.length > 0) {
+                            const userSkills = profile.skills;
+                            const randomSkill = userSkills[Math.floor(Math.random() * userSkills.length)];
+                            const userSkillEndorsements = profile.skillEndorsements || {};
+                            const voters = userSkillEndorsements[randomSkill] || [];
+
+                            if (!voters.includes(p.username)) {
+                                const nextVoters = [...voters, p.username];
+                                const updatedUserEndorsements = {
+                                    ...userSkillEndorsements,
+                                    [randomSkill]: nextVoters
+                                };
+
+                                onUpdateProfile({
+                                    ...profile,
+                                    skillEndorsements: updatedUserEndorsements
+                                });
+
+                                toast.success(`@${p.username} reciprocated and endorsed your proficiency in ${randomSkill}!`, {
+                                    description: "Your reputation has been enhanced in the AetherOS lattice network.",
+                                    duration: 6000,
+                                });
+                            }
+                        }
+                    }, 2000);
                 }
                 
                 const nextEndorsements = {
@@ -297,13 +517,13 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
         setNetworkProfiles(updatedProfiles);
         
         try {
-            await localStorage.setItem('aetheros_network_profiles', JSON.stringify(updatedProfiles));
+            await safeStorage.setItem('aetheros_network_profiles', JSON.stringify(updatedProfiles));
         } catch (e) {
             console.error("Failed to persist skill endorsements", e);
         }
         
         if (selectedProfileNode && selectedProfileNode.id === profileId) {
-            const updatedNode = updatedProfiles.find(p => p.id === profileId);
+            const updatedNode = (updatedProfiles || [])?.find?.(p => p && p.id === profileId);
             if (updatedNode) {
                 setSelectedProfileNode(updatedNode);
             }
@@ -354,7 +574,56 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
         gitRepo?: string;
         gitBranch?: string;
         gitCommits?: CollabCommit[];
+        type?: 'collab' | 'help_request' | 'mentor_offer';
     }
+
+    interface C4SDispute {
+        id: string;
+        contractTitle: string;
+        contractor: string;
+        client: string;
+        amountCPH: number;
+        reason: string;
+        evidence: string;
+        status: 'UNDER_ARBITRATION' | 'CHARGEBACK_APPROVED' | 'FUNDS_RELEASED' | 'DISPUTE_OPENED';
+        timestamp: number;
+    }
+
+    const DEFAULT_C4S_DISPUTES: C4SDispute[] = [
+        {
+            id: 'C4S-0x3AF1',
+            contractTitle: 'Rust WebAssembly Parity Bindings',
+            contractor: 'RustMaster_01',
+            client: 'MatrixMage',
+            amountCPH: 350,
+            reason: 'Delivered WebAssembly contract has missing parity verification functions under high concurrency loads.',
+            evidence: 'Console logs show runtime exceptions in index.html line 433 during stress test: "Uncaught RuntimeError: unreachable executed".',
+            status: 'UNDER_ARBITRATION',
+            timestamp: Date.now() - 3600000 * 36
+        },
+        {
+            id: 'C4S-0x4B2C',
+            contractTitle: 'EVM Solidity Optimizer Integration',
+            contractor: 'SolidityDev_Core',
+            client: 'CyberWeaver_X',
+            amountCPH: 500,
+            reason: 'EVM optimizer introduced P0 severe memory crash loop under peak concurrent thread pressures.',
+            evidence: 'Memory trace file evm_core_err.log uploaded showing recursive allocations on non-reentrant pathways.',
+            status: 'CHARGEBACK_APPROVED',
+            timestamp: Date.now() - 3600000 * 72
+        },
+        {
+            id: 'C4S-0x8D9E',
+            contractTitle: 'Security Audit & Slither Review',
+            contractor: 'Web3_Auditor',
+            client: 'Aetheros_Prime',
+            amountCPH: 650,
+            reason: 'Audit certificate failed to note major re-entrancy vulnerability in reward pool that let exploiters drain local storage.',
+            evidence: 'Exploited transaction hash 0xf83cde on line 45 showing repeated recursive delegatecalls without update constraints.',
+            status: 'FUNDS_RELEASED',
+            timestamp: Date.now() - 3600000 * 12
+        }
+    ];
 
     const DEFAULT_COLLAB_PROJECTS: CollabProject[] = [
         {
@@ -446,10 +715,12 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
 
     const [collabProjects, setCollabProjects] = useState<CollabProject[]>([]);
     const [collabSearch, setCollabSearch] = useState('');
-    const [collabFilterTab, setCollabFilterTab] = useState<'all' | 'my_ideas' | 'my_teams' | 'applied'>('all');
+    const [collabFilterTab, setCollabFilterTab] = useState<'all' | 'my_ideas' | 'my_teams' | 'applied' | 'c4s_arbitration'>('all');
+    const [collabTypeFilter, setCollabTypeFilter] = useState<'all' | 'collab' | 'help_request' | 'mentor_offer'>('all');
     
     // Idea drafting states
     const [isCreatingCollab, setIsCreatingCollab] = useState(false);
+    const [newCollabType, setNewCollabType] = useState<'collab' | 'help_request' | 'mentor_offer'>('collab');
     const [newCollabTitle, setNewCollabTitle] = useState('');
     const [newCollabDesc, setNewCollabDesc] = useState('');
     const [newCollabSkills, setNewCollabSkills] = useState('');
@@ -469,6 +740,15 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     const [editCollabGitBranch, setEditCollabGitBranch] = useState('main');
     const [newCollabCommitMsg, setNewCollabCommitMsg] = useState('');
 
+    // C4S arbitration states
+    const [c4sDisputes, setC4sDisputes] = useState<C4SDispute[]>([]);
+    const [isCreatingDispute, setIsCreatingDispute] = useState(false);
+    const [disputeContractTitle, setDisputeContractTitle] = useState('');
+    const [disputeContractor, setDisputeContractor] = useState('');
+    const [disputeAmount, setDisputeAmount] = useState(100);
+    const [disputeReason, setDisputeReason] = useState('');
+    const [disputeEvidence, setDisputeEvidence] = useState('');
+
     // Persistence and syncing logic
     useEffect(() => {
         const loadCollab = async () => {
@@ -477,18 +757,87 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                 const parsed = extractJSON<CollabProject[]>(saved, []);
                 if (parsed.length > 0) {
                     setCollabProjects(parsed);
+                } else {
+                    setCollabProjects(DEFAULT_COLLAB_PROJECTS);
+                    await safeStorage.setItem('AETHER_COLLAB_PROJECTS', JSON.stringify(DEFAULT_COLLAB_PROJECTS));
+                }
+            } else {
+                setCollabProjects(DEFAULT_COLLAB_PROJECTS);
+                await safeStorage.setItem('AETHER_COLLAB_PROJECTS', JSON.stringify(DEFAULT_COLLAB_PROJECTS));
+            }
+        };
+
+        const loadDisputes = async () => {
+            const saved = await safeStorage.getItem('AETHER_C4S_DISPUTES');
+            if (saved) {
+                const parsed = extractJSON<C4SDispute[]>(saved, []);
+                if (parsed.length > 0) {
+                    setC4sDisputes(parsed);
                     return;
                 }
             }
-            setCollabProjects(DEFAULT_COLLAB_PROJECTS);
-            await safeStorage.setItem('AETHER_COLLAB_PROJECTS', JSON.stringify(DEFAULT_COLLAB_PROJECTS));
+            setC4sDisputes(DEFAULT_C4S_DISPUTES);
+            await safeStorage.setItem('AETHER_C4S_DISPUTES', JSON.stringify(DEFAULT_C4S_DISPUTES));
         };
+
         loadCollab();
+        loadDisputes();
     }, []);
 
     const saveCollabProjects = async (updated: CollabProject[]) => {
         setCollabProjects(updated);
         await safeStorage.setItem('AETHER_COLLAB_PROJECTS', JSON.stringify(updated));
+    };
+
+    const saveDisputes = async (updated: C4SDispute[]) => {
+        setC4sDisputes(updated);
+        await safeStorage.setItem('AETHER_C4S_DISPUTES', JSON.stringify(updated));
+    };
+
+    const handleInitiateDispute = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!disputeContractTitle.trim() || !disputeContractor.trim() || !disputeReason.trim()) {
+            toast.error("Dispute Error: All required fields must be supplied.");
+            return;
+        }
+
+        const newDispute: C4SDispute = {
+            id: `C4S-0x${Math.random().toString(16).substr(2, 4).toUpperCase()}`,
+            contractTitle: disputeContractTitle.trim(),
+            contractor: disputeContractor.trim(),
+            client: profile?.username || 'Aetheros_Prime',
+            amountCPH: Number(disputeAmount),
+            reason: disputeReason.trim(),
+            evidence: disputeEvidence.trim() || 'No additional evidence file references supplied.',
+            status: 'DISPUTE_OPENED',
+            timestamp: Date.now()
+        };
+
+        const updated = [newDispute, ...c4sDisputes];
+        await saveDisputes(updated);
+
+        // Reset
+        setDisputeContractTitle('');
+        setDisputeContractor('');
+        setDisputeAmount(100);
+        setDisputeReason('');
+        setDisputeEvidence('');
+        setIsCreatingDispute(false);
+        toast.success(`C4S Dispute ${newDispute.id} opened successfully! Escrow locked.`);
+    };
+
+    const handleArbitrateDispute = async (id: string, decision: 'refund' | 'release') => {
+        const updated = (c4sDisputes || [])?.map?.(disp => {
+            if (disp.id === id) {
+                return {
+                    ...disp,
+                    status: (decision === 'refund' ? 'CHARGEBACK_APPROVED' : 'FUNDS_RELEASED') as any
+                };
+            }
+            return disp;
+        });
+        await saveDisputes(updated);
+        toast.success(`Arbitration decision processed: ${decision === 'refund' ? 'Chargeback approved' : 'Funds released to contractor'}.`);
     };
 
     // Actions
@@ -503,7 +852,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
 
         const parsedSkills = newCollabSkills
             .split(',')
-            .map(s => s.trim())
+            ?.map?.(s => s.trim())
             .filter(s => s.length > 0);
 
         const newCollab: CollabProject = {
@@ -519,7 +868,8 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
             messages: [],
             gitRepo: '',
             gitBranch: 'main',
-            gitCommits: []
+            gitCommits: [],
+            type: newCollabType
         };
 
         const updated = [newCollab, ...collabProjects];
@@ -528,6 +878,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
         setNewCollabTitle('');
         setNewCollabDesc('');
         setNewCollabSkills('');
+        setNewCollabType('collab');
         setIsCreatingCollab(false);
         toast.success(`Collaboration idea "${newCollab.title}" published!`);
     };
@@ -542,7 +893,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
 
         const comment = applyComment.trim() || "Interested in joining the build effort.";
         
-        const updated = collabProjects.map(proj => {
+        const updated = (collabProjects || [])?.map?.(proj => {
             if (proj.id === projectId) {
                 if (proj.interestedUsers.some(u => u.username === currentUsername)) {
                     return proj;
@@ -571,7 +922,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
 
     const handleCancelInterest = async (projectId: string) => {
         const currentUsername = profile?.username || 'Aetheros_Prime';
-        const updated = collabProjects.map(proj => {
+        const updated = (collabProjects || [])?.map?.(proj => {
             if (proj.id === projectId) {
                 return {
                     ...proj,
@@ -586,7 +937,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
 
     const handleLeaveTeam = async (projectId: string) => {
         const currentUsername = profile?.username || 'Aetheros_Prime';
-        const updated = collabProjects.map(proj => {
+        const updated = (collabProjects || [])?.map?.(proj => {
             if (proj.id === projectId) {
                 return {
                     ...proj,
@@ -601,12 +952,12 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     };
 
     const handleManageRequest = async (projectId: string, applicantUsername: string, action: 'accept' | 'decline') => {
-        const updated = collabProjects.map(proj => {
+        const updated = (collabProjects || [])?.map?.(proj => {
             if (proj.id === projectId) {
                 if (action === 'accept') {
                     const isAlreadyMember = proj.teamMembers.includes(applicantUsername);
                     const newTeamList = isAlreadyMember ? proj.teamMembers : [...proj.teamMembers, applicantUsername];
-                    const newInterestedList = proj.interestedUsers.map(u => 
+                    const newInterestedList = (proj.interestedUsers || [])?.map?.(u => 
                         u.username === applicantUsername ? { ...u, status: 'accepted' as const } : u
                     );
                     return {
@@ -615,7 +966,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                         interestedUsers: newInterestedList
                     };
                 } else {
-                    const newInterestedList = proj.interestedUsers.map(u => 
+                    const newInterestedList = (proj.interestedUsers || [])?.map?.(u => 
                         u.username === applicantUsername ? { ...u, status: 'declined' as const } : u
                     );
                     return {
@@ -641,7 +992,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
 
     const handleAddCollabTask = async (projectId: string, text: string, assigneeName?: string) => {
         if (!text.trim()) return;
-        const updated = collabProjects.map(proj => {
+        const updated = (collabProjects || [])?.map?.(proj => {
             if (proj.id === projectId) {
                 const tasksList = proj.tasks || [];
                 const newTask: CollabProjectTask = {
@@ -663,12 +1014,12 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     };
 
     const handleToggleCollabTask = async (projectId: string, taskId: string) => {
-        const updated = collabProjects.map(proj => {
+        const updated = (collabProjects || [])?.map?.(proj => {
             if (proj.id === projectId) {
                 const tasksList = proj.tasks || [];
                 return {
                     ...proj,
-                    tasks: tasksList.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t)
+                    tasks: (tasksList || [])?.map?.(t => t.id === taskId ? { ...t, completed: !t.completed } : t)
                 };
             }
             return proj;
@@ -677,7 +1028,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     };
 
     const handleDeleteCollabTask = async (projectId: string, taskId: string) => {
-        const updated = collabProjects.map(proj => {
+        const updated = (collabProjects || [])?.map?.(proj => {
             if (proj.id === projectId) {
                 const tasksList = proj.tasks || [];
                 return {
@@ -694,7 +1045,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     const handlePostCollabMessage = async (projectId: string, text: string) => {
         if (!text.trim()) return;
         const currentUsername = profile?.username || 'Aetheros_Prime';
-        const updated = collabProjects.map(proj => {
+        const updated = (collabProjects || [])?.map?.(proj => {
             if (proj.id === projectId) {
                 const messagesList = proj.messages || [];
                 const newMessage: CollabMessage = {
@@ -714,7 +1065,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     };
 
     const handleUpdateCollabGit = async (projectId: string, gitRepo: string, gitBranch: string) => {
-        const updated = collabProjects.map(proj => {
+        const updated = (collabProjects || [])?.map?.(proj => {
             if (proj.id === projectId) {
                 return {
                     ...proj,
@@ -731,7 +1082,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     const handleCreateCollabCommit = async (projectId: string, message: string) => {
         if (!message.trim()) return;
         const currentUsername = profile?.username || 'Aetheros_Prime';
-        const updated = collabProjects.map(proj => {
+        const updated = (collabProjects || [])?.map?.(proj => {
             if (proj.id === projectId) {
                 const commitsList = proj.gitCommits || [];
                 const newCommit: CollabCommit = {
@@ -755,6 +1106,8 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     const filteredCollabProjects = useMemo(() => {
         const currentUsername = profile?.username || 'Aetheros_Prime';
         
+        if (collabFilterTab === 'c4s_arbitration') return [];
+
         return collabProjects.filter(proj => {
             const matchesSearch = collabSearch.trim() === '' || 
                 proj.title.toLowerCase().includes(collabSearch.toLowerCase()) ||
@@ -762,6 +1115,13 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                 proj.requiredSkills.some(skill => skill.toLowerCase().includes(collabSearch.toLowerCase()));
 
             if (!matchesSearch) return false;
+
+            // Filter by Board Post Type (Collab, Help, Mentorship)
+            if (collabTypeFilter !== 'all') {
+                const typeToMatch = collabTypeFilter;
+                const matchesType = (proj.type || 'collab') === typeToMatch;
+                if (!matchesType) return false;
+            }
 
             switch (collabFilterTab) {
                 case 'my_ideas':
@@ -775,7 +1135,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                     return true;
             }
         });
-    }, [collabProjects, collabSearch, collabFilterTab, profile]);
+    }, [collabProjects, collabSearch, collabFilterTab, collabTypeFilter, profile]);
 
     // Filtering State
     const [squadSpecialtyFilter, setSquadSpecialtyFilter] = useState<string>('all');
@@ -810,7 +1170,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     };
 
     const saveAgentChanges = (agentId: string) => {
-        setAgents(prev => prev.map(a => {
+        setAgents(prev => (prev || [])?.map?.(a => {
             if (a.id === agentId) {
                 return {
                     ...a,
@@ -838,8 +1198,8 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
             const savedShards = await safeStorage.getItem('AETHER_NET_SHARDS');
             if (savedShards) {
                 const parsed = extractJSON<NetworkProject[]>(savedShards, []);
-                if (projects.length === 0 && parsed.length > 0) {
-                    setProjects(parsed.map(p => ({...p, timestamp: new Date(p.timestamp)})));
+                if (safeProjects.length === 0 && parsed.length > 0) {
+                    setProjects((parsed || [])?.map?.(p => ({...p, timestamp: new Date(p.timestamp)})));
                 }
             }
         };
@@ -848,8 +1208,8 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
 
     useEffect(() => {
         const persist = async () => {
-            if (projects.length > 0) {
-                await safeStorage.setItem('AETHER_NET_SHARDS', JSON.stringify(projects));
+            if (safeProjects.length > 0) {
+                await safeStorage.setItem('AETHER_NET_SHARDS', JSON.stringify(safeProjects));
             }
         };
         persist();
@@ -887,7 +1247,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
         try {
             const wisdom = await generateProjectKnowHow(newProject.title, newProject.description, 'CRAZY_KERNEL');
             
-            setProjects(prev => prev.map(p => 
+            setProjects(prev => (prev || [])?.map?.(p => 
                 p.id === newProject.id 
                 ? { ...p, knowHow: wisdom, isWisdomHarmonized: true, status: 'FORGING' } 
                 : p
@@ -900,7 +1260,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     };
 
     const deleteProject = async (id: string) => {
-        const updated = projects.filter(p => p.id !== id);
+        const updated = safeProjects.filter(p => p.id !== id);
         setProjects(updated);
         await safeStorage.setItem('AETHER_NET_SHARDS', JSON.stringify(updated));
     };
@@ -914,7 +1274,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
         const text = taskInputs[projectId];
         if (!text?.trim()) return;
 
-        setProjects(prev => prev.map(p => {
+        setProjects(prev => (prev || [])?.map?.(p => {
             if (p.id === projectId) {
                 const newTask: ProjectTask = { 
                     id: uuidv4(), 
@@ -930,11 +1290,11 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     };
 
     const toggleTask = (projectId: string, taskId: string) => {
-        setProjects(prev => prev.map(p => {
+        setProjects(prev => (prev || [])?.map?.(p => {
             if (p.id === projectId) {
                 return {
                     ...p,
-                    tasks: p.tasks.map(t => t.id === taskId ? { ...t, completed: !t.completed } : t)
+                    tasks: (p.tasks || [])?.map?.(t => t.id === taskId ? { ...t, completed: !t.completed } : t)
                 };
             }
             return p;
@@ -966,13 +1326,13 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     };
 
     const fireAgent = (id: string) => {
-        const agentName = agents.find(a => a.id === id)?.name || "Agent";
+        const agentName = (agents || [])?.find?.(a => a && a.id === id)?.name || "Agent";
         setAgents(prev => prev.filter(a => a.id !== id));
         toast.info(`Dismissed ${agentName} from Coding Network`);
     };
 
     const toggleAgentPause = (id: string) => {
-        setAgents(prev => prev.map(a => {
+        setAgents(prev => (prev || [])?.map?.(a => {
             if (a.id === id) {
                 const newStatus = a.status === 'resting' ? 'available' as const : 'resting' as const;
                 toast.info(`${a.name} is now ${newStatus === 'resting' ? 'on Standby (2% idle cost)' : 'Active (100% compute allocation)'}`);
@@ -1055,6 +1415,12 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                         className={`px-6 py-2.5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border-4 border-black shadow-lg ${viewMode === 'MATCHES' ? 'bg-rose-600 text-white' : 'bg-[#0f0f18] text-gray-500 hover:text-white'}`}
                     >
                         Skill Matchmaking
+                    </button>
+                    <button 
+                        onClick={() => setViewMode('FORECAST')}
+                        className={`px-6 py-2.5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border-4 border-black shadow-lg ${viewMode === 'FORECAST' ? 'bg-cyan-600 text-white shadow-[0_0_20px_rgba(6,182,212,0.3)]' : 'bg-[#0f0f18] text-gray-500 hover:text-white'}`}
+                    >
+                        Predictive Timeline
                     </button>
                 </div>
             </div>
@@ -1147,16 +1513,16 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                 <h3 className="text-sm font-black uppercase tracking-[0.3em] text-gray-500 flex items-center gap-3">
                                    <ActivityIcon className="w-5 h-5 text-violet-500" /> Active Shards
                                 </h3>
-                                <div className="text-[10px] font-mono text-gray-600">COUNT: {projects.length}</div>
+                                <div className="text-[10px] font-mono text-gray-600">COUNT: {safeProjects.length}</div>
                             </div>
 
                             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                                {projects.length === 0 ? (
+                                {safeProjects.length === 0 ? (
                                     <div className="col-span-full py-32 text-center border-4 border-dashed border-zinc-900 rounded-[3rem] opacity-40">
                                         <CodeIcon className="w-24 h-24 mx-auto mb-6 text-gray-700" />
                                         <p className="text-sm font-black uppercase tracking-[0.3em] text-gray-600">No Manifested Shards</p>
                                     </div>
-                                ) : projects.map(project => (
+                                ) : (safeProjects || [])?.map?.(project => (
                                     <div key={project.id} className="aero-panel bg-black/60 p-8 border-4 border-black shadow-[12px_12px_0_0_#000] flex flex-col gap-6 group hover:border-violet-600/40 transition-all relative overflow-hidden">
                                         
                                         {/* Header */}
@@ -1231,7 +1597,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                             </p>
                                             
                                             <div className="flex-1 space-y-2 mb-3 overflow-y-auto custom-scrollbar pr-1">
-                                                {project.tasks?.map(task => (
+                                                {(project.tasks || [])?.map?.(task => (
                                                     <div 
                                                         key={task.id}
                                                         onClick={() => toggleTask(project.id, task.id)}
@@ -1373,7 +1739,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                     <div>
                                         <div className="text-[9px] text-violet-400 uppercase mb-2">Resource Recommendations</div>
                                         <ul className="space-y-1.5 text-[9px] text-zinc-400">
-                                            {optimizationSuggestions.map((suggestion, idx) => (
+                                            {(optimizationSuggestions || [])?.map?.((suggestion, idx) => (
                                                 <li key={idx} className="flex gap-1">
                                                     <span>⚡</span>
                                                     <span>{suggestion}</span>
@@ -1456,7 +1822,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                                    {filteredAgents.map(agent => {
+                                    {(filteredAgents || [])?.map?.(agent => {
                                         const specBadge = getSpecialtyBadge(agent.specialty);
                                         const statBadge = getStatusBadge(agent.status);
                                         const SpecIcon = specBadge.icon;
@@ -1568,7 +1934,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                          <span className="text-[9px] font-black uppercase text-gray-455 block">Preferred Domains</span>
                                                          <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto bg-black/40 p-1.5 rounded-lg border border-white/5">
                                                              {editedDomains.length === 0 && <span className="text-[8px] text-gray-600 font-bold uppercase py-0.5">None specified</span>}
-                                                             {editedDomains.map((dom, idx) => (
+                                                             {(editedDomains || [])?.map?.((dom, idx) => (
                                                                  <span key={idx} className="inline-flex items-center gap-1 text-[8px] font-black text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-800/40">
                                                                      {dom}
                                                                      <button 
@@ -1618,7 +1984,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                          <span className="text-[9px] font-black uppercase text-gray-455 block">Quirks</span>
                                                          <div className="flex flex-wrap gap-1 max-h-16 overflow-y-auto bg-black/40 p-1.5 rounded-lg border border-white/5">
                                                              {editedQuirks.length === 0 && <span className="text-[8px] text-gray-600 font-bold uppercase py-0.5">None specified</span>}
-                                                             {editedQuirks.map((quirk, idx) => (
+                                                             {(editedQuirks || [])?.map?.((quirk, idx) => (
                                                                  <span key={idx} className="inline-flex items-center gap-1 text-[8px] font-black text-violet-400 bg-violet-950/40 px-2 py-0.5 rounded border border-violet-800/40">
                                                                      {quirk}
                                                                      <button 
@@ -1754,7 +2120,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                          <div className="mb-3 space-y-1">
                                                              <span className="text-[8px] uppercase font-black text-gray-500 block">Domains</span>
                                                              <div className="flex flex-wrap gap-1">
-                                                                 {agent.personality.preferredDomains.map((dom: string, i: number) => (
+                                                                 {(agent.personality.preferredDomains || [])?.map?.((dom: string, i: number) => (
                                                                      <span key={i} className="text-[7px] font-black text-amber-450 bg-amber-950/20 px-1.5 py-0.5 rounded border border-amber-900/40 uppercase">
                                                                          {dom}
                                                                      </span>
@@ -1768,7 +2134,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                          <div className="mb-3 space-y-1">
                                                              <span className="text-[8px] uppercase font-black text-gray-500 block">Quirks</span>
                                                              <div className="flex flex-wrap gap-1">
-                                                                 {agent.personality.quirks.map((quirk: string, i: number) => (
+                                                                 {(agent.personality.quirks || [])?.map?.((quirk: string, i: number) => (
                                                                      <span key={i} className="text-[7px] font-black text-violet-400 bg-violet-950/20 px-1.5 py-0.5 rounded border border-violet-900/40 uppercase">
                                                                          {quirk}
                                                                      </span>
@@ -1848,7 +2214,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                             Reset Filter
                                         </button>
                                     </div>
-                                ) : filteredMarketplace.map(agent => {
+                                ) : (filteredMarketplace || [])?.map?.(agent => {
                                     const specBadge = getSpecialtyBadge(agent.specialty);
                                     const SpecIcon = specBadge.icon;
                                     return (
@@ -1976,6 +2342,29 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                         </div>
                                     </div>
 
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest block">Board Post Type</label>
+                                            <select
+                                                value={newCollabType}
+                                                onChange={e => setNewCollabType(e.target.value as any)}
+                                                className="w-full bg-black border-4 border-zinc-900 rounded-xl p-4 text-white font-black text-sm focus:outline-none focus:border-emerald-500 transition-all cursor-pointer h-14"
+                                            >
+                                                <option value="collab">🤝 Project Collaboration Shard</option>
+                                                <option value="help_request">⚠️ Request Urgent Help on Project</option>
+                                                <option value="mentor_offer">🎓 Offer Expertise as a Mentor</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest block">Operational Context</label>
+                                            <div className="w-full bg-black/60 border-4 border-zinc-900 rounded-xl p-3 text-[10px] text-zinc-400 h-14 overflow-y-auto font-mono flex items-center">
+                                                {newCollabType === 'collab' && "Assemble a team to collaborate. Set tasks, review code, and deploy logic shards together."}
+                                                {newCollabType === 'help_request' && "Stuck on a critical bottleneck? Request debug assistance or technical review from the network."}
+                                                {newCollabType === 'mentor_offer' && "Share your cognitive wisdom. Guide other developers, review architectures, and advise."}
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest block">Ideation Summary & Vision</label>
                                         <textarea 
@@ -2055,10 +2444,38 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                     >
                                         Applied Status
                                     </button>
+                                    <button 
+                                        onClick={() => setCollabFilterTab('c4s_arbitration')}
+                                        className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${
+                                            collabFilterTab === 'c4s_arbitration' 
+                                            ? 'bg-amber-950/40 border-amber-500 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]' 
+                                            : 'bg-transparent border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-700'
+                                        }`}
+                                        title="Investigate C4S (Contract for Services) Chargebacks & Escrow disputes."
+                                    >
+                                        ⚖️ C4S Settlement
+                                    </button>
                                 </div>
 
-                                {/* Custom search box */}
-                                <div className="w-full md:w-80 flex items-center gap-3 bg-black border border-emerald-950/60 px-4 py-2 rounded-xl">
+                                {/* Board Type Filter & Custom search box */}
+                                <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center w-full md:w-auto">
+                                    {collabFilterTab !== 'c4s_arbitration' && (
+                                        <div className="flex items-center gap-2 bg-black border border-zinc-800 rounded-xl px-3 py-2">
+                                            <span className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest">Type:</span>
+                                            <select 
+                                                value={collabTypeFilter}
+                                                onChange={e => setCollabTypeFilter(e.target.value as any)}
+                                                className="bg-transparent text-[10px] font-bold text-emerald-400 focus:outline-none cursor-pointer uppercase font-mono"
+                                            >
+                                                <option value="all" className="bg-zinc-950 text-white">All Types</option>
+                                                <option value="collab" className="bg-zinc-950 text-white">Collaborations</option>
+                                                <option value="help_request" className="bg-zinc-950 text-white">Help Requests</option>
+                                                <option value="mentor_offer" className="bg-zinc-950 text-white">Mentorship Offers</option>
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    <div className="w-full md:w-80 flex items-center gap-3 bg-black border border-emerald-950/60 px-4 py-2 rounded-xl">
                                     <SearchIcon className="w-4 h-4 text-emerald-500" />
                                     <input 
                                         value={collabSearch}
@@ -2073,9 +2490,201 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                     )}
                                 </div>
                             </div>
+                        </div>
 
-                            {/* Project Cards Grid */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                        {/* Project Cards Grid */}
+                            {collabFilterTab === 'c4s_arbitration' ? (
+                                <div className="space-y-8 animate-in fade-in duration-300">
+                                    <div className="bg-zinc-950/80 border-4 border-amber-950/40 p-8 rounded-[2.5rem] relative overflow-hidden shadow-[10px_10px_0_0_#000]">
+                                        <div className="absolute top-0 right-0 w-64 h-64 bg-[radial-gradient(circle_at_100%_0%,_rgba(245,158,11,0.05)_0%,_transparent_70%)] pointer-events-none" />
+                                        <div className="flex flex-col md:flex-row gap-6 items-start justify-between">
+                                            <div className="space-y-3">
+                                                <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-950/30 border border-amber-500/50 rounded-full text-[9px] font-black uppercase tracking-widest text-amber-500 font-mono">
+                                                    <span>⚖️</span> Sovereign Arbitration Protocol Active
+                                                </div>
+                                                <h3 className="text-3xl font-comic-header text-white uppercase italic tracking-tight">Contract for Services (C4S) Dispute settlement</h3>
+                                                <p className="text-xs text-zinc-400 font-mono leading-relaxed max-w-4xl">
+                                                    C4S agreements establish a cryptographically-secured escrow layer for contractor deliverables. If a mentor, auditor, or specialized developer fails to deliver agreed standards, client nodes can lock escrows and initiate dynamic <span className="text-amber-500 font-bold">Chargeback Disputes</span>. Multi-sig arbitraters will review proof repositories to either refund clients or release locked funds to contractors.
+                                                </p>
+                                            </div>
+                                            <button 
+                                                onClick={() => setIsCreatingDispute(!isCreatingDispute)}
+                                                className="px-6 py-3.5 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase text-xs tracking-widest rounded-xl shadow-lg shadow-amber-950/40 transition-all shrink-0 font-mono"
+                                            >
+                                                {isCreatingDispute ? 'Hide Filing Shield' : '⚠️ File New C4S Dispute'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {isCreatingDispute && (
+                                        <div className="bg-zinc-950 border-4 border-amber-500/40 p-8 rounded-[2.5rem] animate-in slide-in-from-top duration-300">
+                                            <div className="flex items-center gap-3 border-b border-amber-950/60 pb-4 mb-6">
+                                                <div className="text-2xl">🚨</div>
+                                                <div>
+                                                    <h4 className="text-xl font-comic-header text-white uppercase italic tracking-tight">Initiate Escrow Dispute & Chargeback Request</h4>
+                                                    <p className="text-[9px] text-amber-500 font-mono uppercase tracking-widest">Submit system evidence logs to lock escrow funds</p>
+                                                </div>
+                                            </div>
+
+                                            <form onSubmit={handleInitiateDispute} className="space-y-6">
+                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest block">Contract/Project Title</label>
+                                                        <input 
+                                                            value={disputeContractTitle}
+                                                            onChange={e => setDisputeContractTitle(e.target.value)}
+                                                            className="w-full bg-black border-4 border-zinc-900 rounded-xl p-4 text-white font-black text-sm focus:outline-none focus:border-amber-500 transition-all placeholder:text-zinc-800"
+                                                            placeholder="e.g. EVM COMPILER OPTIMIZER"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest block">Contractor Username (Defendant)</label>
+                                                        <input 
+                                                            value={disputeContractor}
+                                                            onChange={e => setDisputeContractor(e.target.value)}
+                                                            className="w-full bg-black border-4 border-zinc-900 rounded-xl p-4 text-white font-mono text-sm focus:outline-none focus:border-amber-500 transition-all placeholder:text-zinc-800"
+                                                            placeholder="e.g. SolidityDev_Core"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest block">Escrow Amount Locked (CPH)</label>
+                                                        <input 
+                                                            type="number"
+                                                            value={disputeAmount}
+                                                            onChange={e => setDisputeAmount(Number(e.target.value))}
+                                                            className="w-full bg-black border-4 border-zinc-900 rounded-xl p-4 text-white font-mono text-sm focus:outline-none focus:border-amber-500 transition-all h-14"
+                                                            min={1}
+                                                            required
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest block">Detailed Breach Reason</label>
+                                                    <textarea 
+                                                        value={disputeReason}
+                                                        onChange={e => setDisputeReason(e.target.value)}
+                                                        rows={3}
+                                                        className="w-full bg-black border-4 border-zinc-900 rounded-xl p-4 text-xs font-mono text-gray-300 resize-none focus:outline-none focus:border-amber-500 transition-all placeholder:text-zinc-800"
+                                                        placeholder="Describe specifically which parts of the contract were breached or delivered with severe faults..."
+                                                        required
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black text-amber-500 uppercase tracking-widest block">Evidence Log / Repository Path (Optional)</label>
+                                                    <input 
+                                                        value={disputeEvidence}
+                                                        onChange={e => setDisputeEvidence(e.target.value)}
+                                                        className="w-full bg-black border-4 border-zinc-900 rounded-xl p-4 text-white font-mono text-xs focus:outline-none focus:border-amber-500 transition-all placeholder:text-zinc-800"
+                                                        placeholder="e.g. console_error_log.txt / github.com/issue/34"
+                                                    />
+                                                </div>
+
+                                                <div className="flex gap-4 justify-end pt-2">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => setIsCreatingDispute(false)}
+                                                        className="px-6 py-3 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 text-xs font-black uppercase tracking-widest transition-colors"
+                                                    >
+                                                        Cancel Dispute
+                                                    </button>
+                                                    <button 
+                                                        type="submit"
+                                                        className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black uppercase tracking-widest transition-all shadow-md shadow-amber-950/20"
+                                                    >
+                                                        ⚖️ Lock Escrow & Broadcast Dispute
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-1 gap-6">
+                                        {(c4sDisputes || []).length === 0 ? (
+                                            <div className="py-20 text-center border-4 border-dashed border-zinc-900 rounded-3xl bg-zinc-950/20">
+                                                <div className="text-4xl mb-4">⚖️</div>
+                                                <p className="text-xs font-mono text-zinc-500 uppercase">No active Contract for Services disputes reported in client escrow.</p>
+                                            </div>
+                                        ) : (
+                                            (c4sDisputes || [])?.map?.(dispute => (
+                                                <div 
+                                                    key={dispute.id}
+                                                    className="bg-zinc-950/40 border-4 border-zinc-900 p-8 rounded-[2rem] relative overflow-hidden flex flex-col justify-between gap-6 hover:border-amber-500/20 transition-all shadow-[8px_8px_0_0_#000]"
+                                                >
+                                                    <div className="space-y-4">
+                                                        <div className="flex justify-between items-start flex-wrap gap-4 border-b border-zinc-900 pb-4">
+                                                            <div>
+                                                                <div className="flex items-center gap-3">
+                                                                    <span className="text-[10px] font-mono text-amber-500 font-extrabold">{dispute.id}</span>
+                                                                    <h4 className="text-xl font-extrabold text-white tracking-tight">{dispute.contractTitle}</h4>
+                                                                </div>
+                                                                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[10px] font-mono text-zinc-500">
+                                                                    <div>CLIENT: <span className="text-zinc-300 font-bold">@{dispute.client}</span></div>
+                                                                    <div>CONTRACTOR: <span className="text-zinc-300 font-bold">@{dispute.contractor}</span></div>
+                                                                    <div>FILED: <span className="text-zinc-400">{new Date(dispute.timestamp).toLocaleString()}</span></div>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex flex-col items-end gap-2">
+                                                                <div className="px-3 py-1 bg-black border border-zinc-800 rounded-lg text-xs font-mono font-extrabold text-amber-500">
+                                                                    💰 {dispute.amountCPH} CPH
+                                                                </div>
+                                                                <span className={`px-2.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest border ${
+                                                                    dispute.status === 'UNDER_ARBITRATION' ? 'border-amber-500 text-amber-400 bg-amber-950/20' :
+                                                                    dispute.status === 'DISPUTE_OPENED' ? 'border-blue-500 text-blue-400 bg-blue-950/20' :
+                                                                    dispute.status === 'CHARGEBACK_APPROVED' ? 'border-red-500 text-red-400 bg-red-950/20' :
+                                                                    'border-emerald-500 text-emerald-400 bg-emerald-950/20'
+                                                                }`}>
+                                                                    {dispute.status.replace('_', ' ')}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-3 font-mono text-[11px] leading-relaxed">
+                                                            <div>
+                                                                <span className="text-amber-500 font-bold uppercase text-[9px] block mb-1">Breach Allegations:</span>
+                                                                <p className="text-zinc-300 bg-zinc-950/80 p-4 rounded-xl border border-zinc-900">{dispute.reason}</p>
+                                                            </div>
+                                                            {dispute.evidence && (
+                                                                <div>
+                                                                    <span className="text-zinc-500 font-bold uppercase text-[9px] block mb-1">Evidence Records:</span>
+                                                                    <p className="text-zinc-400 italic bg-zinc-950/40 p-3 rounded-lg border border-zinc-900/40 text-[10px]">{dispute.evidence}</p>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {dispute.status !== 'CHARGEBACK_APPROVED' && dispute.status !== 'FUNDS_RELEASED' && (
+                                                        <div className="border-t border-zinc-900 pt-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-zinc-950/60 p-4 rounded-2xl border border-zinc-900">
+                                                            <div className="space-y-1">
+                                                                <span className="text-[9px] font-black uppercase tracking-widest text-amber-500 font-mono block">⚖️ Arbitrator Consensus Panel</span>
+                                                                <p className="text-[10px] text-zinc-500 uppercase">Evaluate evidence repository to finalize escrow settlement.</p>
+                                                            </div>
+                                                            <div className="flex gap-3 self-end md:self-auto">
+                                                                <button 
+                                                                    onClick={() => handleArbitrateDispute(dispute.id, 'refund')}
+                                                                    className="px-4 py-2 bg-red-950 hover:bg-red-900 text-red-500 hover:text-white rounded-xl text-[10px] font-mono font-black uppercase tracking-wider transition-colors border border-red-900/40"
+                                                                >
+                                                                    🚨 Approve Chargeback (Refund Client)
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => handleArbitrateDispute(dispute.id, 'release')}
+                                                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-black rounded-xl text-[10px] font-mono font-black uppercase tracking-wider transition-all"
+                                                                >
+                                                                    ✅ Release Escrow to contractor
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                                 {filteredCollabProjects.length === 0 ? (
                                     <div className="col-span-full py-32 text-center border-4 border-dashed border-emerald-950/30 rounded-[3rem] bg-zinc-950/20">
                                         <CodeIcon className="w-20 h-20 mx-auto mb-6 text-zinc-850" />
@@ -2088,19 +2697,19 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                         </button>
                                     </div>
                                 ) : (
-                                    filteredCollabProjects.map(project => {
+                                    (filteredCollabProjects || [])?.map?.(project => {
                                         const isCreator = project.creatorName === (profile?.username || 'Aetheros_Prime');
-                                        const isMember = project.teamMembers.includes(profile?.username || 'Aetheros_Prime');
+                                        const isMember = (project?.teamMembers || []).includes(profile?.username || 'Aetheros_Prime');
                                         const currentUsername = profile?.username || 'Aetheros_Prime';
                                         
                                         // Find pending request of the current user
-                                        const myPendingRequest = project.interestedUsers.find(
+                                        const myPendingRequest = (project?.interestedUsers || [])?.find?.(
                                             u => u.username === currentUsername && u.status === 'pending'
                                         );
                                         const isPending = !!myPendingRequest;
 
                                         // Total pending applications count
-                                        const pendingAppsCount = project.interestedUsers.filter(u => u.status === 'pending').length;
+                                        const pendingAppsCount = (project?.interestedUsers || []).filter(u => u.status === 'pending').length;
 
                                         return (
                                             <div 
@@ -2114,9 +2723,19 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                 <div className="space-y-2">
                                                     <div className="flex justify-between items-start">
                                                         <div className="flex flex-wrap items-center gap-2">
-                                                            <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded border border-emerald-500 text-emerald-400 bg-emerald-950/30">
-                                                                COLLABORATION IDEATION
-                                                            </span>
+                                                            {project.type === 'help_request' ? (
+                                                                <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded border border-red-500 text-red-400 bg-red-950/20">
+                                                                    ⚠️ HELP REQUEST (URGENT)
+                                                                </span>
+                                                            ) : project.type === 'mentor_offer' ? (
+                                                                <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded border border-purple-500 text-purple-400 bg-purple-950/20">
+                                                                    🎓 MENTORSHIP OFFER
+                                                                </span>
+                                                            ) : (
+                                                                <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded border border-emerald-500 text-emerald-400 bg-emerald-950/30">
+                                                                    🤝 COLLABORATION SHARD
+                                                                </span>
+                                                            )}
                                                             <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded border border-zinc-800 text-zinc-500 bg-zinc-900/50 flex items-center gap-1">
                                                                 <UserIcon className="w-3 h-3 text-emerald-500" />
                                                                 LEAD: @{project.creatorName}
@@ -2149,7 +2768,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                     <div className="space-y-2">
                                                         <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest block">Required Capabilities:</span>
                                                         <div className="flex flex-wrap gap-1.5">
-                                                            {project.requiredSkills.map((skill, sIdx) => (
+                                                            {(project.requiredSkills || [])?.map?.((skill, sIdx) => (
                                                                 <span 
                                                                     key={sIdx} 
                                                                     className="px-2.5 py-1 text-[8px] font-black uppercase text-emerald-400 bg-emerald-950/20 border border-emerald-900/40 rounded-lg shadow-sm"
@@ -2168,7 +2787,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                         <span className="text-white font-bold">{project.teamMembers.length} Operative(s)</span>
                                                     </div>
                                                     <div className="flex flex-wrap gap-2">
-                                                        {project.teamMembers.map((member, mIdx) => (
+                                                        {(project.teamMembers || [])?.map?.((member, mIdx) => (
                                                             <span 
                                                                 key={mIdx} 
                                                                 className={`px-3 py-1 text-[9px] font-bold rounded-lg border flex items-center gap-1.5 ${
@@ -2199,7 +2818,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
 
                                                         {project.interestedUsers && project.interestedUsers.length > 0 ? (
                                                             <div className="space-y-3 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                                                                {project.interestedUsers.map((app, appIdx) => (
+                                                                {(project.interestedUsers || [])?.map?.((app, appIdx) => (
                                                                     <div 
                                                                         key={appIdx} 
                                                                         className={`p-3 rounded-lg border text-[10px] flex flex-col gap-2 ${
@@ -2441,7 +3060,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                                             {!project.tasks || project.tasks.length === 0 ? (
                                                                                 <p className="text-[9px] text-zinc-650 italic text-center py-4 uppercase font-mono">No current tasks registered.</p>
                                                                             ) : (
-                                                                                project.tasks.map(task => (
+                                                                                (project.tasks || [])?.map?.(task => (
                                                                                     <div 
                                                                                         key={task.id}
                                                                                         className={`p-2.5 rounded-xl border flex items-center justify-between text-[10px] transition-colors ${
@@ -2491,7 +3110,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                                                 className="bg-black border border-zinc-800 text-zinc-400 py-1 px-2 text-[8px] rounded uppercase cursor-pointer"
                                                                             >
                                                                                 <option value="">No Assignee</option>
-                                                                                {project.teamMembers.map(m => (
+                                                                                {(project.teamMembers || [])?.map?.(m => (
                                                                                     <option key={m} value={m}>@{m}</option>
                                                                                 ))}
                                                                             </select>
@@ -2580,7 +3199,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                                                  {!project.gitCommits || project.gitCommits.length === 0 ? (
                                                                                      <p className="text-[8px] text-zinc-700 italic text-center py-2 uppercase font-mono">No commits pushed to simulated remote yet.</p>
                                                                                  ) : (
-                                                                                     project.gitCommits.map(commit => (
+                                                                                     (project.gitCommits || [])?.map?.(commit => (
                                                                                          <div key={commit.id} className="text-[9px] flex gap-2 border-b border-zinc-900/35 pb-1.5 last:border-0 last:pb-0 font-mono">
                                                                                              <span className="text-emerald-500 font-black">{commit.hash}</span>
                                                                                              <span className="text-zinc-650">@{commit.author}</span>
@@ -2602,7 +3221,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                                                  {!project.messages || project.messages.length === 0 ? (
                                                                                      <p className="text-[9px] text-zinc-700 italic text-center py-6 uppercase font-mono">No communication signals transmitted yet.</p>
                                                                                  ) : (
-                                                                                     [...project.messages].reverse().map(msg => {
+                                                                                     ([...(project.messages || [])].reverse() || [])?.map?.(msg => {
                                                                                          const isMe = msg.sender === (profile?.username || 'Aetheros_Prime');
                                                                                          return (
                                                                                              <div key={msg.id} className="text-[10px] space-y-1 font-mono">
@@ -2662,6 +3281,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                     })
                                 )}
                             </div>
+                            )}
                         </div>
                     </div>
                 ) : viewMode === 'PROFILES' ? (
@@ -2693,13 +3313,13 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                         {/* Profiles Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Render active profiles */}
-                            {networkProfiles
-                                .filter(p => !searchProfileQuery.trim() || 
+                            {(networkProfiles || [])
+                                ?.filter?.(p => !searchProfileQuery.trim() || 
                                     p.username.toLowerCase().includes(searchProfileQuery.toLowerCase()) ||
                                     (p.skills || []).some((s: string) => s.toLowerCase().includes(searchProfileQuery.toLowerCase())) ||
                                     (p.bio || '').toLowerCase().includes(searchProfileQuery.toLowerCase())
                                 )
-                                .map(p => {
+                                ?.map?.(p => {
                                     // Calculate match percentage against current user's profile
                                     const matchInfo = calculateCompatibility(profile, p);
                                     return (
@@ -2744,7 +3364,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                 <div className="space-y-2 mb-4">
                                                     <h5 className="text-[9px] font-mono uppercase text-zinc-550 tracking-wider font-bold">Stack Indices</h5>
                                                     <div className="flex flex-wrap gap-1">
-                                                        {(p.skills || []).slice(0, 4).map((s: string) => (
+                                                        {(p.skills || []).slice(0, 4)?.map?.((s: string) => (
                                                             <span key={s} className="px-2 py-0.5 bg-[#101026] text-[9px] font-mono text-zinc-305 border border-white/5 rounded-md">
                                                                 {s}
                                                             </span>
@@ -2762,7 +3382,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                     <div className="space-y-2 mb-2">
                                                         <h5 className="text-[9px] font-mono uppercase text-zinc-550 tracking-wider font-bold">Seeking Collaborators</h5>
                                                         <div className="flex flex-wrap gap-1">
-                                                            {(p.lookingForSkills || []).slice(0, 4).map((s: string) => (
+                                                            {(p.lookingForSkills || []).slice(0, 4)?.map?.((s: string) => (
                                                                 <span key={s} className="px-2 py-0.5 bg-rose-950/20 text-[9px] font-mono text-rose-400 border border-rose-500/10 rounded-md">
                                                                     {s}
                                                                 </span>
@@ -2828,13 +3448,34 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                 <p className="text-xs text-zinc-300 leading-relaxed font-sans">{selectedProfileNode.bio}</p>
                                             </div>
 
+                                            {/* Compatibility Breakdown in Detail Modal */}
+                                            {(() => {
+                                                const matchInfo = calculateCompatibility(profile, selectedProfileNode);
+                                                return (
+                                                    <div className="space-y-2 p-4 bg-rose-950/5 border border-rose-500/10 rounded-2xl relative overflow-hidden">
+                                                        <div className="flex justify-between items-center">
+                                                            <h4 className="text-[10px] font-mono text-rose-400 uppercase tracking-widest font-black">Lattice Proximity Compatibility</h4>
+                                                            <span className="text-xs font-mono font-black text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded">{matchInfo.score}% MATCH</span>
+                                                        </div>
+                                                        <div className="space-y-1 pt-1">
+                                                            {(matchInfo?.reasons || [])?.map?.((r, i) => (
+                                                                <p key={i} className="text-[11px] text-zinc-300 font-mono leading-normal flex items-start gap-1.5">
+                                                                    <span className="text-rose-500/60 font-bold">&gt;&gt;</span>
+                                                                    {r}
+                                                                </p>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
+
                                             {/* Skills Grid */}
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                 <div className="space-y-2 p-4 bg-zinc-950/60 border border-zinc-900 rounded-2xl relative overflow-hidden">
                                                     <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
                                                     <h5 className="text-[10px] font-mono text-purple-400 uppercase tracking-wider font-bold">Primary Programming Stack (Click to Endorse)</h5>
                                                     <div className="flex flex-wrap gap-1.5 pt-1">
-                                                        {(selectedProfileNode.skills || []).map((s: string) => {
+                                                        {(selectedProfileNode.skills || [])?.map?.((s: string) => {
                                                             const endorsers = selectedProfileNode.skillEndorsements?.[s] || [];
                                                             const hasEndorsed = endorsers.includes(profile?.username || 'Aetheros_Prime');
                                                             return (
@@ -2864,7 +3505,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                     <div className="absolute top-0 left-0 w-1 h-full bg-rose-500" />
                                                     <h5 className="text-[10px] font-mono text-rose-400 uppercase tracking-wider font-bold">Looking For Stack Matrix</h5>
                                                     <div className="flex flex-wrap gap-1.5 pt-1">
-                                                        {(selectedProfileNode.lookingForSkills || []).map((s: string) => (
+                                                        {(selectedProfileNode.lookingForSkills || [])?.map?.((s: string) => (
                                                             <span key={s} className="px-2.5 py-1 bg-rose-955 bg-rose-950/20 text-xs font-mono text-rose-300 rounded-lg border border-rose-500/10 font-black uppercase">
                                                                 {s}
                                                             </span>
@@ -2881,7 +3522,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                 <div className="space-y-3">
                                                     <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-black">Verified Network Portals</h4>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                        {(selectedProfileNode.portfolioLinks || []).map((lnk: any) => (
+                                                        {(selectedProfileNode.portfolioLinks || [])?.map?.((lnk: any) => (
                                                             <a 
                                                                 key={lnk.id} 
                                                                 href={lnk.url} 
@@ -2905,7 +3546,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                 <div className="space-y-3">
                                                     <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-black">Completed Past showcasing Projects</h4>
                                                     <div className="space-y-2.5">
-                                                        {(selectedProfileNode.profileProjects || []).map((pro: any) => (
+                                                        {(selectedProfileNode.profileProjects || [])?.map?.((pro: any) => (
                                                             <div key={pro.id} className="p-4 bg-zinc-950 border border-zinc-900 rounded-2xl">
                                                                 <div className="flex items-center justify-between mb-1.5 font-mono">
                                                                     <h5 className="text-xs font-black text-white uppercase">{pro.title}</h5>
@@ -2941,7 +3582,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                             )}
                         </AnimatePresence>
                     </div>
-                ) : (
+                ) : viewMode === 'MATCHES' ? (
                     /* MATCHES (SKILL-BASED MATCHMAKING) VIEW */
                     <div className="space-y-8 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
                         {/* Sub Header */}
@@ -2982,7 +3623,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                     
                                     {/* Skills list */}
                                     <div className="flex flex-wrap gap-1.5 min-h-[40px] items-center">
-                                        {(profile?.skills || []).map((s: string) => (
+                                        {(profile?.skills || [])?.map?.((s: string) => (
                                             <span key={s} className="px-2.5 py-1 bg-purple-950/30 text-xs font-mono text-purple-300 rounded-lg border border-purple-500/15 flex items-center gap-1">
                                                 {s}
                                                 <button
@@ -3059,7 +3700,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
 
                                     {/* Looking list */}
                                     <div className="flex flex-wrap gap-1.5 min-h-[40px] items-center">
-                                        {(profile?.lookingForSkills || []).map((s: string) => (
+                                        {(profile?.lookingForSkills || [])?.map?.((s: string) => (
                                             <span key={s} className="px-2.5 py-1 bg-rose-950/30 text-xs font-mono text-rose-300 rounded-lg border border-rose-500/15 flex items-center gap-1">
                                                 {s}
                                                 <button
@@ -3128,116 +3769,555 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                             </div>
                         </div>
 
-                        {/* Matches Grid List */}
-                        <div className="space-y-4">
-                            {networkProfiles
-                                .map(p => ({
-                                    profile: p,
-                                    match: calculateCompatibility(profile, p)
-                                }))
-                                .sort((a, b) => b.match.score - a.match.score)
-                                .map(({ profile: p, match }) => (
-                                    <div 
-                                        key={p.id}
-                                        className="bg-[#0b0b18]/70 border-2 border-zinc-900 rounded-3xl p-6 relative overflow-hidden shadow-lg flex flex-col md:flex-row justify-between gap-6"
-                                    >
-                                        <div className="flex-1 space-y-4">
-                                            {/* Node Header */}
-                                            <div className="flex items-center gap-4">
-                                                <img 
-                                                    src={p.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'} 
-                                                    alt={p.username} 
-                                                    className="w-12 h-12 rounded-full border border-rose-500/35 object-cover"
-                                                    referrerPolicy="no-referrer"
-                                                />
-                                                <div>
-                                                    <div className="flex items-center gap-2">
-                                                        <h4 className="font-mono text-sm font-black text-white hover:text-rose-450">@{p.username}</h4>
-                                                        <span className="text-[9px] font-mono bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded uppercase font-black">{p.experienceLevel || 'Node Expert'}</span>
-                                                    </div>
-                                                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-mono">Compatibility Diagnostic Complete</p>
-                                                </div>
-                                            </div>
+                        {/* Dual Column Matchmaking System */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                            {/* Collaborators List Column */}
+                            <div className="lg:col-span-7 space-y-6">
+                                <h3 className="text-xl font-black text-white uppercase italic tracking-tight flex items-center gap-2">
+                                    <UserIcon className="w-5 h-5 text-purple-400" />
+                                    Suggested Collaborators
+                                </h3>
 
-                                            {/* Compatibility reasons details */}
-                                            <div className="space-y-2 bg-black/40 p-4 border border-zinc-900 rounded-2xl">
-                                                <h5 className="text-[9px] font-mono text-zinc-505 tracking-wider font-extrabold flex items-center gap-1.5">
-                                                    <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping" />
-                                                    Compatibility Log Reasonings
-                                                </h5>
-                                                <div className="space-y-1.5">
-                                                    {match.reasons.map((r, i) => (
-                                                        <p key={i} className="text-xs text-gray-300 font-mono flex items-start gap-1.5 leading-normal">
-                                                            <span className="text-zinc-650 font-bold">&gt;&gt;</span>
-                                                            {r}
-                                                        </p>
-                                                    ))}
-                                                </div>
-                                            </div>
-
-                                            {/* Offers Seeks grid */}
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                                <div className="p-3 bg-rose-950/10 border border-rose-500/10 rounded-xl">
-                                                    <div className="text-[8px] font-mono text-rose-400 uppercase font-black mb-1.5">// They offer you</div>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {match.seeks.map(s => (
-                                                            <span key={s} className="px-2 py-0.5 bg-rose-500/10 text-[9px] font-mono text-rose-400 rounded-md">{s}</span>
-                                                        ))}
-                                                        {match.seeks.length === 0 && (
-                                                            <span className="text-[9px] text-zinc-600 italic">None specifically sought.</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                <div className="p-3 bg-purple-950/10 border border-purple-500/10 rounded-xl">
-                                                    <div className="text-[8px] font-mono text-purple-400 uppercase font-black mb-1.5">// You offer them</div>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {match.offers.map(s => (
-                                                            <span key={s} className="px-2 py-0.5 bg-purple-500/10 text-[9px] font-mono text-purple-400 rounded-md">{s}</span>
-                                                        ))}
-                                                        {match.offers.length === 0 && (
-                                                            <span className="text-[9px] text-zinc-600 italic">None specifically offered.</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                <div className="p-3 bg-zinc-955 border border-zinc-900 rounded-xl">
-                                                    <div className="text-[8px] font-mono text-zinc-500 uppercase font-black mb-1.5">// Shared interests</div>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {match.shared.map(s => (
-                                                            <span key={s} className="px-2 py-0.5 bg-zinc-900 text-[9px] font-mono text-zinc-300 rounded-md">{s}</span>
-                                                        ))}
-                                                        {match.shared.length === 0 && (
-                                                            <span className="text-[9px] text-zinc-650 italic">No common stacks.</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Telemetry Score Display Row & Action button */}
-                                        <div className="flex flex-col justify-center items-center p-6 bg-black/35 border border-zinc-800 rounded-3xl min-w-[200px] text-center gap-3">
-                                            <div className="relative flex items-center justify-center">
-                                                {/* Percentage ring */}
-                                                <svg className="w-20 h-20 transform -rotate-90">
-                                                    <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-zinc-900" />
-                                                    <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" strokeDasharray="213" strokeDashoffset={213 - (213 * match.score) / 100} className="text-rose-500 transition-all duration-500" />
-                                                </svg>
-                                                <span className="absolute text-sm font-mono font-black text-rose-450">{match.score}%</span>
-                                            </div>
-                                            <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-black">COLLABORATION PROXIMITY</div>
-
-                                            <button
-                                                onClick={() => {
-                                                    alert(`Collaboration request request node pinged to @${p.username}! Custom team invitation has been queued.`);
-                                                }}
-                                                className="w-full px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[10px] font-black uppercase font-mono tracking-wider transition-all"
+                                <div className="space-y-4">
+                                    {(networkProfiles || [])
+                                        ?.map?.(p => ({
+                                            profile: p,
+                                            match: calculateCompatibility(profile, p)
+                                        }))
+                                        ?.sort?.((a, b) => {
+                                            // Primary sorting combining proximity score and weighted endorsement score
+                                            const scoreA = a.match.score + (a.match.weightedEndorsementScore || 0);
+                                            const scoreB = b.match.score + (b.match.weightedEndorsementScore || 0);
+                                            if (scoreB !== scoreA) {
+                                                return scoreB - scoreA;
+                                            }
+                                            // Tie-breaker: pure weighted endorsement score
+                                            return (b.match.weightedEndorsementScore || 0) - (a.match.weightedEndorsementScore || 0);
+                                        })
+                                        ?.map?.(({ profile: p, match }) => (
+                                            <div 
+                                                key={p.id}
+                                                className="bg-[#0b0b18]/70 border-2 border-zinc-900 rounded-3xl p-6 relative overflow-hidden shadow-lg flex flex-col md:flex-row justify-between gap-6 hover:border-purple-500/20 transition-all"
                                             >
-                                                PITCH SQUAD COLLAB PING
-                                            </button>
+                                                <div className="flex-1 space-y-4">
+                                                    {/* Node Header */}
+                                                    <div className="flex items-center gap-4">
+                                                        <img 
+                                                            src={p.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'} 
+                                                            alt={p.username} 
+                                                            className="w-12 h-12 rounded-full border border-rose-500/35 object-cover"
+                                                            referrerPolicy="no-referrer"
+                                                        />
+                                                        <div>
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <h4 className="font-mono text-sm font-black text-white hover:text-rose-455">@{p.username}</h4>
+                                                                <span className="text-[9px] font-mono bg-rose-500/10 text-rose-400 px-2 py-0.5 rounded uppercase font-black">{p.experienceLevel || 'Node Expert'}</span>
+                                                                {(() => {
+                                                                    const totalEndorsements = Object.values(p.skillEndorsements || {}).reduce((acc: number, curr: any) => acc + (curr?.length || 0), 0) as number;
+                                                                    return totalEndorsements > 0 ? (
+                                                                        <span className="text-[9px] font-mono bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded flex items-center gap-1 font-bold animate-pulse">
+                                                                            ★ {totalEndorsements} Endorsement{totalEndorsements > 1 ? 's' : ''}
+                                                                        </span>
+                                                                    ) : null;
+                                                                })()}
+                                                            </div>
+                                                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-mono">Compatibility Diagnostic Complete</p>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Compatibility reasons details */}
+                                                    <div className="space-y-2 bg-black/40 p-4 border border-zinc-900 rounded-2xl">
+                                                        <h5 className="text-[9px] font-mono text-zinc-500 tracking-wider font-extrabold flex items-center gap-1.5">
+                                                            <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-ping" />
+                                                            Compatibility Log Reasonings
+                                                        </h5>
+                                                        <div className="space-y-1.5">
+                                                            {(match?.reasons || [])?.map?.((r, i) => (
+                                                                <p key={i} className="text-xs text-gray-300 font-mono flex items-start gap-1.5 leading-normal">
+                                                                    <span className="text-zinc-650 font-bold">&gt;&gt;</span>
+                                                                    {r}
+                                                                </p>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Offers Seeks grid */}
+                                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                        <div className="p-3 bg-rose-950/10 border border-rose-500/10 rounded-xl">
+                                                            <div className="text-[8px] font-mono text-rose-400 uppercase font-black mb-1.5">// They offer you</div>
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {(match?.seeks || [])?.map?.(s => (
+                                                                    <span key={s} className="px-2 py-0.5 bg-rose-500/10 text-[9px] font-mono text-rose-400 rounded-md">{s}</span>
+                                                                ))}
+                                                                {match.seeks.length === 0 && (
+                                                                    <span className="text-[9px] text-zinc-600 italic">None specifically sought.</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="p-3 bg-purple-950/10 border border-purple-500/10 rounded-xl">
+                                                            <div className="text-[8px] font-mono text-purple-400 uppercase font-black mb-1.5">// You offer them</div>
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {(match?.offers || [])?.map?.(s => (
+                                                                    <span key={s} className="px-2 py-0.5 bg-purple-500/10 text-[9px] font-mono text-purple-400 rounded-md">{s}</span>
+                                                                ))}
+                                                                {match.offers.length === 0 && (
+                                                                    <span className="text-[9px] text-zinc-600 italic">None specifically offered.</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="p-3 bg-zinc-950 border border-zinc-900 rounded-xl">
+                                                            <div className="text-[8px] font-mono text-zinc-500 uppercase font-black mb-1.5">// Shared interests</div>
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {(match?.shared || [])?.map?.(s => (
+                                                                    <span key={s} className="px-2 py-0.5 bg-zinc-900 text-[9px] font-mono text-zinc-300 rounded-md">{s}</span>
+                                                                ))}
+                                                                {match.shared.length === 0 && (
+                                                                    <span className="text-[9px] text-zinc-600 italic">No common stacks.</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Telemetry Score Display Row & Action button */}
+                                                <div className="flex flex-col justify-center items-center p-6 bg-black/35 border border-zinc-800 rounded-3xl min-w-[200px] text-center gap-3">
+                                                    <div className="relative flex items-center justify-center">
+                                                        {/* Percentage ring */}
+                                                        <svg className="w-20 h-20 transform -rotate-90">
+                                                            <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-zinc-900" />
+                                                            <circle cx="40" cy="40" r="34" stroke="currentColor" strokeWidth="6" fill="transparent" strokeDasharray="213" strokeDashoffset={213 - (213 * match.score) / 100} className="text-rose-500 transition-all duration-500" />
+                                                        </svg>
+                                                        <span className="absolute text-sm font-mono font-black text-rose-450">{match.score}%</span>
+                                                    </div>
+                                                    <div className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-black">COLLABORATION PROXIMITY</div>
+
+                                                    {match.weightedEndorsementScore > 0 && (
+                                                        <div className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[9px] font-mono font-bold rounded-xl flex items-center gap-1.5 animate-pulse">
+                                                            <span>★ ENDORSEMENT INDEX:</span>
+                                                            <span className="font-extrabold text-[10px]">{match.weightedEndorsementScore}</span>
+                                                        </div>
+                                                    )}
+
+                                                    <button
+                                                        onClick={() => {
+                                                            alert(`Collaboration request node pinged to @${p.username}! Custom team invitation has been queued.`);
+                                                        }}
+                                                        className="w-full px-3 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-[10px] font-black uppercase font-mono tracking-wider transition-all"
+                                                    >
+                                                        PITCH SQUAD COLLAB PING
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    {networkProfiles.length === 0 && (
+                                        <div className="p-8 text-center bg-zinc-950/40 rounded-3xl border border-zinc-900 text-zinc-500 font-mono text-xs uppercase">
+                                            No collaborative profiles registered in standard directory.
                                         </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Suggested Projects Column */}
+                            <div className="lg:col-span-5 space-y-6">
+                                <h3 className="text-xl font-black text-white uppercase italic tracking-tight flex items-center gap-2">
+                                    <CodeIcon className="w-5 h-5 text-rose-400" />
+                                    Suggested Matches: Projects
+                                </h3>
+
+                                <div className="space-y-4">
+                                    {(() => {
+                                        const recommended = ((projects || [])
+                                            ?.map?.(proj => {
+                                                const matchInfo = getProjectMatchScore(proj);
+                                                return { project: proj, match: matchInfo };
+                                            }) || [])
+                                            ?.filter?.(item => item.match.score > 0)
+                                            ?.sort?.((a, b) => b.match.score - a.match.score) || [];
+
+                                        if (recommended.length === 0) {
+                                            return (
+                                                <div className="p-8 bg-[#0b0b18]/60 border-2 border-zinc-900 rounded-3xl text-center space-y-3">
+                                                    <CodeIcon className="w-8 h-8 text-zinc-700 mx-auto animate-pulse" />
+                                                    <p className="text-zinc-500 text-xs font-mono uppercase font-black">No Skill-Aligned Projects</p>
+                                                    <p className="text-[10px] text-zinc-650 leading-relaxed font-sans">
+                                                        Add more skill proficiencies to your offered list to automatically unlock compatible open source and internal workspace projects.
+                                                    </p>
+                                                </div>
+                                            );
+                                        }
+
+                                        return (recommended || [])?.map?.(({ project: proj, match }) => (
+                                            <div 
+                                                key={proj.id} 
+                                                className="bg-[#0b0b18]/70 border-2 border-zinc-900 rounded-2xl p-5 hover:border-rose-500/30 transition-all flex justify-between gap-4 items-center relative overflow-hidden"
+                                            >
+                                                <div className="space-y-2 flex-1">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="px-2 py-0.5 bg-rose-500/10 text-rose-300 border border-rose-500/20 text-[8px] font-mono rounded font-black uppercase">
+                                                            Project Match
+                                                        </span>
+                                                        <span className="text-[8px] font-mono bg-zinc-900 text-zinc-400 px-1.5 py-0.5 rounded border border-zinc-850 font-black uppercase">
+                                                            {proj.status}
+                                                        </span>
+                                                    </div>
+                                                    <h4 className="text-xs font-black text-white font-sans uppercase tracking-tight">
+                                                        {proj.title}
+                                                    </h4>
+                                                    <p className="text-[10px] text-gray-400 line-clamp-2 leading-relaxed">
+                                                        {proj.description}
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-1.5 pt-1">
+                                                        {(proj.tags || [])?.map?.(tag => {
+                                                            const isMatched = match.matchedTags.some(mt => mt.toLowerCase() === tag.toLowerCase());
+                                                            return (
+                                                                <span 
+                                                                    key={tag} 
+                                                                    className={`px-1.5 py-0.5 text-[8px] font-mono rounded ${
+                                                                        isMatched 
+                                                                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40 font-black' 
+                                                                            : 'bg-zinc-900 text-zinc-600'
+                                                                    }`}
+                                                                >
+                                                                    {tag}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                <div className="text-center flex-shrink-0 bg-black/45 border border-zinc-800/80 p-3 rounded-xl min-w-[70px]">
+                                                    <span className="text-[8px] text-zinc-500 font-mono block font-bold">Match</span>
+                                                    <span className="text-xs font-mono font-black text-rose-400">{match.score}%</span>
+                                                </div>
+                                            </div>
+                                        ));
+                                    })()}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    /* FORECAST VIEW (PREDICTIVE TIMELINE) */
+                    <div className="space-y-8 animate-in fade-in duration-500 relative z-10 max-w-7xl mx-auto pb-12">
+                        {/* 1. Header Hero Banner */}
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-[#0c0c1e] p-8 border-4 border-cyan-900/40 rounded-[2.5rem] shadow-[0_0_30px_rgba(6,182,212,0.1)] relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-[radial-gradient(circle_at_100%_0%,_rgba(6,182,212,0.15)_0%,_transparent_70%)] pointer-events-none" />
+                            <div className="flex items-center gap-5">
+                                <div className="w-16 h-16 bg-cyan-650/10 border-4 border-cyan-500 rounded-3xl flex items-center justify-center shadow-[0_0_25px_rgba(6,182,212,0.4)] animate-pulse">
+                                    <ActivityIcon className="w-9 h-9 text-cyan-400" />
+                                </div>
+                                <div>
+                                    <h4 className="font-mono text-cyan-400 text-[10px] uppercase tracking-[0.3em] font-black">// CHRONOS FORECAST ENGINE</h4>
+                                    <h3 className="font-comic-header text-4xl text-white uppercase italic tracking-tight">Predictive Project Timeline</h3>
+                                    <p className="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed font-sans">
+                                        Simulate milestones using historical velocity paired with multi-nodal Conjunction metrics. Allocate active squad specialists and raw Shards to compress delivery times.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-4 bg-black/40 p-4 rounded-2xl border border-zinc-800">
+                                <div className="text-center px-4 border-r border-zinc-800">
+                                    <span className="text-[8px] text-zinc-500 font-mono uppercase block font-bold">HISTORICAL VELOCITY</span>
+                                    <span className="text-lg font-mono font-black text-cyan-400">{velocityMetrics.avgDays.toFixed(2)}d</span>
+                                    <span className="text-[8px] text-zinc-600 block italic font-mono">/ milestone</span>
+                                </div>
+                                <div className="text-center px-4 border-r border-zinc-800">
+                                    <span className="text-[8px] text-zinc-500 font-mono uppercase block font-bold">DRIFT CLASSIFICATION</span>
+                                    <span className="text-xs font-mono font-black text-amber-500 block mt-1">{velocityMetrics.velocityLabel}</span>
+                                </div>
+                                <div className="text-center px-4">
+                                    <span className="text-[8px] text-zinc-500 font-mono uppercase block font-bold">ACCELERATOR SPEED</span>
+                                    <span className="text-lg font-mono font-black text-emerald-450">{baseSpeedMultiplier.toFixed(2)}x</span>
+                                    <span className="text-[8px] text-zinc-600 block font-mono">conjunction factor</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 2. Global Resources & Automated Optimizers Panel */}
+                        <div className="bg-[#0b0b18]/90 border-2 border-zinc-800 rounded-3xl p-6 shadow-xl space-y-6 relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-1.5 h-full bg-cyan-500" />
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                                <div>
+                                    <h4 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest font-black">// CHRONOS RESOURCE COUPLING</h4>
+                                    <h3 className="text-xl font-black text-white uppercase font-sans">Matrix Optimizations & Budgets</h3>
+                                    <p className="text-[10px] text-zinc-400 mt-1 font-sans">
+                                        Distribute your {progress?.shards || 0} active Conjunction Shards or select an automated load balancing model to align timeline velocities.
+                                    </p>
+                                </div>
+                                
+                                <div className="flex flex-wrap gap-3">
+                                    <button
+                                        onClick={() => handleOptimize('MIN_TIME')}
+                                        className="px-4 py-2 bg-cyan-950/45 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-900/30 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-[0_3px_0_0_#0891b2] font-mono"
+                                    >
+                                        Optimize (Min-Time Greedy)
+                                    </button>
+                                    <button
+                                        onClick={() => handleOptimize('BALANCED')}
+                                        className="px-4 py-2 bg-zinc-900 border border-zinc-750 text-zinc-300 hover:text-white hover:border-zinc-550 font-black text-[10px] uppercase tracking-widest rounded-xl transition-all font-mono"
+                                    >
+                                        Balanced Distribution
+                                    </button>
+                                    <button
+                                        onClick={handleCommitProjection}
+                                        className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:opacity-90 transition-all shadow-md font-mono"
+                                    >
+                                        Record Forecast Milestone
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t border-zinc-900">
+                                <div className="bg-black/40 p-4 rounded-2xl border border-zinc-900">
+                                    <span className="text-[8px] text-zinc-500 font-mono uppercase block font-bold">CONJUNCTION LEVEL</span>
+                                    <div className="flex items-baseline gap-2 mt-1">
+                                        <span className="text-2xl font-black text-white font-mono">{progress?.level || 1}</span>
+                                        <span className="text-[9px] text-purple-400 font-mono">[{((progress?.level || 1) * 12)}% Base speed]</span>
                                     </div>
-                                ))}
+                                </div>
+                                <div className="bg-black/40 p-4 rounded-2xl border border-zinc-900">
+                                    <span className="text-[8px] text-zinc-500 font-mono uppercase block font-bold">GLOBAL ADRENALINE FLOW</span>
+                                    <div className="flex items-baseline gap-2 mt-1">
+                                        <span className="text-2xl font-black text-rose-500 font-mono">{progress?.globalAdrenaline || 50}%</span>
+                                        <span className="text-[9px] text-rose-400 font-mono">[{(((progress?.globalAdrenaline || 50) - 50) / 1.5).toFixed(1)}% Stride boost]</span>
+                                    </div>
+                                </div>
+                                <div className="bg-black/40 p-4 rounded-2xl border border-zinc-900">
+                                    <span className="text-[8px] text-zinc-500 font-mono uppercase block font-bold">TOTAL SHARDS AVAILABLE</span>
+                                    <div className="flex items-baseline gap-2 mt-1">
+                                        <span className="text-2xl font-black text-cyan-400 font-mono">{progress?.shards || 0}</span>
+                                        <span className="text-xs text-zinc-500 font-mono">remaining</span>
+                                    </div>
+                                </div>
+                                <div className="bg-black/40 p-4 rounded-2xl border border-zinc-900">
+                                    <span className="text-[8px] text-zinc-500 font-mono uppercase block font-bold">ALLOCATED SHARDS</span>
+                                    <div className="flex items-baseline gap-2 mt-1">
+                                        <span className="text-2xl font-black text-yellow-500 font-mono">
+                                            {Object.values(projectShards).reduce((sum, v) => sum + v, 0)}
+                                        </span>
+                                        <span className="text-xs text-zinc-500 font-mono font-bold">
+                                            / {progress?.shards || 0}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 3. Main Forecast Lanes */}
+                        <div className="space-y-6">
+                            <h3 className="font-comic-header text-2xl text-white uppercase italic tracking-tight">// ACTIVE SIMULATOR LANES</h3>
+                            
+                            {(safeProjects || [])?.map?.(project => {
+                                const forecast = calculateProjectForecast(project);
+                                const totalTasksCount = project.tasks?.length || 0;
+                                const remainingTasksCount = forecast.remainingTasks.length;
+                                const completedTasksCount = totalTasksCount - remainingTasksCount;
+                                const baseDurationDays = remainingTasksCount * (velocityMetrics.avgDays * 1.5);
+                                const daysSaved = Math.max(0, baseDurationDays - forecast.duration);
+                                
+                                const boost = projectBoosts[project.id] || 0;
+                                const shardsAlloc = projectShards[project.id] || 0;
+
+                                return (
+                                    <div key={project.id} className="bg-[#090915] border-2 border-zinc-900 rounded-3xl p-6 hover:border-cyan-900/30 transition-all relative overflow-hidden group">
+                                        <div className="absolute top-0 right-0 w-32 h-32 bg-[radial-gradient(circle_at_100%_0%,_rgba(6,182,212,0.03)_0%,_transparent_70%)] pointer-events-none" />
+                                        
+                                        {/* Lane Header */}
+                                        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 pb-4 border-b border-zinc-900">
+                                            <div>
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <span className="text-[8px] font-mono text-zinc-500 uppercase font-black">CHRONOS_NODE: {project.id}</span>
+                                                    <span className="text-zinc-750 text-xs font-black">|</span>
+                                                    <span className="text-[8px] font-mono text-cyan-400 font-bold uppercase tracking-wider">
+                                                        {(FINTECH_AUTHORITIES || [])?.find?.(a => a && a.id === project.authorityId)?.name || 'LOCAL AUTHORITY'}
+                                                    </span>
+                                                </div>
+                                                <h3 className="font-comic-header text-2xl text-white uppercase italic">{project.title}</h3>
+                                                <p className="text-[10px] text-zinc-500 italic mt-0.5 max-w-xl font-sans">{project.description}</p>
+                                            </div>
+
+                                            <div className="flex flex-wrap gap-3">
+                                                <div className="bg-zinc-950 px-3.5 py-1.5 rounded-xl border border-zinc-900 text-center font-mono">
+                                                    <span className="text-[7px] text-zinc-550 uppercase block font-bold">TASKS</span>
+                                                    <span className="text-xs font-black text-white">{completedTasksCount}/{totalTasksCount}</span>
+                                                </div>
+                                                <div className="bg-zinc-950 px-3.5 py-1.5 rounded-xl border border-zinc-900 text-center font-mono">
+                                                    <span className="text-[7px] text-zinc-550 uppercase block font-bold">BASE DELIVERY</span>
+                                                    <span className="text-xs font-black text-zinc-400">{baseDurationDays.toFixed(1)}d</span>
+                                                </div>
+                                                <div className="bg-cyan-950/30 px-3.5 py-1.5 rounded-xl border border-cyan-950 text-center font-mono">
+                                                    <span className="text-[7px] text-cyan-400 uppercase block font-bold">COMPRESSED</span>
+                                                    <span className="text-xs font-black text-cyan-400">{forecast.duration.toFixed(1)}d</span>
+                                                </div>
+                                                {daysSaved > 0 && (
+                                                    <div className="bg-emerald-950/20 px-3.5 py-1.5 rounded-xl border border-emerald-900/30 text-center font-mono">
+                                                        <span className="text-[7px] text-emerald-450 uppercase block font-bold">DAYS SAVED</span>
+                                                        <span className="text-xs font-black text-emerald-450">-{daysSaved.toFixed(1)}d</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Visual Timeline SVGs / Horizontal Tracks */}
+                                        <div className="my-8 relative">
+                                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,_rgba(6,182,212,0.01)_0%,_transparent_100%)] pointer-events-none" />
+                                            
+                                            {/* Baseline track line */}
+                                            <div className="h-2 bg-zinc-950 rounded-full border border-zinc-900 w-full relative overflow-hidden">
+                                                <div 
+                                                    className="h-full bg-gradient-to-r from-cyan-600 to-cyan-400 rounded-full transition-all duration-500" 
+                                                    style={{ width: `${totalTasksCount > 0 ? (completedTasksCount / totalTasksCount) * 100 : 0}%` }}
+                                                />
+                                            </div>
+
+                                            {/* Milestone node points */}
+                                            <div className="relative mt-6 flex justify-between items-center text-[9px] font-mono">
+                                                <div className="text-left flex flex-col">
+                                                    <span className="text-zinc-650 block text-[7px] uppercase tracking-wider font-bold">T-0: PRESENT</span>
+                                                    <span className="text-zinc-450 font-bold">{new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-cyan-500 border border-black shadow-[0_0_10px_rgba(6,182,212,0.6)] absolute -top-[21px] left-0 transform -translate-x-1/2" />
+                                                </div>
+
+                                                {/* Checkpoint Nodes mapped along the remaining track */}
+                                                {(forecast?.remainingTasks || [])?.map?.((task, idx) => {
+                                                    const percent = ((idx + 1) / remainingTasksCount) * 100;
+                                                    const taskDuration = (forecast.duration / remainingTasksCount) * (idx + 1);
+                                                    const taskDate = new Date();
+                                                    taskDate.setTime(Date.now() + taskDuration * 24 * 60 * 60 * 1000);
+                                                    const formattedDate = taskDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+                                                    return (
+                                                        <div 
+                                                            key={task.id} 
+                                                            className="absolute text-center flex flex-col items-center group/node"
+                                                            style={{ left: `${15 + (percent * 0.7)}%` }}
+                                                        >
+                                                            <div className="w-3 h-3 rounded-full bg-zinc-955 border-2 border-cyan-500 group-hover/node:bg-cyan-550 group-hover/node:shadow-[0_0_15px_rgba(6,182,212,0.8)] transition-all absolute -top-[21px] transform -translate-x-1/2 cursor-pointer" />
+                                                            <span className="text-zinc-550 group-hover/node:text-cyan-400 transition-colors uppercase block font-bold truncate max-w-[80px] text-[7px] mb-0.5">{task.text}</span>
+                                                            <span className="text-zinc-350 block font-bold text-[8px]">{formattedDate}</span>
+                                                            
+                                                            {/* Custom High Fidelity Tooltip */}
+                                                            <div className="absolute bottom-8 scale-0 group-hover/node:scale-100 transition-all bg-zinc-950 border border-zinc-800 p-2.5 rounded-lg text-left shadow-2xl z-30 min-w-[150px] pointer-events-none">
+                                                                <div className="text-[7px] text-cyan-400 font-bold font-mono tracking-widest uppercase mb-1">// CHECKPOINT NODE</div>
+                                                                <div className="text-xs text-white font-sans font-bold leading-tight mb-1 truncate">{task.text}</div>
+                                                                <div className="text-[8px] text-zinc-500 font-mono">Projected Delivery: {taskDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+
+                                                {remainingTasksCount === 0 && (
+                                                    <div className="w-full text-center text-zinc-650 italic text-[10px] py-1.5 bg-zinc-950/20 border border-zinc-900 rounded-xl font-sans">
+                                                        Node fully compiled and integrated. Conjunction loop closed.
+                                                    </div>
+                                                )}
+
+                                                <div className="text-right flex flex-col">
+                                                    <span className="text-cyan-500 block font-bold uppercase tracking-wider text-[7px]">PROJECTED COMPLETION</span>
+                                                    <span className="text-cyan-450 font-black text-[11px]">{remainingTasksCount > 0 ? forecast.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'COMPLETE'}</span>
+                                                    {remainingTasksCount > 0 && (
+                                                        <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 border border-black shadow-[0_0_12px_rgba(16,185,129,0.8)] absolute -top-[23px] right-0 transform translate-x-1/2" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Resource Allocation Slider & Controls */}
+                                        {remainingTasksCount > 0 && (
+                                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pt-5 border-t border-zinc-900/60 bg-black/10 p-5 rounded-2xl border border-zinc-900/30">
+                                                {/* Local Adrenaline surge */}
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between items-center text-[10px] font-mono">
+                                                        <span className="text-zinc-400 font-bold uppercase flex items-center gap-1">
+                                                            <GaugeIcon className="w-3.5 h-3.5 text-rose-500" />
+                                                            Adrenaline Surge Rate
+                                                        </span>
+                                                        <span className="text-rose-450 font-black">{boost}%</span>
+                                                    </div>
+                                                    <input 
+                                                        type="range"
+                                                        min={0}
+                                                        max={100}
+                                                        value={boost}
+                                                        onChange={e => setProjectBoosts(prev => ({ ...prev, [project.id]: Number(e.target.value) }))}
+                                                        className="w-full accent-rose-500 bg-zinc-900 h-1.5 rounded-lg cursor-pointer"
+                                                    />
+                                                    <div className="text-[8px] text-zinc-550 font-mono italic">
+                                                        Increases local lane throughput by up to 70%.
+                                                    </div>
+                                                </div>
+
+                                                {/* Shard Compression allocation */}
+                                                <div className="space-y-2">
+                                                    <div className="flex justify-between items-center text-[10px] font-mono">
+                                                        <span className="text-zinc-400 font-bold uppercase flex items-center gap-1">
+                                                            <ZapIcon className="w-3.5 h-3.5 text-cyan-400" />
+                                                            Conjunction Shard Compression
+                                                        </span>
+                                                        <span className="text-cyan-450 font-black">{shardsAlloc} Shards</span>
+                                                    </div>
+                                                    <input 
+                                                        type="range"
+                                                        min={0}
+                                                        max={Math.max(1000, progress?.shards || 0)}
+                                                        value={shardsAlloc}
+                                                        onChange={e => handleShardChange(project.id, Number(e.target.value))}
+                                                        className="w-full accent-cyan-500 bg-zinc-900 h-1.5 rounded-lg cursor-pointer"
+                                                    />
+                                                    <div className="text-[8px] text-zinc-550 font-mono italic flex justify-between">
+                                                        <span>Compresses delivery times by up to 120%.</span>
+                                                        <span className="text-zinc-400 font-bold">Max: {progress?.shards || 0} left</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Specialist staffing select */}
+                                                <div className="space-y-2 font-mono">
+                                                    <span className="text-[10px] text-zinc-400 font-bold uppercase flex items-center gap-1">
+                                                        <UserIcon className="w-3.5 h-3.5 text-purple-500" />
+                                                        Assign Squad Specialist
+                                                    </span>
+                                                    <div className="flex flex-wrap gap-1.5 min-h-[36px] items-center">
+                                                        {(agents || [])?.map?.(agent => {
+                                                            const isAssigned = agentAssignments[agent.id] === project.id;
+                                                            return (
+                                                                <button
+                                                                    key={agent.id}
+                                                                    onClick={() => {
+                                                                        setAgentAssignments(prev => {
+                                                                            if (prev[agent.id] === project.id) {
+                                                                                const next = { ...prev };
+                                                                                delete next[agent.id];
+                                                                                return next;
+                                                                            } else {
+                                                                                return { ...prev, [agent.id]: project.id };
+                                                                            }
+                                                                        });
+                                                                    }}
+                                                                    className={`px-2 py-1 text-[9px] font-bold uppercase tracking-wider rounded-lg border transition-all ${
+                                                                        isAssigned 
+                                                                            ? 'bg-purple-950/40 border-purple-500 text-purple-300 shadow-[0_0_10px_rgba(168,85,247,0.15)]' 
+                                                                            : 'bg-zinc-950 border-zinc-800 text-zinc-650 hover:text-zinc-300'
+                                                                    }`}
+                                                                >
+                                                                    @{agent.name.split(' ')[0]}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                        {agents.length === 0 && (
+                                                            <span className="text-[8px] text-zinc-700 italic">No squad members available. Go to "My Squad" to manifest agents.</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-[8px] text-zinc-550 italic">
+                                                        Each assigned squad specialist increases development velocity by 35%.
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 )}

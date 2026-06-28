@@ -18,6 +18,10 @@ interface ModuleStat {
     functionsCount: number;
     imports: string[];
     category: 'Component Module' | 'System Core';
+    useStateCount?: number;
+    useEffectCount?: number;
+    allImports?: string[];
+    maintainabilityIndex?: number;
 }
 
 const INITIAL_R_JAVA = `/* AUTO-GENERATED FILE. DO NOT MODIFY.
@@ -103,6 +107,100 @@ public final class R {
   }
 }`;
 
+const generateVirtualSplitFiles = (module: ModuleStat, content: string) => {
+    const lines = content.split('\n');
+    const baseName = module.name.replace(/\.[a-zA-Z]+$/, '');
+
+    // Types Split
+    const interfaces = lines.filter(l => l.trim().startsWith('interface') || l.trim().startsWith('type') || l.trim().startsWith('export interface') || l.trim().startsWith('export type'));
+    const typesCode = `// FILE: ${baseName}Types.ts
+// Extracted Types & Config parameters representing physical state boundaries
+
+import React from 'react';
+
+${interfaces.length > 0 ? interfaces.join('\n') : `export interface ${baseName}Props {
+    className?: string;
+    isActive?: boolean;
+    onReset?: () => void;
+}
+
+export type HealthStatus = 'EXCELLENT' | 'STABLE' | 'HEAVY_REFACTOR';`}
+
+export interface MetricCardConfig {
+    label: string;
+    metric: string | number;
+    subtext: string;
+    variant: 'optimal' | 'moderate' | 'warning';
+}
+`;
+
+    // Logic Split
+    const stateHookLines = lines.filter(l => l.includes('useState') || l.includes('useEffect') || l.includes('useRef'));
+    const logicCode = `// FILE: use${baseName}Workspace.ts
+// Custom Hook encapsulating memory state and event callback handlers
+
+import { useState, useEffect, useRef } from 'react';
+
+export const use${baseName}Workspace = () => {
+    // Encapsulated hook metrics:
+    const [stateActive, setStateActive] = useState<boolean>(true);
+    const [auditLog, setAuditLog] = useState<string>('Initialization completed.');
+    
+    ${stateHookLines.length > 0 ? stateHookLines.slice(0, 10).map(l => l.trim()).join('\n    ') : `const [progress, setProgress] = useState(0);`}
+
+    const triggerBurst = () => {
+        setAuditLog('Willpower trigger pulsed successfully.');
+        setProgress(100);
+    };
+
+    return {
+        stateActive,
+        setStateActive,
+        auditLog,
+        triggerBurst
+    };
+};
+`;
+
+    // View Split
+    const viewCode = `// FILE: ${baseName}Layout.tsx
+// Visual design components utilizing modularized state hooks and types
+
+import React from 'react';
+import { motion } from 'motion/react';
+import { ${baseName}Props } from './${baseName}Types';
+import { use${baseName}Workspace } from './use${baseName}Workspace';
+
+export const ${baseName}Layout: React.FC<${baseName}Props> = ({ className, isActive }) => {
+    const { stateActive, auditLog, triggerBurst } = use${baseName}Workspace();
+
+    return (
+        <div className={\`p-6 bg-black border border-zinc-900 rounded-xl \${className}\`}>
+            <div className="flex justify-between items-center pb-4">
+                <h3 className="text-xs font-black tracking-widest text-rose-500 uppercase">
+                    \${isActive ? 'ACTIVE' : 'STANDBY'} \${className || ''} PANEL
+                </h3>
+                <span className="text-[8px] text-zinc-500">STATUS: ACTIVE</span>
+            </div>
+            
+            <div className="p-3 bg-zinc-950 border border-zinc-900 rounded-lg text-[10px]">
+                {auditLog}
+            </div>
+
+            <button 
+                onClick={triggerBurst}
+                className="w-full mt-4 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-lg transition-all"
+            >
+                IGNITE ACTION PORT
+            </button>
+        </div>
+    );
+};
+`;
+
+    return { typesCode, logicCode, viewCode };
+};
+
 export const CascadeInspectorView: React.FC = () => {
     const [modules, setModules] = useState<ModuleStat[]>([]);
     const [loading, setLoading] = useState(true);
@@ -119,6 +217,8 @@ export const CascadeInspectorView: React.FC = () => {
 
     // Tab view selection
     const [activeTab, setActiveTab] = useState<'MODULES' | 'AAPT_MAPPER'>('MODULES');
+    const [detailsTab, setDetailsTab] = useState<'audit' | 'dependencies' | 'refactor' | 'source'>('audit');
+    const [simulatedSplitPart, setSimulatedSplitPart] = useState<'types' | 'logic' | 'view'>('types');
 
     // Android/AAPT states
     const [rJavaInput, setRJavaInput] = useState(INITIAL_R_JAVA);
@@ -767,82 +867,373 @@ export const CascadeInspectorView: React.FC = () => {
                                     </button>
                                 </div>
 
-                                {/* Metrics & Refactoring Gauge warnings */}
-                                <div className="p-4 bg-black/60 grid grid-cols-1 md:grid-cols-3 gap-3 border-b border-zinc-900">
-                                    <div className="bg-zinc-950/50 border border-zinc-900 rounded-xl p-3 flex flex-col justify-between">
-                                        <span className="text-[8px] text-zinc-500 uppercase font-black">Memory density</span>
-                                        <div className="text-sm font-black text-white mt-1">{(selectedModule.chars / selectedModule.lines).toFixed(1)} <span className="text-[9px] text-zinc-650 font-normal">chars/ln</span></div>
-                                        <span className="text-[7.5px] text-zinc-600 font-bold mt-1 uppercase">Syntax density ratio</span>
-                                    </div>
-
-                                    <div className="bg-zinc-950/50 border border-zinc-900 rounded-xl p-3 flex flex-col justify-between">
-                                        <span className="text-[8px] text-zinc-500 uppercase font-black">Composition complexity</span>
-                                        <div className="text-sm font-black text-rose-400 mt-1">
-                                            {selectedModule.importsCount} <span className="text-[9px] text-zinc-650">imports</span>
-                                        </div>
-                                        <span className="text-[7.5px] text-zinc-600 font-bold mt-1 uppercase">Import dependencies</span>
-                                    </div>
-
-                                    <div className="bg-zinc-950/50 border border-zinc-900 rounded-xl p-3 flex flex-col justify-between">
-                                        <span className="text-[8px] text-zinc-500 uppercase font-black">React Hook density</span>
-                                        <div className="text-sm font-black text-cyan-400 mt-1">
-                                            {selectedModule.hooksCount} <span className="text-[9px] text-zinc-600 font-normal font-bold">registered</span>
-                                        </div>
-                                        <span className="text-[7.5px] text-zinc-650 font-bold mt-1 uppercase">Core hooks used</span>
-                                    </div>
+                                {/* Detail Tab Selector */}
+                                <div className="flex border-b border-zinc-900 bg-[#040406] px-4 pt-2 gap-1 overflow-x-auto scrollbar-none">
+                                    <button 
+                                        id="details-tab-audit"
+                                        onClick={() => { setDetailsTab('audit'); playTapSound(500, 'sine', 0.05); }}
+                                        className={`pb-2 px-3 text-[9px] border-b-2 font-black uppercase transition-all tracking-wider cursor-pointer flex-shrink-0 ${detailsTab === 'audit' ? 'border-rose-500 text-rose-400 font-bold' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                                    >
+                                        [ HEALTH AUDIT ]
+                                    </button>
+                                    <button 
+                                        id="details-tab-dependencies"
+                                        onClick={() => { setDetailsTab('dependencies'); playTapSound(550, 'sine', 0.05); }}
+                                        className={`pb-2 px-3 text-[9px] border-b-2 font-black uppercase transition-all tracking-wider cursor-pointer flex-shrink-0 ${detailsTab === 'dependencies' ? 'border-rose-500 text-rose-400' : 'border-transparent text-zinc-500 hover:text-zinc-300 font-bold'}`}
+                                    >
+                                        [ DEPENDENCY TOPOLOGY ]
+                                    </button>
+                                    <button 
+                                        id="details-tab-refactor"
+                                        onClick={() => { setDetailsTab('refactor'); playTapSound(600, 'sine', 0.05); }}
+                                        className={`pb-2 px-3 text-[9px] border-b-2 font-black uppercase transition-all tracking-wider cursor-pointer flex-shrink-0 ${detailsTab === 'refactor' ? 'border-rose-500 text-rose-400 font-bold' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                                    >
+                                        [ DECOMPOSITION SANDBOX ]
+                                    </button>
+                                    <button 
+                                        id="details-tab-source"
+                                        onClick={() => { setDetailsTab('source'); playTapSound(650, 'sine', 0.05); }}
+                                        className={`pb-2 px-3 text-[9px] border-b-2 font-black uppercase transition-all tracking-wider cursor-pointer flex-shrink-0 ${detailsTab === 'source' ? 'border-rose-500 text-rose-400 font-bold' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                                    >
+                                        [ SOURCE DETECTOR ]
+                                    </button>
                                 </div>
 
-                                {/* Refactoring logic advice */}
-                                {selectedModule.lines > 600 && (
-                                    <div className="p-3 mx-4 mt-4 bg-amber-955/15 border border-amber-500/20 text-yellow-500 rounded-xl flex items-start gap-2.5">
-                                        <WarningIcon className="w-4 h-4 mt-0.5 flex-shrink-0 animate-pulse text-amber-400" />
-                                        <div className="text-[9px]">
-                                            <div className="font-bold uppercase text-[9.5px] text-amber-400">ARCHITECTURAL DEFACTOR WARNING</div>
-                                            <div className="text-zinc-400 mt-0.5 leading-relaxed">
-                                                This module contains over <span className="text-amber-400 font-black">{selectedModule.lines} lines of code</span>. We advise decomposing large UI/system blocks into sub-components in the <span className="text-zinc-200">components/</span> directory to prevent token buffer saturation and facilitate faster browser DOM cascading.
+                                <div className="p-4 bg-black/60">
+                                    {detailsTab === 'audit' && (
+                                        <div className="space-y-4 animate-fade-in">
+                                            {/* Health & Maintainability Index Banner */}
+                                            <div className="bg-[#040406] border border-zinc-900 rounded-xl p-4 flex items-center justify-between">
+                                                {(() => {
+                                                    const score = selectedModule.maintainabilityIndex || Math.max(15, Math.min(100, Math.round(100 - (selectedModule.lines / 10))));
+                                                    const scoreColor = score >= 80 ? 'text-emerald-400' : score >= 50 ? 'text-amber-500' : 'text-rose-500';
+                                                    const strokeDashoffset = 113 - (113 * score) / 100;
+                                                    
+                                                    return (
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="relative w-12 h-12 flex-shrink-0">
+                                                                <svg className="w-full h-full transform -rotate-90">
+                                                                    <circle cx="24" cy="24" r="18" stroke="#121214" strokeWidth="3.5" fill="transparent" />
+                                                                    <motion.circle 
+                                                                        cx="24" cy="24" r="18" 
+                                                                        stroke={score >= 80 ? '#34d399' : score >= 50 ? '#f59e0b' : '#ef4444'} 
+                                                                        strokeWidth="3.5" 
+                                                                        fill="transparent" 
+                                                                        strokeDasharray="113"
+                                                                        initial={{ strokeDashoffset: 113 }}
+                                                                        animate={{ strokeDashoffset }}
+                                                                        transition={{ duration: 1, ease: "easeOut" }}
+                                                                    />
+                                                                </svg>
+                                                                <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black">
+                                                                    {score}%
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-[10px] font-black uppercase text-zinc-300 block">Maintainability score</span>
+                                                                <span className={`text-[8px] font-black uppercase ${scoreColor}`}>
+                                                                    {score >= 80 ? 'HEALTHY MODULAR MODULE' : score >= 50 ? 'MEDIUM SPLIT WARNING' : 'HEAVY DESTRUCTURING ADVISED'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                                
+                                                <div className="text-right text-[8px] text-zinc-500">
+                                                    DENSITY RATIO: <span className="text-zinc-350">{(selectedModule.chars / selectedModule.lines).toFixed(1)} chars/ln</span>
+                                                </div>
                                             </div>
+
+                                            {/* Bento Grid Metrics */}
+                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                                <div className="bg-zinc-950/50 border border-zinc-900 rounded-xl p-3 flex flex-col justify-between">
+                                                    <span className="text-[8px] text-zinc-500 uppercase font-black">Memory density</span>
+                                                    <div className="text-sm font-black text-white mt-1">{(selectedModule.chars / selectedModule.lines).toFixed(1)} <span className="text-[9px] text-zinc-650 font-normal">chars/ln</span></div>
+                                                    <span className="text-[7.5px] text-zinc-600 font-bold mt-1 uppercase">Syntax density ratio</span>
+                                                </div>
+
+                                                <div className="bg-zinc-950/50 border border-zinc-900 rounded-xl p-3 flex flex-col justify-between">
+                                                    <span className="text-[8px] text-zinc-500 uppercase font-black">Composition complexity</span>
+                                                    <div className="text-sm font-black text-rose-400 mt-1">
+                                                        {selectedModule.importsCount} <span className="text-[9px] text-zinc-650">imports</span>
+                                                    </div>
+                                                    <span className="text-[7.5px] text-zinc-600 font-bold mt-1 uppercase">Import dependencies</span>
+                                                </div>
+
+                                                <div className="bg-zinc-950/50 border border-zinc-900 rounded-xl p-3 flex flex-col justify-between">
+                                                    <span className="text-[8px] text-zinc-500 uppercase font-black">React Hook density</span>
+                                                    <div className="text-sm font-black text-cyan-400 mt-1">
+                                                        {selectedModule.hooksCount} <span className="text-[9px] text-zinc-600 font-normal font-bold">registered</span>
+                                                    </div>
+                                                    <span className="text-[7.5px] text-zinc-650 font-bold mt-1 uppercase">Core hooks used</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Breakdowns of React Hooks usage */}
+                                            <div className="bg-[#030305] border border-zinc-900 rounded-xl p-3 grid grid-cols-2 gap-4 text-[9px]">
+                                                <div>
+                                                    <span className="text-zinc-550 block font-bold uppercase mb-1">State Hooks used</span>
+                                                    <span className="text-zinc-300 font-bold">{selectedModule.useStateCount ?? 0} x useState() variables detected</span>
+                                                </div>
+                                                <div>
+                                                    <span className="text-zinc-550 block font-bold uppercase mb-1">Side effects triggered</span>
+                                                    <span className="text-zinc-300 font-bold">{selectedModule.useEffectCount ?? 0} x useEffect() declarations</span>
+                                                </div>
+                                            </div>
+
+                                            {/* Refactoring logic advice */}
+                                            {selectedModule.lines > 600 ? (
+                                                <div className="p-3 bg-amber-950/15 border border-amber-500/20 text-yellow-500 rounded-xl flex items-start gap-2.5">
+                                                    <WarningIcon className="w-4 h-4 mt-0.5 flex-shrink-0 animate-pulse text-amber-400" />
+                                                    <div className="text-[9px]">
+                                                        <div className="font-bold uppercase text-[9.5px] text-amber-400">ARCHITECTURAL DEFACTOR WARNING</div>
+                                                        <div className="text-zinc-400 mt-0.5 leading-relaxed">
+                                                            This module contains over <span className="text-amber-400 font-black">{selectedModule.lines} lines of code</span>. We advise decomposing large UI/system blocks into sub-components in the <span className="text-zinc-200">components/</span> directory to prevent token buffer saturation and facilitate faster browser DOM cascading. Use the <strong className="text-zinc-200">Decomposition Sandbox</strong> tab to preview a virtual split.
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="p-3 bg-emerald-950/10 border border-emerald-500/20 text-emerald-400 rounded-xl flex items-start gap-2.5">
+                                                    <CheckCircleIcon className="w-4 h-4 mt-0.5 flex-shrink-0 text-emerald-400" />
+                                                    <div className="text-[9px]">
+                                                        <div className="font-bold uppercase text-[9.5px]">OPTIMAL BLOCK ALLOCATION</div>
+                                                        <div className="text-zinc-400 mt-0.5 leading-relaxed">
+                                                            This file sits comfortably within safe compiler limits (<span className="text-emerald-400 font-bold">{selectedModule.lines} lines</span>). No immediate modular splits are required for physical maintainability.
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
-                                    </div>
-                                )}
+                                    )}
 
-                                {/* Live Source Code View */}
-                                <div className="p-4 flex flex-col space-y-2">
-                                    <div className="flex justify-between items-center text-[9px] text-zinc-550 border-b border-zinc-900 pb-2">
-                                        <span className="font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
-                                            <TerminalIcon className="w-3.5 h-3.5 text-rose-500" />
-                                            LIVE COMPILER CODE DETECTOR
-                                        </span>
-                                        <span>
-                                            {loadingContent ? 'LOADING BYTES...' : `${selectedModule.chars} CHARACTERS LOADED`}
-                                        </span>
-                                    </div>
+                                    {detailsTab === 'dependencies' && (
+                                        <div className="space-y-4 animate-fade-in">
+                                            {/* Dependency Topology Graph */}
+                                            <div className="relative h-64 bg-[#020204] border border-zinc-900 rounded-xl p-4 overflow-hidden flex flex-col justify-between">
+                                                <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:15px_15px] pointer-events-none" />
+                                                
+                                                {(() => {
+                                                    const rawDeps = selectedModule.allImports || [];
+                                                    const uniqueDeps = Array.from(new Set(rawDeps.length > 0 ? rawDeps : ['react', 'motion/react', './icons', 'recharts']));
+                                                    
+                                                    return (
+                                                        <div className="relative w-full h-full flex items-center justify-center">
+                                                            {/* SVG connecting vectors */}
+                                                            <svg className="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                                                                {uniqueDeps.map((dep, idx) => {
+                                                                    const angle = (idx * 2 * Math.PI) / uniqueDeps.length;
+                                                                    const radius = 75;
+                                                                    // center is roughly 165, 105 in current layout spacing
+                                                                    const cx = 165 + Math.cos(angle) * radius;
+                                                                    const cy = 105 + Math.sin(angle) * radius;
+                                                                    
+                                                                    return (
+                                                                        <motion.line
+                                                                            key={idx}
+                                                                            x1="165"
+                                                                            y1="105"
+                                                                            x2={cx}
+                                                                            y2={cy}
+                                                                            stroke="rgba(244, 63, 94, 0.25)"
+                                                                            strokeWidth="1.5"
+                                                                            strokeDasharray="4,4"
+                                                                            initial={{ pathLength: 0 }}
+                                                                            animate={{ pathLength: 1 }}
+                                                                            transition={{ duration: 0.6, delay: idx * 0.08 }}
+                                                                        />
+                                                                    );
+                                                                })}
+                                                            </svg>
 
-                                    <div className="bg-[#020204] border border-zinc-900 rounded-xl p-3 max-h-[350px] overflow-auto custom-scrollbar font-mono text-[10px] leading-relaxed relative">
-                                        {loadingContent ? (
-                                            <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
-                                                <SpinnerIcon className="w-6 h-6 text-rose-500 animate-spin mb-2" />
-                                                <span>Siphoning source blocks from host...</span>
+                                                            {/* Center node */}
+                                                            <motion.div 
+                                                                animate={{ scale: [1, 1.05, 1] }}
+                                                                transition={{ repeat: Infinity, duration: 4 }}
+                                                                className="absolute z-10 w-20 h-20 rounded-full border-2 border-rose-500 bg-rose-950/40 flex flex-col items-center justify-center text-center shadow-[0_0_15px_rgba(239,68,68,0.2)] p-1 cursor-default"
+                                                                style={{ left: '125px', top: '65px' }}
+                                                            >
+                                                                <span className="text-[8px] font-black text-rose-400 truncate w-full">{selectedModule.name}</span>
+                                                                <span className="text-[6.5px] text-zinc-500 uppercase mt-0.5">CORE MODULE</span>
+                                                            </motion.div>
+
+                                                            {/* Orbiting dependency nodes */}
+                                                            {uniqueDeps.map((dep, idx) => {
+                                                                const angle = (idx * 2 * Math.PI) / uniqueDeps.length;
+                                                                const radius = 75;
+                                                                // Calculate coordinates radiating from the center (165, 105)
+                                                                const x = 165 + Math.cos(angle) * radius - 45; // center offset minus half width of node
+                                                                const y = 105 + Math.sin(angle) * radius - 14; // center offset minus half height of node
+                                                                const isThirdParty = !dep.startsWith('.') && !dep.startsWith('/');
+
+                                                                return (
+                                                                    <motion.button
+                                                                        key={dep}
+                                                                        id={`dep-node-${idx}`}
+                                                                        initial={{ opacity: 0, scale: 0 }}
+                                                                        animate={{ opacity: 1, scale: 1 }}
+                                                                        transition={{ type: 'spring', stiffness: 120, delay: idx * 0.06 }}
+                                                                        onClick={() => playTapSound(300 + idx * 80, 'triangle', 0.06)}
+                                                                        className={`absolute z-20 px-2 py-1 rounded-lg border text-[7.5px] font-bold truncate w-[90px] shadow-lg transition-all cursor-pointer ${
+                                                                            isThirdParty 
+                                                                                ? 'bg-cyan-950/30 border-cyan-500 text-cyan-400 hover:bg-cyan-950/60' 
+                                                                                : 'bg-emerald-950/30 border-emerald-500 text-emerald-400 hover:bg-emerald-950/60'
+                                                                        }`}
+                                                                        style={{ left: `${x}px`, top: `${y}px` }}
+                                                                        title={dep}
+                                                                    >
+                                                                        {dep.split('/').pop()}
+                                                                    </motion.button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                })()}
+
+                                                <div className="relative z-10 flex justify-between items-center text-[8px] text-zinc-550 border-t border-zinc-900 pt-2">
+                                                    <span className="flex items-center gap-2">
+                                                        <span className="inline-block w-2 h-2 rounded-sm bg-cyan-500" /> Third-party package
+                                                        <span className="inline-block w-2 h-2 rounded-sm bg-emerald-500 ml-1" /> Internal helper
+                                                    </span>
+                                                    <span>DIAGRAM SCHEMATIC SECURE</span>
+                                                </div>
                                             </div>
-                                        ) : (
-                                            <pre className="text-zinc-300 selection:bg-rose-500/40 tab-size">
-                                                <code>
-                                                    {moduleContent.split('\n').map((line, idx) => (
-                                                        <div key={idx} className="hover:bg-zinc-900/30 px-1 py-0.5 flex">
-                                                            <span className="w-10 text-zinc-650 text-right select-none pr-3 flex-shrink-0">{idx + 1}</span>
-                                                            <span className={line.trim().startsWith('import') ? 'text-rose-400' : line.trim().startsWith('export') ? 'text-amber-400' : 'text-zinc-300'}>
-                                                                {line || ' '}
-                                                            </span>
+
+                                            {/* Dynamic Imports Detail Listing */}
+                                            <div className="bg-[#040406] border border-zinc-900 rounded-xl p-3 space-y-2">
+                                                <span className="text-[8px] text-zinc-550 uppercase font-black block border-b border-zinc-950 pb-1.5">// IMPORT BLOCK METADATA</span>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-24 overflow-y-auto custom-scrollbar pr-1">
+                                                    {selectedModule.imports.map((imp, idx) => (
+                                                        <div key={idx} className="bg-black/45 border border-zinc-900/60 rounded px-2 py-1 flex items-center justify-between text-[8px]">
+                                                            <span className="text-zinc-300 truncate w-4/5">{imp}</span>
+                                                            <span className="text-rose-500 text-[7px] font-mono">OK</span>
                                                         </div>
                                                     ))}
-                                                </code>
-                                            </pre>
-                                        )}
-                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
-                                    <div className="flex justify-between items-center text-[8.5px] text-zinc-600 uppercase pt-2">
-                                        <span>// STRETCH RATIO: OK</span>
-                                        <span>ENCODING: UTF-8 SECURE //</span>
-                                    </div>
+                                    {detailsTab === 'refactor' && (
+                                        <div className="space-y-4 animate-fade-in">
+                                            {/* Virtual Decomposition Sandbox Container */}
+                                            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+                                                {/* Left column: Metrics preview */}
+                                                <div className="md:col-span-4 bg-[#040406] border border-zinc-900 rounded-xl p-3.5 space-y-3">
+                                                    <span className="text-[8.5px] text-zinc-550 font-black uppercase tracking-widest block border-b border-zinc-950 pb-1">// SPLIT METRICS</span>
+                                                    
+                                                    <div className="space-y-2.5">
+                                                        <div className="flex justify-between items-center text-[9px]">
+                                                            <span className="text-zinc-500 font-semibold">ORIGINAL LEVEL:</span>
+                                                            <span className="text-rose-400 font-bold tabular-nums">
+                                                                {selectedModule.maintainabilityIndex || Math.max(15, Math.min(100, Math.round(100 - (selectedModule.lines / 10))))}%
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center text-[9px]">
+                                                            <span className="text-emerald-400 font-bold">OPTIMAL SPLIT LEVEL:</span>
+                                                            <span className="text-emerald-400 font-black tabular-nums">96%</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center text-[9px]">
+                                                            <span className="text-zinc-500 font-semibold">MAIN FILE SAVINGS:</span>
+                                                            <span className="text-amber-500 font-bold tabular-nums">~65% reduction</span>
+                                                        </div>
+                                                        <div className="flex justify-between items-center text-[9px]">
+                                                            <span className="text-zinc-500 font-semibold">SEGMENTS:</span>
+                                                            <span className="text-cyan-400 font-bold">3 Modular files</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="pt-2 border-t border-zinc-950">
+                                                        <span className="text-[7px] text-zinc-650 leading-relaxed uppercase block">
+                                                            // DECONSTRUCTING MULTI-LAYER COMPOSITION INTO BALANCED SEGMENTS STABILIZES BROWSER RUNTIMES
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Right column: Sandbox file switcher & mock code */}
+                                                <div className="md:col-span-8 flex flex-col space-y-2">
+                                                    <div className="flex border border-zinc-900 rounded-lg overflow-hidden text-[8px] bg-black">
+                                                        <button 
+                                                            onClick={() => { setSimulatedSplitPart('types'); playTapSound(400, 'sine', 0.05); }}
+                                                            className={`flex-1 py-1.5 font-bold uppercase ${simulatedSplitPart === 'types' ? 'bg-rose-950/40 text-rose-400' : 'text-zinc-500'}`}
+                                                        >
+                                                            Types file
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => { setSimulatedSplitPart('logic'); playTapSound(480, 'sine', 0.05); }}
+                                                            className={`flex-1 py-1.5 font-bold uppercase ${simulatedSplitPart === 'logic' ? 'bg-rose-950/40 text-rose-400' : 'text-zinc-500'}`}
+                                                        >
+                                                            Logic Hook
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => { setSimulatedSplitPart('view'); playTapSound(560, 'sine', 0.05); }}
+                                                            className={`flex-1 py-1.5 font-bold uppercase ${simulatedSplitPart === 'view' ? 'bg-rose-950/40 text-rose-400' : 'text-zinc-500'}`}
+                                                        >
+                                                            View Component
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Code sandbox block */}
+                                                    {(() => {
+                                                        const splits = generateVirtualSplitFiles(selectedModule, moduleContent);
+                                                        const currentCode = simulatedSplitPart === 'types' ? splits.typesCode : simulatedSplitPart === 'logic' ? splits.logicCode : splits.viewCode;
+                                                        
+                                                        return (
+                                                            <div className="bg-[#020204] border border-zinc-900 rounded-xl p-3 max-h-48 overflow-auto custom-scrollbar font-mono text-[9px] relative leading-normal">
+                                                                <pre className="text-zinc-300">
+                                                                    <code>{currentCode}</code>
+                                                                </pre>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            </div>
+
+                                            <div className="text-[8px] text-zinc-650 italic text-center">
+                                                Note: Decompositions are run inside memory simulations and will not mutate real host files.
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {detailsTab === 'source' && (
+                                        <div className="space-y-2 animate-fade-in">
+                                            <div className="flex justify-between items-center text-[9px] text-zinc-550 border-b border-zinc-900 pb-2">
+                                                <span className="font-black uppercase tracking-widest text-zinc-400 flex items-center gap-1.5">
+                                                    <TerminalIcon className="w-3.5 h-3.5 text-rose-500" />
+                                                    LIVE COMPILER CODE DETECTOR
+                                                </span>
+                                                <span>
+                                                    {loadingContent ? 'LOADING BYTES...' : `${selectedModule.chars} CHARACTERS LOADED`}
+                                                </span>
+                                            </div>
+
+                                            <div className="bg-[#020204] border border-zinc-900 rounded-xl p-3 max-h-[350px] overflow-auto custom-scrollbar font-mono text-[10px] leading-relaxed relative">
+                                                {loadingContent ? (
+                                                    <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+                                                        <SpinnerIcon className="w-6 h-6 text-rose-500 animate-spin mb-2" />
+                                                        <span>Siphoning source blocks from host...</span>
+                                                    </div>
+                                                ) : (
+                                                    <pre className="text-zinc-300 selection:bg-rose-500/40 tab-size">
+                                                        <code>
+                                                            {moduleContent.split('\n').map((line, idx) => (
+                                                                <div key={idx} className="hover:bg-zinc-900/30 px-1 py-0.5 flex">
+                                                                    <span className="w-10 text-zinc-650 text-right select-none pr-3 flex-shrink-0">{idx + 1}</span>
+                                                                    <span className={line.trim().startsWith('import') ? 'text-rose-400' : line.trim().startsWith('export') ? 'text-amber-400' : 'text-zinc-300'}>
+                                                                        {line || ' '}
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                        </code>
+                                                    </pre>
+                                                )}
+                                            </div>
+
+                                            <div className="flex justify-between items-center text-[8.5px] text-zinc-600 uppercase pt-2">
+                                                <span>// STRETCH RATIO: OK</span>
+                                                <span>ENCODING: UTF-8 SECURE //</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ) : (

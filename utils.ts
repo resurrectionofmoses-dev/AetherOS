@@ -250,3 +250,127 @@ export async function callWithRetry<T>(
     }
   }
 }
+
+export interface TaskSpeedStats {
+  averageSpeedMs: number; // average duration in ms
+  averageSpeedHours: number; // average duration in hours
+  completedCount: number;
+}
+
+export function calculateHistoricalSpeed(projects: { tasks?: any[] }[]): TaskSpeedStats {
+  let totalDuration = 0;
+  let count = 0;
+
+  const projectsArray = Array.isArray(projects) ? projects : [];
+
+  projectsArray.forEach(p => {
+    if (p && p.tasks && Array.isArray(p.tasks)) {
+      p.tasks.forEach(t => {
+        if (t && t.completed) {
+          if (t.completedAt && t.createdAt) {
+            const diff = t.completedAt - t.createdAt;
+            if (diff > 0) {
+              totalDuration += diff;
+              count++;
+            }
+          } else if (t.createdAt) {
+            // Seed a realistic completed duration if completedAt is missing (e.g. 1.5 hours)
+            const simulatedDiff = 1.5 * 3600 * 1000;
+            totalDuration += simulatedDiff;
+            count++;
+          }
+        }
+      });
+    }
+  });
+
+  // Default average speed: 4 hours if no completed tasks exist
+  const defaultSpeed = 4 * 3600 * 1000;
+  const averageSpeedMs = count > 0 ? (totalDuration / count) : defaultSpeed;
+
+  return {
+    averageSpeedMs,
+    averageSpeedHours: Number((averageSpeedMs / (3600 * 1000)).toFixed(1)),
+    completedCount: count
+  };
+}
+
+export interface TaskStatusEstimation {
+  estimatedCompletionTime: number; // timestamp
+  timeRemainingMs: number;
+  timeRemainingText: string;
+  isBehindSchedule: boolean;
+  statusLabel: string; // "ON TRACK", "FALLING BEHIND", "OVERDUE", etc.
+}
+
+export function estimateTaskCompletion(
+  task: { createdAt: number; completed: boolean; dueDate?: string; priority?: string },
+  averageSpeedMs: number
+): TaskStatusEstimation {
+  const safeTask = task || { createdAt: Date.now(), completed: false, priority: 'MEDIUM' };
+  // Priority multiplier: Critical tasks are expected to be finished faster, low priority tasks slower.
+  let priorityMultiplier = 1.0;
+  if (safeTask.priority === 'CRITICAL') priorityMultiplier = 0.35;
+  else if (safeTask.priority === 'HIGH') priorityMultiplier = 0.65;
+  else if (safeTask.priority === 'MEDIUM') priorityMultiplier = 1.0;
+  else if (safeTask.priority === 'LOW') priorityMultiplier = 1.5;
+
+  const expectedDuration = averageSpeedMs * priorityMultiplier;
+  const createdAtVal = safeTask.createdAt || Date.now();
+  const estimatedCompletionTime = createdAtVal + expectedDuration;
+  const timeRemainingMs = estimatedCompletionTime - Date.now();
+
+  const elapsedMs = Date.now() - createdAtVal;
+
+  let isBehindSchedule = false;
+  let statusLabel = 'ON TRACK';
+
+  // Check if past its expected duration based on historical speed
+  if (elapsedMs > expectedDuration) {
+    isBehindSchedule = true;
+    statusLabel = 'FALLING BEHIND';
+  }
+
+  // Check against formal dueDate if present
+  if (safeTask.dueDate) {
+    const dueTimestamp = new Date(safeTask.dueDate).getTime();
+    if (!isNaN(dueTimestamp)) {
+      if (Date.now() > dueTimestamp) {
+        isBehindSchedule = true;
+        statusLabel = 'OVERDUE';
+      } else if (estimatedCompletionTime > dueTimestamp) {
+        isBehindSchedule = true;
+        statusLabel = 'RISKY';
+      }
+    }
+  }
+
+  // Format remaining time nicely
+  let timeRemainingText = '';
+  if (timeRemainingMs < 0) {
+    const overdueMs = Math.abs(timeRemainingMs);
+    const hours = Math.floor(overdueMs / (3600 * 1000));
+    const mins = Math.floor((overdueMs % (3600 * 1000)) / (60 * 1000));
+    if (hours > 0) {
+      timeRemainingText = `Overdue by ${hours}h ${mins}m`;
+    } else {
+      timeRemainingText = `Overdue by ${mins}m`;
+    }
+  } else {
+    const hours = Math.floor(timeRemainingMs / (3600 * 1000));
+    const mins = Math.floor((timeRemainingMs % (3600 * 1000)) / (60 * 1000));
+    if (hours > 0) {
+      timeRemainingText = `${hours}h ${mins}m remaining`;
+    } else {
+      timeRemainingText = `${mins}m remaining`;
+    }
+  }
+
+  return {
+    estimatedCompletionTime,
+    timeRemainingMs,
+    timeRemainingText,
+    isBehindSchedule,
+    statusLabel
+  };
+}

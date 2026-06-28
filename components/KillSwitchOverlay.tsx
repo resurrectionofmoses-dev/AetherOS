@@ -7,9 +7,10 @@ interface KillSwitchOverlayProps {
   onTrigger: () => void;
   onReset: () => void;
   hasAlarm: boolean;
+  onClearAllErrors?: () => void;
 }
 
-export const KillSwitchOverlay: React.FC<KillSwitchOverlayProps> = ({ isHalted, onTrigger, onReset, hasAlarm }) => {
+export const KillSwitchOverlay: React.FC<KillSwitchOverlayProps> = ({ isHalted, onTrigger, onReset, hasAlarm, onClearAllErrors }) => {
   if (!hasAlarm && !isHalted) return null;
 
   return (
@@ -65,6 +66,15 @@ export const KillSwitchOverlay: React.FC<KillSwitchOverlayProps> = ({ isHalted, 
               <div className="p-2 bg-red-950/30 rounded-lg border border-red-900/40 text-[9px] text-red-400">
                 <span className="font-black">WARNING:</span> Manual physical inspection required before re-arm.
               </div>
+              {onClearAllErrors && (
+                <button
+                  onClick={onClearAllErrors}
+                  className="w-full bg-red-600 hover:bg-red-500 text-white border border-red-400/30 px-3 py-2 rounded-xl font-mono text-[9px] font-black tracking-widest uppercase transition-all duration-300 hover:scale-[1.02] active:scale-95 pointer-events-auto cursor-pointer flex items-center justify-center gap-1.5 shadow-[0_0_15px_rgba(239,68,68,0.4)]"
+                  title="Force bypass all active safety parameters and restore kinetic conduction"
+                >
+                  <span>⚡ FORCE RE-ARM OVERRIDE</span>
+                </button>
+              )}
             </div>
           </div>
         )}
