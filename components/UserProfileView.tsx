@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { UserProfile, NetworkProject, PortfolioLink, ProfileProject, WorkExperience, Education } from '../types';
+import { UserProfile, NetworkProject, PortfolioLink, ProfileProject, WorkExperience, Education, ProfileProjectTestimonial } from '../types';
+import { PortfolioProjectCard } from './PortfolioProjectCard';
 import { UserIcon, EditIcon, CheckIcon, CodeIcon, XIcon, PlusIcon, ShieldIcon } from './icons';
 import { 
     KeyIcon, 
@@ -24,7 +25,9 @@ import {
     Award,
     GraduationCap,
     Plus,
-    ThumbsUp
+    ThumbsUp,
+    Send,
+    RefreshCw
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { safeStorage } from '../services/safeStorage';
@@ -58,10 +61,19 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
     const [skillEndorsements, setSkillEndorsements] = useState<Record<string, string[]>>({});
     
     const [newSkill, setNewSkill] = useState('');
+    const [newCatSkill, setNewCatSkill] = useState<Record<string, string>>({});
+    const [newCategoryName, setNewCategoryName] = useState('');
     const [newLookingForSkill, setNewLookingForSkill] = useState('');
+    const [newWillingToTeachSkill, setNewWillingToTeachSkill] = useState('');
     const [newInterest, setNewInterest] = useState('');
     const [newLookingFor, setNewLookingFor] = useState('');
     const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+    
+    // Request Endorsements peer flow states
+    const [requestingSkill, setRequestingSkill] = useState<string | null>(null);
+    const [selectedPeerForRequest, setSelectedPeerForRequest] = useState<string>('CyberWeaver_X');
+    const [isBroadcastingRequest, setIsBroadcastingRequest] = useState(false);
+    const [broadcastStep, setBroadcastStep] = useState(0);
     const [isKeysLoading, setIsKeysLoading] = useState(true);
     const [passphrase, setPassphrase] = useState('');
     const [isPassphraseSet, setIsPassphraseSet] = useState(false);
@@ -167,7 +179,24 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
             sovereigntyTier: profile.sovereigntyTier || 3,
             areasOfInterest: profile.areasOfInterest || ['Compiler Engineering', 'DeFi Protocols', 'AI Alignment'],
             lookingFor: profile.lookingFor || ['Collaborators', 'Mentorship', 'Open Source Projects'],
-            lookingForSkills: profile.lookingForSkills || ['React', 'TypeScript', 'Rust']
+            lookingForSkills: profile.lookingForSkills || ['React', 'TypeScript', 'Rust'],
+            willingToTeachSkills: profile.willingToTeachSkills || ['Compiler Engineering', 'React', 'TypeScript'],
+            contactInfo: profile.contactInfo || {
+                email: 'resurrectionofmoses@gmail.com',
+                discord: 'aetheros_prime#1337',
+                telegram: '@aetheros_dev',
+                twitter: '@aetheros_prime',
+                phone: '+1 (555) 019-2831',
+                github: 'https://github.com/aetheros-prime',
+                website: 'https://aetheros.network'
+            },
+            categorizedSkills: profile.categorizedSkills || [
+                { category: 'Frontend', skills: ['React', 'TypeScript', 'Tailwind CSS', 'Framer Motion'] },
+                { category: 'Backend', skills: ['Node.js', 'Express', 'GraphQL', 'WebSockets'] },
+                { category: 'DevOps & Cloud', skills: ['Docker', 'Kubernetes', 'Google Cloud Platform', 'CI/CD'] },
+                { category: 'Smart Contracts', skills: ['Solidity', 'Rust', 'Web3.js', 'Hardhat'] },
+                { category: 'Data & AI', skills: ['Python', 'PyTorch', 'SQL', 'Gemini SDK'] }
+            ]
         };
         setEditForm(enrichedProfile);
         
@@ -311,17 +340,124 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
     // Skill controller
     const handleAddSkill = () => {
         if (newSkill.trim() && !editForm.skills.includes(newSkill.trim())) {
-            setEditForm(prev => ({ ...prev, skills: [...prev.skills, newSkill.trim()] }));
+            const trimmed = newSkill.trim();
+            setEditForm(prev => {
+                const currentCategorized = prev.categorizedSkills || [];
+                // Add to "Other" category if categorizedSkills exists
+                const updatedCategorized = currentCategorized.map(cat => {
+                    if (cat.category === 'Other') {
+                        return { ...cat, skills: [...cat.skills, trimmed] };
+                    }
+                    return cat;
+                });
+                
+                if (currentCategorized.length > 0 && !currentCategorized.some(cat => cat.category === 'Other')) {
+                    updatedCategorized.push({ category: 'Other', skills: [trimmed] });
+                }
+
+                return {
+                    ...prev,
+                    skills: [...prev.skills, trimmed],
+                    categorizedSkills: updatedCategorized.length > 0 ? updatedCategorized : prev.categorizedSkills
+                };
+            });
             setNewSkill('');
         }
     };
 
     const handleRemoveSkill = (skillToRemove: string) => {
-        setEditForm(prev => ({ ...prev, skills: prev.skills.filter(s => s !== skillToRemove) }));
+        setEditForm(prev => {
+            const updatedCategorized = (prev.categorizedSkills || []).map(cat => ({
+                ...cat,
+                skills: cat.skills.filter(s => s !== skillToRemove)
+            }));
+            return {
+                ...prev,
+                skills: prev.skills.filter(s => s !== skillToRemove),
+                categorizedSkills: updatedCategorized
+            };
+        });
         // Clean from endorsements too
         const nextEndorsements = { ...skillEndorsements };
         delete nextEndorsements[skillToRemove];
         setSkillEndorsements(nextEndorsements);
+    };
+
+    // Categorized Skill Controllers
+    const handleAddCategorizedSkill = (categoryName: string, skillName: string) => {
+        const trimmed = skillName.trim();
+        if (!trimmed) return;
+        
+        setEditForm(prev => {
+            const currentCategorized = prev.categorizedSkills || [];
+            let found = false;
+            const updatedCategorized = currentCategorized.map(cat => {
+                if (cat.category === categoryName) {
+                    found = true;
+                    if (!cat.skills.includes(trimmed)) {
+                        return { ...cat, skills: [...cat.skills, trimmed] };
+                    }
+                }
+                return cat;
+            });
+            
+            if (!found) {
+                updatedCategorized.push({ category: categoryName, skills: [trimmed] });
+            }
+            
+            const updatedFlatSkills = prev.skills.includes(trimmed) ? prev.skills : [...prev.skills, trimmed];
+            return {
+                ...prev,
+                skills: updatedFlatSkills,
+                categorizedSkills: updatedCategorized
+            };
+        });
+    };
+
+    const handleRemoveCategorizedSkill = (categoryName: string, skillToRemove: string) => {
+        setEditForm(prev => {
+            const currentCategorized = prev.categorizedSkills || [];
+            const updatedCategorized = currentCategorized.map(cat => {
+                if (cat.category === categoryName) {
+                    return { ...cat, skills: cat.skills.filter(s => s !== skillToRemove) };
+                }
+                return cat;
+            });
+            
+            // Check if skill is completely removed from all categories before removing from flat list
+            const stillExistsInAnyCategory = updatedCategorized.some(cat => cat.skills.includes(skillToRemove));
+            const updatedFlatSkills = stillExistsInAnyCategory ? prev.skills : prev.skills.filter(s => s !== skillToRemove);
+            
+            return {
+                ...prev,
+                skills: updatedFlatSkills,
+                categorizedSkills: updatedCategorized
+            };
+        });
+        
+        // Clean from endorsements too
+        const nextEndorsements = { ...skillEndorsements };
+        const stillExistsInAnyCategory = (editForm.categorizedSkills || []).some(cat => cat.category !== categoryName && cat.skills.includes(skillToRemove));
+        if (!stillExistsInAnyCategory) {
+            delete nextEndorsements[skillToRemove];
+            setSkillEndorsements(nextEndorsements);
+        }
+    };
+
+    const handleAddSkillCategory = (newCategoryName: string) => {
+        const trimmed = newCategoryName.trim();
+        if (!trimmed) return;
+        setEditForm(prev => {
+            const currentCategorized = prev.categorizedSkills || [];
+            if (currentCategorized.some(cat => cat.category.toLowerCase() === trimmed.toLowerCase())) {
+                toast.error("Category already exists.");
+                return prev;
+            }
+            return {
+                ...prev,
+                categorizedSkills: [...currentCategorized, { category: trimmed, skills: [] }]
+            };
+        });
     };
 
     // Endorse Skill logic
@@ -422,6 +558,47 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
         }, 500);
     };
 
+    const handleOpenRequestEndorsement = (skill: string) => {
+        setRequestingSkill(skill);
+        setSelectedPeerForRequest('CyberWeaver_X');
+        setIsBroadcastingRequest(false);
+        setBroadcastStep(0);
+    };
+
+    const handleSubmitEndorsementRequest = () => {
+        if (!requestingSkill) return;
+        setIsBroadcastingRequest(true);
+        setBroadcastStep(1);
+
+        // Step 1: Generating signature
+        setTimeout(() => {
+            setBroadcastStep(2);
+            // Step 2: Routing through AetherOS lattice
+            setTimeout(() => {
+                setBroadcastStep(3);
+                // Step 3: Broadcasting packet
+                setTimeout(() => {
+                    const currentSkill = requestingSkill;
+                    const peer = selectedPeerForRequest;
+                    
+                    setIsBroadcastingRequest(false);
+                    setRequestingSkill(null);
+                    
+                    toast.success(`Endorsement request transmitted for ${currentSkill}!`, {
+                        description: `Your cryptographic request packet was successfully routed to @${peer}.`,
+                        duration: 5000
+                    });
+
+                    // Peer reviews and endorses after 5 seconds!
+                    setTimeout(() => {
+                        handleReceivePeerEndorsement(currentSkill, peer);
+                    }, 5000);
+
+                }, 1000);
+            }, 1000);
+        }, 1000);
+    };
+
     // Endorse and rate portfolio projects
     const handleEndorseProject = (projId: string) => {
         const currentUser = 'Operator-You';
@@ -448,6 +625,23 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                 const currentAvg = p.rating || 5;
                 const newAvg = parseFloat(((currentAvg * currentCount + value) / newCount).toFixed(1));
                 return { ...p, rating: newAvg, ratingsCount: newCount };
+            }
+            return p;
+        });
+        setProfileProjects(nextProjs);
+        onUpdateProfile({ ...editForm, profileProjects: nextProjs });
+    };
+
+    const handleProjectAddTestimonial = (projId: string, testimonial: ProfileProjectTestimonial) => {
+        const nextProjs = (profileProjects || [])?.map?.(p => {
+            if (p && p.id === projId) {
+                const currentTestimonials = p.testimonials || [];
+                const updatedTestimonials = [...currentTestimonials, testimonial];
+                const currentCount = p.ratingsCount || 0;
+                const newCount = currentCount + 1;
+                const currentAvg = p.rating || 5;
+                const newAvg = parseFloat(((currentAvg * currentCount + testimonial.rating) / newCount).toFixed(1));
+                return { ...p, testimonials: updatedTestimonials, rating: newAvg, ratingsCount: newCount };
             }
             return p;
         });
@@ -510,6 +704,19 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
     const handleRemoveLookingForSkill = (skillToRemove: string) => {
         const currentLooking = editForm.lookingForSkills || [];
         setEditForm(prev => ({ ...prev, lookingForSkills: currentLooking.filter(s => s !== skillToRemove) }));
+    };
+
+    const handleAddWillingToTeachSkill = () => {
+        const currentTeach = editForm.willingToTeachSkills || [];
+        if (newWillingToTeachSkill.trim() && !currentTeach.includes(newWillingToTeachSkill.trim())) {
+            setEditForm(prev => ({ ...prev, willingToTeachSkills: [...(prev.willingToTeachSkills || []), newWillingToTeachSkill.trim()] }));
+            setNewWillingToTeachSkill('');
+        }
+    };
+
+    const handleRemoveWillingToTeachSkill = (skillToRemove: string) => {
+        const currentTeach = editForm.willingToTeachSkills || [];
+        setEditForm(prev => ({ ...prev, willingToTeachSkills: currentTeach.filter(s => s !== skillToRemove) }));
     };
 
     const handleAddInterest = () => {
@@ -579,7 +786,11 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
             link: '',
             rating: 5,
             ratingsCount: 1,
-            endorsements: []
+            endorsements: [],
+            technologies: ['React', 'TypeScript'],
+            liveDemoUrl: '',
+            sourceCodeUrl: '',
+            testimonials: []
         };
         setProfileProjects([...(profileProjects || []), newProj]);
     };
@@ -880,7 +1091,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                             )}
                         </motion.div>
 
-                        {/* Technical Skills Stack with Endorsement Ratings */}
+                        {/* Categorized Technical Skills with Endorsement Ratings */}
                         <motion.div 
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -890,7 +1101,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                             <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
                             <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
                                 <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 flex items-center gap-2">
-                                    <CodeIcon className="w-3.5 h-3.5 text-purple-400" /> Core Skills & Endorsements
+                                    <CodeIcon className="w-3.5 h-3.5 text-purple-400" /> Categorized Skills & Endorsements
                                 </h3>
                                 {!isEditing && (
                                     <button
@@ -903,84 +1114,243 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                 )}
                             </div>
                             
-                            <div className="flex flex-col gap-2 mb-4">
-                                <AnimatePresence>
-                                    {((isEditing ? editForm?.skills : editForm?.skills) || [])?.map?.(skill => {
-                                        const endorseCount = (skillEndorsements?.[skill] || []).length;
-                                        const alreadyEndorsed = (skillEndorsements?.[skill] || []).includes('Operator-You');
-                                        return (
-                                            <motion.div 
-                                                key={skill} 
-                                                initial={{ opacity: 0, scale: 0.95 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                exit={{ opacity: 0, scale: 0.95 }}
-                                                className="bg-purple-950/20 border border-purple-500/20 rounded-xl p-2.5 flex items-center justify-between gap-3 text-[10px] uppercase font-black"
-                                            >
-                                                <div className="flex items-center gap-2 min-w-0">
-                                                    <span className="text-purple-400 truncate tracking-wider">{skill}</span>
-                                                    {endorseCount > 0 && (
-                                                        <span className="bg-purple-500 text-zinc-950 text-[8px] font-black px-1.5 py-0.5 rounded flex items-center gap-1 shrink-0">
-                                                            <Award className="w-3 h-3" /> {endorseCount} ENDORSED
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                
-                                                <div className="flex items-center gap-2 shrink-0">
-                                                    {!isEditing && (
-                                                        <button 
-                                                            onClick={() => handleEndorseSkill(skill)}
-                                                            className={`px-2 py-1 rounded text-[8px] font-mono tracking-widest cursor-pointer transition-all uppercase flex items-center gap-1 ${
-                                                                alreadyEndorsed 
-                                                                    ? 'bg-purple-600 text-black font-black font-extrabold' 
-                                                                    : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-purple-500 text-purple-400'
-                                                            }`}
-                                                            title="Endorse this tech parameter"
+                            <div className="space-y-4">
+                                {((isEditing ? editForm?.categorizedSkills : editForm?.categorizedSkills) || [
+                                    { category: 'Frontend', skills: ['React', 'TypeScript', 'Tailwind CSS', 'Framer Motion'] },
+                                    { category: 'Backend', skills: ['Node.js', 'Express', 'GraphQL', 'WebSockets'] },
+                                    { category: 'DevOps & Cloud', skills: ['Docker', 'Kubernetes', 'Google Cloud Platform', 'CI/CD'] },
+                                    { category: 'Smart Contracts', skills: ['Solidity', 'Rust', 'Web3.js', 'Hardhat'] },
+                                    { category: 'Data & AI', skills: ['Python', 'PyTorch', 'SQL', 'Gemini SDK'] }
+                                ]).map(cat => (
+                                    <div key={cat.category} className="space-y-1.5 text-left">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">{cat.category}</span>
+                                        </div>
+                                        <div className="flex flex-col gap-1.5">
+                                            <AnimatePresence>
+                                                {cat.skills.map(skill => {
+                                                    const endorseCount = (skillEndorsements?.[skill] || []).length;
+                                                    const alreadyEndorsed = (skillEndorsements?.[skill] || []).includes('Operator-You');
+                                                    return (
+                                                        <motion.div 
+                                                            key={skill} 
+                                                            initial={{ opacity: 0, scale: 0.95 }}
+                                                            animate={{ opacity: 1, scale: 1 }}
+                                                            exit={{ opacity: 0, scale: 0.95 }}
+                                                            className="bg-purple-950/10 border border-purple-500/10 border-purple-900/40 rounded-lg p-2 flex items-center justify-between gap-3 text-[10px] uppercase font-black"
                                                         >
-                                                            <ThumbsUp className="w-2.5 h-2.5" />
-                                                            {alreadyEndorsed ? 'ENDORSED' : 'ENDORSE'}
-                                                        </button>
-                                                    )}
+                                                            <div className="flex items-center gap-2 min-w-0">
+                                                                <span className="text-purple-300 truncate tracking-wider font-mono text-[9.5px]">{skill}</span>
+                                                                {endorseCount > 0 && (
+                                                                    <span className="bg-purple-500/20 text-purple-300 text-[8px] font-black px-1 py-0.5 rounded flex items-center gap-1 shrink-0">
+                                                                        <Award className="w-2.5 h-2.5 text-purple-400" /> {endorseCount}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            
+                                                            <div className="flex items-center gap-1.5 shrink-0">
+                                                                {!isEditing && (
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        <button 
+                                                                            onClick={() => handleEndorseSkill(skill)}
+                                                                            className={`px-1.5 py-0.5 rounded text-[8px] font-mono tracking-widest cursor-pointer transition-all uppercase flex items-center gap-1 ${
+                                                                                alreadyEndorsed 
+                                                                                    ? 'bg-purple-600 text-black font-black' 
+                                                                                    : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-purple-500 text-purple-400'
+                                                                            }`}
+                                                                            title="Endorse this tech parameter"
+                                                                        >
+                                                                            <ThumbsUp className="w-2.5 h-2.5" />
+                                                                            {alreadyEndorsed ? 'ENDORSED' : 'ENDORSE'}
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleOpenRequestEndorsement(skill)}
+                                                                            className="px-1.5 py-0.5 rounded text-[8px] font-mono tracking-widest cursor-pointer transition-all uppercase flex items-center gap-1 bg-purple-500/10 hover:bg-purple-500/25 border border-purple-500/20 hover:border-purple-500 text-purple-400 hover:text-white"
+                                                                            title="Request peer validation"
+                                                                        >
+                                                                            <Send className="w-2.5 h-2.5" />
+                                                                            Request
+                                                                        </button>
+                                                                    </div>
+                                                                )}
 
-                                                    {isEditing && (
-                                                        <button 
-                                                            id={`btn-remove-skill-${skill}`}
-                                                            onClick={() => handleRemoveSkill(skill)} 
-                                                            className="text-zinc-550 hover:text-red-400 transition-colors cursor-pointer p-1 rounded bg-zinc-900 border border-zinc-800"
-                                                            title="Detach Skill"
-                                                        >
-                                                            <XIcon className="w-3 h-3" />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </motion.div>
-                                        );
-                                    })}
-                                </AnimatePresence>
-                                {((isEditing ? editForm.skills : editForm.skills || []).length === 0) && (
-                                    <span className="text-zinc-650 text-zinc-600 italic text-xs">No core skills listed on profile node.</span>
+                                                                {isEditing && (
+                                                                    <button 
+                                                                        onClick={() => handleRemoveCategorizedSkill(cat.category, skill)} 
+                                                                        className="text-zinc-500 hover:text-red-400 transition-colors cursor-pointer p-0.5 rounded bg-zinc-900 border border-zinc-850"
+                                                                        title="Detach Skill"
+                                                                    >
+                                                                        <XIcon className="w-3 h-3" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        </motion.div>
+                                                    );
+                                                })}
+                                                {cat.skills.length === 0 && (
+                                                    <span className="text-[8px] text-zinc-600 italic pl-1 font-mono">No skills listed in this category.</span>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
+                                        {isEditing && (
+                                            <div className="flex gap-1.5 mt-1.5">
+                                                <input 
+                                                    value={newCatSkill[cat.category] || ''}
+                                                    onChange={e => setNewCatSkill(prev => ({ ...prev, [cat.category]: e.target.value }))}
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter') {
+                                                            handleAddCategorizedSkill(cat.category, newCatSkill[cat.category] || '');
+                                                            setNewCatSkill(prev => ({ ...prev, [cat.category]: '' }));
+                                                        }
+                                                    }}
+                                                    placeholder={`Add to ${cat.category}...`}
+                                                    className="flex-1 bg-zinc-950 border border-zinc-850 rounded px-2 py-1 text-[9px] text-white focus:outline-none focus:border-purple-500 font-mono"
+                                                />
+                                                <button 
+                                                    onClick={() => {
+                                                        handleAddCategorizedSkill(cat.category, newCatSkill[cat.category] || '');
+                                                        setNewCatSkill(prev => ({ ...prev, [cat.category]: '' }));
+                                                    }} 
+                                                    className="bg-zinc-900 hover:bg-purple-600 text-zinc-400 hover:text-white px-1.5 rounded border border-zinc-800 hover:border-purple-500 transition-all cursor-pointer flex items-center justify-center"
+                                                >
+                                                    <Plus className="w-3.5 h-3.5" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+
+                                {isEditing && (
+                                    <div className="border-t border-zinc-900 pt-3 space-y-2">
+                                        <div className="flex gap-1.5">
+                                            <input 
+                                                value={newCategoryName}
+                                                onChange={e => setNewCategoryName(e.target.value)}
+                                                onKeyDown={e => {
+                                                    if (e.key === 'Enter') {
+                                                        handleAddSkillCategory(newCategoryName);
+                                                        setNewCategoryName('');
+                                                    }
+                                                }}
+                                                placeholder="New category (e.g. Mobile, Testing)..."
+                                                className="flex-1 bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-[9px] text-white focus:outline-none focus:border-purple-500 font-mono"
+                                            />
+                                            <button 
+                                                onClick={() => {
+                                                    handleAddSkillCategory(newCategoryName);
+                                                    setNewCategoryName('');
+                                                }} 
+                                                className="bg-zinc-900 hover:bg-purple-600 text-white px-2.5 rounded border border-zinc-800 hover:border-purple-500 transition-all cursor-pointer text-[9px] font-black uppercase tracking-wider"
+                                            >
+                                                Add Cat
+                                            </button>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
+                        </motion.div>
 
-                            {isEditing && (
-                                <div className="flex gap-2 border-t border-zinc-900 pt-3">
-                                    <input 
-                                        id="input-new-skill"
-                                        value={newSkill}
-                                        onChange={e => setNewSkill(e.target.value)}
-                                        onKeyDown={e => e.key === 'Enter' && handleAddSkill()}
-                                        placeholder="Add technology (e.g. React, D3)..."
-                                        className="flex-1 bg-black/60 border border-zinc-800 rounded px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
-                                    />
-                                    <button 
-                                        id="btn-add-skill"
-                                        onClick={handleAddSkill} 
-                                        className="bg-zinc-900 hover:bg-purple-600 text-white hover:text-white px-2 rounded border border-zinc-800 hover:border-purple-500 transition-all cursor-pointer flex items-center justify-center"
-                                        title="Attach Skill Parameter"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                    </button>
+                        {/* Mentoring & Teaching Expertise Block */}
+                        <motion.div 
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: 0.25 }}
+                            className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 shadow-lg relative overflow-hidden text-left"
+                        >
+                            <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
+                            <div className="flex justify-between items-center mb-4 border-b border-zinc-900 pb-2">
+                                <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 flex items-center gap-2">
+                                    <GraduationCap className="w-3.5 h-3.5 text-emerald-400" /> Mentorship & Teaching
+                                </h3>
+                            </div>
+                            
+                            <p className="text-[9px] text-zinc-500 uppercase tracking-wide font-mono mb-4">
+                                Skills this member is willing to teach or mentor others on:
+                            </p>
+
+                            <div className="space-y-4">
+                                {/* Viewing/Active Teach Skills */}
+                                <div className="flex flex-wrap gap-2">
+                                    {((isEditing ? editForm?.willingToTeachSkills : editForm?.willingToTeachSkills) || []).map(skill => (
+                                        <div 
+                                            key={skill}
+                                            className="bg-emerald-950/20 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5"
+                                        >
+                                            <BookOpenIcon className="w-3 h-3 text-emerald-500" />
+                                            <span>{skill}</span>
+                                            {isEditing && (
+                                                <button 
+                                                    onClick={() => handleRemoveWillingToTeachSkill(skill)}
+                                                    className="text-zinc-500 hover:text-red-400 transition-colors ml-1 p-0.5 hover:bg-zinc-900 rounded cursor-pointer"
+                                                >
+                                                    <XIcon className="w-2.5 h-2.5" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                    {((isEditing ? editForm?.willingToTeachSkills : editForm?.willingToTeachSkills) || []).length === 0 && (
+                                        <div className="text-zinc-600 text-[9px] italic font-mono py-1">
+                                            Not currently registered as a mentor/teacher for any parameters.
+                                        </div>
+                                    )}
                                 </div>
-                            )}
+
+                                {/* Editing interface */}
+                                {isEditing && (
+                                    <div className="border-t border-zinc-900 pt-3.5 space-y-3">
+                                        <label className="text-[8.5px] uppercase tracking-wider text-zinc-500 font-bold block">
+                                            Add teaching skill / mentoring topic
+                                        </label>
+                                        <div className="flex gap-1.5">
+                                            <input 
+                                                value={newWillingToTeachSkill}
+                                                onChange={e => setNewWillingToTeachSkill(e.target.value)}
+                                                onKeyDown={e => {
+                                                    if (e.key === 'Enter') {
+                                                        handleAddWillingToTeachSkill();
+                                                    }
+                                                }}
+                                                placeholder="e.g. System Architecture, Rust..."
+                                                className="flex-1 bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-[9px] text-white focus:outline-none focus:border-emerald-500 font-mono"
+                                            />
+                                            <button 
+                                                onClick={handleAddWillingToTeachSkill} 
+                                                className="bg-zinc-900 hover:bg-emerald-600 text-white px-2.5 rounded border border-zinc-800 hover:border-emerald-500 transition-all cursor-pointer text-[9px] font-black uppercase tracking-wider"
+                                            >
+                                                Add Topic
+                                            </button>
+                                        </div>
+
+                                        {/* Quick suggest from flat skills */}
+                                        {(editForm.skills || []).filter(s => !(editForm.willingToTeachSkills || []).includes(s)).length > 0 && (
+                                            <div className="space-y-1.5">
+                                                <span className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold block">
+                                                    Quick Promote from Profile Skills:
+                                                </span>
+                                                <div className="flex flex-wrap gap-1.5">
+                                                    {(editForm.skills || [])
+                                                        ?.filter(s => !(editForm.willingToTeachSkills || []).includes(s))
+                                                        ?.slice(0, 6)
+                                                        ?.map(s => (
+                                                            <button
+                                                                key={s}
+                                                                onClick={() => {
+                                                                    setEditForm(prev => ({
+                                                                        ...prev,
+                                                                        willingToTeachSkills: [...(prev.willingToTeachSkills || []), s]
+                                                                    }));
+                                                                }}
+                                                                className="text-[8px] font-mono bg-zinc-900 hover:bg-emerald-950/40 hover:text-emerald-400 border border-zinc-850 hover:border-emerald-500/30 px-2 py-0.5 rounded cursor-pointer transition-all flex items-center gap-1 uppercase"
+                                                            >
+                                                                <Plus className="w-2 h-2 text-emerald-500" /> {s}
+                                                            </button>
+                                                        ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                         </motion.div>
 
                         {/* Portfolio Links Block */}
@@ -1071,6 +1441,123 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                         {portfolioLinks.length === 0 && (
                                             <div className="text-center py-4 border border-zinc-900 border-dashed rounded-xl">
                                                 <p className="text-[9px] text-zinc-605 text-zinc-600 uppercase font-bold">No active portfolio coordinates set.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+
+                        {/* Contact Coordinates Block */}
+                        <motion.div 
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: 0.38 }}
+                            className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 shadow-lg relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+                            <div className="flex justify-between items-center mb-4 border-b border-zinc-900 pb-2">
+                                <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 flex items-center gap-2">
+                                    <UserIcon className="w-3.5 h-3.5 text-blue-500" /> Contact Coordinates
+                                </h3>
+                            </div>
+
+                            <div className="space-y-3">
+                                {isEditing ? (
+                                    <div className="space-y-3 text-left">
+                                        <div className="space-y-1">
+                                            <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Secure Email</label>
+                                            <input 
+                                                value={editForm.contactInfo?.email || ''}
+                                                onChange={e => setEditForm(prev => ({
+                                                    ...prev,
+                                                    contactInfo: { ...(prev.contactInfo || {}), email: e.target.value }
+                                                }))}
+                                                className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                                                placeholder="e.g. operator@domain.com"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Discord Tag</label>
+                                            <input 
+                                                value={editForm.contactInfo?.discord || ''}
+                                                onChange={e => setEditForm(prev => ({
+                                                    ...prev,
+                                                    contactInfo: { ...(prev.contactInfo || {}), discord: e.target.value }
+                                                }))}
+                                                className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                                                placeholder="e.g. username#1234"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Telegram Handle</label>
+                                            <input 
+                                                value={editForm.contactInfo?.telegram || ''}
+                                                onChange={e => setEditForm(prev => ({
+                                                    ...prev,
+                                                    contactInfo: { ...(prev.contactInfo || {}), telegram: e.target.value }
+                                                }))}
+                                                className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                                                placeholder="e.g. @operator_node"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Twitter / X Handle</label>
+                                            <input 
+                                                value={editForm.contactInfo?.twitter || ''}
+                                                onChange={e => setEditForm(prev => ({
+                                                    ...prev,
+                                                    contactInfo: { ...(prev.contactInfo || {}), twitter: e.target.value }
+                                                }))}
+                                                className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                                                placeholder="e.g. @operator_alpha"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Comm Phone (Optional)</label>
+                                            <input 
+                                                value={editForm.contactInfo?.phone || ''}
+                                                onChange={e => setEditForm(prev => ({
+                                                    ...prev,
+                                                    contactInfo: { ...(prev.contactInfo || {}), phone: e.target.value }
+                                                }))}
+                                                className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
+                                                placeholder="e.g. +1 (555) 019-2831"
+                                            />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        <div className="p-2 bg-zinc-900/40 border border-zinc-900 rounded-xl flex items-center justify-between text-left">
+                                            <div className="min-w-0">
+                                                <p className="text-[8px] uppercase font-black text-zinc-500">Secure Email</p>
+                                                <p className="text-[10px] text-zinc-200 font-mono truncate mt-0.5">{profile.contactInfo?.email || 'resurrectionofmoses@gmail.com'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="p-2 bg-zinc-900/40 border border-zinc-900 rounded-xl flex items-center justify-between text-left">
+                                            <div className="min-w-0">
+                                                <p className="text-[8px] uppercase font-black text-zinc-500">Discord Handle</p>
+                                                <p className="text-[10px] text-zinc-200 font-mono truncate mt-0.5">{profile.contactInfo?.discord || 'aetheros_prime#1337'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="p-2 bg-zinc-900/40 border border-zinc-900 rounded-xl flex items-center justify-between text-left">
+                                            <div className="min-w-0">
+                                                <p className="text-[8px] uppercase font-black text-zinc-500">Telegram Handle</p>
+                                                <p className="text-[10px] text-zinc-200 font-mono truncate mt-0.5">{profile.contactInfo?.telegram || '@aetheros_dev'}</p>
+                                            </div>
+                                        </div>
+                                        <div className="p-2 bg-zinc-900/40 border border-zinc-900 rounded-xl flex items-center justify-between text-left">
+                                            <div className="min-w-0">
+                                                <p className="text-[8px] uppercase font-black text-zinc-500">Twitter Handle</p>
+                                                <p className="text-[10px] text-zinc-200 font-mono truncate mt-0.5">{profile.contactInfo?.twitter || '@aetheros_prime'}</p>
+                                            </div>
+                                        </div>
+                                        {profile.contactInfo?.phone && (
+                                            <div className="p-2 bg-zinc-900/40 border border-zinc-900 rounded-xl flex items-center justify-between text-left">
+                                                <div className="min-w-0">
+                                                    <p className="text-[8px] uppercase font-black text-zinc-500">Comm Phone</p>
+                                                    <p className="text-[10px] text-zinc-200 font-mono truncate mt-0.5">{profile.contactInfo.phone}</p>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
@@ -1550,6 +2037,39 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                                         className="w-full bg-zinc-950 border border-zinc-850 rounded p-3 text-xs text-zinc-300 focus:outline-none focus:border-emerald-500 min-h-[90px] resize-none"
                                                     />
                                                 </div>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">Technologies Used (comma separated)</label>
+                                                        <input 
+                                                            value={(p.technologies || []).join(', ')}
+                                                            onChange={e => handleUpdateProject(p.id, 'technologies', e.target.value.split(',').map(s => s.trim()))}
+                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                                                            placeholder="React, TypeScript, Tailwind"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">Live Demo Link</label>
+                                                        <input 
+                                                            value={p.liveDemoUrl || ''}
+                                                            onChange={e => handleUpdateProject(p.id, 'liveDemoUrl', e.target.value)}
+                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                                                            placeholder="https://my-app.live"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                                                    <div className="space-y-1.5 col-span-2">
+                                                        <label className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">Source Code Repo URL</label>
+                                                        <input 
+                                                            value={p.sourceCodeUrl || ''}
+                                                            onChange={e => handleUpdateProject(p.id, 'sourceCodeUrl', e.target.value)}
+                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                                                            placeholder="https://github.com/username/project"
+                                                        />
+                                                    </div>
+                                                </div>
                                             </div>
                                         ))}
                                         {profileProjects.length === 0 && (
@@ -1567,87 +2087,18 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                             <div className="flex items-center gap-2 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] select-none">
                                                 <ClockIcon className="w-3.5 h-3.5 text-emerald-400" /> Active operations ({currentProjects.length})
                                             </div>
-                                            
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {(currentProjects || [])?.map?.(p => {
-                                                    const averageRating = p.rating || 5;
-                                                    const endorseCount = (p.endorsements || []).length;
-                                                    const alreadyEndorsed = (p.endorsements || []).includes('Operator-You');
-
-                                                    return (
-                                                        <div id={`view-project-card-${p.id}`} key={p.id} className="bg-zinc-900/40 border border-zinc-900 p-4 rounded-xl hover:border-emerald-500/20 transition-all group flex flex-col justify-between space-y-4">
-                                                            <div className="space-y-2">
-                                                                <div className="flex justify-between items-start gap-4">
-                                                                    <span className="text-sm font-extrabold text-emerald-450 text-emerald-400 group-hover:text-emerald-300 transition-colors tracking-tight line-clamp-1">{p.title}</span>
-                                                                    {p.link && (
-                                                                        <a 
-                                                                            href={p.link} 
-                                                                            target="_blank" 
-                                                                            referrerPolicy="no-referrer"
-                                                                            className="text-zinc-600 hover:text-emerald-400 p-0.5 shrink-0"
-                                                                            title="Visit deployment link"
-                                                                        >
-                                                                            <ExternalLinkIcon className="w-4 h-4" />
-                                                                        </a>
-                                                                    )}
-                                                                </div>
-                                                                <p className="text-xs text-zinc-400 leading-relaxed font-mono line-clamp-3">{p.description}</p>
-                                                            </div>
-
-                                                            {/* Rating & Endorsement Interactivity */}
-                                                            <div className="bg-zinc-950/80 p-3 rounded-lg border border-zinc-900 space-y-2 select-none">
-                                                                <div className="flex items-center justify-between gap-2">
-                                                                    <div className="flex items-center gap-1">
-                                                                        <span className="text-[9px] uppercase font-bold text-zinc-500">Rating:</span>
-                                                                        <div className="flex items-center gap-0.5">
-                                                                            {[1, 2, 3, 4, 5].map(starValue => (
-                                                                                <button 
-                                                                                    key={starValue}
-                                                                                    onClick={() => handleRateProject(p.id, starValue)}
-                                                                                    className="text-zinc-600 hover:text-yellow-400 transition-colors cursor-pointer"
-                                                                                    title={`Rate ${starValue} Stars`}
-                                                                                >
-                                                                                    <Star className={`w-3 h-3 ${starValue <= Math.round(averageRating) ? 'text-yellow-500 fill-yellow-500' : 'text-zinc-700'}`} />
-                                                                                </button>
-                                                                            ))}
-                                                                        </div>
-                                                                        <span className="text-[9px] font-mono font-bold text-zinc-400 ml-1">({averageRating})</span>
-                                                                    </div>
-                                                                    
-                                                                    {/* Thumbs up endorse button */}
-                                                                    <button 
-                                                                        onClick={() => handleEndorseProject(p.id)}
-                                                                        className={`px-2 py-0.5 rounded text-[8px] font-mono tracking-widest cursor-pointer transition-all uppercase flex items-center gap-1 shrink-0 ${
-                                                                            alreadyEndorsed 
-                                                                                ? 'bg-emerald-600 text-black font-extrabold' 
-                                                                                : 'bg-zinc-900 border border-zinc-800 text-emerald-400 hover:bg-zinc-800'
-                                                                        }`}
-                                                                        title="Endorse this code architecture"
-                                                                    >
-                                                                        <ThumbsUp className="w-2.5 h-2.5" />
-                                                                        <span>{alreadyEndorsed ? 'ENDORSED' : 'ENDORSE'}</span>
-                                                                    </button>
-                                                                </div>
-
-                                                                {/* Endorsements details line */}
-                                                                {p.endorsements && p.endorsements.length > 0 && (
-                                                                    <div className="text-[8px] text-zinc-500 uppercase font-black tracking-wider pt-1 border-t border-zinc-900 flex justify-between">
-                                                                        <span>Endorsed by:</span>
-                                                                        <span className="text-emerald-400 truncate max-w-[140px]">{p.endorsements.join(', ')}</span>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-
-                                                            <div className="flex items-center justify-between border-t border-zinc-850/40 pt-3 text-[9px] text-zinc-500 uppercase font-black select-none">
-                                                                <span className="flex items-center gap-1.5">
-                                                                    <BriefcaseIcon className="w-3 h-3 text-emerald-600" />
-                                                                    Role: {p.roleDefined || 'Developer'}
-                                                                </span>
-                                                                <span className="text-[8px] bg-emerald-950/30 text-emerald-400 px-1.5 py-0.5 rounded border border-emerald-500/10 shrink-0">ACTIVE_FLOW</span>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                {(currentProjects || [])?.map?.(p => (
+                                                    <PortfolioProjectCard 
+                                                        key={p.id}
+                                                        project={p}
+                                                        isOwnProject={true}
+                                                        onAddTestimonial={handleProjectAddTestimonial}
+                                                        onEndorse={handleEndorseProject}
+                                                        onRate={handleRateProject}
+                                                        currentUsername={profile?.username || 'Operator-You'}
+                                                    />
+                                                ))}
                                                 {currentProjects.length === 0 && (
                                                     <div className="col-span-2 text-center py-6 border border-zinc-905 border-dashed rounded-xl">
                                                         <p className="text-[10px] text-zinc-650 italic text-zinc-500">No operational conjunctions currently running.</p>
@@ -1663,71 +2114,17 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                             </div>
 
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {(pastProjects || [])?.map?.(p => {
-                                                    const averageRating = p.rating || 5;
-                                                    const alreadyEndorsed = (p.endorsements || []).includes('Operator-You');
-                                                    return (
-                                                        <div id={`view-project-card-${p.id}`} key={p.id} className="bg-zinc-900/20 border border-zinc-900/60 p-4 rounded-xl hover:border-zinc-800 transition-all group flex flex-col justify-between space-y-4">
-                                                            <div className="space-y-2">
-                                                                <div className="flex justify-between items-start gap-4">
-                                                                    <span className="text-sm font-extrabold text-zinc-450 text-zinc-400 tracking-tight line-clamp-1">{p.title}</span>
-                                                                    {p.link && (
-                                                                        <a 
-                                                                            href={p.link} 
-                                                                            target="_blank" 
-                                                                            referrerPolicy="no-referrer"
-                                                                            className="text-zinc-650 hover:text-zinc-400 p-0.5 shrink-0"
-                                                                            title="View deploy archive"
-                                                                        >
-                                                                            <ExternalLinkIcon className="w-4 h-4" />
-                                                                        </a>
-                                                                    )}
-                                                                </div>
-                                                                <p className="text-xs text-zinc-500 leading-relaxed font-mono line-clamp-3">{p.description}</p>
-                                                            </div>
-
-                                                            {/* Rating & Endorsement Interactivity */}
-                                                            <div className="bg-zinc-950/40 p-2.5 rounded-lg border border-zinc-900/60 gap-3 space-y-1.5 select-none">
-                                                                <div className="flex items-center justify-between">
-                                                                    <div className="flex items-center gap-1">
-                                                                        <span className="text-[8px] uppercase font-bold text-zinc-500">Rating:</span>
-                                                                        <div className="flex items-center gap-0.5">
-                                                                            {[1, 2, 3, 4, 5].map(starValue => (
-                                                                                <button 
-                                                                                    key={starValue}
-                                                                                    onClick={() => handleRateProject(p.id, starValue)}
-                                                                                    className="text-zinc-750 hover:text-yellow-400 transition-colors cursor-pointer"
-                                                                                >
-                                                                                    <Star className={`w-2.5 h-2.5 ${starValue <= Math.round(averageRating) ? 'text-yellow-600 fill-yellow-600' : 'text-zinc-800'}`} />
-                                                                                </button>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-                                                                    
-                                                                    <button 
-                                                                        onClick={() => handleEndorseProject(p.id)}
-                                                                        className={`px-1.5 py-0.5 rounded text-[7px] font-mono tracking-wider cursor-pointer transition-all uppercase flex items-center gap-1 shrink-0 ${
-                                                                            alreadyEndorsed 
-                                                                                ? 'bg-zinc-700 text-white font-extrabold' 
-                                                                                : 'bg-zinc-950 border border-zinc-900 text-zinc-500 hover:text-emerald-400'
-                                                                        }`}
-                                                                    >
-                                                                        <ThumbsUp className="w-2 h-2" />
-                                                                        <span>{alreadyEndorsed ? 'ENDORSED' : 'ENDORSE'}</span>
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="flex items-center justify-between border-t border-zinc-900/40 pt-3 text-[9px] text-zinc-550 text-zinc-500 uppercase font-black select-none">
-                                                                <span className="flex items-center gap-1.5">
-                                                                    <BriefcaseIcon className="w-3 h-3 text-zinc-700" />
-                                                                    Role: {p.roleDefined || 'Developer'}
-                                                                </span>
-                                                                <span className="text-[8px] bg-zinc-900 text-zinc-500 px-1.5 py-0.5 rounded border border-zinc-850 select-none shrink-0 font-bold">ARCHIVED</span>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                                {(pastProjects || [])?.map?.(p => (
+                                                    <PortfolioProjectCard 
+                                                        key={p.id}
+                                                        project={p}
+                                                        isOwnProject={true}
+                                                        onAddTestimonial={handleProjectAddTestimonial}
+                                                        onEndorse={handleEndorseProject}
+                                                        onRate={handleRateProject}
+                                                        currentUsername={profile?.username || 'Operator-You'}
+                                                    />
+                                                ))}
                                                 {pastProjects.length === 0 && (
                                                     <div className="col-span-2 text-center py-6 border border-zinc-905 border-dashed rounded-xl">
                                                         <p className="text-[10px] text-zinc-650 italic text-zinc-500">No past milestones registered.</p>
@@ -1848,6 +2245,111 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                 </div>
 
             </div>
+
+            {/* Cryptographic Request Endorsement Modal */}
+            <AnimatePresence>
+                {requestingSkill && (
+                    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 overflow-y-auto">
+                        <motion.div 
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            className="bg-zinc-950 border border-zinc-900 rounded-3xl max-w-md w-full p-6 shadow-2xl relative overflow-hidden"
+                        >
+                            {/* Purple glow element */}
+                            <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-purple-500 via-pink-500 to-purple-600" />
+                            
+                            <div className="flex justify-between items-start mb-6">
+                                <div>
+                                    <span className="text-[8px] font-black tracking-[0.2em] text-purple-400 uppercase font-mono block mb-1">Cryptographic validation</span>
+                                    <h2 className="text-sm font-black uppercase text-white tracking-wider flex items-center gap-2">
+                                        <Send className="w-4 h-4 text-purple-400" /> Request Skill Endorsement
+                                    </h2>
+                                </div>
+                                <button 
+                                    onClick={() => { if (!isBroadcastingRequest) setRequestingSkill(null); }}
+                                    disabled={isBroadcastingRequest}
+                                    className="text-zinc-500 hover:text-white transition-colors p-1 rounded-lg bg-zinc-900 border border-zinc-850 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    <XIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            <p className="text-xs text-zinc-400 mb-4 font-mono leading-relaxed">
+                                Transmit a signed network request packet requesting validation for your proficiency in <span className="text-purple-400 font-bold">"{requestingSkill}"</span> to an active peer node.
+                            </p>
+
+                            {!isBroadcastingRequest ? (
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[9px] font-black uppercase tracking-wider text-zinc-500 block mb-2">Select Network Connection</label>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {['CyberWeaver_X', 'Validator_Solo', 'AcousticWeaver', 'Operator-Beta', 'Operator-Alpha', 'Operator-Gamma'].map(peer => (
+                                                <button
+                                                    key={peer}
+                                                    type="button"
+                                                    onClick={() => setSelectedPeerForRequest(peer)}
+                                                    className={`p-3 rounded-xl border text-left cursor-pointer transition-all ${
+                                                        selectedPeerForRequest === peer
+                                                            ? 'bg-purple-950/20 border-purple-500 text-purple-300'
+                                                            : 'bg-zinc-900/40 border-zinc-900 text-zinc-400 hover:border-zinc-800'
+                                                    }`}
+                                                >
+                                                    <p className="text-[10px] font-black tracking-wider">@{peer}</p>
+                                                    <p className="text-[8px] text-zinc-500 font-mono mt-0.5">Lattice Peer</p>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-4 border-t border-zinc-900 flex justify-end gap-2.5">
+                                        <button
+                                            type="button"
+                                            onClick={() => setRequestingSkill(null)}
+                                            className="px-4 py-2 bg-zinc-900 hover:bg-zinc-850 text-zinc-400 hover:text-white border border-zinc-850 hover:border-zinc-800 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleSubmitEndorsementRequest}
+                                            className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-black font-black rounded-xl text-[10px] uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-purple-600/15"
+                                        >
+                                            <Send className="w-3.5 h-3.5" />
+                                            Transmit Request
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="py-6 flex flex-col items-center justify-center text-center space-y-4">
+                                    <div className="w-12 h-12 rounded-full bg-purple-950/20 border border-purple-500/20 flex items-center justify-center relative">
+                                        <RefreshCw className="w-5 h-5 text-purple-400 animate-spin" />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <p className="text-[10px] font-black uppercase text-white tracking-widest font-mono">Broadcasting Request Packet</p>
+                                        <p className="text-[9px] text-zinc-500 font-mono">Target Node: @{selectedPeerForRequest}</p>
+                                    </div>
+                                    
+                                    <div className="w-full max-w-xs bg-zinc-900/60 rounded-xl p-3 border border-zinc-900 text-left space-y-2">
+                                        <div className="flex items-center gap-2 text-[9px] font-mono">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${broadcastStep >= 1 ? 'bg-purple-500 animate-pulse' : 'bg-zinc-800'}`} />
+                                            <span className={broadcastStep >= 1 ? 'text-purple-300' : 'text-zinc-600'}>Generating packet signature...</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-[9px] font-mono">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${broadcastStep >= 2 ? 'bg-purple-500 animate-pulse' : 'bg-zinc-800'}`} />
+                                            <span className={broadcastStep >= 2 ? 'text-purple-300' : 'text-zinc-600'}>Routing validation vectors...</span>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-[9px] font-mono">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${broadcastStep >= 3 ? 'bg-purple-500 animate-pulse' : 'bg-zinc-800'}`} />
+                                            <span className={broadcastStep >= 3 ? 'text-purple-300' : 'text-zinc-600'}>Broadcasting package to peer...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

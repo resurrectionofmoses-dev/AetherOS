@@ -23,6 +23,8 @@ import { TheShroud } from './components/TheShroud';
 import { WaveVisualizer } from './components/WaveVisualizer';
 import { GuestBanner } from './components/GuestBanner';
 import { sonicLedger } from './services/sonicLedger';
+import { JesterCompanion } from './components/JesterCompanion';
+import { GhostLayer } from './components/GhostLayer';
 import { cellularEngine } from './services/cellularEngine';
 
 import { startChatSession, sendMessageSovereign, generateSoftwareModule, checkConnectivity, scanBinaryFile } from './services/geminiService';
@@ -83,6 +85,7 @@ if (typeof window !== 'undefined') {
 
       if (urlStr.includes('wallet.binance.com') || urlStr.includes('tonbridge') || urlStr.includes('events')) {
         console.log(`[AetherOS EventSource Interceptor] Establishing resilient bridge to: ${urlStr}`);
+        this.maxRetries = 1; // Transition to simulation extremely fast to avoid endless noise and delays
         this.connectWithPollingFallback();
       } else if (NativeEventSource) {
         try {
@@ -553,7 +556,7 @@ const ALL_VIEWS_LIST: MainView[] = [
   'vulnerability_report', 'tactical_intelligence', 'behavioral_specs', 'cognitive_pipeline', 'data_provenance_lab', 
   'sh_crt_loop', 'user_profile', 'prompt_forge', 'sovereign_standard', 'confusion_logic', 'knowledge_forum', 
   'blockchain_history', 'main_net', 'ecosystem', 'accounts_registry', 'blacklist', 'system_integrity', 
-  'vault_manager', 'moderator_lounge', 'biometric_intelligence', 'card_recovery', 'project_showcase', 'quantum_ledger' as any, 'ai_telemetry', 'inevitable_crash', 'scraper_merchant_store', 'data_academy', 'reputation_leaderboard', 'aether_flow_orchestrator', 'packaging_suite', 'system_archives'
+  'vault_manager', 'moderator_lounge', 'biometric_intelligence', 'card_recovery', 'project_showcase', 'quantum_ledger' as any, 'ai_telemetry', 'inevitable_crash', 'scraper_merchant_store', 'data_academy', 'reputation_leaderboard', 'aether_flow_orchestrator', 'packaging_suite', 'system_archives', 'system_diagnostic', 'aetheros_online_status', 'regex_editor_lab', 'agent_safeguard', 'safeguard', 'gmail', 'google_drive', 'sovereign_scanner'
 ];
 
 export const App: React.FC = () => {
@@ -563,6 +566,7 @@ export const App: React.FC = () => {
         Engine: 'OK', Battery: 'OK', Navigation: 'OK', Infotainment: 'OK', Handling: 'OK'
     });
     const [manualOverrides, setManualOverrides] = useState<Partial<Record<keyof SystemStatus, SystemState>>>({});
+    const [diagnosticSearchQuery, setDiagnosticSearchQuery] = useState<string>('');
 
     const handleUpdateSystemStatus = useCallback((system: keyof SystemStatus, state: SystemState) => {
         setManualOverrides(prev => ({
@@ -661,6 +665,19 @@ export const App: React.FC = () => {
 
     // Chat State
     const [isInitializing, setIsInitializing] = useState(true);
+    const [isCoreRestored, setIsCoreRestored] = useState(false);
+    const [bootStep, setBootStep] = useState<number>(0);
+    const [bootLogs, setBootLogs] = useState<string[]>([]);
+    const [rabiSim, setRabiSim] = useState<{
+        t: number;
+        c00: number;
+        c01: number;
+        c10: number;
+        c11: number;
+        p11: number;
+        delay: number;
+    }>({ t: 0, c00: 1, c01: 0, c10: 0, c11: 0, p11: 0, delay: 0 });
+
     const [activeSeat, setActiveSeat] = useState<AISeat>('sovereign');
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [currentChannel, setCurrentChannel] = useState<'global' | 'moderator'>('global');
@@ -846,11 +863,101 @@ export const App: React.FC = () => {
             } catch (err) {
                 console.error("[AetherOS] Critical restoration fracture:", err);
             } finally {
-                setIsInitializing(false);
+                setIsCoreRestored(true);
             }
         };
         restoreState();
     }, []);
+
+    useEffect(() => {
+        if (!isCoreRestored) return;
+
+        let active = true;
+        const log = (msg: string) => {
+            if (active) setBootLogs(prev => [...prev, msg]);
+        };
+
+        const runStaggeredBoot = async () => {
+            setBootStep(1);
+            log("[SYSTEM] priority1-boot-react & priority1-boot-app modules loaded.");
+            log("[SYSTEM] priority2-ui-icons & priority2-ui-common modules loaded.");
+            await new Promise(r => setTimeout(r, 600));
+
+            // Stagger 1: priority3-views-app
+            log("[QUANTUM] Initializing Vacuum Rabi Cavity-Qubit resonance calibration for priority3-views-app...");
+            const omega = 1.0;
+            const j = 0.5;
+            const t1 = 0.85;
+            const delay1 = Math.round(600 + 800 * (Math.sin(omega * t1) * Math.sin(j * t1)) ** 2); // 600-1400ms based on state excitation
+
+            log(`[BOOT] Calculated target transition time t₁ = ${t1.toFixed(2)}s. Stagger delay: ${delay1}ms`);
+            
+            // Incremental transition states visualization
+            const steps1 = 4;
+            for (let i = 1; i <= steps1; i++) {
+                if (!active) return;
+                const current_t = (t1 * i) / steps1;
+                const c00_1 = Math.cos(omega * current_t) * Math.cos(j * current_t);
+                const c01_1 = Math.sin(omega * current_t) * Math.cos(j * current_t);
+                const c10_1 = Math.cos(omega * current_t) * Math.sin(j * current_t);
+                const c11_1 = Math.sin(omega * current_t) * Math.sin(j * current_t);
+                const p11_1 = c11_1 * c11_1;
+
+                setRabiSim({ t: current_t, c00: c00_1, c01: c01_1, c10: c10_1, c11: c11_1, p11: p11_1, delay: delay1 });
+
+                log(`[QUANTUM] Phase Step [${i}/${steps1}] (t=${current_t.toFixed(2)}s) 🔗 |Ψ₁⟩ = ${c00_1.toFixed(3)}|00⟩ + ${c01_1.toFixed(3)}|01⟩ + ${c10_1.toFixed(3)}|10⟩ + ${c11_1.toFixed(3)}|11⟩ [P(11) = ${(p11_1 * 100).toFixed(1)}%]`);
+                
+                await new Promise(r => setTimeout(r, delay1 / steps1));
+            }
+
+            if (!active) return;
+
+            setBootStep(2);
+            log("[BOOT] 'priority3-views-app' chunk successfully initialized! (Superposition state stabilized)");
+            await new Promise(r => setTimeout(r, 600));
+
+            // Stagger 2: priority4-services-app
+            log("[QUANTUM] Initializing Vacuum Rabi Cavity-Qubit resonance calibration for priority4-services-app...");
+            const t2 = 1.70;
+            const delay2 = Math.round(600 + 800 * (Math.sin(omega * t2) * Math.sin(j * t2)) ** 2);
+
+            log(`[BOOT] Calculated target transition time t₂ = ${t2.toFixed(2)}s. Stagger delay: ${delay2}ms`);
+
+            // Incremental transition states visualization
+            const steps2 = 4;
+            for (let i = 1; i <= steps2; i++) {
+                if (!active) return;
+                const current_t = t1 + ((t2 - t1) * i) / steps2;
+                const c00_2 = Math.cos(omega * current_t) * Math.cos(j * current_t);
+                const c01_2 = Math.sin(omega * current_t) * Math.cos(j * current_t);
+                const c10_2 = Math.cos(omega * current_t) * Math.sin(j * current_t);
+                const c11_2 = Math.sin(omega * current_t) * Math.sin(j * current_t);
+                const p11_2 = c11_2 * c11_2;
+
+                setRabiSim({ t: current_t, c00: c00_2, c01: c01_2, c10: c10_2, c11: c11_2, p11: p11_2, delay: delay2 });
+
+                log(`[QUANTUM] Phase Step [${i}/${steps2}] (t=${current_t.toFixed(2)}s) 🔗 |Ψ₂⟩ = ${c00_2.toFixed(3)}|00⟩ + ${c01_2.toFixed(3)}|01⟩ + ${c10_2.toFixed(3)}|10⟩ + ${c11_2.toFixed(3)}|11⟩ [P(11) = ${(p11_2 * 100).toFixed(1)}%]`);
+
+                await new Promise(r => setTimeout(r, delay2 / steps2));
+            }
+
+            if (!active) return;
+
+            setBootStep(3);
+            log("[BOOT] 'priority4-services-app' chunk successfully initialized! (System state |11⟩ coherent)");
+            log("[SYSTEM] All priority layers compiled & verified in resonance. Starting main runtime.");
+            await new Promise(r => setTimeout(r, 800));
+            if (!active) return;
+
+            setIsInitializing(false);
+        };
+
+        runStaggeredBoot();
+
+        return () => {
+            active = false;
+        };
+    }, [isCoreRestored]);
 
     useEffect(() => {
         const persist = async () => {
@@ -1433,6 +1540,18 @@ export const App: React.FC = () => {
         return () => clearInterval(acousticHeartbeatInterval);
     }, []);
 
+    // Listen for custom remediation events from Jester Scribe Companion
+    useEffect(() => {
+        const handleClearAcoustic = () => {
+            sonicLedger.clear();
+            setAcousticPressure(30.0);
+            setActivityDensity(0);
+            setIsAcousticWarningOpen(false);
+        };
+        window.addEventListener('aetheros_clear_acoustic_pressure', handleClearAcoustic);
+        return () => window.removeEventListener('aetheros_clear_acoustic_pressure', handleClearAcoustic);
+    }, []);
+
     const [isSystemFractured, setIsSystemFractured] = useState(false);
 
     // Automatic dynamic subsystem status algorithms
@@ -1838,6 +1957,10 @@ export const App: React.FC = () => {
                 blueprints,
                 setBlueprints,
                 systemStatus,
+                diagnosticSearchQuery,
+                onSetDiagnosticSearchQuery: setDiagnosticSearchQuery,
+                bootLogs,
+                onClearBootLogs: () => setBootLogs([]),
                 evoLibrary,
                 lastBroadcast,
                 lastMessage: messages[messages.length - 1],
@@ -1913,12 +2036,300 @@ export const App: React.FC = () => {
         EmergencyKillSwitch.reset();
     }, []);
 
+    const handleRemediateSequence = useCallback(() => {
+        setSystemStatus({
+            Engine: 'OK', Battery: 'OK', Navigation: 'OK', Infotainment: 'OK', Handling: 'OK'
+        });
+        setManualOverrides({});
+        setIsHalted(false);
+        EmergencyKillSwitch.reset();
+
+        setIsSystemFractured(false);
+        setCurrentAlert(null);
+        setSoundscape('VOID');
+        setMessages(prev => [...prev, {
+            sender: 'model',
+            content: "Remediation sequence completed. Dual-age system errors cleared. Integrity restored.",
+            timestamp: new Date()
+        }]);
+    }, [setSystemStatus, setManualOverrides, setIsHalted, setIsSystemFractured, setCurrentAlert, setSoundscape, setMessages]);
+
     if (isInitializing) {
         return (
-            <div className="h-screen w-screen bg-black flex items-center justify-center font-mono text-red-500">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-16 h-16 border-4 border-red-900 border-t-red-500 rounded-full animate-spin"></div>
-                    <div className="animate-pulse tracking-[0.2em] text-xs">DECRYPTING_LATTICE_GATE...</div>
+            <div className="h-screen w-screen bg-black flex flex-col items-center justify-center font-mono p-4 md:p-8 text-red-500 overflow-hidden select-none">
+                {/* Neon grid pattern background */}
+                <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:16px_16px] pointer-events-none" />
+                
+                {/* Main Glass Panel */}
+                <div className="w-full max-w-4xl bg-zinc-950/90 border-2 border-red-900/60 rounded-2xl p-6 shadow-[0_0_50px_rgba(153,27,27,0.15)] flex flex-col gap-6 relative z-10">
+                    
+                    {/* Header */}
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b border-red-950/60 pb-4 gap-2">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 bg-red-500 rounded-full animate-ping" />
+                                <h1 className="text-sm font-bold tracking-[0.3em] uppercase text-red-400">AETHEROS COHERENT CORE INITIALIZATION</h1>
+                            </div>
+                            <p className="text-[10px] text-zinc-500 mt-1 uppercase tracking-wider">Quantum-Mechanical Block Chunk Loading Protocol (Rabi v4.01)</p>
+                        </div>
+                        <div className="text-right text-[10px] text-red-500/80 bg-red-950/20 border border-red-900/30 px-2.5 py-1 rounded">
+                            COHERENT STAGGER ACTIVE
+                        </div>
+                    </div>
+
+                    {/* Dual Columns: Left (Bloch Sphere Visualizers), Right (Boot Console Logs) */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 min-h-[280px]">
+                        
+                        {/* Left: Vacuum Rabi Bloch Spheres */}
+                        <div className="bg-black/40 border border-zinc-900 rounded-xl p-4 flex flex-col justify-between space-y-4">
+                            <span className="text-[9px] font-bold text-red-400/80 tracking-wider uppercase">
+                                Coherent State Calibration Monitor
+                            </span>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* Qubit A: priority3-views-app */}
+                                <div className="flex flex-col items-center bg-zinc-950/60 border border-zinc-900 p-2.5 rounded-lg relative overflow-hidden">
+                                    <span className="text-[8px] font-black text-zinc-400 uppercase tracking-wide">Qubit A (Views)</span>
+                                    <span className="text-[7px] text-zinc-600 uppercase tracking-wider mt-0.5">priority3-views-app</span>
+                                    
+                                    <div className="w-24 h-24 relative my-2">
+                                        <svg className="w-full h-full text-zinc-900" viewBox="0 0 100 100">
+                                            <circle cx="50" cy="50" r="42" fill="none" stroke="#27272a" strokeWidth="0.5" strokeDasharray="2 2" />
+                                            <circle cx="50" cy="50" r="42" fill="none" stroke="#f43f5e" strokeWidth="0.5" className="opacity-10" />
+                                            <ellipse cx="50" cy="50" rx="42" ry="10" fill="none" stroke="#18181b" strokeWidth="0.5" />
+                                            <ellipse cx="50" cy="50" rx="10" ry="42" fill="none" stroke="#18181b" strokeWidth="0.5" />
+                                            <line x1="8" y1="50" x2="92" y2="50" stroke="#18181b" strokeWidth="0.5" />
+                                            <line x1="50" y1="8" x2="50" y2="92" stroke="#18181b" strokeWidth="0.5" />
+                                            
+                                            {/* Pole Labels */}
+                                            <text x="50" y="14" fill="#52525b" fontSize="6" textAnchor="middle">|0⟩ IDLE</text>
+                                            <text x="50" y="91" fill="#52525b" fontSize="6" textAnchor="middle">|1⟩ ACTIVE</text>
+
+                                            {/* Vector A */}
+                                            {(() => {
+                                                let xCoord = 50;
+                                                let yCoord = 18;
+                                                if (bootStep >= 1) {
+                                                    const theta = Math.acos(rabiSim.c00);
+                                                    xCoord = 50 + Math.sin(theta) * 32 * Math.sin(Date.now() / 800);
+                                                    yCoord = 50 - Math.cos(theta) * 32;
+                                                }
+                                                return (
+                                                    <>
+                                                        <line x1="50" y1="50" x2={xCoord} y2={yCoord} stroke={bootStep >= 2 ? "#ffd700" : "#ef4444"} strokeWidth="1.8" />
+                                                        <circle cx={xCoord} cy={yCoord} r="1.5" fill={bootStep >= 2 ? "#ffd700" : "#ef4444"} />
+                                                    </>
+                                                );
+                                            })()}
+                                        </svg>
+                                    </div>
+                                    <div className="text-[7.5px] text-zinc-500 font-mono">
+                                        Status: <span className={bootStep >= 2 ? "text-emerald-400 font-bold" : "text-amber-500 animate-pulse"}>
+                                            {bootStep >= 2 ? "LOADED" : bootStep >= 1 ? "STAGGERING..." : "QUEUED"}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Qubit B: priority4-services-app */}
+                                <div className="flex flex-col items-center bg-zinc-950/60 border border-zinc-900 p-2.5 rounded-lg relative overflow-hidden">
+                                    <span className="text-[8px] font-black text-zinc-400 uppercase tracking-wide">Qubit B (Services)</span>
+                                    <span className="text-[7px] text-zinc-600 uppercase tracking-wider mt-0.5">priority4-services-app</span>
+                                    
+                                    <div className="w-24 h-24 relative my-2">
+                                        <svg className="w-full h-full text-zinc-900" viewBox="0 0 100 100">
+                                            <circle cx="50" cy="50" r="42" fill="none" stroke="#27272a" strokeWidth="0.5" strokeDasharray="2 2" />
+                                            <circle cx="50" cy="50" r="42" fill="none" stroke="#06b6d4" strokeWidth="0.5" className="opacity-10" />
+                                            <ellipse cx="50" cy="50" rx="42" ry="10" fill="none" stroke="#18181b" strokeWidth="0.5" />
+                                            <ellipse cx="50" cy="50" rx="10" ry="42" fill="none" stroke="#18181b" strokeWidth="0.5" />
+                                            <line x1="8" y1="50" x2="92" y2="50" stroke="#18181b" strokeWidth="0.5" />
+                                            <line x1="50" y1="8" x2="50" y2="92" stroke="#18181b" strokeWidth="0.5" />
+                                            
+                                            {/* Pole Labels */}
+                                            <text x="50" y="14" fill="#52525b" fontSize="6" textAnchor="middle">|0⟩ IDLE</text>
+                                            <text x="50" y="91" fill="#52525b" fontSize="6" textAnchor="middle">|1⟩ ACTIVE</text>
+
+                                            {/* Vector B */}
+                                            {(() => {
+                                                let xCoord = 50;
+                                                let yCoord = 18;
+                                                if (bootStep >= 2) {
+                                                    const theta = Math.acos(rabiSim.c11);
+                                                    xCoord = 50 + Math.sin(theta) * 32 * Math.cos(Date.now() / 800);
+                                                    yCoord = 50 - Math.cos(theta) * 32;
+                                                }
+                                                return (
+                                                    <>
+                                                        <line x1="50" y1="50" x2={xCoord} y2={yCoord} stroke={bootStep >= 3 ? "#06b6d4" : "#f43f5e"} strokeWidth="1.8" />
+                                                        <circle cx={xCoord} cy={yCoord} r="1.5" fill={bootStep >= 3 ? "#06b6d4" : "#f43f5e"} />
+                                                    </>
+                                                );
+                                            })()}
+                                        </svg>
+                                    </div>
+                                    <div className="text-[7.5px] text-zinc-500 font-mono">
+                                        Status: <span className={bootStep >= 3 ? "text-emerald-400 font-bold" : bootStep >= 2 ? "text-amber-500 animate-pulse" : "text-zinc-600"}>
+                                            {bootStep >= 3 ? "LOADED" : bootStep >= 2 ? "STAGGERING..." : "QUEUED"}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Mathematical Live Formula Status */}
+                            <div className="p-3 bg-zinc-950/80 border border-zinc-900 rounded-lg text-[8px] space-y-1 text-zinc-400">
+                                <div className="flex justify-between text-red-400/90 font-black">
+                                    <span>Wavefunction |Ψ⟩:</span>
+                                    <span className="font-sans">c₀₀|00⟩ + c₀₁|01⟩ + c₁₀|10⟩ + c₁₁|11⟩</span>
+                                </div>
+                                <div className="grid grid-cols-4 gap-1 pt-1 border-t border-zinc-900 text-[7.5px]">
+                                    <div>c₀₀: <span className="text-zinc-200">{rabiSim.c00.toFixed(3)}</span></div>
+                                    <div>c₀₁: <span className="text-zinc-200">{rabiSim.c01.toFixed(3)}</span></div>
+                                    <div>c₁₀: <span className="text-zinc-200">{rabiSim.c10.toFixed(3)}</span></div>
+                                    <div>c₁₁: <span className="text-zinc-200">{rabiSim.c11.toFixed(3)}</span></div>
+                                </div>
+                                <div className="flex justify-between pt-1 text-zinc-500">
+                                    <span>Excitation Probability P(11):</span>
+                                    <span className="text-cyan-400 font-bold">{(rabiSim.p11 * 100).toFixed(1)}%</span>
+                                </div>
+                                <div className="flex justify-between text-zinc-500">
+                                    <span>Current Quantum Delay:</span>
+                                    <span className="text-amber-400 font-bold">{rabiSim.delay}ms</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right: Console Logs */}
+                        <div className="bg-black/60 border border-zinc-900 rounded-xl p-4 flex flex-col justify-between">
+                            <div className="flex justify-between items-center border-b border-zinc-900 pb-1.5 mb-2">
+                                <span className="text-[9px] font-bold text-red-400/80 tracking-wider uppercase">Lattice Gate Activity Stream</span>
+                                <span className="text-[7.5px] bg-red-950/40 text-red-400 border border-red-900/40 px-1.5 py-0.5 rounded font-black animate-pulse">
+                                    SYS_INIT
+                                </span>
+                            </div>
+                            
+                            <div className="flex-1 overflow-y-auto max-h-[175px] space-y-1.5 text-[8.5px] pr-2 custom-scrollbar text-zinc-400">
+                                {bootLogs.map((logStr, i) => {
+                                    let badgeLabel = "INFO";
+                                    let badgeColor = "text-cyan-400 bg-cyan-950/40 border-cyan-500/20";
+                                    let textColor = "text-zinc-400";
+                                    let cleanMsg = logStr;
+
+                                    // Clean up common system prefixes
+                                    cleanMsg = cleanMsg
+                                        .replace("[SYSTEM]", "")
+                                        .replace("[BOOT]", "")
+                                        .trim();
+
+                                    // Explicit mapping to requested four severity labels: INFO, WARN, ERROR, QUANTUM
+                                    if (logStr.includes("[QUANTUM]") || logStr.toLowerCase().includes("quantum")) {
+                                        badgeLabel = "QUANTUM";
+                                        badgeColor = "text-fuchsia-400 bg-fuchsia-950/40 border-fuchsia-500/20 font-bold";
+                                        textColor = "text-fuchsia-300";
+                                        cleanMsg = cleanMsg.replace("[QUANTUM]", "").trim();
+                                    } else if (logStr.toLowerCase().includes("fail") || logStr.toLowerCase().includes("error") || logStr.includes("[FAIL]") || logStr.includes("[ERROR]")) {
+                                        badgeLabel = "ERROR";
+                                        badgeColor = "text-red-400 bg-red-950/40 border-red-500/20 font-bold animate-pulse";
+                                        textColor = "text-red-300 font-semibold";
+                                        cleanMsg = cleanMsg.replace("[ERROR]", "").replace("[FAIL]", "").trim();
+                                    } else if (logStr.toLowerCase().includes("warn") || logStr.includes("STAGGERING") || logStr.includes("Delaying") || logStr.includes("[WARN]") || logStr.toLowerCase().includes("delay")) {
+                                        badgeLabel = "WARN";
+                                        badgeColor = "text-amber-400 bg-amber-950/40 border-amber-500/20 font-bold";
+                                        textColor = "text-amber-300";
+                                        cleanMsg = cleanMsg.replace("[WARN]", "").trim();
+                                    } else {
+                                        badgeLabel = "INFO";
+                                        badgeColor = "text-cyan-400 bg-cyan-950/40 border-cyan-500/20 font-bold";
+                                        if (logStr.includes("successfully initialized") || logStr.includes("stabilized")) {
+                                            textColor = "text-emerald-400 font-semibold";
+                                        } else {
+                                            textColor = "text-cyan-300/90";
+                                        }
+                                    }
+
+                                    return (
+                                        <div key={i} className="font-mono border-b border-zinc-900/30 pb-1 last:border-b-0 flex items-start gap-1.5 leading-relaxed">
+                                            <span className="text-zinc-600 select-none flex-shrink-0">{(i+1).toString().padStart(2, '0')}</span>
+                                            <span className={`px-1 py-[1px] text-[7px] font-bold rounded uppercase border flex-shrink-0 ${badgeColor}`}>
+                                                {badgeLabel}
+                                            </span>
+                                            <span className={`flex-1 break-all ${textColor}`}>{cleanMsg}</span>
+                                        </div>
+                                    );
+                                })}
+                                <div className="h-2" />
+                            </div>
+
+                            {/* Live spinner and indicator */}
+                            <div className="flex items-center gap-3 pt-2 border-t border-zinc-900 mt-2 text-[10px]">
+                                <div className="w-4.5 h-4.5 border-2 border-zinc-800 border-t-red-500 rounded-full animate-spin" />
+                                <div className="animate-pulse tracking-widest text-[9px] uppercase text-zinc-500">
+                                    {bootStep === 1 && "SHIFTING TO SUPERPOSITION STATE..."}
+                                    {bootStep === 2 && "SYNCHRONIZING SERVICES COHERENT COUPLING..."}
+                                    {bootStep === 3 && "STABILIZING SYSTEM RESONANCE..."}
+                                    {bootStep === 0 && "DECRYPTING LATTICE GATES..."}
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* Bottom: Stagger Progress Tracker */}
+                    <div className="p-4 bg-zinc-900/40 border border-zinc-900 rounded-xl space-y-3">
+                        <div className="flex justify-between items-center text-[9px] font-bold text-zinc-400 uppercase">
+                            <span>Quantum Chunk Tier Progress</span>
+                            <span>{bootStep === 3 ? "100%" : bootStep === 2 ? "66%" : bootStep === 1 ? "33%" : "0%"} Complete</span>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-[8px]">
+                            {/* Tier 1 */}
+                            <div className="bg-zinc-950 border border-zinc-800 p-2 rounded-lg flex flex-col justify-between">
+                                <span className="text-zinc-500 uppercase">Tier 1: Boot Core</span>
+                                <div className="flex justify-between items-center mt-1">
+                                    <span className="text-emerald-400 font-bold">LOADED</span>
+                                    <span className="text-zinc-600">0ms</span>
+                                </div>
+                                <div className="w-full bg-zinc-900 h-1 rounded-full overflow-hidden mt-1.5">
+                                    <div className="bg-emerald-500 h-full w-full" />
+                                </div>
+                            </div>
+                            {/* Tier 2 */}
+                            <div className="bg-zinc-950 border border-zinc-800 p-2 rounded-lg flex flex-col justify-between">
+                                <span className="text-zinc-500 uppercase">Tier 2: UI Common</span>
+                                <div className="flex justify-between items-center mt-1">
+                                    <span className="text-emerald-400 font-bold">LOADED</span>
+                                    <span className="text-zinc-600">0ms</span>
+                                </div>
+                                <div className="w-full bg-zinc-900 h-1 rounded-full overflow-hidden mt-1.5">
+                                    <div className="bg-emerald-500 h-full w-full" />
+                                </div>
+                            </div>
+                            {/* Tier 3 */}
+                            <div className="bg-zinc-950 border border-zinc-800 p-2 rounded-lg flex flex-col justify-between">
+                                <span className="text-zinc-500 uppercase">Tier 3: Views App</span>
+                                <div className="flex justify-between items-center mt-1">
+                                    <span className={bootStep >= 2 ? "text-emerald-400 font-bold" : "text-amber-500 font-bold animate-pulse"}>
+                                        {bootStep >= 2 ? "LOADED" : bootStep >= 1 ? "STAGGERING" : "QUEUED"}
+                                    </span>
+                                    <span className="text-zinc-600">{bootStep >= 1 ? `${rabiSim.delay}ms` : "PENDING"}</span>
+                                </div>
+                                <div className="w-full bg-zinc-900 h-1 rounded-full overflow-hidden mt-1.5">
+                                    <div className={`h-full transition-all duration-500 ${bootStep >= 2 ? "bg-emerald-500 w-full" : bootStep >= 1 ? "bg-amber-500 w-1/2 animate-pulse" : "bg-zinc-800 w-0"}`} />
+                                </div>
+                            </div>
+                            {/* Tier 4 */}
+                            <div className="bg-zinc-950 border border-zinc-800 p-2 rounded-lg flex flex-col justify-between">
+                                <span className="text-zinc-500 uppercase">Tier 4: Services App</span>
+                                <div className="flex justify-between items-center mt-1">
+                                    <span className={bootStep >= 3 ? "text-emerald-400 font-bold" : bootStep >= 2 ? "text-amber-500 font-bold animate-pulse" : "text-zinc-600"}>
+                                        {bootStep >= 3 ? "LOADED" : bootStep >= 2 ? "STAGGERING" : "QUEUED"}
+                                    </span>
+                                    <span className="text-zinc-600">{bootStep >= 2 ? `${rabiSim.delay}ms` : "PENDING"}</span>
+                                </div>
+                                <div className="w-full bg-zinc-900 h-1 rounded-full overflow-hidden mt-1.5">
+                                    <div className={`h-full transition-all duration-500 ${bootStep >= 3 ? "bg-emerald-500 w-full" : bootStep >= 2 ? "bg-amber-500 w-1/2 animate-pulse" : "bg-zinc-800 w-0"}`} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         );
@@ -1951,7 +2362,11 @@ export const App: React.FC = () => {
             <Sidebar 
                 systemStatus={systemStatus} systemDetails={{}} currentView={currentView as MainView} onSetView={(v) => handleSetView(v as any)} 
                 currentDateTime={currentTime} timeFormat={timeFormat} onToggleTimeFormat={() => setTimeFormat(prev => prev === '12hr' ? '24hr' : '12hr')} 
-                unlockedViews={[...unlockedViews, 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any, 'ai_telemetry' as any, 'cascade_investigator' as any, 'inevitable_crash' as any]} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
+                unlockedViews={[...unlockedViews, 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any, 'ai_telemetry' as any, 'cascade_investigator' as any, 'inevitable_crash' as any, 'mission_items' as any, 'gmail' as any]} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
+                onSelectSystemIndicator={(sysName) => {
+                    setDiagnosticSearchQuery(sysName);
+                    handleSetView('system_diagnostic');
+                }}
             />
             
             <main className={`flex-1 flex flex-col relative overflow-hidden transition-all duration-75 flex-hinge dpi-300-shield ${isTerminal ? 'terminal-mode font-mono bg-black text-green-500 border-l-2 border-green-900/40' : ''} ${isHalted ? 'brightness-50 grayscale pointer-events-none' : ''}`}>
@@ -1964,6 +2379,8 @@ export const App: React.FC = () => {
                         onTriggerKillSwitch={handleTriggerHalt}
                         isGhostMode={isGhostMode}
                         onToggleGhostMode={() => setIsGhostMode(!isGhostMode)}
+                        profile={userProfile}
+                        onUpdateProfile={(updates: any) => setUserProfile(prev => ({ ...prev, ...updates }))}
                     />
                     <GuestBanner role={user?.role || 'guest'} />
                     <BreakCoordinator />
@@ -1985,7 +2402,7 @@ export const App: React.FC = () => {
                             />
                         </div>
                     </div>
-                    <div id="aetheros-view-wrapper" className={`flex-1 min-h-0 flex flex-col relative ${isSystemFractured ? 'matrix-glitch-active' : ''}`}>
+                    <div id="aetheros-view-wrapper" className={`flex-1 min-h-0 flex flex-col relative ${currentView} ${isSystemFractured ? 'matrix-glitch-active' : ''}`}>
                         {isSystemFractured && (
                             <MatrixCodeRain 
                                 color="rgba(244, 63, 94, 0.28)" 
@@ -2009,6 +2426,7 @@ export const App: React.FC = () => {
                                 acousticPressure={acousticPressure}
                                 shards={conjunctionProgress.shards}
                                 activityDensity={activityDensity}
+                                onRemediate={handleRemediateSequence}
                             />
                         )}
                         {isSystemFractured && (
@@ -2485,6 +2903,18 @@ export const App: React.FC = () => {
                     </div>
                 )}
             </main>
+            <GhostLayer>
+                <JesterCompanion 
+                    currentView={currentView as MainView} 
+                    systemStatus={systemStatus} 
+                    bootLogs={bootLogs} 
+                    profile={userProfile}
+                    onUpdateProfile={(updates: any) => setUserProfile(prev => ({ ...prev, ...updates }))}
+                    onUpdateSystemStatus={handleUpdateSystemStatus}
+                    acousticPressure={acousticPressure}
+                    isAcousticWarningOpen={isAcousticWarningOpen}
+                />
+            </GhostLayer>
         </div>
       </ErrorBoundary>
     );

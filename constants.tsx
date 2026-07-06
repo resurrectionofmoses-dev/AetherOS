@@ -8,7 +8,7 @@ import {
     FireIcon, ClockIcon, EyeIcon, OptimizerIcon, VaultIcon,
     GavelIcon, WrenchIcon, BroadcastIcon, ShareIcon, FlagIcon, ZapIcon,
     MessageCircleIcon, BookIcon, AtomIcon, ConfusionIcon, ThumbsUpIcon, TagIcon, DatabaseIcon,
-    MovieIcon, StarIcon
+    MovieIcon, StarIcon, ShirtIcon
 } from './components/icons';
 
 export interface NavItem {
@@ -29,11 +29,14 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
       path: 'root://coding_network',
       items: [
           { view: 'chat', text: 'NEURAL NEXUS', icon: BrainIcon },
+          { view: 'agent_safeguard' as any, text: 'AGENT SAFEGUARD', icon: ShieldIcon },
           { view: 'cascade_investigator' as any, text: 'CASCADE INVESTIGATOR', icon: CodeIcon },
           { view: 'ai_telemetry' as any, text: 'AI OPENTELEMETRY', icon: ActivityIcon },
           { view: 'constraints_audit' as any, text: 'CONSTRAINTS AUDIT', icon: SearchIcon },
           { view: 'voice_authority' as any, text: 'VOICE AUTHORITY', icon: SpeakerIcon },
           { view: 'cellular_grid' as any, text: 'CELLULAR GRID', icon: ActivityIcon },
+          { view: 'gmail' as any, text: 'GMAIL COMMS', icon: MessageCircleIcon },
+          { view: 'google_drive' as any, text: 'DRIVE STORAGE', icon: ServerIcon },
           { view: 'absolute_reliability_network', text: 'RELIABILITY NET', icon: ShieldIcon },
           { view: 'coding_network', text: 'NET DIRECTIVES', icon: GlobeIcon },
           { view: 'universal_search', text: 'UNIVERSAL SEARCH', icon: SearchIcon },
@@ -43,24 +46,29 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
           { view: 'projects', text: 'CRAZY PROJECTS', icon: CodeIcon },
           { view: 'unknown_physics_lab' as any, text: 'UNKNOWN PHYSICS', icon: AtomIcon },
           { view: 'logic_pattern_lab' as any, text: 'LOGIC LAB', icon: TerminalIcon },
+          { view: 'regex_editor_lab' as any, text: 'REGEX EDITOR LAB', icon: RulesIcon },
           { view: 'library_view', text: 'ARCHIVE LIBRARY', icon: BookIcon },
           { view: 'data_provenance_lab' as any, text: 'DATA PROVENANCE', icon: ServerIcon },
           { view: 'sh_crt_loop' as any, text: 'SH-CRT LOOP', icon: ActivityIcon },
           { view: 'medical_synthesis_lab' as any, text: 'MEDICAL SYNTHESIS', icon: ActivityIcon },
           { view: 'user_profile' as any, text: 'USER PROFILE', icon: UserIcon },
           { view: 'project_showcase' as any, text: 'PROJECT SHOWCASE', icon: ShareIcon },
+          { view: 'collaborative_editor' as any, text: 'COLLABORATIVE EDITOR', icon: CodeIcon },
           { view: 'reputation_leaderboard' as any, text: 'REPUTATION LEADERBOARD', icon: StarIcon },
           { view: 'aether_flow_orchestrator' as any, text: 'AETHER-FLOW ORCHESTRATOR', icon: ServerIcon },
           { view: 'prompt_forge' as any, text: 'PROMPT FORGE', icon: TerminalIcon },
           { view: 'forge', text: 'BLUEPRINT FORGE', icon: ForgeIcon },
           { view: 'covenant', text: 'NETWORK COVENANT', icon: RulesIcon },
           { view: 'verification_gates', text: 'VERIFICATION GATES', icon: ShieldIcon },
+          { view: 'mission_items', text: 'MISSION ITEMS', icon: DatabaseIcon },
+          { view: 'clothing_lab' as any, text: 'CLOTHING LAB', icon: ShirtIcon },
       ]
   },
   {
       title: 'Core Systems',
       path: 'root://os/kernel',
       items: [
+          { view: 'aetheros_online_status' as any, text: 'AETHEROS ONLINE', icon: SignalIcon },
           { view: 'system_exhaustion', text: 'TOTAL EXHAUSTION', icon: FireIcon },
           { view: 'labs_flow' as any, text: 'SOVEREIGN LABS FLOW', icon: TerminalIcon },
           { view: 'project_chronos', text: 'PROJECT CHRONOS', icon: ClockIcon },
@@ -83,6 +91,7 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
           { view: 'omni_builder', text: 'OMNI BUILDER', icon: ForgeIcon },
           { view: 'singularity_engine', text: 'SINGULARITY', icon: ActivityIcon },
           { view: 'diagnostics', text: 'FORENSIC AUDIT', icon: WrenchIcon },
+          { view: 'sovereign_scanner' as any, text: 'COMPLIANCE SCANNER', icon: ShieldIcon },
           { view: 'biometric_intelligence' as any, text: 'BIOMETRIC INTEL', icon: BrainIcon },
           { view: 'card_recovery' as any, text: 'ASSET RECOVERY', icon: VaultIcon },
           { view: 'eurodemux_core' as any, text: 'EURODEMUX CORE', icon: ServerIcon },

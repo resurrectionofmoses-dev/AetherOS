@@ -102,6 +102,7 @@ export const LabsFlowView: React.FC = () => {
 
     const [encryptionKey, setEncryptionKey] = useState<string>('0x03E2_AES_KALI');
     const [isProcessingBackup, setIsProcessingBackup] = useState<boolean>(false);
+    const [labTab, setLabTab] = useState<'PATHWAYS' | 'AUDIT'>('PATHWAYS');
 
     // PoW / PoC state calculations
     const [atomsCount, setAtomsCount] = useState<number>(() => {
@@ -272,48 +273,231 @@ export const LabsFlowView: React.FC = () => {
                 {/* COLUMN 1: THE 7 LABS GRID (7 IN / 7 OUT / 7 BACK) */}
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-slate-900/60 p-6 border-2 border-slate-800 rounded-xl">
-                        <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-3">
-                            <h2 className="text-sm font-black text-white tracking-widest uppercase flex items-center gap-2">
-                                <ActivityIcon className="w-4 h-4 text-cyan-500" />
-                                Lab Conduction Pathways (Conjunction 7x7)
-                            </h2>
+                        <div className="flex flex-wrap justify-between items-center mb-4 border-b border-slate-800 pb-3 gap-2">
+                            <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => setLabTab('PATHWAYS')}
+                                    className={`text-xs font-black tracking-widest uppercase pb-2 border-b-2 transition-all cursor-pointer ${
+                                        labTab === 'PATHWAYS'
+                                        ? 'text-white border-cyan-500'
+                                        : 'text-slate-500 border-transparent hover:text-slate-300'
+                                    }`}
+                                >
+                                    Conduction Pathways
+                                </button>
+                                <button
+                                    onClick={() => setLabTab('AUDIT')}
+                                    className={`text-xs font-black tracking-widest uppercase pb-2 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
+                                        labTab === 'AUDIT'
+                                        ? 'text-white border-amber-500'
+                                        : 'text-slate-500 border-transparent hover:text-slate-300'
+                                    }`}
+                                >
+                                    <ShieldIcon className="w-3.5 h-3.5 text-amber-500 animate-pulse" /> Forensic Audit Registry
+                                </button>
+                            </div>
                             <span className="text-[10px] text-cyan-400 font-bold bg-cyan-950/60 px-2 py-0.5 border border-cyan-800/40 rounded">
                                 SYSTEM LEVEL 07
                             </span>
                         </div>
 
-                        <p className="text-xs text-slate-400 leading-relaxed italic mb-4">
-                            "The system aligns 7 foundational laboratories configured to utilize G:\ for staging, and Z:\ for secure persistent node directories. Every cycle yields encrypted backups stored in the virtual database."
-                        </p>
+                        {labTab === 'PATHWAYS' ? (
+                            <>
+                                <p className="text-xs text-slate-400 leading-relaxed italic mb-4">
+                                    "The system aligns 7 foundational laboratories configured to utilize G:\ for staging, and Z:\ for secure persistent node directories. Every cycle yields encrypted backups stored in the virtual database."
+                                </p>
 
-                        <div className="space-y-3">
-                            {labsList.map((lab, i) => (
-                                <div key={lab.id} className="p-3 bg-black/60 border border-slate-800 hover:border-cyan-500/30 rounded-lg transition-all flex justify-between items-center gap-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-black text-cyan-400">
-                                            0{i+1}
+                                <div className="space-y-3">
+                                    {labsList.map((lab, i) => (
+                                        <div key={lab.id} className="p-3 bg-black/60 border border-slate-800 hover:border-cyan-500/30 rounded-lg transition-all flex justify-between items-center gap-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded bg-slate-900 border border-slate-800 flex items-center justify-center text-xs font-black text-cyan-400">
+                                                    0{i+1}
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <h4 className="text-xs font-black text-white">{lab.name}</h4>
+                                                        <span className="text-[9px] px-1.5 py-0.5 bg-slate-950 border border-slate-800 rounded text-slate-500">
+                                                            Drive {lab.driveLetter}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[10px] text-slate-500 italic mt-0.5">{lab.description}</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-3">
+                                                <div className="text-right">
+                                                    <div className="text-[9px] text-slate-500 uppercase font-black">Multiplicity</div>
+                                                    <div className="text-[10px] text-amber-500 font-black">x{lab.multiplier} Conductor</div>
+                                                </div>
+                                                <span className={`w-2.5 h-2.5 rounded-full ${lab.status === 'SYNCED' ? 'bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.6)]' : 'bg-slate-700'}`} />
+                                            </div>
                                         </div>
-                                        <div>
-                                            <div className="flex items-center gap-2">
-                                                <h4 className="text-xs font-black text-white">{lab.name}</h4>
-                                                <span className="text-[9px] px-1.5 py-0.5 bg-slate-950 border border-slate-800 rounded text-slate-500">
-                                                    Drive {lab.driveLetter}
+                                    ))}
+                                </div>
+                            </>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="p-3 bg-amber-950/20 border border-amber-500/30 rounded-lg text-xs text-amber-200 flex items-center gap-2">
+                                    <ShieldIcon className="w-4 h-4 shrink-0 text-amber-500" />
+                                    <span>
+                                        <strong>FORENSIC SYSTEM REPORT:</strong> Active audit session verified. This log catalogs the completed features and identifies missing elements across all 7 laboratories.
+                                    </span>
+                                </div>
+
+                                <div className="space-y-4 max-h-[420px] overflow-y-auto pr-2 custom-scrollbar">
+                                    {[
+                                        {
+                                            id: '1',
+                                            name: 'RT-IPC Laboratory (Z:)',
+                                            status: 'SYNCED',
+                                            completed: [
+                                                'Dynamic latency monitor tracking IPC speeds',
+                                                'Live Signal Bridge mapping telemetry outputs',
+                                                'Sub-millisecond thread loop sandbox'
+                                            ],
+                                            missing: [
+                                                'Direct IPC socket bind driver for zero-copy memory transfers.',
+                                                'Durable system mutex mapping to prevent deadlocks under heavy frame load.'
+                                            ],
+                                            recommendation: 'Register native OS-level message queues in network config.'
+                                        },
+                                        {
+                                            id: '2',
+                                            name: 'Sovereign Shield Forge (Z:)',
+                                            status: 'SYNCED',
+                                            completed: [
+                                                'Encrypted vault connection handshake',
+                                                'Sovereign Blacklist telemetry tracker integration',
+                                                'Covenant rules engine validator logic checks'
+                                            ],
+                                            missing: [
+                                                'Real-time automated AES-256 seed rotation trigger on security breech.',
+                                                'Physical HSM (Hardware Security Module) driver attachment.'
+                                            ],
+                                            recommendation: 'Inject security keys into process memory with lazy initialization.'
+                                        },
+                                        {
+                                            id: '3',
+                                            name: 'Spectre web siphoner (G:)',
+                                            status: 'IDLE',
+                                            completed: [
+                                                'Secure Spectre browser shell iframe and sandbox',
+                                                'Basic url content reading backend parser proxies',
+                                                'Data Academy content ingest pipeline'
+                                            ],
+                                            missing: [
+                                                'Rotating proxy cluster to shield request routes from IP blockages.',
+                                                'Integrated CAPTCHA-solving agent for continuous unattended siphoning.'
+                                            ],
+                                            recommendation: 'Configure custom header spoofing in server-side request middleware.'
+                                        },
+                                        {
+                                            id: '4',
+                                            name: 'Hard Code low-level compiler (Z:)',
+                                            status: 'IDLE',
+                                            completed: [
+                                                'Cascade investigator code inspector UI',
+                                                'Blueprint Forge custom parser system',
+                                                'Type safe system enums definition'
+                                            ],
+                                            missing: [
+                                                'In-browser WebAssembly-based sandbox to compile assembly to bytecodes.',
+                                                'Real-time compiler log console mapping errors directly to source lines.'
+                                            ],
+                                            recommendation: 'Integrate the mono-assembly parser in the next sprint phase.'
+                                        },
+                                        {
+                                            id: '5',
+                                            name: 'Truth & Safety filter (G:)',
+                                            status: 'SYNCED',
+                                            completed: [
+                                                'Agent Safeguard policy evaluator checks',
+                                                'Epitume screening static logs console',
+                                                'Input token validator bounds checks'
+                                            ],
+                                            missing: [
+                                                'Dynamic content-guard proxy interceptor.',
+                                                'Active semantic sanitization filter for untrusted data streams.'
+                                            ],
+                                            recommendation: 'Add dynamic safety classification endpoints to the server.'
+                                        },
+                                        {
+                                            id: '6',
+                                            name: 'Engineering assembly grid (Z:)',
+                                            status: 'IDLE',
+                                            completed: [
+                                                'Interactive project network canvas and layout',
+                                                'Real-time task search & filtering panel (Kanban & List)',
+                                                'Interactive kanban board component integration'
+                                            ],
+                                            missing: [
+                                                'Auto-layout graph visualization to view project tree structures.',
+                                                'Drag-and-drop link builder to wire logic-blocks together.'
+                                            ],
+                                            recommendation: 'Utilize D3-force layout diagrams for interactive system visualization.'
+                                        },
+                                        {
+                                            id: '7',
+                                            name: 'Quantum Theory Sandbox (G:)',
+                                            status: 'IDLE',
+                                            completed: [
+                                                'Unknown Physics multi-dimensional wave generator',
+                                                'Quantum ledger transactions database tracker'
+                                            ],
+                                            missing: [
+                                                'True quantum simulation equations (currently utilizing pseudo-random waves).',
+                                                'Interactive Bloch sphere visualization canvas.'
+                                            ],
+                                            recommendation: 'Incorporate complex number matrix multiplication libraries.'
+                                        }
+                                    ].map((audit) => (
+                                        <div key={audit.id} className="p-3 bg-black/40 border border-slate-800 rounded-lg space-y-2">
+                                            <div className="flex justify-between items-center border-b border-slate-900 pb-1.5">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[10px] bg-slate-950 px-1.5 py-0.5 border border-slate-800 rounded text-cyan-400 font-bold font-mono">
+                                                        LAB 0{audit.id}
+                                                    </span>
+                                                    <h4 className="text-xs font-black text-white">{audit.name}</h4>
+                                                </div>
+                                                <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded ${
+                                                    audit.status === 'SYNCED' ? 'bg-cyan-950 text-cyan-400 border border-cyan-800/20' : 'bg-slate-950 text-slate-500 border border-slate-800'
+                                                }`}>
+                                                    {audit.status}
                                                 </span>
                                             </div>
-                                            <p className="text-[10px] text-slate-500 italic mt-0.5">{lab.description}</p>
-                                        </div>
-                                    </div>
 
-                                    <div className="flex items-center gap-3">
-                                        <div className="text-right">
-                                            <div className="text-[9px] text-slate-500 uppercase font-black">Multiplicity</div>
-                                            <div className="text-[10px] text-amber-500 font-black">x{lab.multiplier} Conductor</div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[10px]">
+                                                {/* Fully Implemented Features */}
+                                                <div className="space-y-1">
+                                                    <span className="text-[8px] uppercase tracking-wider text-emerald-400 font-bold font-mono block">✔ Implemented Features</span>
+                                                    <ul className="list-disc list-inside text-slate-400 space-y-1">
+                                                        {audit.completed.map((comp, idx) => (
+                                                            <li key={idx} className="leading-tight text-[9px] text-slate-400">{comp}</li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+
+                                                {/* Missing Features */}
+                                                <div className="space-y-1">
+                                                    <span className="text-[8px] uppercase tracking-wider text-amber-400 font-bold font-mono block">✖ Missing / Incomplete Elements</span>
+                                                    <ul className="list-disc list-inside text-slate-300 space-y-1">
+                                                        {audit.missing.map((miss, idx) => (
+                                                            <li key={idx} className="leading-tight text-[9px] text-amber-200/90">{miss}</li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-1.5 border-t border-slate-900 flex justify-between items-center text-[9px]">
+                                                <span className="text-slate-500">Forensic Action:</span>
+                                                <span className="text-cyan-400 font-mono italic">{audit.recommendation}</span>
+                                            </div>
                                         </div>
-                                        <span className={`w-2.5 h-2.5 rounded-full ${lab.status === 'SYNCED' ? 'bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.6)]' : 'bg-slate-700'}`} />
-                                    </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* ATUNEMENT MONITOR (L1, L2, L3) */}

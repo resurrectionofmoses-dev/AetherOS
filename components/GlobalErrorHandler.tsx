@@ -75,9 +75,16 @@ export const GlobalErrorHandler: React.FC = () => {
         fullText.includes("play()") ||
         fullText.includes("speech") ||
         fullText.includes("synthesis") ||
-        fullText.includes("gesture")
+        fullText.includes("gesture") ||
+        fullText.includes("metamask") ||
+        fullText.includes("ethereum") ||
+        fullText.includes("wallet") ||
+        fullText.includes("provider") ||
+        fullText.includes("web3") ||
+        fullText.includes("ethers") ||
+        fullText.includes("extension")
       ) {
-        console.warn("[GlobalErrorHandler] Suppressed benign system, audio, or scheduler error:", msg || errMsg || errName);
+        console.warn("[GlobalErrorHandler] Suppressed benign system, audio, or wallet error:", msg || errMsg || errName);
         return;
       }
 
@@ -120,7 +127,14 @@ export const GlobalErrorHandler: React.FC = () => {
         fullText.includes("binance") ||
         fullText.includes("event") ||
         fullText.includes("istrusted") ||
-        fullText.includes("closed without opened")
+        fullText.includes("closed without opened") ||
+        fullText.includes("metamask") ||
+        fullText.includes("ethereum") ||
+        fullText.includes("wallet") ||
+        fullText.includes("provider") ||
+        fullText.includes("web3") ||
+        fullText.includes("ethers") ||
+        fullText.includes("extension")
       ) {
         console.warn("[GlobalErrorHandler] Suppressed benign promise rejection:", reasonMsg);
         return;

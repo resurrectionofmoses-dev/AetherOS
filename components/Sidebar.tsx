@@ -29,6 +29,7 @@ interface SidebarProps {
   governance?: SystemGovernance;
   soundscape?: SoundscapeType;
   onSetSoundscape?: (type: SoundscapeType) => void;
+  onSelectSystemIndicator?: (sysName: keyof SystemStatus) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -43,7 +44,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isTerminal, 
   governance,
   soundscape, 
-  onSetSoundscape
+  onSetSoundscape,
+  onSelectSystemIndicator
 }) => {
   const { user } = useAuth();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -59,8 +61,78 @@ export const Sidebar: React.FC<SidebarProps> = ({
     return currentDateTime.toLocaleTimeString('en-US', options);
   }, [currentDateTime, timeFormat]);
 
+  const overallState = useMemo(() => {
+    const values = Object.values(systemStatus);
+    if (values.includes('Error')) return 'Error';
+    if (values.includes('Warning')) return 'Warning';
+    return 'OK';
+  }, [systemStatus]);
+
+  const pulseDuration = useMemo(() => {
+    if (overallState === 'Error') return 0.8;
+    if (overallState === 'Warning') return 1.5;
+    return 3.0;
+  }, [overallState]);
+
+  const pulseColors = useMemo(() => {
+    if (overallState === 'Error') {
+      return {
+        boxShadow: [
+          'inset 0 0 15px rgba(239,68,68,0.08), 2px 0 10px rgba(239,68,68,0.1)',
+          'inset 0 0 35px rgba(239,68,68,0.22), 3px 0 25px rgba(239,68,68,0.25)',
+          'inset 0 0 15px rgba(239,68,68,0.08), 2px 0 10px rgba(239,68,68,0.1)'
+        ],
+        borderRightColor: [
+          'rgba(239,68,68,0.2)',
+          'rgba(239,68,68,0.5)',
+          'rgba(239,68,68,0.2)'
+        ]
+      };
+    }
+    if (overallState === 'Warning') {
+      return {
+        boxShadow: [
+          'inset 0 0 12px rgba(245,158,11,0.05), 2px 0 8px rgba(245,158,11,0.05)',
+          'inset 0 0 25px rgba(245,158,11,0.15), 3px 0 20px rgba(245,158,11,0.18)',
+          'inset 0 0 12px rgba(245,158,11,0.05), 2px 0 8px rgba(245,158,11,0.05)'
+        ],
+        borderRightColor: [
+          'rgba(245,158,11,0.15)',
+          'rgba(245,158,11,0.35)',
+          'rgba(245,158,11,0.15)'
+        ]
+      };
+    }
+    return {
+      boxShadow: [
+        'inset 0 0 8px rgba(16,185,129,0.02), 1px 0 5px rgba(16,185,129,0.02)',
+        'inset 0 0 20px rgba(16,185,129,0.08), 2px 0 12px rgba(16,185,129,0.08)',
+        'inset 0 0 8px rgba(16,185,129,0.02), 1px 0 5px rgba(16,185,129,0.02)'
+      ],
+      borderRightColor: [
+        'rgba(34,197,94,0.05)',
+        'rgba(34,197,94,0.18)',
+        'rgba(34,197,94,0.05)'
+      ]
+    };
+  }, [overallState]);
+
   return (
-    <aside className="w-60 h-full flex-shrink-0 flex flex-col bg-[#050505] border-r-2 border-black z-50">
+    <motion.aside
+      animate={{
+        boxShadow: pulseColors.boxShadow,
+        borderRightColor: pulseColors.borderRightColor
+      }}
+      transition={{
+        duration: pulseDuration,
+        repeat: Infinity,
+        ease: "easeInOut"
+      }}
+      style={{
+        borderRightWidth: '2px'
+      }}
+      className="w-60 h-full flex-shrink-0 flex flex-col bg-[#050505] z-50 transition-colors duration-500"
+    >
       <div className="p-3 bg-black border-b-2 border-zinc-900 flex flex-col">
           <div className="flex items-center justify-between gap-2.5">
             <div className="flex items-center gap-2">
@@ -100,6 +172,72 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 SYSTEM_UPTIME: STABLE
             </span>
         </motion.div>
+      </div>
+
+      {/* System Status Indicators with Breathing Animation */}
+      <div className="p-2 border-b-2 border-white/5 mx-1 mb-2 space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">
+            SYSTEM_STATUS
+          </span>
+          <span className="text-[7px] text-zinc-600 font-black font-mono">
+            LIVE_MONITOR
+          </span>
+        </div>
+        
+        <div className="space-y-1">
+          {(['Engine', 'Battery', 'Navigation', 'Infotainment', 'Handling'] as Array<keyof SystemStatus>).map((sys) => {
+            const state = systemStatus[sys] || 'OK';
+            
+            // Set up pulse colors & durations based on current state
+            let pulseBg = "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.45)]";
+            let textColor = "text-green-500";
+            let pulseDuration = 2.0; // gentle pulse for OK
+
+            if (state === 'Warning') {
+              pulseBg = "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.45)]";
+              textColor = "text-amber-500";
+              pulseDuration = 1.4; // slightly faster breathe for Warning
+            } else if (state === 'Error') {
+              pulseBg = "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.55)]";
+              textColor = "text-red-500";
+              pulseDuration = 0.8; // urgent rapid pulse for Error
+            }
+
+            return (
+              <motion.div 
+                key={sys}
+                whileHover={{ scale: 1.02, backgroundColor: "rgba(255, 255, 255, 0.05)" }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onSelectSystemIndicator?.(sys)}
+                className="flex items-center justify-between p-1 px-2 bg-black/40 rounded border border-white/5 cursor-pointer hover:border-white/20 transition-all"
+                title={`Click to view diagnostics for ${sys}`}
+              >
+                <span className="text-[9px] font-mono text-zinc-400 font-bold uppercase tracking-wider">
+                  {sys}
+                </span>
+                
+                <div className="flex items-center gap-1.5">
+                  <motion.div 
+                    animate={{
+                      scale: [0.85, 1.15, 0.85],
+                      opacity: [0.45, 1, 0.45],
+                    }}
+                    transition={{
+                      duration: pulseDuration,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                    className={`w-1.5 h-1.5 rounded-full ${pulseBg}`}
+                  />
+                  <span className={`text-[8px] font-black font-mono uppercase tracking-tighter ${textColor}`}>
+                    {state}
+                  </span>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-2 custom-scrollbar space-y-5 pb-10 mt-4">
@@ -154,6 +292,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 );
             })}
       </div>
-    </aside>
+    </motion.aside>
   );
 };

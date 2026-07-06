@@ -476,6 +476,16 @@ export const KnowledgeForumView: React.FC = () => {
     const [editingAnswerId, setEditingAnswerId] = useState<{ qId: string; aId: string } | null>(null);
     const [editingText, setEditingText] = useState('');
 
+    // User expertise tagging states
+    const [userExpertises, setUserExpertises] = useState<Record<string, string[]>>({
+        'CHAIN-X_VERIFIER': ['DLT', 'Security', 'Consensus'],
+        'Maestro': ['Architecture', 'Rust', 'Go'],
+        'Sovereign_Admin': ['Logic', 'Shards', 'Latency'],
+        'Logic_Maestro': ['Quantization', 'Intent', 'Logic'],
+        'Aetheros_Prime': ['TypeScript', 'React', 'Compiler']
+    });
+    const [newExpertiseInput, setNewExpertiseInput] = useState('');
+
     const logModAction = (actionStr: string) => {
         const timeStamp = new Date().toLocaleTimeString();
         setModLogs(prev => [`[${timeStamp}] ${actionStr}`, ...prev]);
@@ -518,6 +528,17 @@ export const KnowledgeForumView: React.FC = () => {
                 setCategories(extractJSON(savedCategories, DEFAULT_CATEGORIES));
             } else {
                 setCategories(DEFAULT_CATEGORIES);
+            }
+
+            const savedExpertises = await safeStorage.getItem('AETHER_FORUM_USERS_EXPERTISE');
+            if (savedExpertises) {
+                setUserExpertises(extractJSON(savedExpertises, {
+                    'CHAIN-X_VERIFIER': ['DLT', 'Security', 'Consensus'],
+                    'Maestro': ['Architecture', 'Rust', 'Go'],
+                    'Sovereign_Admin': ['Logic', 'Shards', 'Latency'],
+                    'Logic_Maestro': ['Quantization', 'Intent', 'Logic'],
+                    'Aetheros_Prime': ['TypeScript', 'React', 'Compiler']
+                }));
             }
 
             const saved = await safeStorage.getItem('AETHER_FORUM_DATA');
@@ -621,6 +642,16 @@ In essence, a blockchain system designed with an infinite payload space would be
         };
         saveCats();
     }, [categories, isForumLoading]);
+
+    // Save User Expertises Data
+    useEffect(() => {
+        const saveExpertises = async () => {
+            if (!isForumLoading) {
+                await safeStorage.setItem('AETHER_FORUM_USERS_EXPERTISE', JSON.stringify(userExpertises));
+            }
+        };
+        saveExpertises();
+    }, [userExpertises, isForumLoading]);
 
     // Create New Thread (Question)
     const handlePostQuestion = (e: React.FormEvent) => {
@@ -1090,6 +1121,97 @@ In essence, a blockchain system designed with an infinite payload space would be
                             </div>
                         )}
                     </div>
+
+                    {/* Operator Expertise Profile Widget */}
+                    <div className="pt-4 border-t border-zinc-900 mt-6 shrink-0 space-y-3">
+                        <div className="flex items-center gap-2">
+                            <TagIcon className="w-3.5 h-3.5 text-emerald-400" />
+                            <h3 className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Operator Expertise</h3>
+                        </div>
+                        <p className="text-[9px] text-zinc-500 uppercase leading-relaxed">
+                            Tag your cognitive expertise to build trust and authority in the AetherOS knowledge network.
+                        </p>
+                        
+                        {/* Tags list */}
+                        <div className="flex flex-wrap gap-1.5 min-h-[30px] pt-1 select-none">
+                            {(userExpertises[userProfile?.username || 'Aetheros_Prime'] || []).map(exp => (
+                                <span 
+                                    key={exp} 
+                                    className="px-2 py-0.5 bg-emerald-950/40 text-[9px] font-mono text-emerald-400 border border-emerald-500/20 rounded-md flex items-center gap-1.5"
+                                >
+                                    <span>{exp}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const activeUser = userProfile?.username || 'Aetheros_Prime';
+                                            const currentTags = userExpertises[activeUser] || [];
+                                            const nextTags = currentTags.filter(t => t !== exp);
+                                            setUserExpertises(prev => ({
+                                                ...prev,
+                                                [activeUser]: nextTags
+                                            }));
+                                        }}
+                                        className="hover:text-red-400 transition-colors cursor-pointer text-[10px] font-bold leading-none p-0.5"
+                                    >
+                                        ×
+                                    </button>
+                                </span>
+                            ))}
+                            {(userExpertises[userProfile?.username || 'Aetheros_Prime'] || []).length === 0 && (
+                                <span className="text-[9px] text-zinc-600 italic">No expertise tags defined.</span>
+                            )}
+                        </div>
+
+                        {/* Add tag form */}
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                placeholder="Add expertise (e.g. Go)..."
+                                value={newExpertiseInput}
+                                onChange={e => setNewExpertiseInput(e.target.value)}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        const val = newExpertiseInput.trim();
+                                        if (val) {
+                                            const activeUser = userProfile?.username || 'Aetheros_Prime';
+                                            const currentTags = userExpertises[activeUser] || [];
+                                            if (!currentTags.includes(val)) {
+                                                const nextTags = [...currentTags, val];
+                                                setUserExpertises(prev => ({
+                                                    ...prev,
+                                                    [activeUser]: nextTags
+                                                }));
+                                            }
+                                            setNewExpertiseInput('');
+                                        }
+                                    }
+                                }}
+                                className="flex-1 bg-black border border-zinc-850 rounded-lg p-2 text-[9px] text-zinc-305 outline-none focus:border-emerald-500 transition-all font-mono"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const val = newExpertiseInput.trim();
+                                    if (val) {
+                                        const activeUser = userProfile?.username || 'Aetheros_Prime';
+                                        const currentTags = userExpertises[activeUser] || [];
+                                        if (!currentTags.includes(val)) {
+                                            const nextTags = [...currentTags, val];
+                                            setUserExpertises(prev => ({
+                                                ...prev,
+                                                [activeUser]: nextTags
+                                            }));
+                                        }
+                                        setNewExpertiseInput('');
+                                    }
+                                }}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-black px-2.5 py-2 rounded-lg font-black uppercase text-[9px] font-mono transition-colors active:scale-95 shrink-0"
+                            >
+                                Add
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Main Content: Questions List */}
@@ -1288,8 +1410,18 @@ In essence, a blockchain system designed with an infinite payload space would be
                                                     {question.skillLevel}
                                                 </span>
                                             )}
-                                            <span className="text-[8px] font-black text-zinc-650 uppercase tracking-widest">
-                                                Posted by {question.author} • {new Date(question.timestamp).toLocaleDateString()}
+                                            <span className="text-[8px] font-black text-zinc-650 uppercase tracking-widest flex items-center gap-1.5 flex-wrap">
+                                                <span>Posted by {question.author}</span>
+                                                {userExpertises[question.author] && userExpertises[question.author].length > 0 && (
+                                                    <span className="inline-flex gap-1 items-center">
+                                                        {userExpertises[question.author].map(tag => (
+                                                            <span key={tag} className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[7px] font-mono px-1 py-0.5 rounded uppercase leading-none font-bold">
+                                                                {tag}
+                                                            </span>
+                                                        ))}
+                                                    </span>
+                                                )}
+                                                <span>• {new Date(question.timestamp).toLocaleDateString()}</span>
                                             </span>
                                         </div>
                                         
@@ -1474,9 +1606,19 @@ In essence, a blockchain system designed with an infinite payload space would be
                                                             </div>
                                                             <div className="flex-1 space-y-2 min-w-0">
                                                                 <div className="flex items-center justify-between gap-3 flex-wrap">
-                                                                    <div className="flex items-center gap-2 text-[8px] font-black text-zinc-500 uppercase">
+                                                                    <div className="flex items-center gap-2 text-[8px] font-black text-zinc-500 uppercase flex-wrap">
                                                                         <UserIcon className="w-3 h-3 text-zinc-650" />
-                                                                        {answer.author} • {new Date(answer.timestamp).toLocaleTimeString()}
+                                                                        <span>{answer.author}</span>
+                                                                        {userExpertises[answer.author] && userExpertises[answer.author].length > 0 && (
+                                                                            <span className="inline-flex gap-1 items-center">
+                                                                                {userExpertises[answer.author].map(tag => (
+                                                                                    <span key={tag} className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[7px] font-mono px-1 py-0.5 rounded uppercase leading-none font-bold">
+                                                                                        {tag}
+                                                                                    </span>
+                                                                                ))}
+                                                                            </span>
+                                                                        )}
+                                                                        <span>• {new Date(answer.timestamp).toLocaleTimeString()}</span>
                                                                         {answer.editedAt && (
                                                                             <span className="text-cyan-500 lowercase italic"> (edited)</span>
                                                                         )}

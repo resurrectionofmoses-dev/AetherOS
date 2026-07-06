@@ -1451,6 +1451,7 @@ export const MainNetView: React.FC = () => {
                                             { name: 'Energy Charge & Warm Coffee', merchant: 'Java Junction Cafeteria', cost: 15, subtype: 'solar_power', amountNeeded: 15, unit: 'kWh', icon: ZapIcon },
                                             { name: 'Alpha Logistics Diesel Charge', merchant: 'Alpha Truck Depot', cost: 80, subtype: 'solar_power', amountNeeded: 80, unit: 'kWh', icon: CpuIcon },
                                             { name: 'Database Server Core Integration Slot', merchant: 'Cloud Native Systems', cost: 150, subtype: 'iron_ore', amountNeeded: 75, unit: 'kg', icon: DatabaseIcon },
+                                            { name: 'Aether-USD Sovereign Cloud Tier', merchant: 'Aether Flow Systems', cost: 100, subtype: 'minted_aether_usd', amountNeeded: 100, unit: 'aetherUSD', icon: ServerIcon },
                                         ].map((item, idx) => {
                                             const asset = reserve.reserves.find(r => r.subtype === item.subtype);
                                             const canAfford = asset && asset.quantity >= item.amountNeeded;

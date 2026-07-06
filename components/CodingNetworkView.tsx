@@ -5,7 +5,8 @@ import { FINTECH_AUTHORITIES } from '../constants';
 import { 
     CodeIcon, ActivityIcon, ZapIcon, ShieldIcon, FireIcon, StarIcon, PlusIcon, XIcon, TerminalIcon, UserIcon, BrainIcon, LogicIcon, CheckCircleIcon, SpinnerIcon, GaugeIcon, SearchIcon, GavelIcon
 } from './icons';
-import type { NetworkProject, ProjectTask, UserProfile } from '../types';
+import type { NetworkProject, ProjectTask, UserProfile, ProfileProject, ProfileProjectTestimonial } from '../types';
+import { PortfolioProjectCard } from './PortfolioProjectCard';
 import type { HireableAgent } from '../agentTypes';
 import { AgentFactory } from '../services/AgentFactory';
 import { safeStorage } from '../services/safeStorage';
@@ -91,9 +92,11 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     // --- NETWORK PROFILES & SKILL MATCHING STATES ---
     const [networkProfiles, setNetworkProfiles] = useState<any[]>([]);
     const [searchProfileQuery, setSearchProfileQuery] = useState('');
+    const [skillFilterMode, setSkillFilterMode] = useState<'all' | 'possess' | 'mentor'>('all');
     const [selectedProfileNode, setSelectedProfileNode] = useState<any | null>(null);
     const [offeringInput, setOfferingInput] = useState('');
     const [lookingInput, setLookingInput] = useState('');
+    const [endorsementConfirmation, setEndorsementConfirmation] = useState<{ profileId: string; profileUsername: string; skillName: string; isRemoving: boolean } | null>(null);
 
     // --- PREDICTIVE TIMELINE / FORECAST STATES ---
     const [projectBoosts, setProjectBoosts] = useState<Record<string, number>>({});
@@ -251,6 +254,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                     bio: 'Systems generalist bridging low-level conduction runtimes with cryptographically secure consensus architectures. Building custom WASM and Rust execution vectors.',
                     skills: ['Rust', 'Go', 'WebAssembly', 'Solidity', 'System Architecture'],
                     lookingForSkills: ['TypeScript', 'React', 'Tailwind CSS', 'Framer Motion'],
+                    willingToTeachSkills: ['Rust', 'WebAssembly', 'System Architecture'],
                     experienceLevel: 'Staff Engineer',
                     avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
                     role: 'user',
@@ -276,6 +280,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                     bio: 'Research scientist focusing on speech synthesis pipelines, deep signal analytics, and custom neural networks (PyTorch/Transformers) compiled for real-time DSP.',
                     skills: ['Python', 'PyTorch', 'Next.js', 'React', 'Audio Engineering', 'TensorFlow'],
                     lookingForSkills: ['Rust', 'WebAssembly', 'Go', 'SubtleCrypto'],
+                    willingToTeachSkills: ['Python', 'PyTorch', 'Audio Engineering'],
                     experienceLevel: 'Senior NLP Architect',
                     avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80',
                     role: 'user',
@@ -302,6 +307,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                     bio: 'Smart contract audit specialist, defensive system designer, and cryptography lead. Securing client-authenticated vault platforms and zero-knowledge circuits.',
                     skills: ['Solidity', 'SubtleCrypto', 'React', 'AWS', 'Node.js', 'Security Audits'],
                     lookingForSkills: ['Python', 'PyTorch', 'AI & ML', 'Audio Engineering'],
+                    willingToTeachSkills: ['Solidity', 'SubtleCrypto', 'Security Audits'],
                     experienceLevel: 'Principal Auditor',
                     avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80',
                     role: 'user',
@@ -325,6 +331,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                     bio: 'Obsessed with kinetic layout structures, spatial responsive fluidity, and Swiss-modern display typography. Crafting minimalist but highly functional UI templates.',
                     skills: ['Tailwind CSS', 'React', 'Framer Motion', 'Figma', 'UI/UX', 'SVG Animation'],
                     lookingForSkills: ['Node.js', 'Go', 'PostgreSQL', 'System Architecture'],
+                    willingToTeachSkills: ['Tailwind CSS', 'Framer Motion', 'UI/UX'],
                     experienceLevel: 'Creative Director',
                     avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&q=80',
                     role: 'user',
@@ -528,6 +535,112 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                 setSelectedProfileNode(updatedNode);
             }
         }
+    };
+
+    const handlePeerProjectAddTestimonial = async (projId: string, testimonial: ProfileProjectTestimonial) => {
+        if (!selectedProfileNode) return;
+        const profileId = selectedProfileNode.id;
+        const updatedProfiles = (networkProfiles || [])?.map?.(p => {
+            if (p && p.id === profileId) {
+                const nextProjs = (p.profileProjects || [])?.map?.(proj => {
+                    if (proj.id === projId) {
+                        const currentTestimonials = proj.testimonials || [];
+                        const updatedTestimonials = [...currentTestimonials, testimonial];
+                        const currentCount = proj.ratingsCount || 0;
+                        const newCount = currentCount + 1;
+                        const currentAvg = proj.rating || 5;
+                        const newAvg = parseFloat(((currentAvg * currentCount + testimonial.rating) / newCount).toFixed(1));
+                        return { ...proj, testimonials: updatedTestimonials, rating: newAvg, ratingsCount: newCount };
+                    }
+                    return proj;
+                });
+                return { ...p, profileProjects: nextProjs };
+            }
+            return p;
+        });
+
+        setNetworkProfiles(updatedProfiles);
+        try {
+            await safeStorage.setItem('aetheros_network_profiles', JSON.stringify(updatedProfiles));
+        } catch (e) {
+            console.error(e);
+        }
+
+        const updatedNode = (updatedProfiles || [])?.find?.(p => p && p.id === profileId);
+        if (updatedNode) {
+            setSelectedProfileNode(updatedNode);
+        }
+        toast.success("Testimonial added successfully!");
+    };
+
+    const handlePeerEndorseProject = async (projId: string) => {
+        if (!selectedProfileNode) return;
+        const profileId = selectedProfileNode.id;
+        const myUsername = profile?.username || 'Operator-You';
+
+        const updatedProfiles = (networkProfiles || [])?.map?.(p => {
+            if (p && p.id === profileId) {
+                const nextProjs = (p.profileProjects || [])?.map?.(proj => {
+                    if (proj.id === projId) {
+                        const currentEndorsements = proj.endorsements || [];
+                        const nextEndorsements = currentEndorsements.includes(myUsername)
+                            ? currentEndorsements.filter(u => u !== myUsername)
+                            : [...currentEndorsements, myUsername];
+                        return { ...proj, endorsements: nextEndorsements };
+                    }
+                    return proj;
+                });
+                return { ...p, profileProjects: nextProjs };
+            }
+            return p;
+        });
+
+        setNetworkProfiles(updatedProfiles);
+        try {
+            await safeStorage.setItem('aetheros_network_profiles', JSON.stringify(updatedProfiles));
+        } catch (e) {
+            console.error(e);
+        }
+
+        const updatedNode = (updatedProfiles || [])?.find?.(p => p && p.id === profileId);
+        if (updatedNode) {
+            setSelectedProfileNode(updatedNode);
+        }
+        toast.success("Project endorsement updated!");
+    };
+
+    const handlePeerRateProject = async (projId: string, value: number) => {
+        if (!selectedProfileNode) return;
+        const profileId = selectedProfileNode.id;
+        const updatedProfiles = (networkProfiles || [])?.map?.(p => {
+            if (p && p.id === profileId) {
+                const nextProjs = (p.profileProjects || [])?.map?.(proj => {
+                    if (proj.id === projId) {
+                        const currentCount = proj.ratingsCount || 0;
+                        const newCount = currentCount + 1;
+                        const currentAvg = proj.rating || 5;
+                        const newAvg = parseFloat(((currentAvg * currentCount + value) / newCount).toFixed(1));
+                        return { ...proj, rating: newAvg, ratingsCount: newCount };
+                    }
+                    return proj;
+                });
+                return { ...p, profileProjects: nextProjs };
+            }
+            return p;
+        });
+
+        setNetworkProfiles(updatedProfiles);
+        try {
+            await safeStorage.setItem('aetheros_network_profiles', JSON.stringify(updatedProfiles));
+        } catch (e) {
+            console.error(e);
+        }
+
+        const updatedNode = (updatedProfiles || [])?.find?.(p => p && p.id === profileId);
+        if (updatedNode) {
+            setSelectedProfileNode(updatedNode);
+        }
+        toast.success(`Rated ${value} stars!`);
     };
 
     // --- COLLABORATION PROJECTS FEATURE STATE ---
@@ -748,6 +861,127 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     const [disputeAmount, setDisputeAmount] = useState(100);
     const [disputeReason, setDisputeReason] = useState('');
     const [disputeEvidence, setDisputeEvidence] = useState('');
+
+    // --- DIRECT USER COLLABORATION INVITATION STATES ---
+    const [invitationTargetProfile, setInvitationTargetProfile] = useState<any | null>(null);
+    const [collabInviteSelectedProjectId, setCollabInviteSelectedProjectId] = useState<string>('new_space');
+    const [collabInviteMessage, setCollabInviteMessage] = useState('');
+    const [collabInviteNewTitle, setCollabInviteNewTitle] = useState('');
+    const [collabInviteNewDesc, setCollabInviteNewDesc] = useState('');
+
+    const handleSendCollabInvitation = async () => {
+        if (!invitationTargetProfile) return;
+        const myUsername = profile?.username || 'Aetheros_Prime';
+        const targetUsername = invitationTargetProfile.username;
+
+        if (collabInviteSelectedProjectId === 'new_space') {
+            // Option B: Set up a new shared project space
+            if (!collabInviteNewTitle.trim() || !collabInviteNewDesc.trim()) {
+                toast.error("Please fill in the title and description for the new shared space.");
+                return;
+            }
+
+            const newCollab: CollabProject = {
+                id: `collab_shared_${Date.now()}`,
+                title: collabInviteNewTitle.trim(),
+                description: collabInviteNewDesc.trim(),
+                requiredSkills: Array.from(new Set([...(profile?.skills || []), ...(invitationTargetProfile.skills || [])])),
+                creatorName: myUsername,
+                teamMembers: [myUsername, targetUsername],
+                interestedUsers: [],
+                timestamp: Date.now(),
+                tasks: [
+                    { id: `t_${Date.now()}_1`, text: 'Kickoff: Brainstorm architecture and requirements', completed: false, assignee: myUsername, createdAt: Date.now() },
+                    { id: `t_${Date.now()}_2`, text: 'Establish modular TypeScript components', completed: false, assignee: targetUsername, createdAt: Date.now() }
+                ],
+                messages: [
+                    { id: `m_${Date.now()}_1`, sender: 'System', text: `✨ System: @${myUsername} has established this shared project space with @${targetUsername}.`, timestamp: Date.now() },
+                    { id: `m_${Date.now()}_2`, sender: myUsername, text: collabInviteMessage.trim() || `Hey @${targetUsername}, let's build this project together!`, timestamp: Date.now() + 50 }
+                ],
+                gitRepo: '',
+                gitBranch: 'main',
+                gitCommits: [],
+                type: 'collab'
+            };
+
+            const updatedProjects = [newCollab, ...collabProjects];
+            setCollabProjects(updatedProjects);
+            await saveCollabProjects(updatedProjects);
+            toast.success(`New shared project space "${collabInviteNewTitle}" established!`);
+            setActiveCollabWorkspaceId(newCollab.id);
+            setViewMode('COLLAB'); // Navigate directly to Collab Workspace tab!
+        } else {
+            // Option A: Invite to an existing project space
+            const projId = collabInviteSelectedProjectId;
+            const updatedProjects = collabProjects.map(proj => {
+                if (proj.id === projId) {
+                    // Check if already a member
+                    if ((proj.teamMembers || []).includes(targetUsername)) {
+                        toast.error(`@${targetUsername} is already a member of this project.`);
+                        return proj;
+                    }
+
+                    const currentInterested = proj.interestedUsers || [];
+                    const alreadyApplied = currentInterested.some(iu => iu.username === targetUsername);
+
+                    let nextInterested = currentInterested;
+                    if (!alreadyApplied) {
+                        nextInterested = [
+                            ...currentInterested,
+                            {
+                                username: targetUsername,
+                                comment: collabInviteMessage.trim() || `Invited by @${myUsername}`,
+                                roleRequested: 'Invited Collaborator',
+                                status: 'accepted', // Auto accepted so they join the team directly!
+                                timestamp: Date.now()
+                            }
+                        ];
+                    }
+
+                    const currentMembers = proj.teamMembers || [];
+                    const nextMembers = currentMembers.includes(targetUsername) 
+                        ? currentMembers 
+                        : [...currentMembers, targetUsername];
+
+                    const currentMsgs = proj.messages || [];
+                    const nextMsgs = [
+                        ...currentMsgs,
+                        { id: `m_${Date.now()}`, sender: 'System', text: `✨ System: @${myUsername} invited @${targetUsername} to join the collaboration!`, timestamp: Date.now() }
+                    ];
+
+                    if (collabInviteMessage.trim()) {
+                        nextMsgs.push({
+                            id: `m_${Date.now()}_msg`,
+                            sender: myUsername,
+                            text: collabInviteMessage.trim(),
+                            timestamp: Date.now() + 50
+                        });
+                    }
+
+                    return {
+                        ...proj,
+                        interestedUsers: nextInterested,
+                        teamMembers: nextMembers,
+                        messages: nextMsgs
+                    };
+                }
+                return proj;
+            });
+
+            setCollabProjects(updatedProjects);
+            await saveCollabProjects(updatedProjects);
+            toast.success(`Successfully invited @${targetUsername} to "${collabProjects.find(p => p.id === projId)?.title}"!`);
+            setActiveCollabWorkspaceId(projId);
+            setViewMode('COLLAB'); // Go to Collab Workspace!
+        }
+
+        // Clean up states
+        setInvitationTargetProfile(null);
+        setCollabInviteMessage('');
+        setCollabInviteNewTitle('');
+        setCollabInviteNewDesc('');
+        setCollabInviteSelectedProjectId('new_space');
+    };
 
     // Persistence and syncing logic
     useEffect(() => {
@@ -3298,7 +3532,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                         Explore public profile nodes within the Aetheros coding network. Suggest matches and query individual technologies instantly.
                                     </p>
                                 </div>
-                                <div className="w-full sm:w-auto">
+                                <div className="w-full sm:w-auto flex flex-col gap-2">
                                     <input
                                         type="text"
                                         placeholder="Query username or technology skill..."
@@ -3306,6 +3540,39 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                         onChange={(e) => setSearchProfileQuery(e.target.value)}
                                         className="w-full sm:w-72 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-mono placeholder:text-zinc-650"
                                     />
+                                    {/* Segmented Filter */}
+                                    <div className="flex bg-zinc-950 border border-zinc-900 p-1 rounded-xl w-full sm:w-72">
+                                        <button
+                                            onClick={() => setSkillFilterMode('all')}
+                                            className={`flex-1 text-[9px] font-mono tracking-wider font-bold py-1.5 rounded-lg transition-all ${
+                                                skillFilterMode === 'all'
+                                                    ? 'bg-purple-650 text-white font-black shadow-md shadow-purple-900/30'
+                                                    : 'text-zinc-500 hover:text-zinc-350'
+                                            }`}
+                                        >
+                                            ALL INFO
+                                        </button>
+                                        <button
+                                            onClick={() => setSkillFilterMode('possess')}
+                                            className={`flex-1 text-[9px] font-mono tracking-wider font-bold py-1.5 rounded-lg transition-all ${
+                                                skillFilterMode === 'possess'
+                                                    ? 'bg-purple-650 text-white font-black shadow-md shadow-purple-900/30'
+                                                    : 'text-zinc-500 hover:text-zinc-350'
+                                            }`}
+                                        >
+                                            POSSESS
+                                        </button>
+                                        <button
+                                            onClick={() => setSkillFilterMode('mentor')}
+                                            className={`flex-1 text-[9px] font-mono tracking-wider font-bold py-1.5 rounded-lg transition-all ${
+                                                skillFilterMode === 'mentor'
+                                                    ? 'bg-purple-650 text-white font-black shadow-md shadow-purple-900/30'
+                                                    : 'text-zinc-500 hover:text-zinc-350'
+                                            }`}
+                                        >
+                                            MENTORS
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -3314,11 +3581,37 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Render active profiles */}
                             {(networkProfiles || [])
-                                ?.filter?.(p => !searchProfileQuery.trim() || 
-                                    p.username.toLowerCase().includes(searchProfileQuery.toLowerCase()) ||
-                                    (p.skills || []).some((s: string) => s.toLowerCase().includes(searchProfileQuery.toLowerCase())) ||
-                                    (p.bio || '').toLowerCase().includes(searchProfileQuery.toLowerCase())
-                                )
+                                ?.filter?.(p => {
+                                    const q = searchProfileQuery.trim().toLowerCase();
+                                    const teachSkills = p.willingToTeachSkills || [];
+                                    const hasTeach = teachSkills.length > 0;
+                                    
+                                    if (skillFilterMode === 'possess') {
+                                        if (!q) return true;
+                                        return (p.skills || []).some((s: string) => s.toLowerCase().includes(q));
+                                    }
+                                    
+                                    if (skillFilterMode === 'mentor') {
+                                        if (!hasTeach) return false;
+                                        if (!q) return true;
+                                        return p.username.toLowerCase().includes(q) || 
+                                               teachSkills.some((s: string) => s.toLowerCase().includes(q));
+                                    }
+                                    
+                                    if (!q) return true;
+                                    const projInterests = p.lookingForSkills || [];
+                                    const pastProjects = p.profileProjects || [];
+                                    return p.username.toLowerCase().includes(q) ||
+                                        (p.skills || []).some((s: string) => s.toLowerCase().includes(q)) ||
+                                        projInterests.some((s: string) => s.toLowerCase().includes(q)) ||
+                                        teachSkills.some((s: string) => s.toLowerCase().includes(q)) ||
+                                        (p.bio || '').toLowerCase().includes(q) ||
+                                        pastProjects.some((pr: any) => 
+                                            (pr.title || '').toLowerCase().includes(q) || 
+                                            (pr.description || '').toLowerCase().includes(q) ||
+                                            (pr.technologies || []).some((t: string) => t.toLowerCase().includes(q))
+                                        );
+                                })
                                 ?.map?.(p => {
                                     // Calculate match percentage against current user's profile
                                     const matchInfo = calculateCompatibility(profile, p);
@@ -3345,7 +3638,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                         </div>
                                                         <span className="text-[10px] uppercase font-mono text-gray-500 tracking-wider">AetherOS Routing Authority</span>
                                                     </div>
-
+ 
                                                     {/* Telemetry Compatibility Match Badge */}
                                                     <div className="ml-auto text-right">
                                                         <div className="text-xs font-mono font-black text-rose-450 flex items-center gap-1 bg-rose-500/5 border border-rose-500/15 py-1 px-2.5 rounded-xl">
@@ -3356,27 +3649,37 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                         </div>
                                                     </div>
                                                 </div>
-
+ 
                                                 {/* Bio */}
-                                                <p className="text-xs text-zinc-400 leading-relaxed mb-4 line-clamp-2">{p.bio}</p>
+                                                 <p className="text-xs text-zinc-400 leading-relaxed mb-4 line-clamp-2">{p.bio}</p>
 
-                                                {/* Skills Badges */}
+                                                 {/* Skills Badges */}
                                                 <div className="space-y-2 mb-4">
                                                     <h5 className="text-[9px] font-mono uppercase text-zinc-550 tracking-wider font-bold">Stack Indices</h5>
                                                     <div className="flex flex-wrap gap-1">
-                                                        {(p.skills || []).slice(0, 4)?.map?.((s: string) => (
-                                                            <span key={s} className="px-2 py-0.5 bg-[#101026] text-[9px] font-mono text-zinc-305 border border-white/5 rounded-md">
-                                                                {s}
-                                                            </span>
-                                                        ))}
-                                                        {(p.skills || []).length > 4 && (
+                                                        {(p.skills || []).slice(0, 4)?.map?.((s: string) => {
+                                                            const endorsers = p.skillEndorsements?.[s] || [];
+                                                            return (
+                                                                <span key={s} className="px-2 py-0.5 bg-[#101026] text-[9px] font-mono text-zinc-305 border border-white/5 rounded-md flex items-center gap-1">
+                                                                    <span>{s}</span>
+                                                                    <span className={`px-1 py-0.5 rounded-sm text-[8px] font-mono leading-none ${
+                                                                        endorsers.includes(profile?.username || 'Aetheros_Prime') 
+                                                                            ? 'bg-purple-500/20 text-purple-400 font-extrabold border border-purple-500/30' 
+                                                                            : 'bg-zinc-850 text-zinc-500'
+                                                                    }`}>
+                                                                        {endorsers.length}
+                                                                    </span>
+                                                                </span>
+                                                            );
+                                                        })}
+                                                         {(p.skills || []).length > 4 && (
                                                             <span className="px-2 py-0.5 bg-purple-950/20 text-[9px] font-mono text-purple-400 border border-purple-500/10 rounded-md">
                                                                 +{(p.skills || []).length - 4}
                                                             </span>
                                                         )}
                                                     </div>
                                                 </div>
-
+ 
                                                 {/* Seeking Skills Indices */}
                                                 {(p.lookingForSkills || []).length > 0 && (
                                                     <div className="space-y-2 mb-2">
@@ -3390,23 +3693,48 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                         </div>
                                                     </div>
                                                 )}
-                                            </div>
 
+                                                {/* Mentoring Badges */}
+                                                {(p.willingToTeachSkills || []).length > 0 && (
+                                                    <div className="space-y-2 mb-2">
+                                                        <h5 className="text-[9px] font-mono uppercase text-emerald-500 tracking-wider font-bold">🎓 Willing to Mentor</h5>
+                                                        <div className="flex flex-wrap gap-1">
+                                                            {(p.willingToTeachSkills || []).slice(0, 4).map((s: string) => (
+                                                                <span key={s} className="px-2 py-0.5 bg-emerald-950/20 text-[9px] font-mono text-emerald-400 border border-emerald-500/10 rounded-md">
+                                                                    {s}
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+ 
                                             {/* Action footer */}
-                                            <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-zinc-550">
+                                            <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-zinc-550 gap-2">
                                                 <span>{(p.portfolioLinks || []).length} Portfolios Connected</span>
-                                                <span className="text-purple-400 uppercase font-black tracking-wider group-hover:translate-x-1 transition-transform">Inspect Node Detail &rarr;</span>
+                                                <div className="flex items-center gap-2">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setInvitationTargetProfile(p);
+                                                        }}
+                                                        className="px-2 py-1 bg-emerald-950/40 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-black rounded text-[9px] font-black uppercase tracking-wider transition-all"
+                                                    >
+                                                        🤝 Invite
+                                                    </button>
+                                                    <span className="text-purple-400 uppercase font-black tracking-wider group-hover:translate-x-1 transition-transform">Inspect Node Detail &rarr;</span>
+                                                </div>
                                             </div>
                                         </div>
                                     );
                                 })}
+                            </div>
 
-                            {networkProfiles.length === 0 && (
+                        {networkProfiles.length === 0 && (
                                 <div className="md:col-span-2 text-center py-12 border border-dashed border-zinc-800 rounded-3xl">
                                     <span className="text-zinc-600 block uppercase font-mono text-xs font-black">No profile nodes available in net config.</span>
                                 </div>
                             )}
-                        </div>
 
                         {/* Selected profile node detail modal */}
                         <AnimatePresence>
@@ -3481,7 +3809,12 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                             return (
                                                                 <button 
                                                                     key={s} 
-                                                                    onClick={() => handleToggleEndorseSkill(selectedProfileNode.id, s)}
+                                                                    onClick={() => setEndorsementConfirmation({
+                                                                         profileId: selectedProfileNode.id,
+                                                                         profileUsername: selectedProfileNode.username,
+                                                                         skillName: s,
+                                                                         isRemoving: hasEndorsed
+                                                                     })}
                                                                     className={`px-2.5 py-1.5 rounded-lg border text-xs font-mono font-black uppercase flex items-center gap-2 cursor-pointer transition-all duration-150 ${
                                                                         hasEndorsed
                                                                         ? 'bg-purple-950/45 border-purple-500 text-purple-400 font-extrabold shadow-[0_0_8px_rgba(147,51,234,0.15)] hover:bg-purple-950/60'
@@ -3517,6 +3850,26 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                 </div>
                                             </div>
 
+                                            {/* Mentorship & Teaching list in Modal */}
+                                            {(selectedProfileNode.willingToTeachSkills || []).length > 0 && (
+                                                <div className="space-y-2 p-4 bg-[#0a2012]/30 border border-emerald-500/20 rounded-2xl relative overflow-hidden text-left">
+                                                    <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
+                                                    <h5 className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider font-bold flex items-center gap-1.5">
+                                                        <span>🎓 WILLING TO TEACH / MENTOR SKILLS</span>
+                                                    </h5>
+                                                    <div className="flex flex-wrap gap-1.5 pt-1">
+                                                        {(selectedProfileNode.willingToTeachSkills || []).map((s: string) => (
+                                                            <span key={s} className="px-2.5 py-1 bg-emerald-950/40 text-xs font-mono text-emerald-300 rounded-lg border border-emerald-500/20 font-black uppercase flex items-center gap-1">
+                                                                <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.168.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                                                </svg>
+                                                                {s}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
                                             {/* Portfolio links */}
                                             {(selectedProfileNode.portfolioLinks || []).length > 0 && (
                                                 <div className="space-y-3">
@@ -3547,40 +3900,250 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                     <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-black">Completed Past showcasing Projects</h4>
                                                     <div className="space-y-2.5">
                                                         {(selectedProfileNode.profileProjects || [])?.map?.((pro: any) => (
-                                                            <div key={pro.id} className="p-4 bg-zinc-950 border border-zinc-900 rounded-2xl">
-                                                                <div className="flex items-center justify-between mb-1.5 font-mono">
-                                                                    <h5 className="text-xs font-black text-white uppercase">{pro.title}</h5>
-                                                                    <span className="text-[9px] bg-zinc-900 text-zinc-505 border border-white/5 py-0.5 px-2 rounded tracking-widest uppercase">
-                                                                        // {pro.status}
-                                                                    </span>
-                                                                </div>
-                                                                <div className="text-[10px] text-purple-400 font-mono font-bold uppercase mb-1">
-                                                                    Assigned Role: {pro.roleDefined || 'Solo Creator'}
-                                                                </div>
-                                                                <p className="text-xs text-zinc-400 leading-normal">{pro.description}</p>
-                                                            </div>
+                                                            <PortfolioProjectCard 
+                                                                key={pro.id}
+                                                                project={pro}
+                                                                isOwnProject={false}
+                                                                onAddTestimonial={handlePeerProjectAddTestimonial}
+                                                                onEndorse={handlePeerEndorseProject}
+                                                                onRate={handlePeerRateProject}
+                                                                currentUsername={profile?.username || 'Operator-You'}
+                                                                ownerSkills={selectedProfileNode.skills || []}
+                                                                ownerSkillEndorsements={selectedProfileNode.skillEndorsements || {}}
+                                                                onQuickEndorse={(skillName) => handleToggleEndorseSkill(selectedProfileNode.id, skillName)}
+                                                            />
                                                         ))}
                                                     </div>
                                                 </div>
                                             )}
                                         </div>
 
-                                        <div className="p-4 bg-black/40 border-t border-white/5 flex items-center justify-between">
+                                        <div className="p-4 bg-black/40 border-t border-white/5 flex items-center justify-between gap-3 flex-wrap">
                                             <span className="text-[9px] font-mono text-zinc-650">ID SOURCE NODE SHARED INDEX: {selectedProfileNode.id}</span>
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedProfileNode(null);
-                                                    setViewMode('MATCHES');
-                                                }}
-                                                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-black uppercase font-mono"
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => {
+                                                        setInvitationTargetProfile(selectedProfileNode);
+                                                        setSelectedProfileNode(null);
+                                                    }}
+                                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-black rounded-xl text-xs font-black uppercase font-mono transition-all flex items-center gap-1.5"
+                                                >
+                                                    🤝 Invite to Collaborate
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedProfileNode(null);
+                                                        setViewMode('MATCHES');
+                                                    }}
+                                                    className="px-4 py-2 bg-purple-650 hover:bg-purple-500 text-white rounded-xl text-xs font-black uppercase font-mono transition-all"
+                                                >
+                                                    Calculate MATCH MATRIX &rarr;
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                </div>
+                            )}
+                        </AnimatePresence>
+
+                         {/* Direct Collaboration Invitation Modal */}
+                        <AnimatePresence>
+                            {invitationTargetProfile && (
+                                <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                                    <motion.div
+                                        initial={{ scale: 0.95, opacity: 0, y: 15 }}
+                                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                                        exit={{ scale: 0.95, opacity: 0, y: 15 }}
+                                        className="w-full max-w-lg bg-[#070714] border-2 border-emerald-500/30 rounded-3xl overflow-hidden shadow-2xl relative block"
+                                    >
+                                        {/* Header */}
+                                        <div className="p-6 bg-gradient-to-r from-emerald-950/40 via-black to-zinc-950 border-b border-emerald-500/10 flex items-center justify-between">
+                                            <div className="flex items-center gap-2.5">
+                                                <span className="p-2 bg-emerald-500/10 rounded-xl text-emerald-400 text-lg">
+                                                    🤝
+                                                </span>
+                                                <div>
+                                                    <h3 className="text-sm font-black text-white uppercase tracking-wider font-mono">
+                                                        TRANSMIT COLLABORATION REQUEST
+                                                    </h3>
+                                                    <p className="text-[10px] text-zinc-500 uppercase font-mono">
+                                                        Target Operator: @{invitationTargetProfile.username}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={() => setInvitationTargetProfile(null)}
+                                                className="p-1.5 hover:bg-zinc-900 rounded-lg text-zinc-400 hover:text-white transition-all cursor-pointer"
                                             >
-                                                Calculate MATCH MATRIX &rarr;
+                                                <XIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
+
+                                        {/* Body */}
+                                        <div className="p-6 space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider block">
+                                                    Select Project Workspace
+                                                </label>
+                                                <select
+                                                    value={collabInviteSelectedProjectId}
+                                                    onChange={(e) => setCollabInviteSelectedProjectId(e.target.value)}
+                                                    className="w-full bg-black border border-zinc-800 rounded-xl p-3 text-xs text-zinc-350 outline-none focus:border-emerald-500 transition-all font-mono uppercase"
+                                                >
+                                                    <option value="new_space">🌱 Create & Set Up New Shared Project Space</option>
+                                                    {collabProjects
+                                                        .filter(p => p.creatorName === (profile?.username || 'Aetheros_Prime') || (p.teamMembers || []).includes(profile?.username || 'Aetheros_Prime'))
+                                                        .map(p => (
+                                                            <option key={p.id} value={p.id}>📂 Invite to: {p.title}</option>
+                                                        ))
+                                                    }
+                                                </select>
+                                                <p className="text-[9px] text-zinc-550 uppercase font-mono mt-1">
+                                                    {collabInviteSelectedProjectId === 'new_space' 
+                                                        ? 'This will automatically provision a new shared project sandbox, enabling co-managing tasks, Git logs, and comms.' 
+                                                        : 'This will instantly invite the operator to join your existing active project team.'
+                                                    }
+                                                </p>
+                                            </div>
+
+                                            {/* Conditional fields for New Space */}
+                                            {collabInviteSelectedProjectId === 'new_space' && (
+                                                <div className="space-y-4 p-4 bg-zinc-950/65 border border-zinc-900 rounded-2xl animate-in slide-in-from-top-2 duration-200">
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider block">
+                                                            Project Space Title
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="e.g. Decentralized Oracle Sandbox"
+                                                            value={collabInviteNewTitle}
+                                                            onChange={e => setCollabInviteNewTitle(e.target.value)}
+                                                            className="w-full bg-black border border-zinc-850 rounded-xl p-3 text-xs text-zinc-300 outline-none focus:border-emerald-500 transition-all font-mono"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider block">
+                                                            Aether Mission Brief / Description
+                                                        </label>
+                                                        <textarea
+                                                            rows={2}
+                                                            placeholder="Describe the goals, tech stack, and mutual co-management goals of this project space..."
+                                                            value={collabInviteNewDesc}
+                                                            onChange={e => setCollabInviteNewDesc(e.target.value)}
+                                                            className="w-full bg-black border border-zinc-850 rounded-xl p-3 text-xs text-zinc-300 outline-none focus:border-emerald-500 transition-all font-sans"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Pitch Message */}
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-wider block">
+                                                    Direct Pitch / Message
+                                                </label>
+                                                <textarea
+                                                    rows={3}
+                                                    placeholder={`Hey @${invitationTargetProfile.username}, I saw you have skills in ${(invitationTargetProfile.skills || []).slice(0, 3).join(', ')} and would love to build this together!`}
+                                                    value={collabInviteMessage}
+                                                    onChange={e => setCollabInviteMessage(e.target.value)}
+                                                    className="w-full bg-black border border-zinc-850 rounded-xl p-3 text-xs text-zinc-300 outline-none focus:border-emerald-500 transition-all font-sans"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Footer */}
+                                        <div className="p-6 bg-black/40 border-t border-white/5 flex gap-3 justify-end">
+                                            <button
+                                                type="button"
+                                                onClick={() => setInvitationTargetProfile(null)}
+                                                className="px-4 py-2 bg-zinc-900 hover:bg-zinc-850 text-zinc-400 hover:text-white rounded-xl text-xs font-black uppercase transition-all"
+                                            >
+                                                Abort Pitch
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleSendCollabInvitation}
+                                                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-black rounded-xl text-xs font-black uppercase transition-all flex items-center gap-1.5 shadow-lg shadow-emerald-950/20 active:scale-95 cursor-pointer"
+                                            >
+                                                Transmit Invitation 🤝
                                             </button>
                                         </div>
                                     </motion.div>
                                 </div>
                             )}
                         </AnimatePresence>
+
+                        {/* Endorsement Confirmation Modal */}
+                        <AnimatePresence>
+                            {endorsementConfirmation && (
+                                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+                                    <motion.div
+                                        initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                                        exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                                        className="w-full max-w-md bg-[#0c0c1e] border-2 border-purple-500/30 rounded-3xl overflow-hidden shadow-2xl relative block p-6 space-y-6 text-center"
+                                    >
+                                        <div className="mx-auto w-16 h-16 bg-purple-500/10 border border-purple-500/30 rounded-full flex items-center justify-center text-purple-400">
+                                            {endorsementConfirmation.isRemoving ? (
+                                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            ) : (
+                                                <svg className="w-8 h-8 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 00.806 1.946 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                                                </svg>
+                                            )}
+                                        </div>
+
+                                        <div className="space-y-2">
+                                            <h3 className="font-comic-header text-xl text-white uppercase italic leading-none">
+                                                {endorsementConfirmation.isRemoving ? 'RETRACT ENDORSEMENT' : 'CONFIRM ENDORSEMENT'}
+                                             </h3>
+                                             <p className="text-xs text-zinc-400 font-mono">
+                                                 {endorsementConfirmation.isRemoving 
+                                                     ? `Lattice validation: retraction request`
+                                                     : `Lattice validation: skill verification request`
+                                                 }
+                                             </p>
+                                         </div>
+
+                                         <p className="text-sm text-zinc-300 leading-relaxed font-sans">
+                                             {endorsementConfirmation.isRemoving ? (
+                                                 <span>
+                                                     Are you sure you want to retract your endorsement for <strong>@{endorsementConfirmation.profileUsername}</strong>'s proficiency in <strong className="text-purple-400">{endorsementConfirmation.skillName}</strong>?
+                                                 </span>
+                                             ) : (
+                                                 <span>
+                                                     Are you sure you want to endorse <strong>@{endorsementConfirmation.profileUsername}</strong> for their proficiency in <strong className="text-purple-400">{endorsementConfirmation.skillName}</strong>? This verifies their capabilities in the AetherOS Routing lattice.
+                                                 </span>
+                                             )}
+                                         </p>
+
+                                         <div className="flex gap-3 justify-center pt-2">
+                                             <button
+                                                 onClick={() => setEndorsementConfirmation(null)}
+                                                 className="px-5 py-2 bg-zinc-900 border border-zinc-800 text-gray-400 hover:text-white rounded-xl transition-colors text-xs font-mono font-black uppercase cursor-pointer"
+                                             >
+                                                 Abort / Cancel
+                                             </button>
+                                             <button
+                                                 onClick={() => {
+                                                     handleToggleEndorseSkill(endorsementConfirmation.profileId, endorsementConfirmation.skillName);
+                                                     setEndorsementConfirmation(null);
+                                                 }}
+                                                 className={`px-5 py-2 text-white rounded-xl text-xs font-black uppercase font-mono cursor-pointer transition-all ${
+                                                     endorsementConfirmation.isRemoving 
+                                                         ? 'bg-red-650 hover:bg-red-550 border border-red-500/30' 
+                                                         : 'bg-purple-650 hover:bg-purple-550 border border-purple-500/30 shadow-[0_0_12px_rgba(147,51,234,0.3)]'
+                                                 }`}
+                                             >
+                                                 {endorsementConfirmation.isRemoving ? 'Retract' : 'Verify & Endorse'}
+                                             </button>
+                                         </div>
+                                     </motion.div>
+                                 </div>
+                             )}
+                         </AnimatePresence>
                     </div>
                 ) : viewMode === 'MATCHES' ? (
                     /* MATCHES (SKILL-BASED MATCHMAKING) VIEW */
@@ -3623,23 +4186,29 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                     
                                     {/* Skills list */}
                                     <div className="flex flex-wrap gap-1.5 min-h-[40px] items-center">
-                                        {(profile?.skills || [])?.map?.((s: string) => (
-                                            <span key={s} className="px-2.5 py-1 bg-purple-950/30 text-xs font-mono text-purple-300 rounded-lg border border-purple-500/15 flex items-center gap-1">
-                                                {s}
-                                                <button
-                                                    onClick={() => {
-                                                        if (onUpdateProfile && profile) {
-                                                            const next = (profile.skills || []).filter(item => item !== s);
-                                                            onUpdateProfile({ skills: next });
-                                                            toast.success(`Removed offered skill: ${s}`);
-                                                        }
-                                                    }}
-                                                    className="hover:text-red-400 transition-colors cursor-pointer text-xs font-bold leading-none ml-1 p-0.5"
-                                                >
-                                                    ×
-                                                </button>
-                                            </span>
-                                        ))}
+                                        {(profile?.skills || [])?.map?.((s: string) => {
+                                            const endorsers = profile?.skillEndorsements?.[s] || [];
+                                            return (
+                                                <span key={s} className="px-2.5 py-1 bg-purple-950/30 text-xs font-mono text-purple-300 rounded-lg border border-purple-500/15 flex items-center gap-2">
+                                                    <span>{s}</span>
+                                                    <span className="text-[9px] px-1 bg-purple-500/15 text-purple-400 font-extrabold rounded-sm" title={endorsers.length > 0 ? `Endorsed by: ${endorsers.join(', ')}` : 'No endorsements yet'}>
+                                                        {endorsers.length}
+                                                    </span>
+                                                    <button
+                                                        onClick={() => {
+                                                            if (onUpdateProfile && profile) {
+                                                                const next = (profile.skills || []).filter(item => item !== s);
+                                                                onUpdateProfile({ skills: next });
+                                                                toast.success(`Removed offered skill: ${s}`);
+                                                            }
+                                                        }}
+                                                        className="hover:text-red-400 transition-colors cursor-pointer text-xs font-bold leading-none ml-1 p-0.5"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                </span>
+                                            );
+                                        })}
                                         {(profile?.skills || []).length === 0 && (
                                             <span className="text-[10px] text-zinc-600 italic">No offered skills configured.</span>
                                         )}

@@ -266,10 +266,62 @@ export const AetherFlowOrchestratorView: React.FC = () => {
         });
 
         setTokenizedAssets(updatedAssets);
+
+        // --- REAL WORLD SPENDING WALLET INTEGRATION ---
+        try {
+            const saved = localStorage.getItem('aetheros_resource_reserve');
+            let reserve;
+            if (saved) {
+                reserve = JSON.parse(saved);
+            } else {
+                reserve = {
+                    reserves: [],
+                    totalBackedCPH: 0,
+                    cphInCirculation: 0,
+                    cphInStorage: 0,
+                    resourcesExtractedCPH: 0,
+                    resourcesConsumedCPH: 0,
+                    valueAddedCPH: 0,
+                    depreciationCPH: 0,
+                    netResourceBalance: 0
+                };
+            }
+
+            const subtype = 'minted_aether_usd';
+            const existingIndex = reserve.reserves.findIndex((r: any) => r.subtype === subtype);
+            
+            if (existingIndex >= 0) {
+                reserve.reserves[existingIndex].quantity += amount;
+                reserve.reserves[existingIndex].totalValue = reserve.reserves[existingIndex].quantity * reserve.reserves[existingIndex].cphPerUnit;
+            } else {
+                reserve.reserves.push({
+                    type: 'energy',
+                    subtype: subtype,
+                    quantity: amount,
+                    unit: 'aetherUSD',
+                    cphPerUnit: 1, // 1 aetherUSD = 1 CPH
+                    totalValue: amount,
+                    depreciationRate: 0,
+                    remainingLifeWeeks: 1000
+                });
+            }
+
+            reserve.totalBackedCPH += amount;
+            reserve.cphInCirculation += amount;
+            reserve.resourcesExtractedCPH += amount;
+            reserve.netResourceBalance = reserve.totalBackedCPH;
+
+            localStorage.setItem('aetheros_resource_reserve', JSON.stringify(reserve));
+        } catch (e) {
+            console.error("Failed to update spending wallet resource reserve in localStorage", e);
+        }
+        // -----------------------------------------------
+
         setTerminalLogs(prev => [
             ...prev,
             `[stablecoin-contract] Minted ${amount.toLocaleString()} aetherUSD as debt against collateral ${selectedAssetId}`,
-            `[chainlink-por] Updating Proof of Reserve statistics...`
+            `[chainlink-por] Updating Proof of Reserve statistics...`,
+            `[spending-wallet] Credited spending wallet with ${amount.toLocaleString()} CPH backed reserves!`
         ]);
     };
 
@@ -277,6 +329,8 @@ export const AetherFlowOrchestratorView: React.FC = () => {
     const handleLiquidateAsset = (assetId: string) => {
         const asset = tokenizedAssets.find(a => a.id === assetId);
         if (!asset) return;
+
+        const amountToBurn = asset.mintedStablecoin;
 
         setTokenizedAssets(prev => prev.map(a => {
             if (a.id === assetId) {
@@ -290,11 +344,40 @@ export const AetherFlowOrchestratorView: React.FC = () => {
             [assetId]: 1.0
         }));
 
+        // --- REAL WORLD SPENDING WALLET INTEGRATION ---
+        if (amountToBurn > 0) {
+            try {
+                const saved = localStorage.getItem('aetheros_resource_reserve');
+                if (saved) {
+                    const reserve = JSON.parse(saved);
+                    const subtype = 'minted_aether_usd';
+                    const existingIndex = reserve.reserves.findIndex((r: any) => r.subtype === subtype);
+                    
+                    if (existingIndex >= 0) {
+                        const burnAmt = Math.min(amountToBurn, reserve.reserves[existingIndex].quantity);
+                        reserve.reserves[existingIndex].quantity -= burnAmt;
+                        reserve.reserves[existingIndex].totalValue = reserve.reserves[existingIndex].quantity * reserve.reserves[existingIndex].cphPerUnit;
+
+                        reserve.totalBackedCPH = Math.max(0, reserve.totalBackedCPH - burnAmt);
+                        reserve.cphInCirculation = Math.max(0, reserve.cphInCirculation - burnAmt);
+                        reserve.resourcesConsumedCPH += burnAmt;
+                        reserve.netResourceBalance = reserve.totalBackedCPH;
+
+                        localStorage.setItem('aetheros_resource_reserve', JSON.stringify(reserve));
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to update spending wallet during liquidation", e);
+            }
+        }
+        // -----------------------------------------------
+
         addLog(`[LIQUIDATION EVENT] Dynamic Liquidation triggered for ${assetId}. Collateral was siphoned, outstanding debt fully burned.`, 'ERROR');
         setTerminalLogs(prev => [
             ...prev,
             `[LIQUIDATION] System auto-liquidation contract successfully executed for ${assetId}.`,
-            `[chainlink-por] Updated Physical Reserves and Outstanding Supply. Debt was cleared.`
+            `[chainlink-por] Updated Physical Reserves and Outstanding Supply. Debt was cleared.`,
+            `[spending-wallet] Burned ${amountToBurn.toLocaleString()} CPH backed reserves from spending wallet.`
         ]);
     };
 

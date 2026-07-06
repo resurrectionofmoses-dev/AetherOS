@@ -22,6 +22,7 @@ interface LockdownOverlayProps {
     acousticPressure: number;
     shards: number;
     activityDensity: number;
+    onRemediate?: () => void;
 }
 
 export const LockdownOverlay: React.FC<LockdownOverlayProps> = ({
@@ -33,11 +34,53 @@ export const LockdownOverlay: React.FC<LockdownOverlayProps> = ({
     onLogBreachData,
     acousticPressure,
     shards,
-    activityDensity
+    activityDensity,
+    onRemediate
 }) => {
     const [overrideCode, setOverrideCode] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
+    const [remediationProgress, setRemediationProgress] = useState<number>(-1);
+    const [remediationLog, setRemediationLog] = useState<string>('');
+
+    const handleStartRemediation = () => {
+        setRemediationProgress(0);
+        setRemediationLog('[INIT] Booting automated sanitization suite...');
+        
+        let currentProg = 0;
+        const interval = setInterval(() => {
+            currentProg += 2;
+            if (currentProg > 100) {
+                currentProg = 100;
+            }
+            setRemediationProgress(currentProg);
+
+            // Update log message based on progress thresholds
+            if (currentProg >= 100) {
+                setRemediationLog('[COMPLETE] System state sanitized. Revoking fracture lockdown.');
+                clearInterval(interval);
+                setTimeout(() => {
+                    if (onRemediate) {
+                        onRemediate();
+                    } else {
+                        onCloseLockdown();
+                    }
+                    setRemediationProgress(-1);
+                    setRemediationLog('');
+                }, 800);
+            } else if (currentProg >= 80) {
+                setRemediationLog('[RECALIBRATE] Adrenaline pathways stabilized. Re-establishing baseline frequency.');
+            } else if (currentProg >= 60) {
+                setRemediationLog('[OVERRIDE] Neutralizing the Billy Order & suppressing external sync flags...');
+            } else if (currentProg >= 40) {
+                setRemediationLog('[SWEEP] Eradicating cognitive drift anomalies...');
+            } else if (currentProg >= 20) {
+                setRemediationLog('[REPAIR] Re-mapping Crystalline Pointers... (32/32 resolved)');
+            } else if (currentProg > 0) {
+                setRemediationLog('[INIT] Verifying dual-age kernel pathways...');
+            }
+        }, 100); // 100ms * 50 ticks = 5000ms (5 seconds)
+    };
 
     if (!isSystemFractured) return null;
 
@@ -180,128 +223,193 @@ export const LockdownOverlay: React.FC<LockdownOverlayProps> = ({
 
                 {/* Right Side: Interactive challenge override keypad validation */}
                 <div className="lg:col-span-7 flex flex-col">
-                    <form 
-                        id="lockdown-override-challenge"
-                        onSubmit={handleVerifyOverride} 
-                        className="bg-zinc-950/90 border-2 border-rose-600/70 rounded-2xl p-5 flex flex-col gap-4 flex-1 justify-between shadow-[0_0_30px_rgba(244,63,94,0.15)]"
-                    >
-                        <div>
-                            <div className="flex items-center gap-2 border-b border-rose-900/50 pb-2 mb-3">
-                                <TerminalIcon className="w-4 h-4 text-rose-500" />
-                                <span className="text-xs font-black text-rose-400 tracking-wider">
-                                    AETHER COMPLIANCE CHALLENGE DECK
-                                </span>
-                            </div>
+                    {remediationProgress >= 0 ? (
+                        <div 
+                            id="lockdown-override-challenge"
+                            className="bg-zinc-950/90 border-2 border-emerald-500/80 rounded-2xl p-5 flex flex-col gap-4 flex-1 justify-between shadow-[0_0_30px_rgba(16,185,129,0.2)]"
+                        >
+                            <div>
+                                <div className="flex items-center gap-2 border-b border-emerald-900/50 pb-2 mb-3">
+                                    <ActivityIcon className="w-4 h-4 text-emerald-400 animate-pulse" />
+                                    <span className="text-xs font-black text-emerald-400 tracking-wider font-mono">
+                                        ACTIVE REMEDIATION SEQUENCE
+                                    </span>
+                                </div>
 
-                            {/* Challenge response status notification screen */}
-                            <div className="relative bg-black border border-rose-950 p-3 rounded-lg mb-4 text-center overflow-hidden min-h-[48px] flex items-center justify-center">
-                                {errorMsg && (
-                                    <span className="text-xs font-bold text-rose-500 tracking-wide animate-pulse">{errorMsg}</span>
-                                )}
-                                {successMsg && (
-                                    <span className="text-xs font-bold text-emerald-400 tracking-wide">{successMsg}</span>
-                                )}
-                                {!errorMsg && !successMsg && (
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-[9px] text-zinc-500 uppercase tracking-widest select-none font-bold">Terminal Authentication Prompt</span>
-                                        <span className="text-[11px] text-rose-400 select-all font-semibold font-mono mt-0.5">
-                                            Hint: Type <span className="text-yellow-400 font-bold bg-yellow-400/10 px-1 rounded">AETHER-999</span> or <span className="text-yellow-400 font-bold bg-yellow-400/10 px-1 rounded">MAESTRO</span>
-                                        </span>
+                                {/* Active status display */}
+                                <div className="relative bg-black border border-emerald-950 p-4 rounded-xl mb-4 text-center overflow-hidden min-h-[120px] flex flex-col items-center justify-center">
+                                    <div className="absolute top-0 right-0 p-2 text-[8px] text-emerald-600 font-black tracking-widest animate-pulse font-mono">
+                                        SYS_REPAIR_MODE
                                     </div>
-                                )}
+                                    <span className="text-3xl font-black text-emerald-400 tracking-widest mb-2 font-mono">
+                                        {remediationProgress}%
+                                    </span>
+                                    <div className="w-full bg-zinc-900 border border-emerald-950 h-3 rounded-full overflow-hidden p-0.5 mb-3">
+                                        <div 
+                                            className="bg-emerald-500 h-full rounded-full shadow-[0_0_10px_rgba(16,185,129,0.8)] transition-all duration-100" 
+                                            style={{ width: `${remediationProgress}%` }} 
+                                        />
+                                    </div>
+                                    <span className="text-[10px] text-zinc-400 font-mono tracking-wide max-w-md line-clamp-2 animate-pulse text-center">
+                                        {remediationLog}
+                                    </span>
+                                </div>
+
+                                {/* Interactive progress bar feedback details */}
+                                <div className="text-[9px] text-zinc-500 space-y-1 font-mono p-3 bg-zinc-900/40 rounded border border-emerald-950/30">
+                                    <div className="flex justify-between">
+                                        <span>Task ID:</span>
+                                        <span className="text-emerald-500 font-bold">REMEDIATION_0x9A</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Action State:</span>
+                                        <span className="text-emerald-500">{remediationProgress === 100 ? 'SUCCESS' : 'EXECUTING'}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Target Integrity:</span>
+                                        <span className="text-emerald-500">100.0% COGNITIVE_PARITY</span>
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Active manual override character display */}
-                            <div className="relative">
-                                <input
-                                    type="text"
-                                    id="lockdown-signature-input"
-                                    value={overrideCode}
-                                    onChange={(e) => {
-                                        setErrorMsg('');
-                                        setOverrideCode(e.target.value);
-                                    }}
-                                    placeholder="AWAITING SYSTEM SIGNATURE SIGN-ON"
-                                    className="w-full bg-black border-2 border-rose-900/60 rounded-xl p-3.5 pr-10 text-center font-bold tracking-widest text-rose-400 placeholder:text-rose-950/65 uppercase text-xs focus:outline-none focus:border-rose-500"
-                                />
-                                {overrideCode && (
-                                    <button 
+                            <div className="text-center text-[9px] text-emerald-500/60 font-bold tracking-widest uppercase animate-pulse pt-3 border-t border-emerald-950/40 font-mono">
+                                🔒 INTERACTIVE CONTROLS LOCKED UNTIL COMPLETION
+                            </div>
+                        </div>
+                    ) : (
+                        <form 
+                            id="lockdown-override-challenge"
+                            onSubmit={handleVerifyOverride} 
+                            className="bg-zinc-950/90 border-2 border-rose-600/70 rounded-2xl p-5 flex flex-col gap-4 flex-1 justify-between shadow-[0_0_30px_rgba(244,63,94,0.15)]"
+                        >
+                            <div>
+                                <div className="flex items-center gap-2 border-b border-rose-900/50 pb-2 mb-3">
+                                    <TerminalIcon className="w-4 h-4 text-rose-500" />
+                                    <span className="text-xs font-black text-rose-400 tracking-wider">
+                                        AETHER COMPLIANCE CHALLENGE DECK
+                                    </span>
+                                </div>
+
+                                {/* Challenge response status notification screen */}
+                                <div className="relative bg-black border border-rose-950 p-3 rounded-lg mb-4 text-center overflow-hidden min-h-[48px] flex items-center justify-center">
+                                    {errorMsg && (
+                                        <span className="text-xs font-bold text-rose-500 tracking-wide animate-pulse">{errorMsg}</span>
+                                    )}
+                                    {successMsg && (
+                                        <span className="text-xs font-bold text-emerald-400 tracking-wide">{successMsg}</span>
+                                    )}
+                                    {!errorMsg && !successMsg && (
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-[9px] text-zinc-500 uppercase tracking-widest select-none font-bold">Terminal Authentication Prompt</span>
+                                            <span className="text-[11px] text-rose-400 select-all font-semibold font-mono mt-0.5">
+                                                Hint: Type <span className="text-yellow-400 font-bold bg-yellow-400/10 px-1 rounded">AETHER-999</span> or <span className="text-yellow-400 font-bold bg-yellow-400/10 px-1 rounded">MAESTRO</span>
+                                            </span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Active manual override character display */}
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        id="lockdown-signature-input"
+                                        value={overrideCode}
+                                        onChange={(e) => {
+                                            setErrorMsg('');
+                                            setOverrideCode(e.target.value);
+                                        }}
+                                        placeholder="AWAITING SYSTEM SIGNATURE SIGN-ON"
+                                        className="w-full bg-black border-2 border-rose-900/60 rounded-xl p-3.5 pr-10 text-center font-bold tracking-widest text-rose-400 placeholder:text-rose-950/65 uppercase text-xs focus:outline-none focus:border-rose-500"
+                                    />
+                                    {overrideCode && (
+                                        <button 
+                                            type="button"
+                                            onClick={handleClearCode}
+                                            className="absolute right-3 top-3.5 text-rose-800 hover:text-rose-400 transition-colors"
+                                        >
+                                            <XIcon className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+
+                                {/* Numeric & System override keypad */}
+                                <div className="grid grid-cols-4 gap-2 mt-4">
+                                    {['1', '2', '3', 'AETHER-'].map((el) => (
+                                        <button
+                                            key={el}
+                                            type="button"
+                                            id={`lockdown-keypad-${el.toLowerCase().replace('-', '')}`}
+                                            onClick={() => handleKeypadPress(el)}
+                                            className="bg-rose-950/20 hover:bg-rose-950/45 text-rose-400 border border-rose-900/40 p-2.5 rounded-lg font-bold text-xs hover:scale-[1.02] active:scale-95 transition-all"
+                                        >
+                                            {el}
+                                        </button>
+                                    ))}
+                                    {['4', '5', '6', 'MAESTRO'].map((el) => (
+                                        <button
+                                            key={el}
+                                            type="button"
+                                            id={`lockdown-keypad-${el.toLowerCase()}`}
+                                            onClick={() => handleKeypadPress(el)}
+                                            className="bg-rose-950/20 hover:bg-rose-950/45 text-rose-400 border border-rose-900/40 p-2.5 rounded-lg font-bold text-[10px] hover:scale-[1.02] active:scale-95 transition-all uppercase"
+                                        >
+                                            {el}
+                                        </button>
+                                    ))}
+                                    {['7', '8', '9', '999'].map((el) => (
+                                        <button
+                                            key={el}
+                                            type="button"
+                                            id={`lockdown-keypad-${el}`}
+                                            onClick={() => handleKeypadPress(el)}
+                                            className="bg-rose-950/20 hover:bg-rose-950/45 text-rose-400 border border-rose-900/40 p-2.5 rounded-lg font-bold text-xs hover:scale-[1.02] active:scale-95 transition-all"
+                                        >
+                                            {el}
+                                        </button>
+                                    ))}
+                                    <button
                                         type="button"
+                                        id="lockdown-keypad-clear"
                                         onClick={handleClearCode}
-                                        className="absolute right-3 top-3.5 text-rose-800 hover:text-rose-400 transition-colors"
+                                        className="col-span-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border border-zinc-800 p-2.5 rounded-lg font-bold text-xs hover:scale-[1.02] active:scale-95 transition-all"
                                     >
-                                        <XIcon className="w-4 h-4" />
+                                        CLEAR
                                     </button>
-                                )}
+                                    <button
+                                        type="submit"
+                                        id="lockdown-keypad-submit"
+                                        className="col-span-2 bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-black border border-rose-500 p-2.5 rounded-lg font-black text-xs hover:scale-[1.02] active:scale-95 transition-all"
+                                    >
+                                        VERIFY
+                                    </button>
+                                </div>
                             </div>
 
-                            {/* Numeric & System override keypad */}
-                            <div className="grid grid-cols-4 gap-2 mt-4">
-                                {['1', '2', '3', 'AETHER-'].map((el) => (
-                                    <button
-                                        key={el}
-                                        type="button"
-                                        id={`lockdown-keypad-${el.toLowerCase().replace('-', '')}`}
-                                        onClick={() => handleKeypadPress(el)}
-                                        className="bg-rose-950/20 hover:bg-rose-950/45 text-rose-400 border border-rose-900/40 p-2.5 rounded-lg font-bold text-xs hover:scale-[1.02] active:scale-95 transition-all"
-                                    >
-                                        {el}
-                                    </button>
-                                ))}
-                                {['4', '5', '6', 'MAESTRO'].map((el) => (
-                                    <button
-                                        key={el}
-                                        type="button"
-                                        id={`lockdown-keypad-${el.toLowerCase()}`}
-                                        onClick={() => handleKeypadPress(el)}
-                                        className="bg-rose-950/20 hover:bg-rose-950/45 text-rose-400 border border-rose-900/40 p-2.5 rounded-lg font-bold text-[10px] hover:scale-[1.02] active:scale-95 transition-all uppercase"
-                                    >
-                                        {el}
-                                    </button>
-                                ))}
-                                {['7', '8', '9', '999'].map((el) => (
-                                    <button
-                                        key={el}
-                                        type="button"
-                                        id={`lockdown-keypad-${el}`}
-                                        onClick={() => handleKeypadPress(el)}
-                                        className="bg-rose-950/20 hover:bg-rose-950/45 text-rose-400 border border-rose-900/40 p-2.5 rounded-lg font-bold text-xs hover:scale-[1.02] active:scale-95 transition-all"
-                                    >
-                                        {el}
-                                    </button>
-                                ))}
+                            {/* Interactive safety release secondary switch */}
+                            <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-rose-950/40">
                                 <button
                                     type="button"
-                                    id="lockdown-keypad-clear"
-                                    onClick={handleClearCode}
-                                    className="col-span-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 border border-zinc-800 p-2.5 rounded-lg font-bold text-xs hover:scale-[1.02] active:scale-95 transition-all"
+                                    id="lockdown-btn-force-bypass"
+                                    onClick={handleForceBypass}
+                                    className="flex-1 bg-zinc-950 hover:bg-rose-950/30 text-rose-400 border-2 border-rose-950/80 px-4 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all hover:border-rose-800/80 cursor-pointer"
+                                    title="Bypass keypad check to instantly release the system lockdown constraints"
                                 >
-                                    CLEAR
+                                    <UnlockIcon className="w-3.5 h-3.5" />
+                                    <span>Core Force Bypass</span>
                                 </button>
                                 <button
-                                    type="submit"
-                                    id="lockdown-keypad-submit"
-                                    className="col-span-2 bg-gradient-to-r from-rose-700 to-rose-600 hover:from-rose-600 hover:to-rose-500 text-black border border-rose-500 p-2.5 rounded-lg font-black text-xs hover:scale-[1.02] active:scale-95 transition-all"
+                                    type="button"
+                                    id="lockdown-btn-remediation-sequence"
+                                    onClick={handleStartRemediation}
+                                    className="flex-1 bg-zinc-950 hover:bg-emerald-950/30 text-emerald-400 border-2 border-emerald-950/80 px-4 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all hover:border-emerald-800/80 cursor-pointer"
+                                    title="Initialize automated sequence to clear errors and heal system fracture state"
                                 >
-                                    VERIFY
+                                    <ActivityIcon className="w-3.5 h-3.5" />
+                                    <span>Remediation Sequence</span>
                                 </button>
                             </div>
-                        </div>
-
-                        {/* Interactive safety release secondary switch */}
-                        <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-rose-950/40">
-                            <button
-                                type="button"
-                                id="lockdown-btn-force-bypass"
-                                onClick={handleForceBypass}
-                                className="flex-1 bg-zinc-950 hover:bg-rose-950/30 text-rose-400 border-2 border-rose-950/80 px-4 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all hover:border-rose-800/80"
-                                title="Bypass keypad check to instantly release the system lockdown constraints"
-                            >
-                                <UnlockIcon className="w-3.5 h-3.5" />
-                                <span>Core Force Bypass</span>
-                            </button>
-                        </div>
-                    </form>
+                        </form>
+                    )}
                 </div>
             </div>
 

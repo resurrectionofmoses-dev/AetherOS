@@ -13,10 +13,46 @@ import firebaseConfig from '../firebase-applet-config.json';
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 
-// Google Auth Provider setup with Google Meet and Google Sheets scopes as requested
+// Google Auth Provider setup with Google Meet, Google Sheets and Gmail scopes as requested
 const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/meetings.space.created');
 provider.addScope('https://www.googleapis.com/auth/spreadsheets');
+provider.addScope('https://www.googleapis.com/auth/gmail.readonly');
+provider.addScope('https://www.googleapis.com/auth/gmail.send');
+provider.addScope('https://www.googleapis.com/auth/gmail.modify');
+
+// Google Drive scopes
+provider.addScope('https://www.googleapis.com/auth/drive');
+provider.addScope('https://www.googleapis.com/auth/drive.activity');
+provider.addScope('https://www.googleapis.com/auth/drive.activity.readonly');
+provider.addScope('https://www.googleapis.com/auth/drive.appdata');
+provider.addScope('https://www.googleapis.com/auth/drive.apps.readonly');
+provider.addScope('https://www.googleapis.com/auth/drive.file');
+provider.addScope('https://www.googleapis.com/auth/drive.install');
+provider.addScope('https://www.googleapis.com/auth/drive.meet.readonly');
+provider.addScope('https://www.googleapis.com/auth/drive.metadata');
+provider.addScope('https://www.googleapis.com/auth/drive.metadata.readonly');
+provider.addScope('https://www.googleapis.com/auth/drive.photos.readonly');
+provider.addScope('https://www.googleapis.com/auth/drive.readonly');
+provider.addScope('https://www.googleapis.com/auth/drive.scripts');
+
+// Google Docs scopes
+provider.addScope('https://www.googleapis.com/auth/documents');
+provider.addScope('https://www.googleapis.com/auth/documents.readonly');
+
+// Google Chat scopes
+provider.addScope('https://www.googleapis.com/auth/chat.messages');
+provider.addScope('https://www.googleapis.com/auth/chat.messages.create');
+provider.addScope('https://www.googleapis.com/auth/chat.messages.readonly');
+provider.addScope('https://www.googleapis.com/auth/chat.spaces');
+provider.addScope('https://www.googleapis.com/auth/chat.spaces.create');
+provider.addScope('https://www.googleapis.com/auth/chat.spaces.readonly');
+provider.addScope('https://www.googleapis.com/auth/chat.memberships');
+provider.addScope('https://www.googleapis.com/auth/chat.memberships.readonly');
+
+// Google Tasks scopes
+provider.addScope('https://www.googleapis.com/auth/tasks');
+provider.addScope('https://www.googleapis.com/auth/tasks.readonly');
 
 let isSigningIn = false;
 let cachedAccessToken: string | null = null;

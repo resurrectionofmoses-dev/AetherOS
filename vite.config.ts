@@ -19,126 +19,85 @@ export default defineConfig(({ mode }) => {
         }
       },
       build: {
-        chunkSizeWarningLimit: 1200,
+        chunkSizeWarningLimit: 1500,
         rollupOptions: {
           output: {
             manualChunks(id) {
+              // ==========================================
+              // SECTION 1: STRICT THIRD-PARTY NODE_MODULES SEPARATION
+              // ==========================================
               if (id.includes('node_modules')) {
-                if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) {
-                  return 'vendor-react';
+                // Core framework: React and scheduler runtime
+                if (id.includes('react') || id.includes('scheduler')) {
+                  return 'priority1-boot-react';
                 }
-                if (id.includes('framer-motion') || id.includes('motion')) {
-                  return 'vendor-motion';
-                }
+                // Visual indicators: Lucide icons
                 if (id.includes('lucide-react')) {
-                  return 'vendor-icons';
+                  return 'priority2-ui-icons';
                 }
-                if (id.includes('d3')) {
-                  return 'vendor-d3';
+                // Motion / Physics animations
+                if (id.includes('framer-motion') || id.includes('motion')) {
+                  return 'priority3-ui-motion';
                 }
-                if (id.includes('recharts')) {
-                  return 'vendor-recharts';
+                // Data and analytical charts
+                if (id.includes('recharts') || id.includes('d3')) {
+                  return 'priority3-ui-charts';
                 }
-                if (id.includes('ethers')) {
-                  return 'vendor-ethers';
-                }
+                // Database and authentications SDKs
                 if (id.includes('firebase')) {
-                  return 'vendor-firebase';
+                  return 'priority4-sdk-firebase';
                 }
+                // Intelligent AI models SDK
                 if (id.includes('@google/genai')) {
-                  return 'vendor-genai';
+                  return 'priority4-sdk-genai';
                 }
-                return 'vendor-utils';
+                // Fallback for general third-party dependencies
+                return 'priority4-sdk-helpers';
               }
 
-              // Aggressive splitting for internal components/ and utility modules
-              if (id.includes('/components/')) {
-                const parts = id.split('/components/');
-                const relativePath = parts[parts.length - 1];
-                
-                // If it is inside the icons subfolder
-                if (relativePath.startsWith('icons/')) {
-                  return 'components-icons';
-                }
-
-                // Isolate particularly heavy/large components
-                if (relativePath.includes('CodingNetworkView')) {
-                  return 'components-coding-network';
-                }
-                if (relativePath.includes('ProjectShowcaseView')) {
-                  return 'components-project-showcase';
-                }
-                if (relativePath.includes('GoogleSheetsView')) {
-                  return 'components-google-sheets';
-                }
-
-                // Group all the virtual/spec/simulation Lab views together
-                if (relativePath.includes('LabView') || relativePath.includes('Lab.')) {
-                  return 'components-labs';
-                }
-
-                // Alphabetical grouping for the remaining components
-                const filename = relativePath.split('/').pop() || '';
-                const firstChar = filename.charAt(0).toLowerCase();
-                
-                if (/[a-c]/.test(firstChar)) {
-                  return 'components-a-c';
-                }
-                if (/[d-g]/.test(firstChar)) {
-                  return 'components-d-g';
-                }
-                if (/[h-l]/.test(firstChar)) {
-                  return 'components-h-l';
-                }
-                if (/[m-p]/.test(firstChar)) {
-                  return 'components-m-p';
-                }
-                if (/[q-t]/.test(firstChar)) {
-                  return 'components-q-t';
-                }
-                if (/[u-z]/.test(firstChar)) {
-                  return 'components-u-z';
-                }
-                
-                return 'components-misc';
+              // ==========================================
+              // SECTION 2: INTERNAL FUNCTIONAL DOMAINS
+              // ==========================================
+              
+              // DOMAIN A: CORE & BOOTSTRAPPING (Contexts, types, global utilities)
+              if (
+                id.includes('/contexts/') ||
+                id.includes('firebaseAuthService') ||
+                id.endsWith('/types.ts') ||
+                id.endsWith('/agentTypes.ts') ||
+                id.endsWith('/utils.ts') ||
+                id.endsWith('/constants.tsx') ||
+                id.endsWith('/eurodemux.tsx')
+              ) {
+                return 'priority1-boot-app';
               }
 
-              // Splitting internal utility/service modules
+              // DOMAIN B: DEEP SERVICES (State machines, API managers, cryptographics)
               if (id.includes('/services/')) {
-                const parts = id.split('/services/');
-                const relativePath = parts[parts.length - 1];
+                return 'priority4-services-app';
+              }
 
-                if (relativePath.includes('geminiService')) {
-                  return 'services-gemini';
+              // DOMAIN C: HIGH-LEVEL VIEWS & CONTROLLER ROUTERS
+              if (
+                id.endsWith('ViewRegistry.tsx') || 
+                id.endsWith('/ViewRegistry.tsx')
+              ) {
+                return 'priority3-views-app';
+              }
+
+              // DOMAIN D: COMPONENT LEVEL COUPLING (Views & Low-level Reusable Elements)
+              if (id.includes('/components/')) {
+                const filename = id.split('/').pop() || '';
+                
+                // Group high-level view-controllers and heavy containers
+                const isHighLevelView = /view|lab|dashboard|engine|network|simulator|system|audit|tracker|inspector|protocol|optimizer|bridge|gate|ledger|store|telemetry|scanner|halt|alarm|ecosystem|evo|warroom|board|showcase|playground|suite|deck|hub|center|vault|workshop|clinic|oracle|covenant/i.test(filename);
+                
+                if (isHighLevelView) {
+                  return 'priority3-views-app';
                 }
-
-                const filename = relativePath.split('/').pop() || '';
-                const firstChar = filename.charAt(0).toLowerCase();
-
-                if (/[a-g]/.test(firstChar)) {
-                  return 'services-a-g';
-                }
-                return 'services-h-z';
-              }
-
-              if (id.includes('/contexts/')) {
-                return 'app-contexts';
-              }
-
-              if (id.includes('/utils.ts')) {
-                return 'app-utils';
-              }
-
-              if (id.includes('/types.ts') || id.includes('/agentTypes.ts')) {
-                return 'app-types';
-              }
-
-              if (id.includes('/constants.tsx')) {
-                return 'app-constants';
-              }
-
-              if (id.includes('/eurodemux.tsx')) {
-                return 'app-eurodemux';
+                
+                // Group standard, low-level common UI elements
+                return 'priority2-ui-common';
               }
             }
           }

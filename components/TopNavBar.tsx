@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { MainView } from '../types';
+import { MainView, UserProfile } from '../types';
 import { BrainIcon, GlobeIcon, ForgeIcon, VaultIcon, ShieldIcon, ActivityIcon, TerminalIcon, UserIcon, WarningIcon, ClockIcon, DatabaseIcon, EyeIcon } from './icons';
 import { useAuth } from '../contexts/AuthContext';
 import { EmergencyKillSwitch } from '../services/emergencyKillSwitch';
 import { ApiKeyInfoModal } from './ApiKeyInfoModal';
 import aetherosLogo from '../src/assets/images/aetheros_logo_1780191892733.png';
+import { Sparkles, ThumbsUp, ThumbsDown } from 'lucide-react';
 
 interface TopNavBarProps {
     currentView: MainView;
@@ -15,14 +16,82 @@ interface TopNavBarProps {
     onTriggerKillSwitch?: () => void;
     isGhostMode: boolean;
     onToggleGhostMode: () => void;
+    profile?: UserProfile;
+    onUpdateProfile?: (updates: any) => void;
 }
 
-export const TopNavBar: React.FC<TopNavBarProps> = ({ currentView, onSetView, isTerminal, onToggleTerminal, onTriggerKillSwitch, isGhostMode, onToggleGhostMode }) => {
+export const TopNavBar: React.FC<TopNavBarProps> = ({ 
+    currentView, 
+    onSetView, 
+    isTerminal, 
+    onToggleTerminal, 
+    onTriggerKillSwitch, 
+    isGhostMode, 
+    onToggleGhostMode,
+    profile,
+    onUpdateProfile
+}) => {
     const { user, logout, toggleSeclusion } = useAuth();
     const [isApiModalOpen, setIsApiModalOpen] = useState(false);
     const [awayDuration, setAwayDuration] = useState<string>('');
     const [isTabLogsOpen, setIsTabLogsOpen] = useState(false);
     const [tabLogs, setTabLogs] = useState<string[]>([]);
+
+    const [isWhispersLogOpen, setIsWhispersLogOpen] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [isGlowActive, setIsGlowActive] = useState(false);
+
+    useEffect(() => {
+        const handleNewWhisper = () => {
+            setUnreadCount(prev => prev + 1);
+            setIsGlowActive(true);
+        };
+        window.addEventListener('aetheros_jester_whisper_generated', handleNewWhisper);
+        return () => {
+            window.removeEventListener('aetheros_jester_whisper_generated', handleNewWhisper);
+        };
+    }, []);
+
+    const handleOpenWhisperLogs = () => {
+        const nextState = !isWhispersLogOpen;
+        setIsWhispersLogOpen(nextState);
+        setUnreadCount(0);
+        setIsGlowActive(false);
+        if (nextState) {
+            window.dispatchEvent(new CustomEvent('aetheros_jester_log_opened'));
+        }
+    };
+
+    const handleFeedback = (whisperId: string, type: 'helpful' | 'too_much') => {
+        if (!profile || !onUpdateProfile) return;
+        const sig = profile.jesterInteractionSignature;
+        if (!sig) return;
+
+        const nextLogs = (sig.whisperLogs || []).map(log => {
+            if (log.id === whisperId) {
+                return { ...log, feedback: type };
+            }
+            return log;
+        });
+
+        const nextFeedback = {
+            ...(sig.whisperFeedback || {}),
+            [whisperId]: type
+        };
+
+        const scoreAdjustment = type === 'helpful' ? 5 : -5;
+        const nextScore = Math.max(0, Math.min(300, (sig.accumulatedPersonaScore || 10) + scoreAdjustment));
+
+        onUpdateProfile({
+            jesterInteractionSignature: {
+                ...sig,
+                whisperLogs: nextLogs,
+                whisperFeedback: nextFeedback,
+                accumulatedPersonaScore: nextScore,
+                timestamp: new Date().toISOString()
+            }
+        });
+    };
 
     useEffect(() => {
         const loadLogs = () => {
@@ -242,6 +311,168 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ currentView, onSetView, is
                         </div>
                     )}
                 </div>
+                
+                {/* Jester Whispers Visual Indicator */}
+                <div className="relative">
+                    <motion.button 
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={handleOpenWhisperLogs}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 bg-purple-900/20 transition-all ${
+                            isGlowActive 
+                                ? 'border-yellow-400/80 text-yellow-300 shadow-[0_0_15px_rgba(250,204,21,0.4)] animate-pulse' 
+                                : isWhispersLogOpen 
+                                    ? 'bg-purple-900/40 border-purple-500 text-purple-400' 
+                                    : 'border-purple-900/40 text-purple-500 hover:bg-purple-900/40 hover:text-purple-400 hover:border-purple-500'
+                        }`}
+                        title="Jester's Miraculous Whispers Log"
+                    >
+                        <Sparkles className={`w-4 h-4 ${isGlowActive ? 'text-yellow-400 animate-spin' : 'text-purple-400'}`} style={isGlowActive ? { animationDuration: '4s' } : {}} />
+                        <span className="text-[9px] font-black uppercase tracking-widest hidden sm:inline">Jester Whispers</span>
+                        {unreadCount > 0 && (
+                            <span className="bg-yellow-500 text-black text-[8px] font-black px-1.5 py-0.5 rounded-full leading-none animate-bounce">
+                                {unreadCount}
+                            </span>
+                        )}
+                    </motion.button>
+
+                    {isWhispersLogOpen && (
+                        <div className="absolute right-0 mt-2 w-96 bg-zinc-950 border-2 border-purple-900/60 rounded-xl shadow-[0_0_25px_rgba(168,85,247,0.25)] z-50 p-4 font-mono select-none text-left">
+                            <div className="flex items-center justify-between border-b border-purple-950 pb-2 mb-3">
+                                <span className="text-[10px] font-black text-purple-400 uppercase tracking-widest flex items-center gap-1.5">
+                                    <Sparkles className="w-3.5 h-3.5 text-yellow-400" />
+                                    Jesticular Whispers Trace
+                                </span>
+                                <button 
+                                    className="text-[8px] px-1.5 py-0.5 bg-purple-950 text-purple-300 rounded hover:bg-purple-900 transition-all"
+                                    onClick={() => {
+                                        if (profile && onUpdateProfile) {
+                                            const sig = profile.jesterInteractionSignature;
+                                            if (sig) {
+                                                onUpdateProfile({
+                                                    jesterInteractionSignature: {
+                                                        ...sig,
+                                                        whisperLogs: []
+                                                    }
+                                                });
+                                            }
+                                        }
+                                    }}
+                                >
+                                    CLEAR
+                                </button>
+                            </div>
+
+                            {/* Frequency Preference Selector */}
+                            <div className="border-b border-purple-950/40 pb-2 mb-2.5 flex items-center justify-between text-[8px] text-zinc-400">
+                                <span className="uppercase font-black text-purple-400/85">Whisper Cadence:</span>
+                                <div className="flex gap-1">
+                                    {(['frequent', 'normal', 'rare', 'muted'] as const).map((pref) => {
+                                        const isActive = (profile?.jesterInteractionSignature?.whisperFrequencyPreference || 'normal') === pref;
+                                        return (
+                                            <button
+                                                key={pref}
+                                                onClick={() => {
+                                                    if (profile && onUpdateProfile) {
+                                                        const sig = profile.jesterInteractionSignature || {
+                                                            rhythmHistory: [],
+                                                            keystrokesCount: 0,
+                                                            clicksCount: 0,
+                                                            lastActiveView: currentView,
+                                                            accumulatedPersonaScore: 10,
+                                                            whisperCount: 0,
+                                                            timestamp: new Date().toISOString()
+                                                        };
+                                                        onUpdateProfile({
+                                                            jesterInteractionSignature: {
+                                                                ...sig,
+                                                                whisperFrequencyPreference: pref,
+                                                                timestamp: new Date().toISOString()
+                                                            }
+                                                        });
+                                                    }
+                                                }}
+                                                className={`px-1.5 py-0.5 rounded border text-[7px] font-bold uppercase transition-all cursor-pointer ${
+                                                    isActive
+                                                        ? 'bg-purple-950 text-yellow-400 border-yellow-400/60'
+                                                        : 'border-zinc-800 bg-zinc-950 text-zinc-500 hover:text-purple-300 hover:border-purple-900'
+                                                }`}
+                                            >
+                                                {pref}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-2 max-h-72 overflow-y-auto scrollbar-thin scrollbar-thumb-purple-900 pr-1 text-left">
+                                {!profile?.jesterInteractionSignature?.whisperLogs || profile.jesterInteractionSignature.whisperLogs.length === 0 ? (
+                                    <div className="text-[9px] text-zinc-600 text-center py-8 italic font-sans">
+                                        No whispers logged yet. Let Jester-Miri guide thy flow!
+                                    </div>
+                                ) : (
+                                    profile.jesterInteractionSignature.whisperLogs.map((log) => {
+                                        const timeStr = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+                                        return (
+                                            <div key={log.id} className="text-[9px] bg-zinc-900/65 p-2.5 border border-purple-950/40 rounded text-purple-300/90 leading-relaxed flex flex-col gap-2">
+                                                <div className="flex justify-between items-center text-[8px] opacity-60">
+                                                    <span>[{timeStr}] WHISPER</span>
+                                                    <span>LVL {profile.jesterInteractionSignature?.accumulatedPersonaScore ? Math.min(4, Math.floor(profile.jesterInteractionSignature.accumulatedPersonaScore / 40) + 1) : 1}</span>
+                                                </div>
+                                                <p className="text-zinc-200 select-text font-sans">{log.text}</p>
+                                                
+                                                {/* Feedback Controls */}
+                                                <div className="flex items-center justify-end gap-1.5 border-t border-purple-950/40 pt-1.5 mt-0.5">
+                                                    <span className="text-[7px] text-zinc-500 uppercase tracking-wider mr-auto">Feedback:</span>
+                                                    <button
+                                                        onClick={() => handleFeedback(log.id, 'helpful')}
+                                                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[8px] transition-all uppercase font-bold cursor-pointer ${
+                                                            log.feedback === 'helpful'
+                                                                ? 'bg-emerald-950/40 border-emerald-500 text-emerald-400'
+                                                                : 'border-zinc-800 bg-zinc-950 text-zinc-500 hover:text-emerald-400 hover:border-emerald-500/50'
+                                                        }`}
+                                                        title="This whisper was helpful or encouraging!"
+                                                    >
+                                                        <ThumbsUp className="w-2.5 h-2.5" />
+                                                        HELPFUL
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleFeedback(log.id, 'too_much')}
+                                                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded border text-[8px] transition-all uppercase font-bold cursor-pointer ${
+                                                            log.feedback === 'too_much'
+                                                                ? 'bg-red-950/40 border-red-500 text-red-400'
+                                                                : 'border-zinc-800 bg-zinc-950 text-zinc-500 hover:text-red-400 hover:border-red-500/50'
+                                                        }`}
+                                                        title="This whisper was too much or too frequent."
+                                                    >
+                                                        <ThumbsDown className="w-2.5 h-2.5" />
+                                                        TOO MUCH
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                )}
+                            </div>
+                            
+                            <div className="border-t border-purple-950/40 mt-3 pt-2 text-[8px] text-zinc-500 leading-normal flex items-center justify-between uppercase">
+                                <div className="flex items-center gap-1">
+                                    <span>Log Opens:</span>
+                                    <span className="text-purple-400 font-bold">
+                                        {profile?.jesterInteractionSignature?.logOpenCount || 0}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                    <span>Persona Score:</span>
+                                    <span className="text-yellow-400 font-bold tracking-tight">
+                                        {profile?.jesterInteractionSignature?.accumulatedPersonaScore ?? 10} PTS
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+                
                 <motion.button 
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}

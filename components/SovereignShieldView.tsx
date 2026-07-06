@@ -396,19 +396,19 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
                 setAuditResult(prev => {
                     if (!prev) return null;
                     const updated = prev.vulnerabilities.map(v => ({ ...v, status: 'PATCHED' as const }));
-                    setTelemetry(t => ({ ...t, integrity: 100 }));
-                    addLog("[SYNC] All vulnerabilities patched via Collaboration Hub audit confirmation.", 'SUCCESS');
                     return { ...prev, overallIntegrity: 100, vulnerabilities: updated };
                 });
+                setTelemetry(t => ({ ...t, integrity: 100 }));
+                addLog("[SYNC] All vulnerabilities patched via Collaboration Hub audit confirmation.", 'SUCCESS');
             }
 
             // Sync Purge Completion manually toggled via Project Hub
             if (purgeTask && purgeTask.completed && shards.some(s => s.status !== 'PURGED')) {
                 setShards(prev => {
                     const updated = prev.map(s => ({ ...s, status: 'PURGED' as const, threatLevel: 'LOW' as const }));
-                    addLog("[SYNC] Danger shards purged via Collaboration Hub coordination.", 'SUCCESS');
                     return updated;
                 });
+                addLog("[SYNC] Danger shards purged via Collaboration Hub coordination.", 'SUCCESS');
             }
         } catch (err) {
             console.error("Sovereign Shield project state sync mismatch:", err);
@@ -487,11 +487,11 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
         try {
             const result = await conductSystemIntegrityAudit(['SovereignBridge', 'KineticInterlock', 'CareMaestro']);
             setAuditResult(result);
-            setTelemetry(prev => {
-                const nextT = { ...prev, integrity: result.overallIntegrity };
-                updateShieldProjectPerformance(result.overallIntegrity, shieldStrength);
-                return nextT;
-            });
+            setTelemetry(prev => ({ ...prev, integrity: result.overallIntegrity }));
+            
+            // Side effects processed after state updates
+            updateShieldProjectPerformance(result.overallIntegrity, shieldStrength);
+            
             addLog(`Audit complete. Overall Integrity: ${result.overallIntegrity}%`, result.overallIntegrity > 90 ? 'SUCCESS' : 'WARN');
             if (result.vulnerabilities.length > 0) {
                 addLog(`Detected ${result.vulnerabilities.length} vulnerabilities.`, 'WARN');
@@ -514,14 +514,14 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
                 const updatedVuls = prev.vulnerabilities.map(v => v.id === vId ? { ...v, status: 'PATCHED' as const } : v);
                 const patchedCount = updatedVuls.filter(v => v.status === 'PATCHED').length;
                 const newIntegrity = Math.min(100, prev.overallIntegrity + (patchedCount * 5));
-                setTelemetry(t => {
-                    const nextT = { ...t, integrity: newIntegrity };
-                    updateShieldProjectPerformance(newIntegrity, shieldStrength);
-                    return nextT;
-                });
                 
-                const allPatched = updatedVuls.every(v => v.status === 'PATCHED');
-                syncShieldTaskCompletion('shield_task_audit', allPatched);
+                // Safe deferred update execution to prevent state-update-during-render clashing
+                setTimeout(() => {
+                    setTelemetry(t => ({ ...t, integrity: newIntegrity }));
+                    updateShieldProjectPerformance(newIntegrity, shieldStrength);
+                    const allPatched = updatedVuls.every(v => v.status === 'PATCHED');
+                    syncShieldTaskCompletion('shield_task_audit', allPatched);
+                }, 0);
                 
                 return { ...prev, overallIntegrity: newIntegrity, vulnerabilities: updatedVuls };
             });
@@ -581,7 +581,11 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
             setShards(prev => {
                 const updated = prev.map(s => s.id === id ? { ...s, status: 'PURGED' as const, threatLevel: 'LOW' as const } : s);
                 const allPurged = updated.every(s => s.status === 'PURGED');
-                syncShieldTaskCompletion('shield_task_purge', allPurged);
+                
+                setTimeout(() => {
+                    syncShieldTaskCompletion('shield_task_purge', allPurged);
+                }, 0);
+                
                 return updated;
             });
             setIsNeutralizing(null);
@@ -590,7 +594,11 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
             setShieldStrength(nextStrength);
             setTelemetry(prev => {
                 const nextIntegrity = Math.min(100, prev.integrity + 0.5);
-                updateShieldProjectPerformance(nextIntegrity, nextStrength);
+                
+                setTimeout(() => {
+                    updateShieldProjectPerformance(nextIntegrity, nextStrength);
+                }, 0);
+                
                 return { ...prev, integrity: nextIntegrity };
             });
             addLog(`Shard ${id} neutralized. Logic reconciled.`, 'SUCCESS');
@@ -601,12 +609,13 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
         setAuditResult(prev => {
             if (!prev) return null;
             const updated = prev.vulnerabilities.map(v => ({ ...v, status: 'PATCHED' as const }));
-            setTelemetry(t => {
-                const nextT = { ...t, integrity: 100 };
+            
+            setTimeout(() => {
+                setTelemetry(t => ({ ...t, integrity: 100 }));
                 updateShieldProjectPerformance(100, shieldStrength);
-                return nextT;
-            });
-            addLog("Mass patched all open system vulnerabilities via state reconciliation trigger.", "SUCCESS");
+                addLog("Mass patched all open system vulnerabilities via state reconciliation trigger.", "SUCCESS");
+            }, 0);
+            
             return { ...prev, overallIntegrity: 100, vulnerabilities: updated };
         });
     }, [addLog, shieldStrength]);

@@ -41,6 +41,24 @@ async function startServer() {
         attempt++;
         const errorMsg = error?.message || "";
         const errorStr = typeof error === 'object' ? JSON.stringify(error) : String(error);
+        const lowerMsg = errorMsg.toLowerCase();
+        const lowerStr = errorStr.toLowerCase();
+
+        // Check for hard, persistent quota or billing limits
+        const isHardQuotaLimit = 
+          lowerMsg.includes("quota") || 
+          lowerMsg.includes("exhausted") || 
+          lowerMsg.includes("billing") ||
+          lowerStr.includes("quota") || 
+          lowerStr.includes("exhausted") || 
+          lowerStr.includes("billing") ||
+          lowerStr.includes("resource_exhausted") ||
+          lowerStr.includes("resource has been exhausted");
+
+        if (isHardQuotaLimit) {
+          console.warn(`[server.ts] Hard quota/billing limit encountered. Failing fast to allow client-side fallbacks immediately.`);
+          throw error;
+        }
         
         const isTransient = 
           errorMsg.includes("555") || // Safe dummy value for testing
@@ -569,6 +587,245 @@ Our siphoned memory logs indicate high relevance in local logic segments. This d
       }
 
       res.status(404).json({ success: false, error: `Module not found: ${modulePath}` });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // AetherOS Online RTTL and Telemetry Diagnostic endpoints
+  app.get("/api/rttl", (req, res) => {
+    try {
+      const clientTime = parseInt(req.query.t as string || "0");
+      const serverTime = Date.now();
+      const difference = clientTime > 0 ? (serverTime - clientTime) : 0;
+      
+      const memory = process.memoryUsage();
+      const cpuSimulated = parseFloat((1.2 + Math.random() * 2.3).toFixed(2));
+      const activeConductors = Math.floor(84 + Math.random() * 12);
+      const jitterSimulated = parseFloat((0.1 + Math.random() * 0.4).toFixed(3));
+
+      res.json({
+        success: true,
+        clientTimestamp: clientTime,
+        serverTimestamp: serverTime,
+        rttl: difference,
+        metrics: {
+          cpuLoadPercent: cpuSimulated,
+          heapUsedBytes: memory.heapUsed,
+          heapTotalBytes: memory.heapTotal,
+          rssBytes: memory.rss,
+          activeNodes: activeConductors,
+          packetLossPercent: 0.0,
+          jitterMs: jitterSimulated,
+          congestion: "OPTIMAL",
+          queueDepth: 0,
+          systemUptimeSeconds: Math.floor(process.uptime())
+        }
+      });
+    } catch (error: any) {
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  // ==========================================
+  // REAL-TIME COLLABORATIVE CODE EDITOR ENDPOINTS
+  // ==========================================
+  const collabFiles: Record<string, string> = {
+    "index.html": `<!DOCTYPE html>
+<html>
+<head>
+  <title>AetherOS Collaboration Node</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="root"></div>
+  <script src="main.tsx" type="module"></script>
+</body>
+</html>`,
+    "server.ts": `import express from "express";
+const app = express();
+const PORT = 3000;
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "AetherOS Active" });
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log("Kernel sync established on port " + PORT);
+});`,
+    "App.tsx": `import React, { useState } from 'react';
+
+export default function App() {
+  const [count, setCount] = useState(0);
+  return (
+    <div className="p-8 bg-[#02020a] border border-purple-900/30 rounded-2xl">
+      <h1 className="text-2xl font-bold font-mono text-purple-400">AetherOS Collaboration Interface</h1>
+      <button 
+        onClick={() => setCount(c => c + 1)}
+        className="mt-4 px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-bold transition-all"
+      >
+        Incr Matrix: {count}
+      </button>
+    </div>
+  );
+}`,
+    "main.tsx": `import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import './styles.css';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);`,
+    "styles.css": `@import "tailwindcss";
+
+body {
+  background-color: #03030c;
+  color: #f1f1f1;
+  font-family: 'JetBrains Mono', monospace;
+}`
+  };
+
+  let collabPresence: any[] = [
+    { username: "CyberWeaver_X", activeFile: "App.tsx", line: 4, char: 12, color: "#a855f7", isTyping: true, lastSeen: Date.now() },
+    { username: "AcousticWeaver", activeFile: "styles.css", line: 2, char: 5, color: "#06b6d4", isTyping: false, lastSeen: Date.now() }
+  ];
+
+  let collabChat: any[] = [
+    { id: "msg_1", username: "CyberWeaver_X", text: "Welcome to the real-time sandbox. I'm opening App.tsx.", timestamp: new Date(Date.now() - 30000).toISOString() },
+    { id: "msg_2", username: "AcousticWeaver", text: "Awesome! Ready to sync code edits on the system kernel.", timestamp: new Date(Date.now() - 15000).toISOString() }
+  ];
+
+  app.get("/api/collaboration/files", (req, res) => {
+    res.json({ success: true, files: collabFiles });
+  });
+
+  app.post("/api/collaboration/edit", (req, res) => {
+    const { fileName, content } = req.body;
+    if (!fileName || content === undefined) {
+      return res.status(400).json({ success: false, error: "fileName and content required" });
+    }
+    collabFiles[fileName] = content;
+    res.json({ success: true });
+  });
+
+  app.get("/api/collaboration/presence", (req, res) => {
+    // Clean old presence sessions (> 15 seconds old), except our simulated friends
+    const now = Date.now();
+    collabPresence = collabPresence.filter(p => 
+      p.username === "CyberWeaver_X" || 
+      p.username === "AcousticWeaver" || 
+      (now - (p.lastSeen || 0) < 15000)
+    );
+    res.json({ success: true, presence: collabPresence });
+  });
+
+  app.post("/api/collaboration/presence", (req, res) => {
+    const { username, activeFile, line, char, color, isTyping } = req.body;
+    if (!username) {
+      return res.status(400).json({ success: false, error: "username required" });
+    }
+    
+    const existingIdx = collabPresence.findIndex(p => p.username === username);
+    const presenceNode = { 
+      username, 
+      activeFile: activeFile || "App.tsx", 
+      line: line || 0, 
+      char: char || 0, 
+      color: color || "#ef4444", 
+      isTyping: !!isTyping, 
+      lastSeen: Date.now() 
+    };
+
+    if (existingIdx >= 0) {
+      collabPresence[existingIdx] = presenceNode;
+    } else {
+      collabPresence.push(presenceNode);
+    }
+    res.json({ success: true });
+  });
+
+  app.get("/api/collaboration/chat", (req, res) => {
+    res.json({ success: true, chat: collabChat });
+  });
+
+  app.post("/api/collaboration/chat", (req, res) => {
+    const { username, text } = req.body;
+    if (!username || !text) {
+      return res.status(400).json({ success: false, error: "username and text required" });
+    }
+    const newMessage = {
+      id: "msg_" + Math.random().toString(36).substr(2, 9),
+      username,
+      text,
+      timestamp: new Date().toISOString()
+    };
+    collabChat.push(newMessage);
+    if (collabChat.length > 50) collabChat.shift(); // Keep logs tidy
+    res.json({ success: true, chat: collabChat });
+  });
+
+  app.get("/api/online-status-logs", (req, res) => {
+    try {
+      const serverUptime = Math.floor(process.uptime());
+      const now = new Date();
+      
+      const staticLogs = [
+        {
+          id: "log_1",
+          timestamp: new Date(now.getTime() - 1200000).toISOString(),
+          component: "Sovereign Search Bridge",
+          level: "INFO",
+          status: "SYNCED",
+          message: "Google Gaze grounding channels validated. Synced 0x03E2-SEARCH_NET indices.",
+          rttl: 12
+        },
+        {
+          id: "log_2",
+          timestamp: new Date(now.getTime() - 900000).toISOString(),
+          component: "TTS Synthesis Engine",
+          level: "INFO",
+          status: "ONLINE",
+          message: "Acoustic audio wave cache cleared. Speech buffers ready for vocal stream (Kore/Prebuilt).",
+          rttl: 42
+        },
+        {
+          id: "log_3",
+          timestamp: new Date(now.getTime() - 600000).toISOString(),
+          component: "Ghost Layer Portal",
+          level: "SUCCESS",
+          status: "LOCKED",
+          message: "Coordinate snapping matrix locked to master anchor. Pinning listeners activated.",
+          rttl: 1
+        },
+        {
+          id: "log_4",
+          timestamp: new Date(now.getTime() - 300000).toISOString(),
+          component: "Neural Nexus Gateway",
+          level: "INFO",
+          status: "STABLE",
+          message: "Cognitive logic pipeline streams established. Latency deviations minimized within 0.02ms.",
+          rttl: 8
+        },
+        {
+          id: "log_5",
+          timestamp: new Date(now.getTime() - 60000).toISOString(),
+          component: "Sovereign Shield",
+          level: "SUCCESS",
+          status: "ARMED",
+          message: "Sub-second defense vectors armed. Treasury isolation firewall reporting zero leak occurrences.",
+          rttl: 4
+        }
+      ];
+
+      res.json({
+        success: true,
+        uptimeSeconds: serverUptime,
+        systemTime: now.toISOString(),
+        logs: staticLogs
+      });
     } catch (error: any) {
       res.status(500).json({ success: false, error: error.message });
     }

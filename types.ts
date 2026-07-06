@@ -65,12 +65,15 @@ export interface PredictiveAlert {
 export interface ProjectTask {
   id: string;
   text: string;
+  description?: string;
   completed: boolean;
   dueDate?: string;
   priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   createdAt: number;
   completedAt?: number;
   status?: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
+  tags?: string[];
+  dependencies?: string[];
 }
 
 export interface ProjectBlueprint {
@@ -157,7 +160,7 @@ export type MainView =
   | 'medical_synthesis_lab' | 'vehicle_telemetry_lab' | 'coding_network_teachers' | 'enlightenment_pool' 
   | 'library_view' | 'timeline' | 'amoeba_heritage' | 'system_exhaustion' | 'recon_vault'
   | 'constraints_audit' | 'remix_scope_lab' | 'vehicle_management' | 'unknown_physics_lab' | 'logic_pattern_lab'
-  | 'vulnerability_report' | 'tactical_intelligence' | 'behavioral_specs' | 'cognitive_pipeline' | 'data_provenance_lab' | 'sh_crt_loop' | 'user_profile' | 'prompt_forge' | 'sovereign_standard' | 'confusion_logic' | 'knowledge_forum' | 'blockchain_history' | 'main_net' | 'ecosystem' | 'accounts_registry' | 'blacklist' | 'system_integrity' | 'vault_manager' | 'moderator_lounge' | 'biometric_intelligence' | 'card_recovery' | 'project_showcase' | 'labs_flow' | 'google_sheets' | 'ai_telemetry' | 'cascade_investigator' | 'inevitable_crash' | 'scraper_merchant_store' | 'data_academy' | 'reputation_leaderboard' | 'aether_flow_orchestrator' | 'packaging_suite' | 'system_archives';
+  | 'vulnerability_report' | 'tactical_intelligence' | 'behavioral_specs' | 'cognitive_pipeline' | 'data_provenance_lab' | 'sh_crt_loop' | 'user_profile' | 'prompt_forge' | 'sovereign_standard' | 'confusion_logic' | 'knowledge_forum' | 'blockchain_history' | 'main_net' | 'ecosystem' | 'accounts_registry' | 'blacklist' | 'system_integrity' | 'vault_manager' | 'moderator_lounge' | 'biometric_intelligence' | 'card_recovery' | 'project_showcase' | 'labs_flow' | 'google_sheets' | 'ai_telemetry' | 'cascade_investigator' | 'inevitable_crash' | 'scraper_merchant_store' | 'data_academy' | 'reputation_leaderboard' | 'aether_flow_orchestrator' | 'packaging_suite' | 'system_archives' | 'system_diagnostic' | 'aetheros_online_status' | 'regex_editor_lab' | 'mission_items' | 'agent_safeguard' | 'safeguard' | 'gmail' | 'google_drive' | 'sovereign_scanner';
 
 export interface Trajectory {
     id: string;
@@ -494,6 +497,15 @@ export interface PortfolioLink {
     url: string;
 }
 
+export interface ProfileProjectTestimonial {
+    id: string;
+    author: string;
+    avatarUrl?: string;
+    rating: number;
+    comment: string;
+    timestamp: number;
+}
+
 export interface ProfileProject {
     id: string;
     title: string;
@@ -504,6 +516,10 @@ export interface ProfileProject {
     endorsements?: string[]; // Username of users who endorsed
     rating?: number; // Rating like 1-5
     ratingsCount?: number;
+    technologies?: string[];
+    liveDemoUrl?: string;
+    sourceCodeUrl?: string;
+    testimonials?: ProfileProjectTestimonial[];
 }
 
 export interface WorkExperience {
@@ -532,6 +548,7 @@ export interface UserProfile {
     bio: string;
     skills: string[];
     lookingForSkills?: string[];
+    willingToTeachSkills?: string[];
     areasOfInterest?: string[];
     lookingFor?: string[];
     experienceLevel?: string;
@@ -550,6 +567,33 @@ export interface UserProfile {
     projectLikes?: number;
     badgeName?: string;
     badgeClass?: string;
+    contactInfo?: {
+        email?: string;
+        discord?: string;
+        telegram?: string;
+        twitter?: string;
+        phone?: string;
+        github?: string;
+        website?: string;
+    };
+    categorizedSkills?: {
+        category: string;
+        skills: string[];
+    }[];
+    jesterInteractionSignature?: {
+        rhythmHistory: number[];
+        keystrokesCount: number;
+        clicksCount: number;
+        lastActiveView: string;
+        accumulatedPersonaScore: number; // to curate increasingly personalized/jesting/positive persona
+        whisperCount: number;
+        timestamp: string;
+        whisperFeedback?: Record<string, 'helpful' | 'too_much'>;
+        whisperLogs?: Array<{ id: string; timestamp: string; text: string; feedback?: 'helpful' | 'too_much' }>;
+        whisperFrequencyPreference?: 'frequent' | 'normal' | 'rare' | 'muted';
+        logOpenCount?: number;
+        jesterName?: string;
+    };
 }
 
 export interface NetworkProject {
@@ -953,6 +997,52 @@ export interface AuditLog {
     timestamp: number;
     details: string;
     proofOfWork: string;
+}
+
+export interface MissionItem {
+    id: string;
+    name: string;
+    reason: string;
+    learn: string;
+    go: string;
+    coding: string;
+    createdAt: number;
+}
+
+export interface EternalMemory {
+    id: string;
+    title: string;
+    content: string;
+    category: 'Credentials' | 'Heuristics' | 'Sovereign Keys' | 'System Logs' | 'Operator Notes';
+    securityTier: 'RESTRICTED' | 'CONFIDENTIAL' | 'TOP_SECRET' | 'ETERNAL';
+    timestamp: number;
+    blockSignature: string;
+    isRevealed: boolean;
+}
+
+export interface CellNode {
+    id: string;
+    cph: number;
+    atp: number;
+    generation: number;
+    isNft?: boolean;
+    nftId?: string;
+    nftUri?: string;
+    rarity?: 'COMMON' | 'UNCOMMON' | 'RARE' | 'LEGENDARY' | 'ETERNAL';
+    mintTimestamp?: number;
+    companionArchetype?: string;
+    companionSynergyName?: string;
+    companionSynergyEffect?: string;
+    userSynergyName?: string;
+    userSynergyEffect?: string;
+}
+
+export interface CellularState {
+    id: string;
+    name: string;
+    cellsJson: string;
+    phase: string;
+    timestamp: number;
 }
 
 

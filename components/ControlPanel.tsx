@@ -77,7 +77,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
     if (!saveName.trim()) return;
     const newPreset: Preset = {
       name: saveName.trim(),
-      timestamp: Date.now(),
+      timestamp: Date.now() * 1000 + Math.floor(Math.random() * 1000),
       params: { ...params },
       mode: currentMode
     };
@@ -343,9 +343,9 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
 
         {presets.length > 0 ? (
           <div className="space-y-1.5 max-h-36 overflow-y-auto px-0.5 custom-scrollbar">
-            {presets.map((preset) => (
+            {presets.map((preset, idx) => (
               <div
-                key={preset.timestamp}
+                key={`${preset.timestamp}-${idx}`}
                 className="flex items-center justify-between bg-black/40 hover:bg-black p-2 rounded-xl border border-zinc-900 group"
               >
                 <button

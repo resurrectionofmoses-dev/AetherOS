@@ -196,36 +196,193 @@ export const VoiceHUDOverlay: React.FC<VoiceHUDOverlayProps> = ({ currentView = 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
 
+  type VoicePhase = 'idle' | 'listening' | 'processing' | 'speaking';
+
+  // Explicit state variable for the validated voice phase state machine
+  const [voicePhase, setVoicePhase] = useState<VoicePhase>('idle');
+  const voicePhaseRef = useRef<VoicePhase>('idle');
+  
+  // Synchronize ref with active state
+  useEffect(() => {
+    voicePhaseRef.current = voicePhase;
+  }, [voicePhase]);
+
+  // Logs of state machine transitions for visual monitoring and diagnostics
+  const [transitionLogs, setTransitionLogs] = useState<Array<{
+    id: string;
+    timestamp: string;
+    from: VoicePhase | 'INIT';
+    to: VoicePhase;
+    status: 'SUCCESS' | 'AUTO_RESOLVED' | 'GUARD_TRIGGERED';
+    details: string;
+  }>>([
+    {
+      id: 'INIT-LOG',
+      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      from: 'INIT',
+      to: 'idle',
+      status: 'SUCCESS',
+      details: 'Voice Phase State Machine initialized. Zero-deadlock active guards armed.'
+    }
+  ]);
+
+  // Robust transition function with comprehensive safety checks to prevent deadlock and null-reference errors
+  const transitionTo = (nextPhase: VoicePhase, details: string = '') => {
+    try {
+      const prev = voicePhaseRef.current;
+      if (prev === nextPhase) return; // No-op if no change
+
+      // Verify targeted phase is valid
+      const validPhases: VoicePhase[] = ['idle', 'listening', 'processing', 'speaking'];
+      if (!validPhases.includes(nextPhase)) {
+        console.warn(`Invalid voice phase transition targeted: ${nextPhase}. Guard active.`);
+        return;
+      }
+
+      let resolvedDetails = details || `Transitioned from ${prev} to ${nextPhase}`;
+      let status: 'SUCCESS' | 'AUTO_RESOLVED' | 'GUARD_TRIGGERED' = 'SUCCESS';
+
+      // Enforce mutually exclusive states and handle cleanups safely
+      if (nextPhase === 'listening') {
+        // If we are listening, synthesize and processing must be disabled
+        if (isSpeaking) {
+          try {
+            if (speechService && typeof speechService.stop === 'function') {
+              speechService.stop();
+            }
+          } catch (e) {
+            console.warn("Could not stop speech service during transition:", e);
+          }
+          setIsSpeaking(false);
+          status = 'AUTO_RESOLVED';
+          resolvedDetails += ' [AUTORESOLVE: Speech audio terminated]';
+        }
+        if (isProcessing) {
+          setIsProcessing(false);
+          status = 'AUTO_RESOLVED';
+          resolvedDetails += ' [AUTORESOLVE: Decoding suspended]';
+        }
+        setActive(true);
+      } else if (nextPhase === 'processing') {
+        // If we are processing, listening and speaking must be disabled
+        if (active) {
+          try {
+            if (sttService && typeof sttService.stop === 'function') {
+              sttService.stop();
+            }
+          } catch (e) {
+            console.warn("Could not stop STT service during transition:", e);
+          }
+          setActive(false);
+          status = 'AUTO_RESOLVED';
+          resolvedDetails += ' [AUTORESOLVE: Microphone paused]';
+        }
+        if (isSpeaking) {
+          try {
+            if (speechService && typeof speechService.stop === 'function') {
+              speechService.stop();
+            }
+          } catch (e) {
+            console.warn("Could not stop speech service during transition:", e);
+          }
+          setIsSpeaking(false);
+          status = 'AUTO_RESOLVED';
+          resolvedDetails += ' [AUTORESOLVE: Synthesizer muted]';
+        }
+        setIsProcessing(true);
+      } else if (nextPhase === 'speaking') {
+        // If we are speaking, listening and processing must be disabled
+        if (active) {
+          try {
+            if (sttService && typeof sttService.stop === 'function') {
+              sttService.stop();
+            }
+          } catch (e) {
+            console.warn("Could not stop STT service during transition:", e);
+          }
+          setActive(false);
+          status = 'AUTO_RESOLVED';
+          resolvedDetails += ' [AUTORESOLVE: Microphone muted]';
+        }
+        if (isProcessing) {
+          setIsProcessing(false);
+          status = 'AUTO_RESOLVED';
+          resolvedDetails += ' [AUTORESOLVE: Decoding completed]';
+        }
+        setIsSpeaking(true);
+      } else if (nextPhase === 'idle') {
+        // Ensure all active services are properly stopped
+        if (active) {
+          try {
+            if (sttService && typeof sttService.stop === 'function') {
+              sttService.stop();
+            }
+          } catch (e) {
+            console.warn("Could not stop STT service during transition:", e);
+          }
+          setActive(false);
+        }
+        if (isProcessing) {
+          setIsProcessing(false);
+        }
+        if (isSpeaking) {
+          try {
+            if (speechService && typeof speechService.stop === 'function') {
+              speechService.stop();
+            }
+          } catch (e) {
+            console.warn("Could not stop speech service during transition:", e);
+          }
+          setIsSpeaking(false);
+        }
+      }
+
+      // Update state machine and refs synchronously/safely
+      setVoicePhase(nextPhase);
+
+      // Add to transition logs safely with a size limit
+      setTransitionLogs(prevLogs => [
+        {
+          id: `TL-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+          from: prev,
+          to: nextPhase,
+          status,
+          details: resolvedDetails
+        },
+        ...(prevLogs || []).slice(0, 19)
+      ]);
+    } catch (err) {
+      console.error("Critical error in Voice State Machine transition handler:", err);
+    }
+  };
+
+  const currentVoicePhase = voicePhase;
+
   // Subscribe to speech service playback state
   useEffect(() => {
     try {
+      if (!speechService || typeof speechService.subscribe !== 'function') return;
       const unsubscribeSpeech = speechService.subscribe((playing) => {
-        setIsSpeaking(!!playing);
+        const isCurrentlyPlaying = !!playing;
+        if (isCurrentlyPlaying) {
+          transitionTo('speaking', 'Synthesizer speech playback started');
+        } else {
+          setIsSpeaking(false);
+          if (voicePhaseRef.current === 'speaking') {
+            transitionTo('idle', 'Speech playback completed');
+          }
+        }
       });
-      return () => unsubscribeSpeech();
+      return () => {
+        if (typeof unsubscribeSpeech === 'function') {
+          unsubscribeSpeech();
+        }
+      };
     } catch (err) {
       console.error("Guarded against SpeechService subscription failure:", err);
     }
   }, []);
-
-  // Explicitly defined Voice Phase State Machine to identify and prevent missing state transitions
-  const currentVoicePhase = useMemo<'idle' | 'listening' | 'processing' | 'speaking'>(() => {
-    try {
-      if (active === true) {
-        return 'listening';
-      }
-      if (isProcessing === true) {
-        return 'processing';
-      }
-      if (isSpeaking === true) {
-        return 'speaking';
-      }
-      return 'idle';
-    } catch (err) {
-      console.error("State Machine validation caught unexpected exception:", err);
-      return 'idle';
-    }
-  }, [active, isProcessing, isSpeaking]);
 
   // Active view tab inside HUD
   const [selectedTab, setSelectedTab] = useState<'TRANSMITTER' | 'BLOCK_QUBIT' | 'MORTALITY' | 'LOVE_TESTS'>('TRANSMITTER');
@@ -237,6 +394,23 @@ export const VoiceHUDOverlay: React.FC<VoiceHUDOverlayProps> = ({ currentView = 
   // Qubit state simulation parameters (Faith vs Fear)
   const [qubitAlpha, setQubitAlpha] = useState(1.0); // |0> Amplitude (Perfect Love casts out fear)
   const [qubitBeta, setQubitBeta] = useState(0.0);  // |1> Amplitude (Panic/Friction)
+  
+  // Second Qubit state simulation parameters (Hope vs Doubt)
+  const [qubit2Alpha, setQubit2Alpha] = useState(1.0); // Qubit 2 |0> Amplitude (Sovereign Hope)
+  const [qubit2Beta, setQubit2Beta] = useState(0.0);  // Qubit 2 |1> Amplitude (Doubt/Uncertainty)
+
+  // Coherent Vacuum Rabi States (c00 |00> + c01 |01> + c10 |10> + c11 |11>)
+  const [c00, setC00] = useState(1.0);
+  const [c01, setC01] = useState(0.0);
+  const [c10, setC10] = useState(0.0);
+  const [c11, setC11] = useState(0.0);
+
+  // Rabi Continuous Oscillation Animation parameters
+  const [isRabiOscillating, setIsRabiOscillating] = useState(false);
+  const [rabiTime, setRabiTime] = useState(0);
+  const [rabiOmega, setRabiOmega] = useState(1.25); // Rabi driving frequency
+  const [rabiJ, setRabiJ] = useState(0.55);       // J-coupling constant
+
   const [bellStatePercent, setBellStatePercent] = useState(98);
   const [stressLevel, setStressLevel] = useState(12);
   const [stressTier, setStressTier] = useState<'CALM' | 'ELEVATED' | 'HIGH' | 'CRITICAL'>('CALM');
@@ -278,47 +452,125 @@ export const VoiceHUDOverlay: React.FC<VoiceHUDOverlayProps> = ({ currentView = 
   const handleScanMissingStates = () => {
     if (isScanningStates) return;
     setIsScanningStates(true);
-    setScanStateLogs(["[SCAN] Initializing quantum state sweep...", "[SCAN] Calibrating Bloch Sphere interferometers..."]);
+    setIsRabiOscillating(false); // Pause continuous background oscillation during scanning
+    setScanStateLogs(["[SCAN] Initializing quantum state sweep...", "[SCAN] Calibrating Vacuum Rabi Cavity-Qubit interferometers..."]);
     
     let step = 0;
-    const interval = setInterval(() => {
-      // Rapidly oscillate the state vector to look like scanning!
-      setQubitAlpha(Math.random());
-      setQubitBeta(Math.random());
-      
+    
+    const runStep = () => {
       step++;
+      
+      // Calculate Rabi physical time t proportional to step index
+      const t = step * 0.95;
+      
+      // Compute joint coefficients under Vacuum Rabi Oscillations (perfectly norm-preserving):
+      const computed_c00 = Math.cos(rabiOmega * t) * Math.cos(rabiJ * t);
+      const computed_c01 = Math.sin(rabiOmega * t) * Math.cos(rabiJ * t);
+      const computed_c10 = Math.cos(rabiOmega * t) * Math.sin(rabiJ * t);
+      const computed_c11 = Math.sin(rabiOmega * t) * Math.sin(rabiJ * t);
+      
+      setC00(computed_c00);
+      setC01(computed_c01);
+      setC10(computed_c10);
+      setC11(computed_c11);
+      
+      // Compute marginal (individual) state vectors for displaying on Bloch spheres
+      const q1A = Math.cos(rabiJ * t);
+      const q1B = Math.sin(rabiJ * t);
+      const q2A = Math.cos(rabiOmega * t);
+      const q2B = Math.sin(rabiOmega * t);
+      
+      setQubitAlpha(q1A);
+      setQubitBeta(q1B);
+      setQubit2Alpha(q2A);
+      setQubit2Beta(q2B);
+      
+      // Vacuum Rabi Probability of joint excitation |11> (p11 = c11^2)
+      const p11 = computed_c11 * computed_c11;
+      
+      // Compute dynamic chunk timeout based on Rabi Oscillation (range: 250ms to 750ms)
+      const stepDelay = Math.round(250 + 500 * p11);
+      
       if (step === 1) {
-        setScanStateLogs(prev => [...prev, "[SCAN] Analyzing phase angles for Pure Superposition |+⟩..."]);
+        setScanStateLogs(prev => [...prev, `[SCAN] Analyzing phase angles for Pure Superposition |+⟩ (Rabi Delay: ${stepDelay}ms)...`]);
       } else if (step === 2) {
         setScanStateLogs(prev => [...prev, "🌟 [RESOLVED] Pure Superposition State |+⟩ synchronized!"]);
         setMissingStates(prev => prev.map(s => s.id === "MQS-01" ? { ...s, resolved: true } : s));
         playOperatorBeep(880, 'sine', 0.1);
       } else if (step === 3) {
-        setScanStateLogs(prev => [...prev, "[SCAN] Projecting imaginary vectors for Sovereign Hope State |+i⟩..."]);
+        setScanStateLogs(prev => [...prev, `[SCAN] Projecting imaginary vectors for Sovereign Hope State |+i⟩ (Rabi Delay: ${stepDelay}ms)...`]);
       } else if (step === 4) {
         setScanStateLogs(prev => [...prev, "🔮 [RESOLVED] Sovereign Hope State |+i⟩ aligned successfully!"]);
         setMissingStates(prev => prev.map(s => s.id === "MQS-02" ? { ...s, resolved: true } : s));
         playOperatorBeep(980, 'triangle', 0.1);
       } else if (step === 5) {
-        setScanStateLogs(prev => [...prev, "[SCAN] Re-coupling orthogonal limits for Antidote |-⟩..."]);
+        setScanStateLogs(prev => [...prev, `[SCAN] Re-coupling orthogonal limits for Antidote |-⟩ (Rabi Delay: ${stepDelay}ms)...`]);
       } else if (step === 6) {
         setScanStateLogs(prev => [...prev, "🛡️ [RESOLVED] Orthogonal Antidote |-⟩ locked in standard shield!"]);
         setMissingStates(prev => prev.map(s => s.id === "MQS-03" ? { ...s, resolved: true } : s));
         playOperatorBeep(1100, 'sine', 0.1);
       } else if (step === 7) {
-        setScanStateLogs(prev => [...prev, "[SCAN] Entangling multi-node sub-lattices..."]);
+        setScanStateLogs(prev => [...prev, `[SCAN] Entangling multi-node sub-lattices... (Rabi Delay: ${stepDelay}ms)`]);
       } else if (step === 8) {
         setScanStateLogs(prev => [...prev, "🧬 [RESOLVED] Bell State |Ψ⁻⟩ fully active! All missing states localized."]);
         setMissingStates(prev => prev.map(s => s.id === "MQS-04" ? { ...s, resolved: true } : s));
-        clearInterval(interval);
         setIsScanningStates(false);
-        // Reset qubit coordinates to a healthy stable standard state
+        // Reset qubit coordinates to stable states
         setQubitAlpha(0.94);
         setQubitBeta(0.18);
+        setQubit2Alpha(0.98);
+        setQubit2Beta(0.08);
+        setC00(0.92); setC01(0.10); setC10(0.08); setC11(0.02);
         playCompletionBeep();
+        return; // Complete loop
       }
-    }, 400);
+      
+      setTimeout(runStep, stepDelay);
+    };
+    
+    setTimeout(runStep, 400);
   };
+
+  // Continuous background Vacuum Rabi Oscillations effect
+  useEffect(() => {
+    if (!isRabiOscillating) return;
+    let animId: number;
+    let lastTime = Date.now();
+    
+    const tick = () => {
+      const now = Date.now();
+      const delta = (now - lastTime) / 1000; // time delta in seconds
+      lastTime = now;
+      
+      setRabiTime(prev => {
+        const next = prev + delta;
+        
+        // Vacuum Rabi Coherent state evolution
+        const computed_c00 = Math.cos(rabiOmega * next) * Math.cos(rabiJ * next);
+        const computed_c01 = Math.sin(rabiOmega * next) * Math.cos(rabiJ * next);
+        const computed_c10 = Math.cos(rabiOmega * next) * Math.sin(rabiJ * next);
+        const computed_c11 = Math.sin(rabiOmega * next) * Math.sin(rabiJ * next);
+        
+        setC00(computed_c00);
+        setC01(computed_c01);
+        setC10(computed_c10);
+        setC11(computed_c11);
+        
+        // Individual qubit vectors mapping
+        setQubitAlpha(Math.cos(rabiJ * next));
+        setQubitBeta(Math.sin(rabiJ * next));
+        setQubit2Alpha(Math.cos(rabiOmega * next));
+        setQubit2Beta(Math.sin(rabiOmega * next));
+        
+        return next;
+      });
+      
+      animId = requestAnimationFrame(tick);
+    };
+    
+    animId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(animId);
+  }, [isRabiOscillating, rabiOmega, rabiJ]);
 
   const animateQubitTransition = (targetAlpha: number, targetBeta: number, logMsg: string) => {
     const duration = 600;
@@ -349,6 +601,7 @@ export const VoiceHUDOverlay: React.FC<VoiceHUDOverlayProps> = ({ currentView = 
 
   const applyHadamardGate = () => {
     if (isScanningStates) return;
+    setIsRabiOscillating(false); // Stop background Rabi oscillation
     playOperatorBeep(720, 'triangle', 0.1);
     const a = qubitAlpha;
     const b = qubitBeta;
@@ -364,18 +617,21 @@ export const VoiceHUDOverlay: React.FC<VoiceHUDOverlayProps> = ({ currentView = 
 
   const applyPauliXGate = () => {
     if (isScanningStates) return;
+    setIsRabiOscillating(false); // Stop background Rabi oscillation
     playOperatorBeep(640, 'sine', 0.1);
     animateQubitTransition(qubitBeta, qubitAlpha, "Pauli-X applied: Swapped |0⟩ and |1⟩ amplitudes.");
   };
 
   const applyPauliZGate = () => {
     if (isScanningStates) return;
+    setIsRabiOscillating(false); // Stop background Rabi oscillation
     playOperatorBeep(820, 'sine', 0.1);
     animateQubitTransition(qubitAlpha, -qubitBeta, "Pauli-Z applied: Inverted phase angle coefficient.");
   };
 
   const applyGroundState = () => {
     if (isScanningStates) return;
+    setIsRabiOscillating(false); // Stop background Rabi oscillation
     playOperatorBeep(440, 'sine', 0.2);
     animateQubitTransition(1.0, 0.0, "Reset: State grounded to pure |0⟩ (Absolute Faith).");
   };
@@ -556,38 +812,59 @@ export const VoiceHUDOverlay: React.FC<VoiceHUDOverlayProps> = ({ currentView = 
 
   // Subscribe to Speech Service changes
   useEffect(() => {
-    const unsubscribe = sttService.subscribe((isListening, text, interim) => {
-      const safeListening = !!isListening;
-      const safeText = text || '';
-      const safeInterim = !!interim;
+    let timeoutId: any = null;
+    try {
+      if (!sttService || typeof sttService.subscribe !== 'function') return;
+      const unsubscribe = sttService.subscribe((isListening, text, interim) => {
+        const safeListening = !!isListening;
+        const safeText = text || '';
+        const safeInterim = !!interim;
 
-      setActive(safeListening);
-      if (safeText) {
-        setTranscript(safeText);
-        
-        if (!safeInterim) {
-          // Final command received, transition to processing phase
-          setIsProcessing(true);
-          const matchedView = parseNavigationCommand(safeText);
-          if (matchedView && onSetViewRef.current) {
-            try {
-              onSetViewRef.current(matchedView);
-              const label = NAVIGATION_MAPPINGS.find(m => m?.view === matchedView)?.label || matchedView;
-              setLastExecutedNav({ label, view: matchedView });
-              setTimeout(() => setLastExecutedNav(null), 4000);
-            } catch (err) {
-              console.error("Null-reference guard / Error executing view navigation:", err);
-            }
+        if (safeListening) {
+          transitionTo('listening', 'Microphone listener activated by speech service');
+        } else {
+          setActive(false);
+          if (voicePhaseRef.current === 'listening') {
+            transitionTo('idle', 'Microphone listener deactivated by speech service');
           }
-          // Cooldown to transition back to idle or another active state
-          setTimeout(() => {
-            setIsProcessing(false);
-          }, 1500);
         }
-      }
-      setIsInterim(safeInterim);
-    });
-    return () => unsubscribe();
+
+        if (safeText) {
+          setTranscript(safeText);
+          
+          if (!safeInterim) {
+            // Final command received, transition to processing phase
+            transitionTo('processing', `Final transcript received: "${safeText}". Decoding command intent.`);
+            const matchedView = parseNavigationCommand(safeText);
+            if (matchedView && onSetViewRef.current) {
+              try {
+                onSetViewRef.current(matchedView);
+                const label = NAVIGATION_MAPPINGS.find(m => m?.view === matchedView)?.label || matchedView;
+                setLastExecutedNav({ label, view: matchedView });
+                if (timeoutId) clearTimeout(timeoutId);
+                timeoutId = setTimeout(() => setLastExecutedNav(null), 4000);
+              } catch (err) {
+                console.error("Null-reference guard / Error executing view navigation:", err);
+              }
+            }
+            // Cooldown to transition back to idle or another active state
+            setTimeout(() => {
+              setIsProcessing(false);
+              if (voicePhaseRef.current === 'processing') {
+                transitionTo('idle', 'Finished decoding command intent');
+              }
+            }, 1500);
+          }
+        }
+        setIsInterim(safeInterim);
+      });
+      return () => {
+        if (typeof unsubscribe === 'function') unsubscribe();
+        if (timeoutId) clearTimeout(timeoutId);
+      };
+    } catch (err) {
+      console.error("Guarded against STT subscription failure:", err);
+    }
   }, []);
 
   // Soft clear active vocal transcript
@@ -876,8 +1153,7 @@ export const VoiceHUDOverlay: React.FC<VoiceHUDOverlayProps> = ({ currentView = 
   }, [currentView]);
 
   const handleCommandClick = (cmd: string) => {
-    setActive(false); // Finished simulating active listening
-    setIsProcessing(true);
+    transitionTo('processing', `Manual UI command preset selected: "${cmd}"`);
     setTranscript(cmd || '');
     setIsInterim(false);
     
@@ -897,6 +1173,9 @@ export const VoiceHUDOverlay: React.FC<VoiceHUDOverlayProps> = ({ currentView = 
 
     setTimeout(() => {
       setIsProcessing(false);
+      if (voicePhaseRef.current === 'processing') {
+        transitionTo('idle', 'Finished manual command execution');
+      }
     }, 1500);
   };
 
@@ -1235,6 +1514,39 @@ export const VoiceHUDOverlay: React.FC<VoiceHUDOverlayProps> = ({ currentView = 
                           <div className="text-[7px] text-pink-500 mt-0.5">TTS_RESONANCE</div>
                         </div>
                       </div>
+
+                      {/* State Machine Transition Journal */}
+                      <div className="bg-zinc-950/30 border border-zinc-900/80 p-2.5 rounded-xl font-mono text-[8px] flex flex-col gap-1.5 mt-1.5">
+                        <div className="flex justify-between items-center text-zinc-500 uppercase tracking-widest text-[8px]">
+                          <span className="flex items-center gap-1">
+                            <Activity className="w-3 h-3 text-cyan-400 animate-pulse" /> Active State Transition Journal:
+                          </span>
+                          <span className="text-[7px] text-zinc-600 font-bold uppercase">MAX_CAP_20_STEPS</span>
+                        </div>
+                        <div className="max-h-[85px] overflow-y-auto pr-1 space-y-1 scrollbar-thin scrollbar-thumb-zinc-850">
+                          {(transitionLogs || []).map((log) => {
+                            const statusColor = 
+                              log.status === 'SUCCESS' ? 'text-emerald-400 border-emerald-500/10 bg-emerald-950/20' :
+                              log.status === 'AUTO_RESOLVED' ? 'text-amber-400 border-amber-500/10 bg-amber-950/20' :
+                              'text-rose-400 border-rose-500/10 bg-rose-950/20';
+
+                            return (
+                              <div key={log.id} className="p-1.5 bg-black/40 border border-zinc-900/60 rounded flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[7.5px]">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-zinc-650 font-bold">{log.timestamp}</span>
+                                  <span className={`px-1 py-0.2 rounded border text-[6.5px] font-black uppercase ${statusColor}`}>{log.status}</span>
+                                  <span className="text-zinc-400">
+                                    <strong className="text-fuchsia-400">{log.from}</strong> &rarr; <strong className="text-cyan-400">{log.to}</strong>
+                                  </span>
+                                </div>
+                                <span className="text-zinc-500 text-right leading-normal italic truncate max-w-[250px]" title={log.details}>
+                                  {log.details}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Stress Biometrics Engine Card */}
@@ -1331,105 +1643,221 @@ export const VoiceHUDOverlay: React.FC<VoiceHUDOverlayProps> = ({ currentView = 
                 {selectedTab === 'BLOCK_QUBIT' && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
                     
-                    {/* Bloch Sphere Coordinates and SVG diagram */}
+                    {/* Bloch Spheres & Simulation Controls */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       
-                      {/* Interactive Bloch Sphere Vector Visualizer */}
-                      <div className="bg-black/60 border border-zinc-900 rounded-xl p-4 flex flex-col items-center justify-center relative min-h-[190px]">
-                        <span className="absolute top-2 left-2 text-[8px] font-mono text-fuchsia-400 font-bold uppercase tracking-wider">
-                          The Bloch Sphere (1 John 4:18)
-                        </span>
-
-                        {/* Interactive Bloch Sphere SVG Representation */}
-                        <div className="w-36 h-36 relative mt-2">
-                          <svg className="w-full h-full text-zinc-800" viewBox="0 0 100 100">
-                            {/* Outer sphere casing */}
-                            <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2 2" className="text-zinc-700" />
-                            <circle cx="50" cy="50" r="45" fill="none" stroke="currentColor" strokeWidth="0.8" className="text-fuchsia-500/20" />
-                            
-                            {/* Lines of latitude and longitude */}
-                            <ellipse cx="50" cy="50" rx="45" ry="12" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-zinc-800" />
-                            <ellipse cx="50" cy="50" rx="15" ry="45" fill="none" stroke="currentColor" strokeWidth="0.5" className="text-zinc-800" />
-                            
-                            {/* Axes */}
-                            <line x1="5" y1="50" x2="95" y2="50" stroke="#27272a" strokeWidth="0.5" />
-                            <line x1="50" y1="5" x2="50" y2="95" stroke="#27272a" strokeWidth="0.5" />
-
-                            {/* Pole labels */}
-                            <text x="50" y="14" fill="#a1a1aa" fontSize="7" textAnchor="middle" fontFamily="monospace" fontWeight="bold">|0⟩ Perfect Love (Faith)</text>
-                            <text x="50" y="93" fill="#a1a1aa" fontSize="7" textAnchor="middle" fontFamily="monospace" fontWeight="bold">|1⟩ Fear (Stress)</text>
-
-                            {/* State vector |psi> arrow */}
-                            {/* Compute projection coordinates mapping onto polar sphere */}
-                            {/* Point on boundary maps to: x = 50 + beta*32, y = 50 - alpha*32 */}
-                            {(() => {
-                              const theta = Math.acos(qubitAlpha);
-                              const xCoord = 50 + (qubitBeta) * 35 * Math.sin(Date.now() / 1500);
-                              const yCoord = 50 - (qubitAlpha) * 35;
-                              return (
-                                <>
-                                  <line 
-                                    x1="50" y1="50" 
-                                    x2={xCoord} y2={yCoord} 
-                                    stroke="url(#vector-grad)" 
-                                    strokeWidth="1.8" 
-                                    markerEnd="url(#arrow)"
-                                  />
-                                  <circle cx={xCoord} cy={yCoord} r="2.5" fill="#f43f5e" className="animate-ping" />
-                                  <circle cx={xCoord} cy={yCoord} r="1.5" fill="#ec4899" />
-                                </>
-                              );
-                            })()}
-
-                            <defs>
-                              <linearGradient id="vector-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                <stop offset="0%" stopColor="#a855f7" />
-                                <stop offset="100%" stopColor="#f43f5e" />
-                              </linearGradient>
-                            </defs>
-                          </svg>
+                      {/* Left: Dual Bloch Sphere Visualizer Panel */}
+                      <div className="bg-black/60 border border-zinc-900 rounded-xl p-4 flex flex-col space-y-3 relative">
+                        <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
+                          <span className="text-[9px] font-mono text-fuchsia-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                            <Cpu className="w-3.5 h-3.5" />
+                            Vacuum Rabi Coherent Bloch Spheres
+                          </span>
+                          {isRabiOscillating && (
+                            <span className="text-[7.5px] bg-emerald-950/80 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded font-black animate-pulse uppercase tracking-wider">
+                              Rabi Drive Active
+                            </span>
+                          )}
                         </div>
 
-                        {/* Trigger topology capture spot */}
-                        <button 
-                          onClick={takeTopologyShot}
-                          className="mt-2 py-1 px-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-fuchsia-500/40 rounded text-[8px] font-mono text-zinc-300 font-bold transition-all flex items-center gap-1.5 pointer-events-auto"
-                        >
-                          <Camera className="w-3 h-3 text-fuchsia-400" />
-                          RECORD TOPOLOGY SHOT
-                        </button>
-                      </div>
+                        {/* Side-by-Side Spheres */}
+                        <div className="grid grid-cols-2 gap-3 pt-1">
+                          
+                          {/* Qubit A (Faith) */}
+                          <div className="flex flex-col items-center p-2 rounded-lg bg-zinc-950/40 border border-zinc-900/60">
+                            <span className="text-[8px] font-bold text-zinc-400 font-mono uppercase tracking-wide">Qubit A (Faith)</span>
+                            <div className="w-24 h-24 relative my-1.5">
+                              <svg className="w-full h-full text-zinc-800" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="45" fill="none" stroke="#27272a" strokeWidth="0.5" strokeDasharray="2 2" />
+                                <circle cx="50" cy="50" r="45" fill="none" stroke="#d946ef" strokeWidth="0.5" className="opacity-20" />
+                                <ellipse cx="50" cy="50" rx="45" ry="12" fill="none" stroke="#18181b" strokeWidth="0.5" />
+                                <ellipse cx="50" cy="50" rx="12" ry="45" fill="none" stroke="#18181b" strokeWidth="0.5" />
+                                <line x1="5" y1="50" x2="95" y2="50" stroke="#27272a" strokeWidth="0.5" />
+                                <line x1="50" y1="5" x2="50" y2="95" stroke="#27272a" strokeWidth="0.5" />
+                                
+                                <text x="50" y="12" fill="#71717a" fontSize="6.5" textAnchor="middle" fontFamily="monospace">|0⟩ Love</text>
+                                <text x="50" y="94" fill="#71717a" fontSize="6.5" textAnchor="middle" fontFamily="monospace">|1⟩ Fear</text>
 
-                      {/* State matrices details & logs */}
-                      <div className="bg-black/60 border border-zinc-900 rounded-xl p-4 space-y-3 font-mono text-[9px] flex flex-col justify-between">
-                        <div>
-                          <div className="flex justify-between items-center text-[10px] pb-1.5 border-b border-zinc-900">
-                            <span className="text-zinc-400 font-bold uppercase">Pauli-Matrix Coordinates</span>
-                            <span className="text-sky-400 font-bold uppercase tracking-wider text-[8px]">FLOW CONTROL</span>
+                                {/* Vector A */}
+                                {(() => {
+                                  const xCoord = 50 + (qubitBeta) * 35 * Math.sin(Date.now() / 1500);
+                                  const yCoord = 50 - (qubitAlpha) * 35;
+                                  return (
+                                    <>
+                                      <line x1="50" y1="50" x2={xCoord} y2={yCoord} stroke="url(#vector-grad-A)" strokeWidth="1.8" />
+                                      <circle cx={xCoord} cy={yCoord} r="2" fill="#ec4899" className="animate-ping" />
+                                      <circle cx={xCoord} cy={yCoord} r="1.5" fill="#f43f5e" />
+                                    </>
+                                  );
+                                })()}
+                                <defs>
+                                  <linearGradient id="vector-grad-A" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stopColor="#a855f7" />
+                                    <stop offset="100%" stopColor="#ec4899" />
+                                  </linearGradient>
+                                </defs>
+                              </svg>
+                            </div>
+                            <div className="text-[7.5px] text-zinc-500 font-mono">
+                              α: <span className="text-zinc-300 font-bold">{qubitAlpha.toFixed(2)}</span> | β: <span className="text-zinc-300 font-bold">{qubitBeta.toFixed(2)}</span>
+                            </div>
                           </div>
 
-                          <div className="space-y-1.5 mt-2">
-                            <div className="flex justify-between">
-                              <span className="text-zinc-500">Sigma X (Phase Fluctuation):</span>
-                              <span className="text-zinc-200 font-bold">{pauliX}</span>
+                          {/* Qubit B (Hope) */}
+                          <div className="flex flex-col items-center p-2 rounded-lg bg-zinc-950/40 border border-zinc-900/60">
+                            <span className="text-[8px] font-bold text-zinc-400 font-mono uppercase tracking-wide">Qubit B (Hope)</span>
+                            <div className="w-24 h-24 relative my-1.5">
+                              <svg className="w-full h-full text-zinc-800" viewBox="0 0 100 100">
+                                <circle cx="50" cy="50" r="45" fill="none" stroke="#27272a" strokeWidth="0.5" strokeDasharray="2 2" />
+                                <circle cx="50" cy="50" r="45" fill="none" stroke="#3b82f6" strokeWidth="0.5" className="opacity-20" />
+                                <ellipse cx="50" cy="50" rx="45" ry="12" fill="none" stroke="#18181b" strokeWidth="0.5" />
+                                <ellipse cx="50" cy="50" rx="12" ry="45" fill="none" stroke="#18181b" strokeWidth="0.5" />
+                                <line x1="5" y1="50" x2="95" y2="50" stroke="#27272a" strokeWidth="0.5" />
+                                <line x1="50" y1="5" x2="50" y2="95" stroke="#27272a" strokeWidth="0.5" />
+                                
+                                <text x="50" y="12" fill="#71717a" fontSize="6.5" textAnchor="middle" fontFamily="monospace">|0⟩ Hope</text>
+                                <text x="50" y="94" fill="#71717a" fontSize="6.5" textAnchor="middle" fontFamily="monospace">|1⟩ Doubt</text>
+
+                                {/* Vector B */}
+                                {(() => {
+                                  const xCoord = 50 + (qubit2Beta) * 35 * Math.cos(Date.now() / 1200);
+                                  const yCoord = 50 - (qubit2Alpha) * 35;
+                                  return (
+                                    <>
+                                      <line x1="50" y1="50" x2={xCoord} y2={yCoord} stroke="url(#vector-grad-B)" strokeWidth="1.8" />
+                                      <circle cx={xCoord} cy={yCoord} r="2" fill="#3b82f6" className="animate-ping" />
+                                      <circle cx={xCoord} cy={yCoord} r="1.5" fill="#60a5fa" />
+                                    </>
+                                  );
+                                })()}
+                                <defs>
+                                  <linearGradient id="vector-grad-B" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stopColor="#3b82f6" />
+                                    <stop offset="100%" stopColor="#06b6d4" />
+                                  </linearGradient>
+                                </defs>
+                              </svg>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-zinc-500">Sigma Y (Spin Vector):</span>
-                              <span className="text-zinc-200 font-bold">{pauliY}</span>
+                            <div className="text-[7.5px] text-zinc-500 font-mono">
+                              α: <span className="text-zinc-300 font-bold">{qubit2Alpha.toFixed(2)}</span> | β: <span className="text-zinc-300 font-bold">{qubit2Beta.toFixed(2)}</span>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-zinc-500">Sigma Z (Orthogonal Faith):</span>
-                              <span className="text-zinc-200 font-bold">{pauliZ}</span>
+                          </div>
+
+                        </div>
+
+                        {/* Interactive Parameters and Coherent Controls */}
+                        <div className="space-y-2.5 pt-2 border-t border-zinc-900 font-mono text-[8.5px]">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <div className="flex justify-between text-zinc-500 font-bold">
+                                <span>Rabi Drive (Ω):</span>
+                                <span className="text-fuchsia-400 font-black">{rabiOmega.toFixed(2)} rad/s</span>
+                              </div>
+                              <input 
+                                type="range" 
+                                min="0.2" 
+                                max="3.0" 
+                                step="0.05" 
+                                value={rabiOmega}
+                                onChange={(e) => setRabiOmega(parseFloat(e.target.value))}
+                                className="w-full accent-fuchsia-500 mt-1 cursor-pointer bg-zinc-800 rounded-lg appearance-none h-1 pointer-events-auto"
+                              />
                             </div>
-                            <div className="flex justify-between pt-1 border-t border-zinc-900/60 text-fuchsia-400 font-bold">
-                              <span>Entangled Bell State ⟨ψ⟩:</span>
-                              <span>{qubitAlpha.toFixed(3)}|0⟩ + {qubitBeta.toFixed(3)}|1⟩</span>
+                            <div>
+                              <div className="flex justify-between text-zinc-500 font-bold">
+                                <span>Coupling (J):</span>
+                                <span className="text-sky-400 font-black">{rabiJ.toFixed(2)} rad/s</span>
+                              </div>
+                              <input 
+                                type="range" 
+                                min="0.1" 
+                                max="2.0" 
+                                step="0.05" 
+                                value={rabiJ}
+                                onChange={(e) => setRabiJ(parseFloat(e.target.value))}
+                                className="w-full accent-sky-500 mt-1 cursor-pointer bg-zinc-800 rounded-lg appearance-none h-1 pointer-events-auto"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={() => setIsRabiOscillating(!isRabiOscillating)}
+                              className={`flex-1 py-1.5 px-3 rounded text-[8px] font-black uppercase tracking-wider transition-all pointer-events-auto border ${
+                                isRabiOscillating 
+                                  ? 'bg-rose-950/40 text-rose-400 border-rose-500/30 hover:bg-rose-900/40'
+                                  : 'bg-fuchsia-600 hover:bg-fuchsia-500 text-white border-transparent hover:shadow-[0_0_10px_rgba(217,70,239,0.3)]'
+                              }`}
+                            >
+                              {isRabiOscillating ? '⏹ STOP COHERENT RABI DRIVE' : '⚡ ACTIVATE COHERENT RABI OSCILLATION'}
+                            </button>
+                            
+                            <button 
+                              onClick={takeTopologyShot}
+                              className="py-1.5 px-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-fuchsia-500/40 rounded text-[8px] font-bold text-zinc-300 transition-all flex items-center gap-1.5 pointer-events-auto"
+                            >
+                              <Camera className="w-3 h-3 text-fuchsia-400" />
+                              SHOT
+                            </button>
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* Right: State Matrices, Correlation Matrix, & Manual Gates */}
+                      <div className="bg-black/60 border border-zinc-900 rounded-xl p-4 space-y-3 font-mono text-[9px] flex flex-col justify-between">
+                        <div>
+                          
+                          {/* Joint Wavefunction State Mapping */}
+                          <div className="flex justify-between items-center text-[10px] pb-1.5 border-b border-zinc-900">
+                            <span className="text-zinc-400 font-bold uppercase">Vacuum Rabi Wavefunction |Ψ⟩</span>
+                            <span className="text-sky-400 font-bold uppercase tracking-wider text-[8px]">AMPLITUDES</span>
+                          </div>
+
+                          <div className="grid grid-cols-4 gap-1.5 mt-2 bg-zinc-950/40 p-2 rounded-lg border border-zinc-900/60 text-center">
+                            <div>
+                              <span className="text-zinc-500 text-[8px] block">|00⟩ (Faith/Hope)</span>
+                              <span className="text-emerald-400 font-black text-xs block mt-0.5">{c00.toFixed(3)}</span>
+                            </div>
+                            <div>
+                              <span className="text-zinc-500 text-[8px] block">|01⟩ (Faith/Doubt)</span>
+                              <span className="text-zinc-300 font-black text-xs block mt-0.5">{c01.toFixed(3)}</span>
+                            </div>
+                            <div>
+                              <span className="text-zinc-500 text-[8px] block">|10⟩ (Fear/Hope)</span>
+                              <span className="text-zinc-300 font-black text-xs block mt-0.5">{c10.toFixed(3)}</span>
+                            </div>
+                            <div>
+                              <span className="text-zinc-500 text-[8px] block">|11⟩ (Fear/Doubt)</span>
+                              <span className="text-rose-400 font-black text-xs block mt-0.5">{c11.toFixed(3)}</span>
+                            </div>
+                          </div>
+
+                          {/* Joint Probabilities Progress Indicators */}
+                          <div className="space-y-1.5 mt-2.5">
+                            <div>
+                              <div className="flex justify-between text-zinc-500 text-[8px]">
+                                <span>P(00) Perfect Resonance:</span>
+                                <span className="text-zinc-300 font-bold">{Math.round((c00 * c00) * 100)}%</span>
+                              </div>
+                              <div className="w-full bg-zinc-950 h-1 rounded-full overflow-hidden mt-0.5">
+                                <div className="bg-emerald-500 h-full transition-all duration-100" style={{ width: `${(c00 * c00) * 100}%` }} />
+                              </div>
+                            </div>
+                            <div>
+                              <div className="flex justify-between text-zinc-500 text-[8px]">
+                                <span>P(11) Total Decoupling / Friction Limit:</span>
+                                <span className="text-zinc-300 font-bold">{Math.round((c11 * c11) * 100)}%</span>
+                              </div>
+                              <div className="w-full bg-zinc-950 h-1 rounded-full overflow-hidden mt-0.5">
+                                <div className="bg-rose-500 h-full transition-all duration-100" style={{ width: `${(c11 * c11) * 100}%` }} />
+                              </div>
                             </div>
                           </div>
 
                           {/* Quantum Operator Gates */}
                           <div className="mt-3 pt-2 border-t border-zinc-900/80 space-y-1.5">
-                            <span className="text-fuchsia-400 text-[8px] font-bold uppercase tracking-wider block">Apply Operator Gates (Manual Transitions):</span>
+                            <span className="text-fuchsia-400 text-[8px] font-bold uppercase tracking-wider block">Manual Operator Gates (Acts on Qubit A):</span>
                             <div className="grid grid-cols-4 gap-1">
                               <button
                                 onClick={applyHadamardGate}
@@ -1465,10 +1893,11 @@ export const VoiceHUDOverlay: React.FC<VoiceHUDOverlayProps> = ({ currentView = 
                               </button>
                             </div>
                           </div>
+
                         </div>
 
                         {/* Captured Shots History list */}
-                        <div className="bg-zinc-950/80 p-2 mt-2 rounded-lg border border-zinc-900/50 space-y-1 max-h-[85px] overflow-y-auto">
+                        <div className="bg-zinc-950/80 p-2 mt-2 rounded-lg border border-zinc-900/50 space-y-1 max-h-[75px] overflow-y-auto">
                           <span className="text-zinc-500 text-[8px] uppercase tracking-wider font-bold">Recorded Topology Roll:</span>
                           {topologyShots.map(shot => (
                             <div key={shot.id} className="flex justify-between items-center text-[7.5px] border-b border-zinc-900/30 py-0.5 last:border-b-0 text-zinc-400">
@@ -1478,6 +1907,7 @@ export const VoiceHUDOverlay: React.FC<VoiceHUDOverlayProps> = ({ currentView = 
                             </div>
                           ))}
                         </div>
+
                       </div>
 
                     </div>

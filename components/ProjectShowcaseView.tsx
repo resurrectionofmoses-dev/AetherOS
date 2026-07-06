@@ -24,7 +24,9 @@ import {
   X,
   Heart,
   MessageSquare,
-  ThumbsUp
+  ThumbsUp,
+  Flame,
+  Users
 } from 'lucide-react';
 
 // Custom inline Github SVGs for absolute safety
@@ -67,6 +69,7 @@ export interface ShowcaseProject {
   mediaType?: 'image' | 'video';
   status?: 'In Progress' | 'Completed' | string;
   likes?: string[];
+  collaborators?: string[];
   comments?: {
     id: string;
     username: string;
@@ -74,6 +77,23 @@ export interface ShowcaseProject {
     timestamp: string;
   }[];
 }
+
+export const getCollaborationHeat = (collaborators: string[] = []) => {
+  const count = collaborators.length;
+  if (count === 0) {
+    return { percent: 10, label: 'Cold / Solo Node', color: 'from-blue-600 to-cyan-400', textColor: 'text-cyan-400', bgGlow: 'bg-cyan-500/10' };
+  }
+  if (count === 1) {
+    return { percent: 35, label: 'Cool / Guided Resonance', color: 'from-cyan-400 to-teal-400', textColor: 'text-teal-400', bgGlow: 'bg-teal-500/10' };
+  }
+  if (count === 2) {
+    return { percent: 60, label: 'Warm / Active Sync', color: 'from-amber-400 to-orange-500', textColor: 'text-orange-400', bgGlow: 'bg-orange-500/10' };
+  }
+  if (count === 3) {
+    return { percent: 80, label: 'Hot / Fusion Multi-node', color: 'from-orange-500 to-red-500', textColor: 'text-rose-400', bgGlow: 'bg-rose-500/15' };
+  }
+  return { percent: 100, label: 'Extreme / Quantum Synergy', color: 'from-red-600 via-pink-600 to-purple-600', textColor: 'text-red-400 font-extrabold', bgGlow: 'bg-red-500/20' };
+};
 
 const DEFAULT_PROJECTS: ShowcaseProject[] = [
   {
@@ -103,6 +123,7 @@ This engine forms the core architectural backbone of AetherOS's async operations
     mediaType: 'image',
     status: 'Completed',
     likes: ['CyberWeaver_X', 'AcousticWeaver'],
+    collaborators: ['CyberWeaver_X', 'Validator_Solo', 'AcousticWeaver', 'BinaryOracle'],
     comments: [
       { id: 'c1', username: 'CyberWeaver_X', text: 'This lock-free coroutine matrix reduced my scheduler overhead to virtually zero. Astounding work!', timestamp: '2026-06-01T14:22:00Z' },
       { id: 'c2', username: 'Validator_Solo', text: 'Double checked typesafety constraints. Verification is flawless.', timestamp: '2026-06-02T09:15:00Z' }
@@ -131,6 +152,7 @@ Eurodemux delivers an absolute P2P signaling matrix bridging diverse sandbox nod
     mediaType: 'image',
     status: 'In Progress',
     likes: ['Validator_Solo'],
+    collaborators: ['Validator_Solo', 'Operator_Beta'],
     comments: [
       { id: 'c3', username: 'Validator_Solo', text: 'Securing ephemeral DH handshakes makes inter-device consensus incredibly bulletproof here.', timestamp: '2026-06-03T18:41:00Z' }
     ]
@@ -158,6 +180,7 @@ The ultimate cryptographic lockbox. Protect highvalue keys, tokens, and records 
     mediaType: 'image',
     status: 'Completed',
     likes: ['CyberWeaver_X', 'DesignSage'],
+    collaborators: ['DesignSage'],
     comments: [
       { id: 'c4', username: 'DesignSage', text: 'The interface here is super clean, especially the threshold visualizers.', timestamp: '2026-06-04T11:05:00Z' }
     ]
@@ -181,6 +204,7 @@ export const ProjectShowcaseView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedTech, setSelectedTech] = useState<string | null>(null);
+  const [selectedStatus, setSelectedStatus] = useState<'All' | 'Current' | 'Past'>('All');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [selectedProject, setSelectedProject] = useState<ShowcaseProject | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -227,6 +251,15 @@ export const ProjectShowcaseView: React.FC = () => {
   const [newMediaUrl, setNewMediaUrl] = useState('');
   const [newMediaType, setNewMediaType] = useState<'image' | 'video'>('image');
   const [newStatus, setNewStatus] = useState<'In Progress' | 'Completed'>('Completed');
+  const [newCollaborators, setNewCollaborators] = useState('');
+
+  // Image to Video Animation states
+  const [animatorImages, setAnimatorImages] = useState<string[]>([]);
+  const [isAnimatingToVideo, setIsAnimatingToVideo] = useState(false);
+  const [animationProgress, setAnimationProgress] = useState(0);
+  const [animationStatus, setAnimationStatus] = useState('');
+  const [selectedTransition, setSelectedTransition] = useState<'crossfade' | 'slide' | 'zoom'>('crossfade');
+  const [frameDuration, setFrameDuration] = useState<number>(2); // seconds
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -305,6 +338,171 @@ export const ProjectShowcaseView: React.FC = () => {
     toast.success(`Comment successfully committed as @${author}`);
   };
 
+  const handleAnimateImagesToVideo = async () => {
+    if (animatorImages.length < 2) {
+      toast.error("Please add at least 2 images to generate an animated video sequence.");
+      return;
+    }
+
+    setIsAnimatingToVideo(true);
+    setAnimationProgress(5);
+    setAnimationStatus("Initializing Canvas Recorder...");
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 640;
+      canvas.height = 360;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error("Could not create 2D canvas context");
+
+      setAnimationStatus("Preloading image frames into memory...");
+      setAnimationProgress(15);
+      
+      const loadedImages: HTMLImageElement[] = await Promise.all(
+        animatorImages.map((src) => {
+          return new Promise<HTMLImageElement>((resolve) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = () => {
+              const fallback = new Image();
+              fallback.onload = () => resolve(fallback);
+              fallback.src = `https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=640&q=80`;
+            };
+            img.src = src;
+          });
+        })
+      );
+
+      setAnimationProgress(30);
+      setAnimationStatus("Synthesizing motion keyframes...");
+
+      const stream = canvas.captureStream(30);
+      const chunks: Blob[] = [];
+      
+      let options = { mimeType: 'video/webm;codecs=vp9' };
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options = { mimeType: 'video/webm;codecs=vp8' };
+      }
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options = { mimeType: 'video/webm' };
+      }
+      if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+        options = { mimeType: '' };
+      }
+
+      const recorder = new MediaRecorder(stream, options);
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          chunks.push(e.data);
+        }
+      };
+
+      const recordingPromise = new Promise<string>((resolveRecord) => {
+        recorder.onstop = () => {
+          const blob = new Blob(chunks, { type: 'video/webm' });
+          const videoUrl = URL.createObjectURL(blob);
+          resolveRecord(videoUrl);
+        };
+      });
+
+      recorder.start();
+
+      const totalFrames = loadedImages.length * frameDuration * 30;
+      let currentFrame = 0;
+
+      const drawFrame = () => {
+        if (currentFrame >= totalFrames) {
+          setAnimationStatus("Compiling streams and compressing video...");
+          setAnimationProgress(95);
+          recorder.stop();
+          return;
+        }
+
+        const imageIndex = Math.floor(currentFrame / (frameDuration * 30));
+        const nextImageIndex = (imageIndex + 1) % loadedImages.length;
+        
+        const frameInImage = currentFrame % (frameDuration * 30);
+        const transitionFrames = 30;
+        
+        const img1 = loadedImages[imageIndex];
+        const img2 = loadedImages[nextImageIndex];
+
+        ctx.fillStyle = '#050515';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const scale1 = 1 + (frameInImage / (frameDuration * 30)) * 0.08;
+        const w1 = canvas.width * scale1;
+        const h1 = canvas.height * scale1;
+        const x1 = (canvas.width - w1) / 2;
+        const y1 = (canvas.height - h1) / 2;
+
+        if (frameInImage >= (frameDuration * 30) - transitionFrames && selectedTransition !== 'slide') {
+          const progress = (frameInImage - ((frameDuration * 30) - transitionFrames)) / transitionFrames;
+          
+          ctx.globalAlpha = 1 - progress;
+          ctx.drawImage(img1, x1, y1, w1, h1);
+
+          const scale2 = 1.08 - ((1 - progress) * 0.08);
+          const w2 = canvas.width * scale2;
+          const h2 = canvas.height * scale2;
+          const x2 = (canvas.width - w2) / 2;
+          const y2 = (canvas.height - h2) / 2;
+          
+          ctx.globalAlpha = progress;
+          ctx.drawImage(img2, x2, y2, w2, h2);
+        } else if (frameInImage >= (frameDuration * 30) - transitionFrames && selectedTransition === 'slide') {
+          const progress = (frameInImage - ((frameDuration * 30) - transitionFrames)) / transitionFrames;
+          const offset = progress * canvas.width;
+          
+          ctx.globalAlpha = 1;
+          ctx.drawImage(img1, x1 - offset, y1, w1, h1);
+          ctx.drawImage(img2, x1 + canvas.width - offset, y1, w1, h1);
+        } else {
+          ctx.globalAlpha = 1;
+          ctx.drawImage(img1, x1, y1, w1, h1);
+        }
+
+        ctx.globalAlpha = 1;
+
+        ctx.font = "bold 12px monospace";
+        ctx.fillStyle = "rgba(239, 68, 68, 0.7)";
+        ctx.fillText("AETHEROS // COLLABORATIVE DEMO LOOP", 20, 30);
+        
+        ctx.font = "10px monospace";
+        ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
+        ctx.fillText(`FRAME: ${currentFrame}/${totalFrames} [${Math.floor(currentFrame / 30)}s]`, 20, 340);
+
+        currentFrame++;
+        const percent = Math.floor(30 + (currentFrame / totalFrames) * 60);
+        setAnimationProgress(percent);
+        setAnimationStatus(`Synthesizing frame ${currentFrame}/${totalFrames}...`);
+
+        requestAnimationFrame(drawFrame);
+      };
+
+      requestAnimationFrame(drawFrame);
+
+      const recordedVideoUrl = await recordingPromise;
+      
+      setNewMediaUrl(recordedVideoUrl);
+      setNewMediaType('video');
+      setIsAnimatingToVideo(false);
+      setAnimationProgress(100);
+      setAnimationStatus('');
+      
+      toast.success("Project demo video successfully generated!", {
+        description: "Your screenshots have been dynamically animated into a high-fidelity video stream.",
+      });
+
+    } catch (e) {
+      console.error("Video synthesis failed:", e);
+      setIsAnimatingToVideo(false);
+      setAnimationStatus('');
+      toast.error("Video synthesis failed. Please check image permissions or retry.");
+    }
+  };
+
   const handleAddProject = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newShortDesc.trim()) {
@@ -316,6 +514,11 @@ export const ProjectShowcaseView: React.FC = () => {
       .split(',')
       .map(t => t.trim())
       .filter(t => t.length > 0);
+
+    const colabArray = newCollaborators
+      .split(',')
+      .map(c => c.trim())
+      .filter(c => c.length > 0);
 
     const newProject: ShowcaseProject = {
       id: `sp-${Date.now()}`,
@@ -336,7 +539,8 @@ export const ProjectShowcaseView: React.FC = () => {
       metrics: newMetricsList.length > 0 ? newMetricsList : undefined,
       mediaUrl: newMediaUrl.trim() || undefined,
       mediaType: newMediaType,
-      status: newStatus
+      status: newStatus,
+      collaborators: colabArray
     };
 
     const updated = [newProject, ...projects];
@@ -363,6 +567,7 @@ export const ProjectShowcaseView: React.FC = () => {
     setNewMediaUrl('');
     setNewMediaType('image');
     setNewStatus('Completed');
+    setNewCollaborators('');
   };
 
   const handleDeleteProject = (id: string, e: React.MouseEvent) => {
@@ -420,8 +625,13 @@ Shared via AetherOS Sovereign Hub`;
 
     const matchesCategory = selectedCategory === 'All' || proj.category === selectedCategory;
     const matchesTech = !selectedTech || proj.technologies.includes(selectedTech);
+    
+    const matchesStatus = 
+      selectedStatus === 'All' ||
+      (selectedStatus === 'Current' && proj.status?.toLowerCase().includes('in progress')) ||
+      (selectedStatus === 'Past' && (proj.status?.toLowerCase().includes('completed') || !proj.status?.toLowerCase().includes('in progress')));
 
-    return matchesSearch && matchesCategory && matchesTech;
+    return matchesSearch && matchesCategory && matchesTech && matchesStatus;
   });
 
   return (
@@ -430,6 +640,30 @@ Shared via AetherOS Sovereign Hub`;
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#080815_1px,transparent_1px),linear-gradient(to_bottom,#080815_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] pointer-events-none" />
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-red-500/5 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-10 right-1/4 w-[500px] h-[500px] bg-indigo-500/5 rounded-full blur-[150px] pointer-events-none" />
+
+      {/* High-fidelity futuristic project showcase banner */}
+      <div className="relative z-10 mx-8 mt-6 mb-1 rounded-2xl overflow-hidden border border-white/5 bg-black/40 h-28 shrink-0 select-none group/banner">
+        <div className="absolute inset-0 bg-gradient-to-r from-[#030307] via-transparent to-[#030307]/50 z-10 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent z-10 pointer-events-none" />
+        <img 
+          src="https://images.unsplash.com/photo-1639762681485-074b7f938ba0?auto=format&fit=crop&w=1200&q=80"
+          alt="AetherOS Quantum Showcase Banner"
+          className="w-full h-full object-cover opacity-35 group-hover/banner:scale-[1.02] transition-transform duration-700 pointer-events-none"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute bottom-4 left-6 z-20">
+          <div className="flex items-center gap-1.5 mb-0.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-[9px] font-mono tracking-widest uppercase text-red-400">AetherOS Portfolio Conduction Network</span>
+          </div>
+          <h2 className="text-sm font-black uppercase text-white tracking-widest font-mono">Quantum Showcase Terminal</h2>
+        </div>
+        <div className="absolute top-4 right-6 z-20 flex items-center gap-2 font-mono text-[9px] text-gray-500 uppercase">
+          <span>Node ID: <strong className="text-red-500/80">ATH-9921</strong></span>
+          <span className="text-white/10">|</span>
+          <span>Status: <strong className="text-emerald-500">Live</strong></span>
+        </div>
+      </div>
 
       {/* Primary View Header */}
       <header className="relative z-10 px-8 py-6 bg-black/40 border-b-2 border-white/5 backdrop-blur-md flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -462,18 +696,65 @@ Shared via AetherOS Sovereign Hub`;
       </header>
 
       {/* Filters Hub and Search Menu */}
-      <section className="relative z-10 px-8 py-4 bg-black/20 border-b border-white/5 flex flex-col lg:flex-row gap-4 items-center justify-between">
-        {/* Search Bar */}
-        <div className="relative w-full lg:w-96">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-          <input
-            type="text"
-            placeholder="Search projects by engine, tech tag, descriptor..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-[#090915] border border-white/10 rounded-xl text-xs focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20 text-gray-200 placeholder-gray-500 transition-all font-mono"
-            id="showcase_search_input"
-          />
+      <section className="relative z-10 px-8 py-4 bg-black/20 border-b border-white/5 flex flex-col xl:flex-row gap-4 items-center justify-between">
+        {/* Search, Status & Topic Filters Cluster */}
+        <div className="flex flex-col sm:flex-row gap-3 w-full xl:w-auto items-stretch sm:items-center flex-wrap">
+          {/* Search Bar */}
+          <div className="relative w-full sm:w-64 md:w-72">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+            <input
+              type="text"
+              placeholder="Search showcase by keyword..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-[#090915] border border-white/10 rounded-xl text-xs focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20 text-gray-200 placeholder-gray-500 transition-all font-mono"
+              id="showcase_search_input"
+            />
+          </div>
+
+          {/* Status Filter */}
+          <div className="flex items-center gap-1 bg-[#090915] border border-white/10 rounded-xl p-1 shrink-0">
+            {[
+              { key: 'All', label: 'All Statuses' },
+              { key: 'Current', label: 'Current' },
+              { key: 'Past', label: 'Past' }
+            ].map(item => {
+              const isActive = selectedStatus === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setSelectedStatus(item.key as any)}
+                  className={`px-3 py-1 rounded-lg text-[10px] font-mono tracking-wider uppercase transition-all whitespace-nowrap cursor-pointer font-bold ${
+                    isActive
+                      ? 'bg-red-500/15 text-red-400 border border-red-500/20 shadow-md'
+                      : 'text-gray-500 hover:text-gray-300 bg-transparent border border-transparent'
+                  }`}
+                  title={`Filter by ${item.label} projects`}
+                >
+                  {item.key === 'All' ? 'All' : item.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Topic/Tech Filter Dropdown */}
+          <div className="flex items-center gap-1.5 bg-[#090915] border border-white/10 rounded-xl px-2.5 py-1.5 shrink-0">
+            <Tag className="w-3.5 h-3.5 text-gray-500 shrink-0" />
+            <select
+              value={selectedTech || ''}
+              onChange={(e) => setSelectedTech(e.target.value || null)}
+              className="bg-transparent text-xs text-gray-300 focus:outline-none cursor-pointer font-mono uppercase"
+              title="Filter by specific technology topic"
+            >
+              <option value="" className="bg-[#090915] text-gray-500 font-mono">All Topics / Tech</option>
+              {allTechnologies.map(tech => (
+                <option key={tech} value={tech} className="bg-[#090915] text-gray-300 font-mono">
+                  {tech}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Selected tech-tag filter helper */}
@@ -525,12 +806,13 @@ Shared via AetherOS Sovereign Hub`;
             <p className="text-gray-500 text-xs mt-2 max-w-sm font-sans mx-auto">
               We found zero projects conforming to selected tags/filters. Add a new project or reset filters to display data.
             </p>
-            {(searchQuery || selectedCategory !== 'All' || selectedTech) && (
+            {(searchQuery || selectedCategory !== 'All' || selectedTech || selectedStatus !== 'All') && (
               <button
                 onClick={() => {
                   setSearchQuery('');
                   setSelectedCategory('All');
                   setSelectedTech(null);
+                  setSelectedStatus('All');
                 }}
                 className="mt-4 px-4 py-1.5 bg-white/5 hover:bg-white/10 text-white text-xs font-mono rounded-lg transition-all border border-white/10 uppercase"
               >
@@ -638,10 +920,60 @@ Shared via AetherOS Sovereign Hub`;
                       <p className="text-gray-400 text-xs mt-2 line-clamp-3 leading-relaxed font-sans pr-2">
                         {proj.shortDescription}
                       </p>
+
+                      {/* Collaboration Heat Visual Metric Bar */}
+                      {(() => {
+                        const heat = getCollaborationHeat(proj.collaborators || []);
+                        const colabCount = (proj.collaborators || []).length;
+                        return (
+                          <div className="mt-4 p-2.5 rounded-xl bg-black/30 border border-white/5 space-y-2 select-none group/heat transition-all hover:bg-black/40">
+                            <div className="flex items-center justify-between text-[10px] font-mono">
+                              <span className="text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                                <Flame className={`w-3.5 h-3.5 transition-transform duration-500 group-hover/heat:scale-110 ${colabCount >= 3 ? 'text-red-500 animate-pulse' : 'text-orange-400'}`} />
+                                COLLAB_HEAT:
+                              </span>
+                              <span className={`uppercase font-bold tracking-wider ${heat.textColor}`}>
+                                {heat.label}
+                              </span>
+                            </div>
+                            
+                            {/* Visual Progress Bar */}
+                            <div className="w-full h-2 bg-zinc-900/80 rounded-full overflow-hidden p-[1px] border border-white/5 relative">
+                              <div 
+                                className={`h-full rounded-full bg-gradient-to-r ${heat.color} transition-all duration-1000 relative`}
+                                style={{ width: `${heat.percent}%` }}
+                              />
+                            </div>
+
+                            {/* Collaborator Quick-List / Mini-Avatars */}
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="text-[9px] font-mono text-gray-500 uppercase">
+                                {colabCount === 0 ? 'No collaborators' : `${colabCount} sync peer${colabCount > 1 ? 's' : ''}`}
+                              </span>
+                              <div className="flex -space-x-1.5 overflow-hidden">
+                                {(proj.collaborators || []).slice(0, 3).map((colab, idx) => (
+                                  <div 
+                                    key={idx} 
+                                    className="w-4 h-4 rounded-full bg-red-950/80 border border-red-500/40 flex items-center justify-center text-[8px] font-mono text-red-400 uppercase font-bold shrink-0 shadow-sm"
+                                    title={`Collaborator: @${colab}`}
+                                  >
+                                    {colab.slice(0, 2)}
+                                  </div>
+                                ))}
+                                {colabCount > 3 && (
+                                  <div className="w-4 h-4 rounded-full bg-[#101026] border border-white/15 flex items-center justify-center text-[7px] font-mono text-gray-400 shrink-0 uppercase font-black">
+                                    +{colabCount - 3}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Meta info & Action tools (Bottom line) */}
-                    <div className="mt-4 pt-4 border-t border-white/5 flex flex-col gap-3">
+                    <div className="mt-3 pt-3 border-t border-white/5 flex flex-col gap-3">
                       {/* Technologies wrap */}
                       <div className="flex flex-wrap gap-1 max-h-12 overflow-hidden">
                         {proj.technologies.slice(0, 4).map(tech => (
@@ -845,6 +1177,151 @@ Shared via AetherOS Sovereign Hub`;
                       </div>
                     </div>
                   )}
+
+                  {/* Collaboration Hub & Heat Sync */}
+                  {(() => {
+                    const collaborators = selectedProject.collaborators || [];
+                    const heat = getCollaborationHeat(collaborators);
+                    const colabCount = collaborators.length;
+                    return (
+                      <div className="p-4 bg-black/40 border-2 border-white/5 rounded-xl space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/5 pb-3">
+                          <div className="flex items-center gap-2">
+                            <Flame className={`w-4 h-4 ${colabCount >= 3 ? 'text-red-500 animate-pulse' : 'text-orange-400'}`} />
+                            <div>
+                              <h4 className="text-[11px] font-mono uppercase text-white tracking-widest font-black">
+                                Collaboration Heat Signal
+                              </h4>
+                              <p className="text-[9px] font-mono text-gray-500">PEER METRICS CONDUCTION RATIO</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 bg-[#090915] border border-white/15 px-2.5 py-1 rounded-lg">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+                            <span className={`text-[10px] font-mono tracking-wide uppercase font-black ${heat.textColor}`}>
+                              {heat.label}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Interactive Heat Bar & Stats */}
+                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-4 items-center">
+                          <div className="sm:col-span-8 space-y-1.5">
+                            <div className="flex justify-between text-[9px] font-mono text-gray-500 uppercase">
+                              <span>0 Nodes (Idle)</span>
+                              <span>Ratio: {heat.percent}% Sync</span>
+                              <span>Max Nodes</span>
+                            </div>
+                            <div className="w-full h-3 bg-zinc-950 rounded-full overflow-hidden p-[1px] border border-white/10 relative">
+                              <div 
+                                className={`h-full rounded-full bg-gradient-to-r ${heat.color} transition-all duration-1000 relative`}
+                                style={{ width: `${heat.percent}%` }}
+                              />
+                            </div>
+                          </div>
+                          <div className="sm:col-span-4 bg-white/5 p-2 rounded-lg border border-white/5 text-center font-mono">
+                            <span className="text-[20px] font-black text-white leading-none tracking-tight block">
+                              {colabCount}
+                            </span>
+                            <span className="text-[8px] text-gray-400 tracking-widest uppercase block mt-0.5">
+                              Active Peers
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Collaborator User Matrix */}
+                        <div className="space-y-2">
+                          <span className="block text-[9px] font-mono uppercase text-gray-500 tracking-wider font-bold">
+                            Registered Conduction Peers ({colabCount})
+                          </span>
+                          
+                          <div className="flex flex-wrap gap-2">
+                            {collaborators.map((colab, idx) => (
+                              <div 
+                                key={idx}
+                                className="flex items-center gap-1.5 bg-[#0e0e24] border border-white/10 hover:border-red-500/20 px-2 py-1 rounded-lg text-xs font-mono text-gray-300 transition-all group/peer relative"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                <span>@{colab}</span>
+                                <button
+                                  onClick={() => {
+                                    const updatedColabs = collaborators.filter(c => c !== colab);
+                                    const updatedProject = { ...selectedProject, collaborators: updatedColabs };
+                                    const nextProjects = projects.map(p => p.id === selectedProject.id ? updatedProject : p);
+                                    setSelectedProject(updatedProject);
+                                    saveProjects(nextProjects);
+                                    toast.success(`Removed collaborator @${colab}`);
+                                  }}
+                                  className="text-gray-500 hover:text-red-400 font-bold ml-1 transition-colors"
+                                  title="Unregister peer"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                            {colabCount === 0 && (
+                              <div className="text-[11px] font-mono text-gray-500 italic py-1">
+                                No remote peers currently registered on this conduction node.
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Inline Collaborator Adder form */}
+                        <div className="pt-2 border-t border-white/5 flex gap-2">
+                          <input 
+                            type="text"
+                            placeholder="Register new peer username..."
+                            className="flex-1 bg-zinc-950 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500 font-mono"
+                            id="detail_add_collaborator_input"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                const val = (e.currentTarget as HTMLInputElement).value.trim();
+                                if (val) {
+                                  if (collaborators.includes(val)) {
+                                    toast.error(`Peer @${val} is already registered on this node.`);
+                                    return;
+                                  }
+                                  const updatedColabs = [...collaborators, val];
+                                  const updatedProject = { ...selectedProject, collaborators: updatedColabs };
+                                  const nextProjects = projects.map(p => p.id === selectedProject.id ? updatedProject : p);
+                                  setSelectedProject(updatedProject);
+                                  saveProjects(nextProjects);
+                                  (e.currentTarget as HTMLInputElement).value = '';
+                                  toast.success(`Successfully registered @${val} to project!`);
+                                }
+                              }
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const inputEl = document.getElementById('detail_add_collaborator_input') as HTMLInputElement;
+                              const val = inputEl?.value.trim();
+                              if (val) {
+                                if (collaborators.includes(val)) {
+                                  toast.error(`Peer @${val} is already registered on this node.`);
+                                  return;
+                                }
+                                const updatedColabs = [...collaborators, val];
+                                const updatedProject = { ...selectedProject, collaborators: updatedColabs };
+                                const nextProjects = projects.map(p => p.id === selectedProject.id ? updatedProject : p);
+                                setSelectedProject(updatedProject);
+                                saveProjects(nextProjects);
+                                if (inputEl) inputEl.value = '';
+                                toast.success(`Successfully registered @${val} to project!`);
+                              } else {
+                                toast.error("Please enter a valid peer username.");
+                              }
+                            }}
+                            className="bg-red-500 hover:bg-red-600 text-white text-xs font-mono px-3 py-1.5 rounded-lg transition-all uppercase font-bold shrink-0"
+                          >
+                            Add Peer
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Project's Purpose Section */}
                   <div className="space-y-3">
@@ -1219,17 +1696,31 @@ Shared via AetherOS Sovereign Hub`;
                     />
                   </div>
 
-                  {/* Tech Tags */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[10px] font-mono uppercase text-gray-500 font-bold">Technologies Used (Separated by commas)</label>
-                    <input
-                      type="text"
-                      placeholder="React, TypeScript, Go, Solidity, AWS, IPFS"
-                      value={newTechs}
-                      onChange={(e) => setNewTechs(e.target.value)}
-                      className="w-full bg-[#0d0d1a] border border-white/10 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-red-500"
-                      id="form_techs_input"
-                    />
+                  {/* Tech Tags & Collaborators */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-mono uppercase text-gray-500 font-bold">Technologies Used (Separated by commas)</label>
+                      <input
+                        type="text"
+                        placeholder="React, TypeScript, Go, Solidity, AWS, IPFS"
+                        value={newTechs}
+                        onChange={(e) => setNewTechs(e.target.value)}
+                        className="w-full bg-[#0d0d1a] border border-white/10 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-red-500"
+                        id="form_techs_input"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[10px] font-mono uppercase text-gray-500 font-bold">Active Project Collaborators (Commas)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. CyberWeaver_X, Validator_Solo, Operator_Beta"
+                        value={newCollaborators}
+                        onChange={(e) => setNewCollaborators(e.target.value)}
+                        className="w-full bg-[#0d0d1a] border border-white/10 rounded-xl px-3 py-2 text-white font-mono focus:outline-none focus:border-red-500"
+                        id="form_collaborators_input"
+                      />
+                    </div>
                   </div>
 
                   {/* Row 3: URLs */}
@@ -1341,6 +1832,198 @@ Shared via AetherOS Sovereign Hub`;
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Dynamic Image-to-Video Sequence Animator */}
+                  <div className="border-t border-white/5 pt-4 space-y-3 bg-[#0c0c20]/40 p-4 rounded-2xl border border-white/5">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="text-[8px] font-black tracking-widest text-red-500 uppercase block font-mono">Dynamic Motion Engine</span>
+                        <h4 className="text-xs font-black uppercase text-white tracking-wider flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-red-500 animate-pulse" /> Image-To-Video Sequence Animator
+                        </h4>
+                      </div>
+                      <span className="text-[9px] font-mono text-gray-500 uppercase">Interactive WebM</span>
+                    </div>
+
+                    <p className="text-[10px] text-gray-400 font-sans leading-relaxed">
+                      Select two or more images. The AetherOS media engine will render, animate, and synthesize transitions directly into a looping HTML5 demo video.
+                    </p>
+
+                    {/* Image selector */}
+                    <div className="space-y-2">
+                      <div className="flex gap-1.5">
+                        <input
+                          type="text"
+                          id="animator_image_url_input"
+                          placeholder="Paste frame image URL (e.g. Unsplash URL)..."
+                          className="flex-1 bg-[#050510] border border-white/10 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-red-500 font-mono"
+                          onKeyDown={(e: any) => {
+                            if (e.key === 'Enter' && e.target.value.trim()) {
+                              setAnimatorImages([...animatorImages, e.target.value.trim()]);
+                              e.target.value = '';
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const input = document.getElementById('animator_image_url_input') as HTMLInputElement;
+                            if (input && input.value.trim()) {
+                              setAnimatorImages([...animatorImages, input.value.trim()]);
+                              input.value = '';
+                            }
+                          }}
+                          className="px-3 bg-white/5 hover:bg-white/10 text-white text-xs font-mono rounded-xl border border-white/10 transition-colors cursor-pointer uppercase font-bold"
+                        >
+                          Add URL
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const input = document.createElement('input');
+                            input.type = 'file';
+                            input.accept = 'image/*';
+                            input.multiple = true;
+                            input.onchange = (e: any) => {
+                              const files = Array.from(e.target.files);
+                              files.forEach(file => {
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  if (event.target?.result) {
+                                    setAnimatorImages(prev => [...prev, event.target!.result as string]);
+                                  }
+                                };
+                                reader.readAsDataURL(file as Blob);
+                              });
+                              toast.success(`${files.length} frames queued for synthesis.`);
+                            };
+                            input.click();
+                          }}
+                          className="px-3 bg-red-600 hover:bg-red-500 text-black text-xs font-mono rounded-xl transition-colors cursor-pointer uppercase font-black"
+                        >
+                          Upload
+                        </button>
+                      </div>
+
+                      {/* Quick presets for easy sandbox demonstration */}
+                      <div className="flex gap-1 flex-wrap select-none">
+                        <span className="text-[8px] font-mono text-gray-500 uppercase flex items-center pr-1">Fast Presets:</span>
+                        {[
+                          { name: 'Matrix Code', url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=400&q=80' },
+                          { name: 'Hardware Circuit', url: 'https://images.unsplash.com/photo-1601524909162-be87252be298?auto=format&fit=crop&w=400&q=80' },
+                          { name: 'Neon Server', url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=400&q=80' }
+                        ].map(preset => (
+                          <button
+                            key={preset.name}
+                            type="button"
+                            onClick={() => {
+                              if (!animatorImages.includes(preset.url)) {
+                                setAnimatorImages([...animatorImages, preset.url]);
+                                toast.info(`Queued preset: ${preset.name}`);
+                              }
+                            }}
+                            className="text-[8px] font-mono bg-[#050510] hover:bg-white/5 text-gray-400 hover:text-white px-2 py-0.5 rounded border border-white/5 transition-all"
+                          >
+                            + {preset.name}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Frame Sequence List */}
+                      {animatorImages.length > 0 && (
+                        <div className="border border-white/5 bg-black/40 rounded-xl p-2 space-y-2">
+                          <div className="flex justify-between items-center text-[9px] font-mono text-gray-500 uppercase select-none">
+                            <span>Image sequence queue ({animatorImages.length} frames)</span>
+                            <button
+                              type="button"
+                              onClick={() => setAnimatorImages([])}
+                              className="text-red-500/80 hover:text-red-400 transition-colors"
+                            >
+                              Clear All
+                            </button>
+                          </div>
+                          <div className="flex gap-2 overflow-x-auto pb-1 max-h-16 items-center">
+                            {animatorImages.map((src, idx) => (
+                              <div key={idx} className="relative shrink-0 w-12 h-12 rounded border border-white/10 overflow-hidden bg-black group/frame">
+                                <img src={src} className="w-full h-full object-cover" alt={`Frame ${idx}`} referrerPolicy="no-referrer" />
+                                <span className="absolute bottom-0 left-0 bg-black/60 text-white text-[8px] px-1 font-mono rounded-tr">
+                                  #{idx + 1}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setAnimatorImages(animatorImages.filter((_, i) => i !== idx))}
+                                  className="absolute top-0 right-0 bg-red-600 hover:bg-red-500 text-black rounded-bl p-0.5 opacity-0 group-hover/frame:opacity-100 transition-opacity"
+                                >
+                                  <X className="w-2.5 h-2.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Controls */}
+                    {animatorImages.length >= 2 && !isAnimatingToVideo && (
+                      <div className="grid grid-cols-2 gap-3 pt-1">
+                        <div className="space-y-1">
+                          <label className="block text-[8px] font-mono uppercase text-gray-500 font-bold">Transition Effect</label>
+                          <select
+                            value={selectedTransition}
+                            onChange={(e) => setSelectedTransition(e.target.value as 'crossfade' | 'slide' | 'zoom')}
+                            className="w-full bg-[#050510] border border-white/10 rounded-xl px-2 py-1 text-xs text-white font-mono focus:outline-none focus:border-red-500"
+                          >
+                            <option value="crossfade">Dissolve Crossfade</option>
+                            <option value="slide">Horizontal Slide</option>
+                            <option value="zoom">Continuous Zoom (Ken Burns)</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="block text-[8px] font-mono uppercase text-gray-500 font-bold">Duration Per Frame</label>
+                          <select
+                            value={frameDuration}
+                            onChange={(e) => setFrameDuration(Number(e.target.value))}
+                            className="w-full bg-[#050510] border border-white/10 rounded-xl px-2 py-1 text-xs text-white font-mono focus:outline-none focus:border-red-500"
+                          >
+                            <option value="1">1 Second per image</option>
+                            <option value="2">2 Seconds per image</option>
+                            <option value="3">3 Seconds per image</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Submit Animator */}
+                    {animatorImages.length >= 2 && !isAnimatingToVideo && (
+                      <button
+                        type="button"
+                        onClick={handleAnimateImagesToVideo}
+                        className="w-full py-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-black font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-red-600/10 flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        Compile and Synthesize Video Loop
+                      </button>
+                    )}
+
+                    {/* Rendering Loader */}
+                    {isAnimatingToVideo && (
+                      <div className="border border-red-500/25 bg-red-950/10 rounded-2xl p-4 space-y-2.5">
+                        <div className="flex justify-between items-center text-[10px] font-mono font-bold uppercase select-none">
+                          <span className="text-red-400 animate-pulse">{animationStatus}</span>
+                          <span className="text-red-400 font-black">{animationProgress}%</span>
+                        </div>
+                        <div className="w-full bg-black rounded-full h-1.5 overflow-hidden">
+                          <div 
+                            className="bg-gradient-to-r from-red-600 to-red-500 h-1.5 transition-all duration-300" 
+                            style={{ width: `${animationProgress}%` }}
+                          />
+                        </div>
+                        <p className="text-[8px] text-gray-500 font-mono text-center select-none uppercase">
+                          Rendering is occurring serverless directly inside your secure sandbox browser. Keep this window active.
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Interconnected Metric Auditor Array builder */}

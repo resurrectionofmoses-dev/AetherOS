@@ -96,6 +96,111 @@ export const AITelemetryView: React.FC = () => {
   const [selectedSpanId, setSelectedSpanId] = useState<string | null>(null);
   const [throughputMetrics, setThroughputMetrics] = useState<Array<{ time: string; spans: number; errors: number; latency: number }>>([]);
 
+  // AI Seats around Central Node Config and state
+  const [selectedSeatId, setSelectedSeatId] = useState<string>('google');
+  const [quantization, setQuantization] = useState<'FP16' | 'INT8' | 'INT4'>('INT8');
+  const [liberalField, setLiberalField] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM');
+  const [signalAnimationActive, setSignalAnimationActive] = useState<boolean>(false);
+
+  interface AISeatModel {
+    id: string;
+    name: string;
+    provider: string;
+    description: string;
+    techSpecs: string;
+    colorClass: string;
+    glowClass: string;
+    icon: string;
+    angleOffset: number;
+  }
+
+  const aiSeatsList: AISeatModel[] = [
+    {
+      id: 'google',
+      name: 'Gemini 2.5 Flash',
+      provider: 'Google (Sovereign Primary)',
+      description: 'Multimodal powerhouse featuring high speed and absolute reasoning bounds.',
+      techSpecs: 'FP16 • Native Multimodal • 1.2M Context',
+      colorClass: 'text-cyan-400 bg-cyan-950/40 border-cyan-500/50',
+      glowClass: 'shadow-[0_0_15px_rgba(6,182,212,0.4)]',
+      icon: '💎',
+      angleOffset: 0
+    },
+    {
+      id: 'claude',
+      name: 'Claude 3.5 Sonnet',
+      provider: 'Anthropic (The Weaver)',
+      description: 'Thoughtful compiler of code and structured analysis.',
+      techSpecs: 'FP16 • Advanced Coding Spec • 200k Context',
+      colorClass: 'text-amber-500 bg-amber-950/40 border-amber-500/50',
+      glowClass: 'shadow-[0_0_15px_rgba(245,158,11,0.4)]',
+      icon: '🍁',
+      angleOffset: 60
+    },
+    {
+      id: 'openai',
+      name: 'GPT-4o (The Oracle)',
+      provider: 'Microsoft / OpenAI',
+      description: 'Fast, high-quality general intelligence and conversation hub.',
+      techSpecs: '8-bit Quantized • Multimodal Audio • 128k Context',
+      colorClass: 'text-emerald-400 bg-emerald-950/40 border-emerald-500/50',
+      glowClass: 'shadow-[0_0_15px_rgba(16,185,129,0.4)]',
+      icon: '🌀',
+      angleOffset: 120
+    },
+    {
+      id: 'llama',
+      name: 'Llama 3 70B',
+      provider: 'Meta (Open Source Rebel)',
+      description: 'High-performance open weights model running locally.',
+      techSpecs: 'INT8 • Locally Hosted • 64k Context',
+      colorClass: 'text-blue-400 bg-blue-950/40 border-blue-500/50',
+      glowClass: 'shadow-[0_0_15px_rgba(59,130,246,0.4)]',
+      icon: '🦙',
+      angleOffset: 180
+    },
+    {
+      id: 'mistral',
+      name: 'Mistral Large',
+      provider: 'Mistral AI (European Alliance)',
+      description: 'Dense Mixture of Experts (MoE) with supreme logical weight.',
+      techSpecs: 'INT4 • Sparse Activation • 32k Context',
+      colorClass: 'text-purple-400 bg-purple-950/40 border-purple-500/50',
+      glowClass: 'shadow-[0_0_15px_rgba(168,85,247,0.4)]',
+      icon: '🌪️',
+      angleOffset: 240
+    },
+    {
+      id: 'deepseek',
+      name: 'DeepSeek R1',
+      provider: 'DeepSeek (Quantized Reasoning)',
+      description: 'Advanced reasoning and search grounding specialist.',
+      techSpecs: 'INT4 • Active MoE • 128k Context',
+      colorClass: 'text-rose-400 bg-rose-950/40 border-rose-500/50',
+      glowClass: 'shadow-[0_0_15px_rgba(244,63,94,0.4)]',
+      icon: '🧬',
+      angleOffset: 300
+    }
+  ];
+
+  // Determine orbital radius based on Liberal Field setting
+  const getRadius = () => {
+    switch (liberalField) {
+      case 'LOW': return 95;
+      case 'MEDIUM': return 130;
+      case 'HIGH': return 165;
+    }
+  };
+
+  // Determine scale of nodes based on Quantization setting
+  const getNodeScale = () => {
+    switch (quantization) {
+      case 'FP16': return 1.15;
+      case 'INT8': return 0.95;
+      case 'INT4': return 0.75;
+    }
+  };
+
   // Log notifications for console
   const [logs, setLogs] = useState<string[]>([]);
   const consoleBottomRef = useRef<HTMLDivElement>(null);
@@ -476,6 +581,296 @@ export const AITelemetryView: React.FC = () => {
           >
             FLUSH COLLECTOR
           </button>
+        </div>
+      </div>
+
+      {/* AI SEATS QUANTUM ORBITAL FIELD SECTION */}
+      <div id="ai-seats-orbital-deck" className="bg-zinc-950/80 border border-zinc-900 rounded-3xl p-6 mb-6 overflow-hidden relative">
+        {/* Ambient absolute decorative elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/5 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-amber-500/5 rounded-full blur-[100px] pointer-events-none" />
+
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6 relative z-10">
+          
+          {/* Left Column: Visual Circular Space */}
+          <div id="quantum-orbit-arena" className="w-full lg:w-[55%] h-[400px] bg-black/40 border border-zinc-900 rounded-2xl flex items-center justify-center relative select-none overflow-hidden">
+            
+            {/* Grid overlay */}
+            <div className="absolute inset-0 bg-[linear-gradient(to_right,#09090b_1px,transparent_1px),linear-gradient(to_bottom,#09090b_1px,transparent_1px)] bg-[size:24px_24px] opacity-35" />
+
+            {/* Orbit concentric lines based on liberal field density */}
+            <div 
+              id="orbital-ring-boundary"
+              className="absolute rounded-full border border-dashed border-zinc-800 transition-all duration-700 pointer-events-none"
+              style={{
+                width: `${getRadius() * 2}px`,
+                height: `${getRadius() * 2}px`,
+              }}
+            />
+            
+            <div 
+              id="orbital-ring-outer-shield"
+              className="absolute rounded-full border border-zinc-900 transition-all duration-700 pointer-events-none opacity-50"
+              style={{
+                width: `${getRadius() * 1.5 * 2}px`,
+                height: `${getRadius() * 1.5 * 2}px`,
+              }}
+            />
+
+            {/* Central Node: Central AI Chair */}
+            <div id="central-ai-chair-node" className="absolute z-30 flex flex-col items-center justify-center">
+              {/* Outer pulsing ring */}
+              <motion.div 
+                className="absolute w-24 h-24 rounded-full bg-cyan-500/10 border border-cyan-500/20 blur-[2px]"
+                animate={{
+                  scale: [1, 1.15, 1],
+                  opacity: [0.6, 0.9, 0.6]
+                }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              />
+              {/* Core central node button/glowing mass */}
+              <button 
+                id="conjunction-core-btn"
+                type="button"
+                onClick={() => {
+                  playBeep(1200, 'sine', 0.15);
+                  setSignalAnimationActive(true);
+                  writeLog("💥 CONJUNCTION COMMAND: Triggered micro-signal fusion across all quantized AI seats.");
+                  setTimeout(() => setSignalAnimationActive(false), 1200);
+                }}
+                className="relative w-16 h-16 rounded-full bg-gradient-to-tr from-cyan-950 via-zinc-900 to-cyan-900 border-2 border-cyan-400 flex flex-col items-center justify-center shadow-[0_0_30px_rgba(6,182,212,0.4)] hover:shadow-[0_0_40px_rgba(6,182,212,0.6)] active:scale-95 transition-all z-40 cursor-pointer"
+                title="Conjunction Core - Click to fire signal fusion"
+              >
+                <Cpu className="w-6 h-6 text-cyan-400 animate-pulse" />
+                <span className="text-[7.5px] font-black tracking-widest text-cyan-300 mt-1">CORE</span>
+              </button>
+            </div>
+
+            {/* Pulsing Transmission Wave Animation from Selected Satellite to Center */}
+            <AnimatePresence>
+              {signalAnimationActive && (
+                <motion.div 
+                  id="transmission-pulsar-wave"
+                  className="absolute z-20 pointer-events-none rounded-full border-2 border-cyan-400/80"
+                  initial={{ width: 0, height: 0, opacity: 1 }}
+                  animate={{ 
+                    width: getRadius() * 2, 
+                    height: getRadius() * 2, 
+                    opacity: 0 
+                  }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                />
+              )}
+            </AnimatePresence>
+
+            {/* Surrounded Circular Seats */}
+            {aiSeatsList.map((seat) => {
+              const radius = getRadius();
+              const angleRad = (seat.angleOffset * Math.PI) / 180;
+              const x = Math.cos(angleRad) * radius;
+              const y = Math.sin(angleRad) * radius;
+
+              const isSelected = selectedSeatId === seat.id;
+              const scale = isSelected ? getNodeScale() * 1.15 : getNodeScale();
+
+              return (
+                <motion.div
+                  key={seat.id}
+                  id={`ai-seat-wrapper-${seat.id}`}
+                  className="absolute z-20 transition-all duration-700"
+                  style={{
+                    x,
+                    y,
+                  }}
+                  animate={{
+                    y: [y, y - 4, y], // Micro-hover/float animation
+                  }}
+                  transition={{
+                    duration: 4 + (seat.angleOffset % 3),
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                  }}
+                >
+                  <button
+                    id={`ai-seat-btn-${seat.id}`}
+                    type="button"
+                    onClick={() => {
+                      playBeep(isSelected ? 900 : 700, 'sine', 0.05);
+                      setSelectedSeatId(seat.id);
+                    }}
+                    className={`flex flex-col items-center justify-center rounded-full transition-all border font-bold text-center select-none cursor-pointer ${
+                      isSelected 
+                        ? `${seat.colorClass} ${seat.glowClass} ring-2 ring-cyan-500/20` 
+                        : 'text-zinc-500 bg-zinc-950/90 border-zinc-900 hover:border-zinc-750 hover:text-zinc-300'
+                    }`}
+                    style={{
+                      width: `${46 * scale}px`,
+                      height: `${46 * scale}px`,
+                    }}
+                  >
+                    <span className="text-[14px]" style={{ transform: `scale(${scale})` }}>
+                      {seat.icon}
+                    </span>
+                    <span className="text-[7px] font-black uppercase tracking-tight mt-0.5" style={{ fontSize: `${6.5 * scale}px` }}>
+                      {seat.id}
+                    </span>
+                  </button>
+
+                  {/* Active Satellite Link Line overlay */}
+                  {isSelected && (
+                    <svg className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] pointer-events-none -z-10" style={{ transform: `rotate(${-seat.angleOffset}deg)` }}>
+                      <line 
+                        x1="150" 
+                        y1="150" 
+                        x2="150" 
+                        y2={150 - radius} 
+                        stroke="rgba(6, 182, 212, 0.25)" 
+                        strokeWidth="1.5" 
+                        strokeDasharray="4 4" 
+                      />
+                    </svg>
+                  )}
+                </motion.div>
+              );
+            })}
+
+            {/* Display Field Specs Legend */}
+            <div className="absolute bottom-4 left-4 flex flex-col gap-0.5 pointer-events-none">
+              <span className="text-[8px] font-black tracking-widest text-zinc-500 uppercase">Field State Vector</span>
+              <span className="text-[10px] text-cyan-400 font-bold uppercase tracking-wider">
+                {liberalField} FIELD • {quantization} MASS
+              </span>
+            </div>
+
+            <div className="absolute bottom-4 right-4 text-right flex flex-col gap-0.5 pointer-events-none">
+              <span className="text-[8px] font-black tracking-widest text-zinc-500 uppercase">Conjunction Status</span>
+              <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">
+                ACTIVE COUPLING
+              </span>
+            </div>
+          </div>
+
+          {/* Right Column: Interaction Setup Details */}
+          <div id="ai-seats-config-desk" className="w-full lg:w-[42%] flex flex-col justify-between self-stretch gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 border-b border-zinc-900 pb-2.5">
+                <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse" />
+                <h3 className="text-xs uppercase font-black text-white tracking-widest">
+                  Seat Mass & Quantization Field
+                </h3>
+              </div>
+
+              {/* Quantization MASS controls */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Quantization Mass Weight</span>
+                  <span className="text-[9px] text-zinc-600">Alters Seat Size & Density</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-[9px] font-bold">
+                  {(['FP16', 'INT8', 'INT4'] as const).map(mode => (
+                    <button
+                      key={mode}
+                      id={`quant-mass-btn-${mode}`}
+                      type="button"
+                      onClick={() => {
+                        playBeep(920, 'sine', 0.03);
+                        setQuantization(mode);
+                        writeLog(`Quantization Mass configured to: ${mode}. Satellite geometry updated.`);
+                      }}
+                      className={`py-2 rounded-xl border transition-all uppercase ${quantization === mode ? 'bg-cyan-950/40 border-cyan-500 text-cyan-400 font-extrabold shadow-[0_0_10px_rgba(6,182,212,0.1)]' : 'bg-black border-zinc-900 text-zinc-500 hover:text-zinc-350'}`}
+                    >
+                      {mode} {mode === 'FP16' ? '(Unquantized)' : mode === 'INT8' ? '(8-bit)' : '(Extreme)'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Liberal Field INTENSITY controls */}
+              <div className="space-y-2 pt-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Liberal Field Density</span>
+                  <span className="text-[9px] text-zinc-600">Alters Orbital Spacing Radius</span>
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-[9px] font-bold">
+                  {(['LOW', 'MEDIUM', 'HIGH'] as const).map(density => (
+                    <button
+                      key={density}
+                      id={`field-density-btn-${density}`}
+                      type="button"
+                      onClick={() => {
+                        playBeep(850, 'sine', 0.03);
+                        setLiberalField(density);
+                        writeLog(`Liberal Field Density adjusted to: ${density}. Concentric fields recalculated.`);
+                      }}
+                      className={`py-2 rounded-xl border transition-all uppercase ${liberalField === density ? 'bg-amber-950/40 border-amber-500 text-amber-400 font-extrabold shadow-[0_0_10px_rgba(245,158,11,0.1)]' : 'bg-black border-zinc-900 text-zinc-500 hover:text-zinc-350'}`}
+                    >
+                      {density === 'LOW' ? 'Conservative' : density === 'MEDIUM' ? 'Balanced' : 'Liberal'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Selected seat details display card */}
+              {(() => {
+                const seat = aiSeatsList.find(s => s.id === selectedSeatId) || aiSeatsList[0];
+                return (
+                  <motion.div 
+                    key={seat.id}
+                    id={`active-seat-details-${seat.id}`}
+                    initial={{ opacity: 0, y: 5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 bg-black/60 border border-zinc-900 rounded-2xl space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{seat.icon}</span>
+                        <div>
+                          <h4 className="font-bold text-white text-[11px] leading-tight">{seat.name}</h4>
+                          <span className="text-[9px] text-zinc-500 tracking-tight">{seat.provider}</span>
+                        </div>
+                      </div>
+                      <span className="text-[8px] bg-zinc-900 border border-zinc-800 text-zinc-400 rounded px-1.5 py-0.5 uppercase font-black font-mono">
+                        Active Seat
+                      </span>
+                    </div>
+
+                    <p className="text-[10.5px] text-zinc-400 leading-relaxed font-sans">
+                      {seat.description}
+                    </p>
+
+                    <div className="flex justify-between items-center pt-2 border-t border-zinc-900 text-[9.5px]">
+                      <span className="text-zinc-500 uppercase tracking-wider font-bold">Precision Footprint</span>
+                      <span className="text-cyan-400 font-mono font-bold">{seat.techSpecs}</span>
+                    </div>
+                  </motion.div>
+                );
+              })()}
+            </div>
+
+            {/* Broadcast action button */}
+            <button 
+              id="signal-transmission-btn"
+              type="button"
+              onClick={() => {
+                playBeep(1100, 'sine', 0.2);
+                setSignalAnimationActive(true);
+                setTimeout(() => setSignalAnimationActive(false), 1200);
+                
+                const seat = aiSeatsList.find(s => s.id === selectedSeatId) || aiSeatsList[0];
+                writeLog(`📡 SIGNAL FUSION: Dispatched direct quantum transmission route from [${seat.name}] into Central Chair.`);
+              }}
+              className="w-full py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 active:scale-95 text-white font-bold tracking-widest text-[10px] uppercase shadow-[0_0_20px_rgba(6,182,212,0.25)] hover:shadow-[0_0_25px_rgba(6,182,212,0.4)] transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Send className="w-3.5 h-3.5" />
+              FIRE SIGNAL TRANSMISSION FUSION
+            </button>
+          </div>
+
         </div>
       </div>
 

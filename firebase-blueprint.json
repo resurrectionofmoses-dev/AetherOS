@@ -1,0 +1,124 @@
+{
+  "entities": {
+    "MissionItem": {
+      "title": "MissionItem",
+      "description": "An item containing details of name, reason of being, learn, go, and coding objectives.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the item"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the item"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Reason of being / Purpose"
+        },
+        "learn": {
+          "type": "string",
+          "description": "Learn goals or insights"
+        },
+        "go": {
+          "type": "string",
+          "description": "Go objectives / Next steps"
+        },
+        "coding": {
+          "type": "string",
+          "description": "Coding and technological requirements"
+        },
+        "createdAt": {
+          "type": "integer",
+          "description": "Epoch timestamp when the item was created"
+        }
+      },
+      "required": ["id", "name", "reason", "learn", "go", "coding", "createdAt"]
+    },
+    "EternalMemory": {
+      "title": "EternalMemory",
+      "description": "An eternal memory ledger block containing user notes, project evolution logs, and historical concepts for persistent recall.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the memory block"
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the memory block"
+        },
+        "content": {
+          "type": "string",
+          "description": "Long-form content, note, or logs of the memory"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Credentials", "Heuristics", "Sovereign Keys", "System Logs", "Operator Notes"],
+          "description": "The category classification"
+        },
+        "securityTier": {
+          "type": "string",
+          "enum": ["RESTRICTED", "CONFIDENTIAL", "TOP_SECRET", "ETERNAL"],
+          "description": "The security tier classification"
+        },
+        "timestamp": {
+          "type": "integer",
+          "description": "Timestamp when memory was recorded"
+        },
+        "blockSignature": {
+          "type": "string",
+          "description": "Cryptographic signature of the memory block"
+        },
+        "isRevealed": {
+          "type": "boolean",
+          "description": "Visibility flag on client side"
+        }
+      },
+      "required": ["id", "title", "content", "category", "securityTier", "timestamp", "blockSignature", "isRevealed"]
+    },
+    "CellularState": {
+      "title": "CellularState",
+      "description": "A saved cellular simulation snapshot with user notes, grid configuration, and biological logs.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier of the snapshot"
+        },
+        "name": {
+          "type": "string",
+          "description": "The name or note of the cellular state snapshot"
+        },
+        "cellsJson": {
+          "type": "string",
+          "description": "JSON string of the active CellNode list with generation and metrics"
+        },
+        "phase": {
+          "type": "string",
+          "description": "The active quantum cycle phase at snapshot"
+        },
+        "timestamp": {
+          "type": "integer",
+          "description": "Timestamp when snapshot was recorded"
+        }
+      },
+      "required": ["id", "name", "cellsJson", "phase", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/mission_items/{itemId}": {
+      "schema": "MissionItem",
+      "description": "Collection of mission-critical items containing name, reason of being, learn, go, and coding information."
+    },
+    "/eternal_memories/{memoryId}": {
+      "schema": "EternalMemory",
+      "description": "Collection of eternalized user notes, project logs, and historical concepts."
+    },
+    "/cellular_states/{stateId}": {
+      "schema": "CellularState",
+      "description": "Collection of saved cellular grid states."
+    }
+  }
+}

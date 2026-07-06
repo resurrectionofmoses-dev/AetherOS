@@ -1,0 +1,76 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    function incoming() { 
+      return request.resource.data; 
+    }
+
+    function existing() { 
+      return resource.data; 
+    }
+
+    match /mission_items/{itemId} {
+      allow read: if true;
+      allow create: if isValidId(itemId) && isValidMissionItem(incoming());
+      allow update: if isValidId(itemId) && isValidMissionItem(incoming());
+      allow delete: if isValidId(itemId);
+    }
+
+    match /eternal_memories/{memoryId} {
+      allow read: if true;
+      allow create: if isValidId(memoryId) && isValidEternalMemory(incoming());
+      allow update: if isValidId(memoryId) && isValidEternalMemory(incoming());
+      allow delete: if isValidId(memoryId);
+    }
+
+    match /cellular_states/{stateId} {
+      allow read: if true;
+      allow create: if isValidId(stateId) && isValidCellularState(incoming());
+      allow update: if isValidId(stateId) && isValidCellularState(incoming());
+      allow delete: if isValidId(stateId);
+    }
+
+    function isValidMissionItem(data) {
+      return data.keys().hasAll(['id', 'name', 'reason', 'learn', 'go', 'coding', 'createdAt'])
+        && data.keys().size() == 7
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 2000
+        && data.reason is string && data.reason.size() <= 5000
+        && data.learn is string && data.learn.size() <= 5000
+        && data.go is string && data.go.size() <= 5000
+        && data.coding is string && data.coding.size() <= 5000
+        && data.createdAt is int;
+    }
+
+    function isValidCellularState(data) {
+      return data.keys().hasAll(['id', 'name', 'cellsJson', 'phase', 'timestamp'])
+        && data.keys().size() == 5
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 2000
+        && data.cellsJson is string && data.cellsJson.size() <= 50000
+        && data.phase is string && data.phase.size() <= 64
+        && data.timestamp is int;
+    }
+
+    function isValidEternalMemory(data) {
+      return data.keys().hasAll(['id', 'title', 'content', 'category', 'securityTier', 'timestamp', 'blockSignature', 'isRevealed'])
+        && data.keys().size() == 8
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() <= 1000
+        && data.content is string && data.content.size() <= 20000
+        && data.category is string && (data.category == 'Credentials' || data.category == 'Heuristics' || data.category == 'Sovereign Keys' || data.category == 'System Logs' || data.category == 'Operator Notes')
+        && data.securityTier is string && (data.securityTier == 'RESTRICTED' || data.securityTier == 'CONFIDENTIAL' || data.securityTier == 'TOP_SECRET' || data.securityTier == 'ETERNAL')
+        && data.timestamp is int
+        && data.blockSignature is string && data.blockSignature.size() <= 256
+        && data.isRevealed is bool;
+    }
+  }
+}

@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { MainView } from './types';
+import { MissionItemsView } from './components/MissionItemsView';
 import { ProjectShowcaseView } from './components/ProjectShowcaseView';
 import { QuantumLedgerView } from './components/QuantumLedgerView';
 import { ChatView } from './components/ChatView';
@@ -13,6 +14,7 @@ import { GoldConjunction } from './components/GoldConjunction';
 import { ShardStoreView } from './components/ShardStoreView';
 import { ConjunctionGatesView } from './components/ConjunctionGatesView';
 import { ProjectNetwork } from './components/ProjectNetwork';
+import { ProjectsView } from './components/ProjectsView';
 import { ForgeView } from './components/ForgeView';
 import { NetworkCovenant } from './components/NetworkCovenant';
 import { VerificationGatesView } from './components/VerificationGatesView';
@@ -32,6 +34,7 @@ import { FineRScroll } from './components/FineRScroll';
 import { OmniBuilderUI } from './components/OmniBuilderUI';
 import { SingularityEngineView } from './components/SingularityEngineView';
 import { DiagnosticsCenter } from './components/DiagnosticsCenter';
+import { SystemDiagnosticView } from './components/SystemDiagnosticView';
 import { CommunicationsView } from './components/CommunicationsView';
 import { UpNorthProtocol } from './components/UpNorthProtocol';
 import { DeviceLinkView } from './components/DeviceLinkView';
@@ -82,6 +85,7 @@ import { CognitivePipelineView } from './components/CognitivePipelineView';
 import { DataProvenanceLab } from './components/DataProvenanceLab';
 import { SelfHealingCRTView } from './components/SelfHealingCRTView';
 import { UserProfileView } from './components/UserProfileView';
+import { CollaborativeEditorView } from './components/CollaborativeEditorView';
 import { PromptForge } from './components/PromptForge';
 import { VoiceAuthorityView } from './components/VoiceAuthorityView';
 import { CellularGrid } from './components/CellularGrid';
@@ -112,13 +116,37 @@ import { ScraperMerchantStoreView } from './components/ScraperMerchantStoreView'
 import { DataAcademyView } from './components/DataAcademyView';
 import { ReputationLeaderboardView } from './components/ReputationLeaderboardView';
 import { AetherFlowOrchestratorView } from './components/AetherFlowOrchestratorView';
+import { AetherosOnlineStatusView } from './components/AetherosOnlineStatusView';
+import { RegexEditorLabView } from './components/RegexEditorLabView';
+import { AgentSafeguardView } from './components/AgentSafeguardView';
+import { SafeGuard } from './components/SafeGuard';
+import { GmailView } from './components/GmailView';
+import { GoogleDriveView } from './components/GoogleDriveView';
+import { SovereignScannerView } from './components/SovereignScannerView';
 import { v4 as uuidv4 } from 'uuid';
 
 export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
+    'sovereign_scanner': (props) => (
+        <SovereignScannerView 
+            shards={props.shards} 
+            onActionReward={props.onActionReward} 
+            onPurchase={props.onPurchase} 
+        />
+    ),
+    'aetheros_online_status': () => <AetherosOnlineStatusView />,
     'aether_flow_orchestrator': () => <AetherFlowOrchestratorView />,
     'ai_telemetry': () => <AITelemetryView />,
     'inevitable_crash': () => <InevitableCrashView />,
     'eurodemux_core': () => <EurodemuxView />,
+    'google_drive': (props) => (
+        <GoogleDriveView 
+            onAddLog={props.onAddLog} 
+            projects={props.projects} 
+            setProjects={props.setProjects} 
+            blueprints={props.blueprints} 
+            setBlueprints={props.setBlueprints} 
+        />
+    ),
     'google_sheets': (props) => (
         <GoogleSheetsView 
             onAddLog={props.onAddLog} 
@@ -217,6 +245,15 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     ),
     'conjunction_gates': (props) => <ConjunctionGatesView progress={props.progress} onUnlock={() => true} onSetView={props.onSetView} />,
     'projects': (props) => (
+        <ProjectsView 
+            profile={props.profile}
+            projects={props.projects}
+            setProjects={props.setProjects}
+            isSystemFractured={props.isSystemFractured}
+            onToggleFracture={props.onToggleFracture}
+        />
+    ),
+    'project_network': (props) => (
         <div className="flex-1 flex flex-col flex-hinge overflow-hidden">
             <ProjectNetwork 
                 profile={props.profile}
@@ -275,6 +312,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'omni_builder': (props) => <OmniBuilderUI shards={props.shards} />,
     'singularity_engine': (props) => <SingularityEngineView knowledgeBaseSize={1000000} onConsumeKnowledge={() => {}} onProjectize={() => {}} onGoToNetwork={() => props.onSetView('coding_network')} />,
     'diagnostics': (props) => <DiagnosticsCenter onSetView={props.onSetView} systemStatus={props.systemStatus} onUpdateSystemStatus={props.onUpdateSystemStatus} />,
+    'system_diagnostic': (props) => <SystemDiagnosticView onSetView={props.onSetView} systemStatus={props.systemStatus} bootLogs={props.bootLogs} onUpdateSystemStatus={props.onUpdateSystemStatus} searchQuery={props.diagnosticSearchQuery} onSearchQueryChange={props.onSetDiagnosticSearchQuery} onClearBootLogs={props.onClearBootLogs} />,
     'communications': (props) => <CommunicationsView injectedCommand={null} onCommandInjected={() => {}} onNewBroadcast={props.onNewBroadcast} broadcasts={props.broadcasts} onCancelBroadcast={props.onCancelBroadcast} />,
     'up_north': (props) => <UpNorthProtocol onSetView={props.onSetView} />,
     'device_link': (props) => <DeviceLinkView status={props.status} device={props.device} onConnect={props.onConnect} onDisconnect={props.onDisconnect} lastModule={props.lastModule} />,
@@ -359,6 +397,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'biometric_intelligence': () => <BiometricIntelligenceView />,
     'card_recovery': () => <CardRecoveryView />,
     'project_showcase': () => <ProjectShowcaseView />,
+    'collaborative_editor': () => <CollaborativeEditorView />,
     'labs_flow': () => <LabsFlowView />,
     'cascade_investigator': () => <CascadeInspectorView />,
     'cph_hub': () => <CentralProcessingHubView />,
@@ -367,4 +406,9 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'reputation_leaderboard': (props) => <ReputationLeaderboardView profile={props.profile} onSetView={props.onSetView} />,
     'packaging_suite': () => <PackagingSuite />,
     'system_archives': (props) => <SystemArchives archives={props.archives} onAddArchive={props.onAddArchive} onDeleteArchive={props.onDeleteArchive} />,
+    'regex_editor_lab': () => <RegexEditorLabView />,
+    'mission_items': () => <MissionItemsView />,
+    'agent_safeguard': () => <AgentSafeguardView />,
+    'safeguard': () => <SafeGuard />,
+    'gmail': () => <GmailView />,
 };

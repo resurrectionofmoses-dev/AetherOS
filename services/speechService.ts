@@ -248,6 +248,19 @@ class SpeechService {
             }, 200);
         }
     }
+
+    public stop() {
+        try {
+            this.audioQueue = [];
+            this.isPlaying = false;
+            if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+            this.notifyChange(false);
+        } catch (err) {
+            console.error("Error stopping SpeechService:", err);
+        }
+    }
 }
 
 export const speechService = new SpeechService();

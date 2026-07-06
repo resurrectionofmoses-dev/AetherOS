@@ -19,7 +19,8 @@ import {
   Activity,
   Heart,
   Volume,
-  Check
+  Check,
+  Search
 } from 'lucide-react';
 import { getSophisticatedColor, calculateHistoricalSpeed, estimateTaskCompletion } from '../utils';
 import type { NetworkProject, UserProfile } from '../types';
@@ -263,6 +264,7 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
     const [priorityInputs, setPriorityInputs] = useState<Record<string, 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>>({});
     const [taskFilters, setTaskFilters] = useState<Record<string, 'all' | 'active' | 'completed'>>({});
     const [taskSorts, setTaskSorts] = useState<Record<string, 'default' | 'dueDate' | 'alphabetical' | 'priority' | 'creationDate'>>({});
+    const [taskSearchQueries, setTaskSearchQueries] = useState<Record<string, string>>({});
     const [suggestingFor, setSuggestingFor] = useState<string | null>(null);
     const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
     const [projectStatusFilter, setProjectStatusFilter] = useState<string>('ALL');
@@ -1135,6 +1137,15 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
 
                             let filteredTasks = p.tasks ? [...p.tasks] : [];
 
+                            const sq = (taskSearchQueries[p.id] || '').trim().toLowerCase();
+                            if (sq) {
+                                filteredTasks = filteredTasks.filter(t => 
+                                    t.text?.toLowerCase().includes(sq) || 
+                                    (t as any).description?.toLowerCase().includes(sq) || 
+                                    (t as any).tags?.some((tag: string) => tag.toLowerCase().includes(sq))
+                                );
+                            }
+
                             if (currentFilter === 'active') {
                                 filteredTasks = filteredTasks.filter(t => !t.completed);
                             } else if (currentFilter === 'completed') {
@@ -1644,6 +1655,24 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                                                     </div>
 
                                                     <div className="flex items-center gap-2">
+                                                        <div className="relative">
+                                                            <Search className="w-2.5 h-2.5 absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500" />
+                                                            <input
+                                                                type="text"
+                                                                value={taskSearchQueries[p.id] || ''}
+                                                                onChange={(e) => setTaskSearchQueries(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                                                placeholder="SEARCH OBJECTIVES..."
+                                                                className="bg-black/40 border border-black rounded pl-6 pr-5 py-0.5 text-[8px] text-gray-200 placeholder-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-all font-mono w-28 sm:w-36 uppercase"
+                                                            />
+                                                            {(taskSearchQueries[p.id] || '') && (
+                                                                <button
+                                                                    onClick={() => setTaskSearchQueries(prev => ({ ...prev, [p.id]: '' }))}
+                                                                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[10px] text-zinc-500 hover:text-white"
+                                                                >
+                                                                    ×
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                         <select 
                                                             value={currentFilter} 
                                                             onChange={(e) => setTaskFilters(prev => ({...prev, [p.id]: e.target.value as any}))}

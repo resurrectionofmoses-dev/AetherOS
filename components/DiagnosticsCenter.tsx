@@ -47,6 +47,13 @@ export const DiagnosticsCenter: React.FC<DiagnosticsCenterProps> = ({ onSetView,
         </div>
         <div className="flex gap-4">
             <button 
+                onClick={() => onSetView('system_diagnostic')}
+                className="vista-button px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-black uppercase text-[10px] rounded-xl flex items-center gap-2 shadow-[4px_4px_0_0_#000]"
+            >
+                <ActivityIcon className="w-4 h-4" />
+                <span>System Audit Logs</span>
+            </button>
+            <button 
                 onClick={() => onSetView('healing_matrix')}
                 className="vista-button px-6 py-2 bg-red-600 hover:bg-red-500 text-white font-black uppercase text-[10px] rounded-xl flex items-center gap-2 shadow-[4px_4px_0_0_#000]"
             >

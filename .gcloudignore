@@ -1,0 +1,10 @@
+# This file specifies files and directories to be ignored when deploying to Google Cloud.
+
+# Ignore common build and dependency directories.
+node_modules/
+dist/
+dist-ssr/
+.git/
+.vscode/
+.idea/
+*.log
