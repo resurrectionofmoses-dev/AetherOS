@@ -374,3 +374,60 @@ export function estimateTaskCompletion(
     statusLabel
   };
 }
+
+export interface QuarantinedItem {
+  id: string;
+  sourceType: 'message' | 'email' | 'question' | 'answer' | 'project' | 'profile' | 'unknown';
+  originalData: any;
+  timestamp: number;
+  reason: string;
+}
+
+export function checkAndQuarantine(
+  item: any, 
+  sourceType: QuarantinedItem['sourceType']
+): { isSafe: boolean; quarantinedItem?: QuarantinedItem } {
+  if (!item) return { isSafe: true };
+  const str = typeof item === 'string' ? item : JSON.stringify(item);
+  const lowercase = str.toLowerCase();
+  
+  const hasDavidRoss = lowercase.includes('david ross');
+  const hasVectorSecurity = lowercase.includes('vector security');
+  
+  if (hasDavidRoss || hasVectorSecurity) {
+    const id = `QUAR_${Math.random().toString(36).substring(2, 11).toUpperCase()}`;
+    const reason = `Detected compromised entity: ${hasDavidRoss ? '[David Ross] ' : ''}${hasVectorSecurity ? '[Vector Security]' : ''}`;
+    
+    try {
+      const existing = localStorage.getItem('quarantine_langchang');
+      const list: QuarantinedItem[] = existing ? JSON.parse(existing) : [];
+      const newItem: QuarantinedItem = {
+        id,
+        sourceType,
+        originalData: item,
+        timestamp: Date.now(),
+        reason
+      };
+      const alreadyQuarantined = list.some(existingItem => {
+        const existingStr = JSON.stringify(existingItem.originalData);
+        const currentStr = JSON.stringify(item);
+        return existingStr === currentStr;
+      });
+      if (!alreadyQuarantined) {
+        list.push(newItem);
+        localStorage.setItem('quarantine_langchang', JSON.stringify(list));
+        setTimeout(() => {
+          toast.error('COMPROMISED CONTENT DETECTED', {
+            description: `Security sweeps isolated and quarantined a threat inside "langchang". ID: ${id}`,
+            duration: 5000,
+          });
+        }, 100);
+      }
+    } catch (e) {
+      console.error('Failed to store in quarantine_langchang:', e);
+    }
+    
+    return { isSafe: false };
+  }
+  return { isSafe: true };
+}

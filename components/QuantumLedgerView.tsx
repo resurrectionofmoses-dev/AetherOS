@@ -4,6 +4,7 @@ import {
   Atom, Zap, Shield, Search, Database, RefreshCw, Layers, Cpu, Play, Pause, Trash2, Maximize2, Activity, TrendingUp, AlertTriangle, ArrowRight, CornerDownRight, CheckCircle2, Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { QuantumLedgerDashboard } from './QuantumLedgerDashboard';
 
 // D3 simulation type structures
 interface LedgerNode extends d3.SimulationNodeDatum {
@@ -46,6 +47,38 @@ const INITIAL_VALIDATORS = [
   { id: 'v_maestro', label: 'Maestro Coder', color: '#F59E0B', desc: 'Active execution builder seat' },
 ];
 
+export interface QuantumTick {
+  blockHeight: number;
+  timestamp: string;
+  gasPrice: number;
+  consensusRate: number;
+  volumeDelta: number;
+  totalVolume: number;
+}
+
+const generateInitialTicks = (endBlock: number): QuantumTick[] => {
+  const result: QuantumTick[] = [];
+  let currentVolume = 142980.5 - (100 * 65);
+  let currentGas = 15;
+  let currentConsensus = 99.85;
+  for (let i = 100; i >= 0; i--) {
+    const blockNum = endBlock - i;
+    const volumeDelta = Math.floor(Math.random() * 120) + 10;
+    currentVolume += volumeDelta;
+    currentConsensus = Math.min(100, Math.max(98, currentConsensus + (Math.random() - 0.5) * 0.1));
+    currentGas = Math.max(10, Math.min(60, currentGas + (Math.random() - 0.5 > 0 ? 1 : -1)));
+    result.push({
+      blockHeight: blockNum,
+      timestamp: new Date(Date.now() - i * 3000).toISOString(),
+      gasPrice: currentGas,
+      consensusRate: currentConsensus,
+      volumeDelta,
+      totalVolume: currentVolume,
+    });
+  }
+  return result;
+};
+
 interface QuantumLedgerStateCache {
   chargeStrength: number;
   linkDistance: number;
@@ -62,11 +95,220 @@ interface QuantumLedgerStateCache {
   logs: { id: string; text: string; time: string; type: 'info' | 'success' | 'warn' | 'quantum' }[];
   nodes: LedgerNode[];
   links: LedgerLink[];
+  ticks: QuantumTick[];
 }
 
-let cachedLedgerState: QuantumLedgerStateCache | null = null;
+export let cachedLedgerState: QuantumLedgerStateCache = {
+  chargeStrength: -140,
+  linkDistance: 80,
+  gravityStrength: 0.2,
+  autoEmit: true,
+  particleFlow: true,
+  simulationSpeed: 1.5,
+  selectedNode: null,
+  blockHeight: 40291,
+  totalVolume: 142980.5,
+  gasPrice: 15,
+  consensusRate: 99.85,
+  collapseCount: 0,
+  logs: [
+    { id: '1', text: 'Quantum Ledger manifold successfully engaged.', time: '08:26:02', type: 'info' },
+    { id: '2', text: 'Genesis validation verified by Maestro. Root initialized.', time: '08:26:10', type: 'success' },
+    { id: '3', text: 'Resonance factor locked at 0.957 SHARDS.', time: '08:26:15', type: 'quantum' }
+  ],
+  nodes: [
+    {
+      id: 'genesis_block',
+      label: 'Genesis Block #0',
+      type: 'genesis',
+      val: 24,
+      color: '#6366F1',
+      details: {
+        hash: '0x0000000003E2_GENESIS_8b1f9c8d19a273ff3a970eabc871f30129bcfe3a69a8e',
+        height: 0,
+        timestamp: '2026-05-28T08:00:00Z',
+        desc: 'The original root of ordering of AetherOS. Immutable seed state.',
+      }
+    },
+    ...INITIAL_VALIDATORS.map(val => ({
+      id: val.id,
+      label: val.label,
+      type: 'validator' as const,
+      val: 18,
+      color: val.color,
+      details: {
+        desc: val.desc,
+        load: '2.4%',
+        resonance: '99.9%'
+      }
+    })),
+    {
+      id: 'block_40289',
+      label: 'Block #40289',
+      type: 'block',
+      val: 15,
+      color: '#A5B4FC',
+      details: {
+        hash: '0x84f93a92ee0bc8c9735d10a62c64e81ef23c501f6874ba9a79fa4362145b20',
+        height: 40289,
+        gas: '12 Gwei',
+        timestamp: '2026-05-28T08:15:20Z',
+        desc: 'Block finalized with zero consensus friction.'
+      }
+    },
+    {
+      id: 'block_40290',
+      label: 'Block #40290',
+      type: 'block',
+      val: 15,
+      color: '#818CF8',
+      details: {
+        hash: '0xbc8481ff23bca398321098eac871fa01ebd23cde7bc4f78310ba2dcfef8324',
+        height: 40290,
+        gas: '15 Gwei',
+        timestamp: '2026-05-28T08:24:55Z',
+        desc: 'Unified chain block inheriting previous state dependencies.'
+      }
+    },
+    { id: 'addr_central', label: 'Aether Central Vault', type: 'wallet', val: 12, color: '#EC4899', details: { desc: 'Platform liquidity & system gas reserves vault' } },
+    { id: 'addr_user', label: 'User Wallet', type: 'wallet', val: 12, color: '#10B981', details: { desc: 'Active developer/administrator terminal address' } },
+    {
+      id: 'tx_genesis_mint',
+      label: 'Mint Token #1518',
+      type: 'transaction',
+      val: 8,
+      color: '#EC4899',
+      details: {
+        hash: '0xbd29abce271e8432a9e871eab0cda39ff9139a03e1e23f6e1f0e1fcfec81a0b',
+        amount: '5,000 AETH',
+        sender: 'genesis_block',
+        recipient: 'addr_central',
+        signature: 'ConductionAuthority://Maestrov5'
+      }
+    }
+  ],
+  links: [
+    { id: 'seq_1', source: 'genesis_block', target: 'block_40289', type: 'chain', value: 1.5 },
+    { id: 'seq_2', source: 'block_40289', target: 'block_40290', type: 'chain', value: 1.5 },
+    { id: 'cr_1', source: 'v_sovereign', target: 'genesis_block', type: 'resonance', value: 1.0 },
+    { id: 'cr_2', source: 'v_maestro', target: 'genesis_block', type: 'resonance', value: 1.0 },
+    { id: 'val_1', source: 'v_sovereign', target: 'block_40290', type: 'validation', value: 1.0 },
+    { id: 'val_2', source: 'v_swift', target: 'block_40290', type: 'validation', value: 1.0 },
+    { id: 'val_3', source: 'v_oracle', target: 'block_40290', type: 'validation', value: 1.0 },
+    { id: 'val_4', source: 'v_weaver', target: 'block_40290', type: 'validation', value: 1.0 },
+    { id: 'val_5', source: 'v_opensource', target: 'block_40290', type: 'validation', value: 1.0 },
+    { id: 'val_6', source: 'v_maestro', target: 'block_40290', type: 'validation', value: 1.0 },
+    { id: 'vault_bind', source: 'addr_central', target: 'genesis_block', type: 'resonance', value: 0.8 },
+    { id: 'user_bind', source: 'addr_user', target: 'block_40290', type: 'resonance', value: 0.8 },
+    { id: 'tx_link_s', source: 'genesis_block', target: 'tx_genesis_mint', type: 'transfer', value: 0.8 },
+    { id: 'tx_link_t', source: 'tx_genesis_mint', target: 'addr_central', type: 'transfer', value: 0.8 }
+  ],
+  ticks: generateInitialTicks(40291)
+};
+
+let isComponentMounted = false;
+
+// Continuous background block production for Quantum Ledger View
+setInterval(() => {
+  if (isComponentMounted) return;
+  if (!cachedLedgerState.autoEmit) return;
+
+  const eventChance = Math.random();
+  if (eventChance > 0.7) {
+    const newBlockNum = cachedLedgerState.blockHeight + 1;
+    cachedLedgerState.blockHeight = newBlockNum;
+
+    const timestamp = new Date().toISOString();
+    const blockId = `block_${newBlockNum}`;
+    const newBlockLabel = `Block #${newBlockNum}`;
+
+    const blockNode: LedgerNode = {
+      id: blockId,
+      label: newBlockLabel,
+      type: 'block',
+      val: 15,
+      color: '#818CF8',
+      details: {
+        hash: '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
+        height: newBlockNum,
+        gas: `${Math.floor(Math.random() * 8) + 12} Gwei`,
+        timestamp,
+        desc: `Dynamic block produced via background fast-conduction consensus.`
+      }
+    };
+
+    const randomValidator = INITIAL_VALIDATORS[Math.floor(Math.random() * INITIAL_VALIDATORS.length)];
+
+    const updatedNodes = [...cachedLedgerState.nodes];
+    const activeBlocks = updatedNodes.filter(n => n.type === 'block').length;
+    if (activeBlocks > 6) {
+      const oldestIndex = updatedNodes.findIndex(n => n.type === 'block' && n.id !== 'block_40289' && n.id !== 'block_40290');
+      if (oldestIndex !== -1) {
+        const prunedId = updatedNodes[oldestIndex].id;
+        updatedNodes.splice(oldestIndex, 1);
+        cachedLedgerState.links = cachedLedgerState.links.filter(l => l.source !== prunedId && l.target !== prunedId);
+      }
+    }
+    updatedNodes.push(blockNode);
+    cachedLedgerState.nodes = updatedNodes;
+
+    const blockKeys = updatedNodes.filter(n => n.type === 'block').map(n => n.id);
+    const lastIndexId = blockKeys[blockKeys.length - 2] || 'block_40290';
+
+    cachedLedgerState.links.push({
+      id: `seq_${newBlockNum}`,
+      source: lastIndexId,
+      target: blockId,
+      type: 'chain',
+      value: 1.5
+    });
+
+    cachedLedgerState.links.push({
+      id: `val_${randomValidator.id}_${newBlockNum}`,
+      source: randomValidator.id,
+      target: blockId,
+      type: 'validation',
+      value: 1.0
+    });
+
+    const fineHash = blockNode.details.hash?.slice(0, 8);
+    const logId = String(Date.now());
+    const timeStr = new Date().toLocaleTimeString();
+
+    cachedLedgerState.logs = [
+      { id: logId, text: `Block #${newBlockNum} produced in background. Hash: 0x${fineHash}... Validator: ${randomValidator.label}`, time: timeStr, type: 'success' },
+      ...cachedLedgerState.logs.slice(0, 15)
+    ];
+
+    const volumeDelta = Math.floor(Math.random() * 120) + 10;
+    cachedLedgerState.totalVolume += volumeDelta;
+    cachedLedgerState.consensusRate = Math.min(100, Math.max(98, cachedLedgerState.consensusRate + (Math.random() - 0.5) * 0.1));
+    cachedLedgerState.gasPrice = Math.max(10, Math.min(60, cachedLedgerState.gasPrice + (Math.random() - 0.5 > 0 ? 1 : -1)));
+
+    if (!cachedLedgerState.ticks) {
+      cachedLedgerState.ticks = [];
+    }
+    cachedLedgerState.ticks.push({
+      blockHeight: newBlockNum,
+      timestamp,
+      gasPrice: cachedLedgerState.gasPrice,
+      consensusRate: cachedLedgerState.consensusRate,
+      volumeDelta,
+      totalVolume: cachedLedgerState.totalVolume
+    });
+    if (cachedLedgerState.ticks.length > 100) {
+      cachedLedgerState.ticks.shift();
+    }
+  }
+}, 3000);
 
 export const QuantumLedgerView: React.FC = () => {
+  useEffect(() => {
+    isComponentMounted = true;
+    return () => {
+      isComponentMounted = false;
+    };
+  }, []);
   // Container & SVG References
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -83,6 +325,15 @@ export const QuantumLedgerView: React.FC = () => {
   const [selectedNode, setSelectedNode] = useState<LedgerNode | null>(() => cachedLedgerState?.selectedNode ?? null);
   const [hoveredNode, setHoveredNode] = useState<LedgerNode | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  
+  const [activeTab, setActiveTab] = useState<'GRAPH' | 'DASHBOARD'>('GRAPH');
+  const [ticks, setTicks] = useState<QuantumTick[]>(() => cachedLedgerState?.ticks ?? []);
+
+  useEffect(() => {
+    if (cachedLedgerState?.ticks) {
+      setTicks([...cachedLedgerState.ticks]);
+    }
+  }, []);
   
   // Real-time telemetry states
   const [blockHeight, setBlockHeight] = useState<number>(() => cachedLedgerState?.blockHeight ?? 40291);
@@ -244,9 +495,10 @@ export const QuantumLedgerView: React.FC = () => {
           source: getID(l.source),
           target: getID(l.target)
         };
-      })
+      }),
+      ticks
     };
-  }, [chargeStrength, linkDistance, gravityStrength, autoEmit, particleFlow, simulationSpeed, selectedNode, blockHeight, totalVolume, gasPrice, consensusRate, collapseCount, logs, nodes, links]);
+  }, [chargeStrength, linkDistance, gravityStrength, autoEmit, particleFlow, simulationSpeed, selectedNode, blockHeight, totalVolume, gasPrice, consensusRate, collapseCount, logs, nodes, links, ticks]);
 
   // Keep elements mapped as filters
   const filteredNodes = useMemo(() => {
@@ -640,9 +892,32 @@ export const QuantumLedgerView: React.FC = () => {
         ]);
 
         // Dynamically vary telemetry metrics slightly
-        setTotalVolume(prev => prev + Math.floor(Math.random() * 120) + 10);
-        setConsensusRate(prev => Math.min(100, Math.max(98, prev + (Math.random() - 0.5) * 0.1)));
-        setGasPrice(prev => Math.max(10, Math.min(60, prev + (Math.random() - 0.5) > 0 ? 1 : -1)));
+        const volumeDelta = Math.floor(Math.random() * 120) + 10;
+        setTotalVolume(prev => {
+          const nextVal = prev + volumeDelta;
+          setConsensusRate(pCons => {
+            const nextCons = Math.min(100, Math.max(98, pCons + (Math.random() - 0.5) * 0.1));
+            setGasPrice(pGas => {
+              const nextGas = Math.max(10, Math.min(60, pGas + (Math.random() - 0.5) > 0 ? 1 : -1));
+              
+              setTicks(pTicks => {
+                const nextTicks = [...pTicks, {
+                  blockHeight: newBlockNum,
+                  timestamp,
+                  gasPrice: nextGas,
+                  consensusRate: nextCons,
+                  volumeDelta,
+                  totalVolume: nextVal
+                }].slice(-100);
+                return nextTicks;
+              });
+
+              return nextGas;
+            });
+            return nextCons;
+          });
+          return nextVal;
+        });
 
       } else {
         // 2. Spawn a transaction flow node connected from/to temporary wallet addresses!
@@ -1022,8 +1297,34 @@ export const QuantumLedgerView: React.FC = () => {
         {/* Central Force Graph Canvas Workspace */}
         <div className="flex-1 bg-[#020204] relative flex flex-col min-w-0" ref={containerRef}>
           {/* Legend indicator badges */}
-          <div className="absolute top-4 left-4 z-10 flex flex-wrap gap-2 pointer-events-none">
-            {[
+          <div className="absolute top-4 left-4 z-10 flex flex-wrap gap-2 pointer-events-auto">
+            {/* Tab switchers */}
+            <div className="flex bg-black/80 border border-zinc-800 rounded-lg p-0.5 mr-2 backdrop-blur-sm pointer-events-auto">
+              <button
+                onClick={() => setActiveTab('GRAPH')}
+                className={`px-3 py-1 text-[8px] font-black uppercase tracking-wider rounded ${
+                  activeTab === 'GRAPH'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+                id="active_tab_graph_btn"
+              >
+                Interactive Manifold
+              </button>
+              <button
+                onClick={() => setActiveTab('DASHBOARD')}
+                className={`px-3 py-1 text-[8px] font-black uppercase tracking-wider rounded ${
+                  activeTab === 'DASHBOARD'
+                    ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+                id="active_tab_dashboard_btn"
+              >
+                Telemetry Dashboard
+              </button>
+            </div>
+
+            {activeTab === 'GRAPH' && [
               { label: 'Genesis Block', color: 'bg-indigo-500' },
               { label: 'Validator Seat', color: 'bg-red-500' },
               { label: 'Chain Block', color: 'bg-blue-400' },
@@ -1040,16 +1341,22 @@ export const QuantumLedgerView: React.FC = () => {
           <div className="absolute top-4 right-4 z-10">
             <div className="px-3 py-1 bg-black/80 border border-zinc-900 rounded-lg text-[8.5px] font-black text-emerald-400 uppercase tracking-[0.2em] flex items-center gap-1.5 backdrop-blur-sm">
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
-              TOPOLOGY SPACE STABLE
+              {activeTab === 'GRAPH' ? 'TOPOLOGY SPACE STABLE' : 'TELEMETRY PULSE STABLE'}
             </div>
           </div>
 
-          {/* D3 canvas SVG */}
-          <svg 
-            ref={svgRef} 
-            className="w-full h-full"
-            style={{ minHeight: '400px' }}
-          />
+          {/* D3 canvas SVG / Dashboard */}
+          {activeTab === 'GRAPH' ? (
+            <svg 
+              ref={svgRef} 
+              className="w-full h-full"
+              style={{ minHeight: '400px' }}
+            />
+          ) : (
+            <div className="flex-1 min-h-[400px] w-full pt-16">
+              <QuantumLedgerDashboard />
+            </div>
+          )}
 
           {/* Overlay state indicator for hovered nodes */}
           <AnimatePresence>

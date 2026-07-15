@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { useAuth } from '../contexts/AuthContext';
+import { subscriptionsDb } from '../services/subscriptionsDb';
 import { 
   FileCode2, 
   Users2, 
@@ -16,6 +18,7 @@ import {
   Plus, 
   X,
   Lock,
+  Wallet,
   ChevronRight,
   MonitorPlay
 } from 'lucide-react';
@@ -43,6 +46,19 @@ interface ChatMessage {
 }
 
 export const CollaborativeEditorView: React.FC = () => {
+  const { user } = useAuth();
+  const [sub, setSub] = useState<any>(null);
+  const subRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    const unsub = subscriptionsDb.subscribeToStatus(user.uid, (data) => {
+      setSub(data);
+      subRef.current = data;
+    });
+    return () => unsub();
+  }, [user]);
+
   const [files, setFiles] = useState<Record<string, string>>({});
   const [activeFile, setActiveFile] = useState<string>("App.tsx");
   const [presence, setPresence] = useState<UserPresence[]>([]);
@@ -64,7 +80,13 @@ export const CollaborativeEditorView: React.FC = () => {
 
   const editorRef = useRef<HTMLTextAreaElement>(null);
 
-  // Load username from safeStorage
+  // Pay-to-Code state
+  const [shards, setShards] = useState<number>(99999);
+  const [cphBalance, setCphBalance] = useState<number>(1300);
+  const [isLicensed, setIsLicensed] = useState<boolean>(false);
+  const [licenseSecondsLeft, setLicenseSecondsLeft] = useState<number>(0);
+
+  // Load username, shards, CPH, and active lease from safeStorage and localStorage
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -80,7 +102,157 @@ export const CollaborativeEditorView: React.FC = () => {
       }
     };
     fetchProfile();
+
+    // Load Shards
+    const loadShards = async () => {
+      try {
+        const stored = await safeStorage.getItem('aetheros_conjunction_progress');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (typeof parsed.shards === 'number') {
+            setShards(parsed.shards);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load shards", err);
+      }
+    };
+
+    // Load CPH
+    const loadCph = () => {
+      try {
+        const stored = localStorage.getItem('aetheros_resource_reserve');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (typeof parsed.totalBackedCPH === 'number') {
+            setCphBalance(parsed.totalBackedCPH);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load CPH", err);
+      }
+    };
+
+    // Check lease
+    const checkLease = () => {
+      try {
+        if (subRef.current && subRef.current.status === 'active') {
+          setIsLicensed(true);
+          setLicenseSecondsLeft(86400);
+          return;
+        }
+        const leaseStr = localStorage.getItem('aetheros_editor_lease');
+        if (leaseStr) {
+          const lease = JSON.parse(leaseStr);
+          const expiresAt = lease.expiresAt;
+          const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+          if (remaining > 0) {
+            setIsLicensed(true);
+            setLicenseSecondsLeft(remaining);
+          } else {
+            setIsLicensed(false);
+            setLicenseSecondsLeft(0);
+          }
+        } else {
+          setIsLicensed(false);
+          setLicenseSecondsLeft(0);
+        }
+      } catch (err) {
+        console.error("Failed to load lease", err);
+      }
+    };
+
+    loadShards();
+    loadCph();
+    checkLease();
+
+    const interval = setInterval(() => {
+      checkLease();
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, []);
+
+  const handlePurchaseLease = async (method: 'shards' | 'cph') => {
+    if (method === 'shards') {
+      const cost = 50;
+      if (shards < cost) {
+        toast.error("Insufficient Cosmic Shards in your junction reserve!");
+        return;
+      }
+      try {
+        // 1. Deduct Shards
+        const stored = await safeStorage.getItem('aetheros_conjunction_progress');
+        let parsed = stored ? JSON.parse(stored) : { shards: 99999, level: 5 };
+        parsed.shards = Math.max(0, parsed.shards - cost);
+        await safeStorage.setItem('aetheros_conjunction_progress', JSON.stringify(parsed));
+        setShards(parsed.shards);
+
+        // 2. Set Lease (10 minutes = 600s)
+        const expiresAt = Date.now() + 600 * 1000;
+        localStorage.setItem('aetheros_editor_lease', JSON.stringify({ expiresAt }));
+        setIsLicensed(true);
+        setLicenseSecondsLeft(600);
+
+        // Broadcast chat notification
+        await fetch("/api/collaboration/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: "System-Gate",
+            text: `[RESTRICTION OVERRIDE] Operator-You authorized automatic transaction fee of 50 Cosmic Shards. Codespace licensed for 10 minutes.`
+          })
+        });
+
+        toast.success("DEV LICENSE GRANTED", {
+          description: "Authorized automatic transaction fee of 50 Cosmic Shards. Pipeline open."
+        });
+      } catch (err) {
+        toast.error("Failed to authorize cosmic lease.");
+      }
+    } else {
+      const cost = 100;
+      if (cphBalance < cost) {
+        toast.error("Insufficient Physical Assets (CPH) in your real money reserve!");
+        return;
+      }
+      try {
+        // 1. Deduct CPH via RealMoneySystem consumption
+        const storedRes = localStorage.getItem('aetheros_resource_reserve');
+        if (storedRes) {
+          const reserve = JSON.parse(storedRes);
+          reserve.totalBackedCPH = Math.max(0, reserve.totalBackedCPH - cost);
+          reserve.cphInStorage = Math.max(0, reserve.cphInStorage - cost);
+          reserve.resourcesConsumedCPH += cost;
+          reserve.netResourceBalance = reserve.totalBackedCPH;
+          localStorage.setItem('aetheros_resource_reserve', JSON.stringify(reserve));
+          setCphBalance(reserve.totalBackedCPH);
+        }
+
+        // 2. Set Lease (10 minutes = 600s)
+        const expiresAt = Date.now() + 600 * 1000;
+        localStorage.setItem('aetheros_editor_lease', JSON.stringify({ expiresAt }));
+        setIsLicensed(true);
+        setLicenseSecondsLeft(600);
+
+        // Broadcast chat notification
+        await fetch("/api/collaboration/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: "System-Gate",
+            text: `[RESTRICTION OVERRIDE] Operator-You authorized automatic transaction fee of 100 CPH. Codespace licensed for 10 minutes.`
+          })
+        });
+
+        toast.success("DEV LICENSE GRANTED", {
+          description: "Authorized automatic transaction fee of 100 CPH from resource reserves. Pipeline open."
+        });
+      } catch (err) {
+        toast.error("Failed to authorize asset lease.");
+      }
+    }
+  };
 
   // Fetch all data from server (files, presence, chat)
   const fetchData = async () => {
@@ -556,10 +728,19 @@ export const CollaborativeEditorView: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-4">
+              {isLicensed ? (
+                <span className="text-emerald-400 font-bold font-mono animate-pulse bg-emerald-950/20 px-2 py-0.5 rounded border border-emerald-500/30">
+                  DEVELOPER LICENSE ACTIVE ({Math.floor(licenseSecondsLeft / 60)}:{(licenseSecondsLeft % 60).toString().padStart(2, '0')})
+                </span>
+              ) : (
+                <span className="text-red-400 font-bold font-mono bg-red-950/20 px-2 py-0.5 rounded border border-red-500/30">
+                  DEVELOPER LICENSE SUSPENDED
+                </span>
+              )}
               <span>LINE: {cursorLine} // CHAR: {cursorChar}</span>
               <button
                 onClick={handleRunCode}
-                disabled={isRunningCode}
+                disabled={isRunningCode || !isLicensed}
                 className="px-3.5 py-1 bg-purple-650 hover:bg-purple-550 disabled:bg-zinc-800 text-white uppercase font-black tracking-wider rounded-lg transition-all flex items-center gap-1 cursor-pointer border border-purple-400/20"
               >
                 <Play className="w-3 h-3 text-white shrink-0" />
@@ -589,11 +770,60 @@ export const CollaborativeEditorView: React.FC = () => {
                 onKeyUp={handleEditorActivity}
                 onSelect={handleEditorActivity}
                 onClick={handleEditorActivity}
-                className="w-full h-full bg-transparent text-zinc-300 px-4 py-4 focus:outline-none resize-none font-mono text-xs leading-[18px] relative z-10 custom-scrollbar select-text whitespace-pre overflow-auto"
+                className={`w-full h-full bg-transparent text-zinc-300 px-4 py-4 focus:outline-none resize-none font-mono text-xs leading-[18px] relative z-10 custom-scrollbar select-text whitespace-pre overflow-auto ${!isLicensed ? 'filter blur-sm select-none pointer-events-none' : ''}`}
                 style={{ tabSize: 2 }}
                 placeholder="// Start writing high-integrity collaborative parameters..."
                 id="main_collab_textarea"
+                disabled={!isLicensed}
               />
+
+              {!isLicensed && (
+                <div className="absolute inset-0 bg-[#020205]/95 backdrop-blur-md z-25 flex flex-col items-center justify-center p-6 text-center">
+                  <div className="p-4 rounded-full bg-red-500/10 border border-red-500/25 text-red-500 mb-4 shadow-[0_0_20px_rgba(239,68,68,0.15)] animate-pulse">
+                    <Lock className="w-8 h-8" />
+                  </div>
+                  <h3 className="font-sans font-black text-white text-base tracking-[0.15em] uppercase mb-2">CODESPACE INTERCEPT: PAY-TO-CODE ACTIVE</h3>
+                  <p className="text-zinc-400 text-xs max-w-md leading-relaxed mb-6">
+                    AetherOS security frameworks require a verifiable real-money or cosmic resource lease to engage developer tool compiles. Any modifications to source lattices must be authorized automatically.
+                  </p>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg w-full">
+                    <button
+                      onClick={() => handlePurchaseLease('cph')}
+                      className="p-4 rounded-xl bg-sky-950/20 hover:bg-sky-900/30 border border-sky-500/30 hover:border-sky-400 text-left transition-all active:scale-[0.98] cursor-pointer"
+                    >
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[10px] font-mono text-sky-400 uppercase font-black tracking-widest">Option A</span>
+                        <Wallet className="w-4 h-4 text-sky-400" />
+                      </div>
+                      <h4 className="text-xs font-bold text-white mb-1 uppercase">CPH Liquidity</h4>
+                      <p className="text-[10px] text-zinc-400 leading-normal mb-3">Consume 100 CPH from your Physical Resource Reserve. Active for 10 min.</p>
+                      <div className="text-xs font-mono font-bold text-sky-400 uppercase">
+                        Cost: 100 CPH (Bal: {cphBalance} CPH)
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => handlePurchaseLease('shards')}
+                      className="p-4 rounded-xl bg-purple-950/20 hover:bg-purple-900/30 border border-purple-500/30 hover:border-purple-400 text-left transition-all active:scale-[0.98] cursor-pointer"
+                    >
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[10px] font-mono text-purple-400 uppercase font-black tracking-widest">Option B</span>
+                        <Sparkles className="w-4 h-4 text-purple-400" />
+                      </div>
+                      <h4 className="text-xs font-bold text-white mb-1 uppercase">Cosmic Shards</h4>
+                      <p className="text-[10px] text-zinc-400 leading-normal mb-3">Exchange 50 Cosmic Shards from your Aether Conjunction. Active for 10 min.</p>
+                      <div className="text-xs font-mono font-bold text-purple-400 uppercase">
+                        Cost: 50 Shards (Bal: {shards} Shards)
+                      </div>
+                    </button>
+                  </div>
+
+                  <p className="text-[9px] font-mono text-red-400 mt-6 uppercase tracking-widest">
+                    // STRICT FAILSAFE IN PLACE. CODE COMPILATION WILL ABORT WITHOUT LEASE.
+                  </p>
+                </div>
+              )}
 
               {/* Cursor Presence overlays inside text box */}
               <div className="absolute inset-x-0 inset-y-0 pointer-events-none select-none z-0">

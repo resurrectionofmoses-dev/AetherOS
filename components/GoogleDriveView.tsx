@@ -3,10 +3,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { googleDriveService, GoogleDriveFile } from '../services/googleDriveService';
 import { googleSignIn, googleSignOut, getAccessToken } from '../services/firebaseAuthService';
 import { callAIProxy } from '../services/geminiService';
+import { sovereignFileLockService, SovereignFileLock } from '../services/sovereignFileLockService';
 import { 
     HardDrive, Folder, File, FileText, Image, Trash2, Search, Shield, 
     Activity, Sparkles, RefreshCw, UploadCloud, FolderPlus, ExternalLink, 
-    AlertCircle, CheckCircle2, Info, Terminal, FileSpreadsheet, Eye, X, HelpCircle
+    AlertCircle, CheckCircle2, Info, Terminal, FileSpreadsheet, Eye, X, HelpCircle,
+    Lock, Unlock
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -55,6 +57,16 @@ export const GoogleDriveView: React.FC<GoogleDriveViewProps> = ({
     // Deletion Modal
     const [fileToDelete, setFileToDelete] = useState<GoogleDriveFile | null>(null);
     const [isDeleting, setIsDeleting] = useState<boolean>(false);
+    const [deletionPhrase, setDeletionPhrase] = useState<string>('');
+    const [selectedScriptureReconciliation, setSelectedScriptureReconciliation] = useState<string>('');
+
+    // Sovereign File Locks State (Psalm 121:7)
+    const [fileLocks, setFileLocks] = useState<SovereignFileLock[]>([]);
+    const [lockPassphrase, setLockPassphrase] = useState<string>('');
+    const [unlockPassphrase, setUnlockPassphrase] = useState<string>('');
+    const [lockOperator, setLockOperator] = useState<string>('');
+    const [isLockingInProgress, setIsLockingInProgress] = useState<boolean>(false);
+    const [isUnlockingInProgress, setIsUnlockingInProgress] = useState<boolean>(false);
 
     // System Sync/Backup
     const [isBackingUp, setIsBackingUp] = useState<boolean>(false);
@@ -154,6 +166,68 @@ export const GoogleDriveView: React.FC<GoogleDriveViewProps> = ({
         return terms.join(' and ');
     };
 
+    // Fetch File Locks from Firestore (Psalm 121:8)
+    const fetchFileLocks = useCallback(async () => {
+        try {
+            const locks = await sovereignFileLockService.getFileLocks();
+            setFileLocks(locks);
+        } catch (e) {
+            console.error('[GoogleDriveView] Failed to retrieve Sovereign File Locks:', e);
+        }
+    }, []);
+
+    // Lock file handler (Psalm 91:4)
+    const handleLockFile = async (file: GoogleDriveFile) => {
+        if (!lockPassphrase.trim()) {
+            toast.error("A clean, deliberate lock phrase is required to seal this file.");
+            return;
+        }
+        setIsLockingInProgress(true);
+        try {
+            const operator = lockOperator.trim() || userProfile?.email || 'Anonymous Operator';
+            await sovereignFileLockService.lockFile(file.id, file.name, operator, lockPassphrase);
+            toast.success(`Sovereign Lock established over node: ${file.name}`, {
+                description: "Under Psalm 91:4, the record is sealed as undeletable."
+            });
+            if (onAddLog) onAddLog(`Activated Sovereign File Lock on node "${file.name}" (ID: ${file.id}) locked by ${operator}.`);
+            setLockPassphrase('');
+            setLockOperator('');
+            await fetchFileLocks();
+        } catch (e: any) {
+            toast.error(`Lock assertion failed: ${e.message}`);
+        } finally {
+            setIsLockingInProgress(false);
+        }
+    };
+
+    // Unlock file handler (John 8:32)
+    const handleUnlockFile = async (file: GoogleDriveFile) => {
+        if (!unlockPassphrase.trim()) {
+            toast.error("An authorized passphrase is required to release this file.");
+            return;
+        }
+        setIsUnlockingInProgress(true);
+        try {
+            const res = await sovereignFileLockService.unlockFile(file.id, unlockPassphrase);
+            if (res.success) {
+                toast.success(`Sovereign Lock broke successfully!`, {
+                    description: res.message
+                });
+                if (onAddLog) onAddLog(`Deactivated Sovereign File Lock on node "${file.name}" in grace.`);
+                setUnlockPassphrase('');
+                await fetchFileLocks();
+            } else {
+                toast.error("Authorization Failed", {
+                    description: res.message
+                });
+            }
+        } catch (e: any) {
+            toast.error(`Unlock execution failed: ${e.message}`);
+        } finally {
+            setIsUnlockingInProgress(false);
+        }
+    };
+
     // Fetch Files from Google Drive
     const fetchFiles = async () => {
         setIsRefreshing(true);
@@ -161,6 +235,7 @@ export const GoogleDriveView: React.FC<GoogleDriveViewProps> = ({
             const q = getQueryForCategory(activeCategory, searchQuery);
             const fileList = await googleDriveService.listFiles(35, q);
             setFiles(fileList);
+            await fetchFileLocks();
         } catch (err: any) {
             console.error('[GoogleDriveView] Error fetching files:', err);
             toast.error('Failed to fetch file directory', {
@@ -317,17 +392,55 @@ export const GoogleDriveView: React.FC<GoogleDriveViewProps> = ({
     const handleTrashFile = async () => {
         if (!fileToDelete) return;
 
+        // Check Sovereign File Lock constraints (Isaiah 43:25 / Colossians 2:14)
+        const activeLock = fileLocks.find(l => l.id === fileToDelete.id);
+        if (activeLock) {
+            if (!unlockPassphrase.trim()) {
+                toast.error('Gate Interruption: This file is Sovereignly Locked!', {
+                    description: 'Please input the secure unlock passphrase in Step 3 to authorize removal.'
+                });
+                return;
+            }
+            // Attempt to break the seal
+            const unlockRes = await sovereignFileLockService.unlockFile(fileToDelete.id, unlockPassphrase);
+            if (!unlockRes.success) {
+                toast.error('Unlock Failed', {
+                    description: unlockRes.message
+                });
+                return;
+            }
+            if (onAddLog) onAddLog(`Sovereign Lock on "${fileToDelete.name}" unlocked during purge protocol.`);
+        }
+
+        // Harden deletion checks
+        if (deletionPhrase !== 'I authorize the deletion of this record') {
+            toast.error('Gate Interruption: Incorrect authorization phrase', {
+                description: 'You must type the phrase exactly: "I authorize the deletion of this record"'
+            });
+            return;
+        }
+
+        if (!selectedScriptureReconciliation) {
+            toast.error('Gate Interruption: Missing scripture passage', {
+                description: 'You must select a scripture reconciliation passage to forgive and release the record.'
+            });
+            return;
+        }
+
         setIsDeleting(true);
         try {
             await googleDriveService.trashFile(fileToDelete.id);
             toast.success(`Node moved to Google Drive Trash: ${fileToDelete.name}`);
-            if (onAddLog) onAddLog(`Moved external Google Drive file node (${fileToDelete.name}) to Drive Trash.`);
+            if (onAddLog) onAddLog(`Moved external Google Drive file node (${fileToDelete.name}) to Drive Trash under scriptural reconciliation.`);
             
             if (selectedFile?.id === fileToDelete.id) {
                 setSelectedFile(null);
                 setSelectedFileContent('');
             }
             setFileToDelete(null);
+            setDeletionPhrase('');
+            setSelectedScriptureReconciliation('');
+            setUnlockPassphrase('');
             fetchFiles();
         } catch (err: any) {
             toast.error('Failed to trash file', {
@@ -688,6 +801,8 @@ export const GoogleDriveView: React.FC<GoogleDriveViewProps> = ({
                                 {files.map(file => {
                                     const isBackup = file.name.includes('aetheros-backup');
                                     const isSelected = selectedFile?.id === file.id;
+                                    const lockRecord = fileLocks.find(l => l.id === file.id);
+                                    const isLocked = !!lockRecord;
 
                                     return (
                                         <div
@@ -696,6 +811,8 @@ export const GoogleDriveView: React.FC<GoogleDriveViewProps> = ({
                                             className={`p-3 bg-slate-900/40 hover:bg-black/80 rounded-xl transition-all border flex flex-col justify-between h-32 relative cursor-pointer group ${
                                                 isSelected 
                                                 ? 'border-cyan-500 bg-cyan-950/10 shadow-[0_0_10px_rgba(6,182,212,0.1)]' 
+                                                : isLocked
+                                                ? 'border-red-500/40 bg-red-950/5 hover:border-red-500/80 shadow-[0_0_8px_rgba(239,68,68,0.05)]'
                                                 : 'border-slate-850 hover:border-slate-750'
                                             }`}
                                         >
@@ -714,6 +831,12 @@ export const GoogleDriveView: React.FC<GoogleDriveViewProps> = ({
                                                     {isBackup && (
                                                         <span className="text-[7px] font-black text-amber-500 bg-amber-950/60 border border-amber-800/40 px-1.5 py-0.5 rounded font-mono shrink-0 uppercase tracking-tight animate-pulse">
                                                             System Backup
+                                                        </span>
+                                                    )}
+
+                                                    {isLocked && (
+                                                        <span className="text-[7px] font-black text-red-400 bg-red-950/80 border border-red-500/30 px-1.5 py-0.5 rounded font-mono shrink-0 uppercase tracking-tight flex items-center gap-1 shadow-[0_0_6px_rgba(239,68,68,0.2)] animate-pulse">
+                                                            <Lock className="w-2 h-2 text-red-400" /> Locked
                                                         </span>
                                                     )}
                                                 </div>
@@ -761,10 +884,14 @@ export const GoogleDriveView: React.FC<GoogleDriveViewProps> = ({
                                                 )}
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); setFileToDelete(file); }}
-                                                    title="Trash Node"
-                                                    className="p-1 bg-black/80 hover:bg-red-950 rounded border border-slate-800 hover:border-red-500 text-zinc-400 hover:text-red-400 transition-all cursor-pointer"
+                                                    title={isLocked ? "Sovereign Locked: Delete Protected" : "Trash Node"}
+                                                    className={`p-1 bg-black/80 rounded border transition-all cursor-pointer ${
+                                                        isLocked 
+                                                        ? 'hover:bg-red-950/80 border-red-500/40 hover:border-red-500 text-red-400' 
+                                                        : 'hover:bg-red-950 border-slate-800 hover:border-red-500 text-zinc-400 hover:text-red-400'
+                                                    }`}
                                                 >
-                                                    <Trash2 className="w-3 h-3" />
+                                                    {isLocked ? <Lock className="w-3 h-3 text-red-400" /> : <Trash2 className="w-3 h-3" />}
                                                 </button>
                                             </div>
                                         </div>
@@ -856,6 +983,90 @@ export const GoogleDriveView: React.FC<GoogleDriveViewProps> = ({
                                     </div>
                                 )}
 
+                                {/* SOVEREIGN FILE LOCK INTERFACE */}
+                                <div className="pt-3 border-t border-slate-900 space-y-3">
+                                    {(() => {
+                                        const lock = fileLocks.find(l => l.id === selectedFile.id);
+                                        if (lock) {
+                                            return (
+                                                <div className="bg-red-950/20 border border-red-500/40 rounded-xl p-3 space-y-2.5">
+                                                    <div className="flex items-center gap-2 text-red-400">
+                                                        <Lock className="w-4 h-4 animate-pulse text-red-500" />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest font-mono">Sovereign Lock Active</span>
+                                                    </div>
+                                                    <div className="text-[10px] text-zinc-300 font-mono space-y-1">
+                                                        <p><span className="text-zinc-500">SEALED BY:</span> {lock.lockedBy}</p>
+                                                        <p><span className="text-zinc-500">TIMESTAMP:</span> {new Date(lock.lockedAt).toLocaleString()}</p>
+                                                        <p className="text-[9px] text-red-400/80 italic pt-0.5 leading-tight">
+                                                            "He shall deliver thee... from the noisome pestilence." (Psalm 91:3). This file is anchored in Firestore as undeletable.
+                                                        </p>
+                                                    </div>
+                                                    <div className="space-y-1.5 pt-1 border-t border-red-900/20">
+                                                        <label className="text-[8px] font-mono text-zinc-400 uppercase tracking-wide">Enter Passphrase to Dissolve Seal</label>
+                                                        <div className="flex gap-2">
+                                                            <input
+                                                                type="password"
+                                                                placeholder="Unlock Passphrase..."
+                                                                value={unlockPassphrase}
+                                                                onChange={(e) => setUnlockPassphrase(e.target.value)}
+                                                                className="flex-1 bg-black/60 border border-red-900/40 focus:border-red-500/80 rounded px-2.5 py-1 text-xs text-white placeholder-zinc-700 font-mono focus:outline-none"
+                                                            />
+                                                            <button
+                                                                onClick={() => handleUnlockFile(selectedFile)}
+                                                                disabled={isUnlockingInProgress}
+                                                                className="px-3 bg-red-950/60 hover:bg-red-900 text-red-200 hover:text-white border border-red-500/50 text-[9px] font-black tracking-widest uppercase rounded transition-all cursor-pointer"
+                                                            >
+                                                                {isUnlockingInProgress ? 'RELEASING...' : 'UNLOCK'}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        } else {
+                                            return (
+                                                <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3 space-y-2.5">
+                                                    <div className="flex items-center gap-2 text-zinc-400">
+                                                        <Unlock className="w-4 h-4 text-zinc-500" />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest font-mono">Anchor Sovereign Lock</span>
+                                                    </div>
+                                                    <p className="text-[9px] text-zinc-500 italic leading-tight">
+                                                        Bind this file record in cloud Firestore to block deletions unless a custom, secure passphrase is provided.
+                                                    </p>
+                                                    <div className="space-y-2 text-[10px]">
+                                                        <div>
+                                                            <label className="text-[8px] font-mono text-zinc-500 uppercase block mb-0.5">Operator (Designation)</label>
+                                                            <input
+                                                                type="text"
+                                                                placeholder={userProfile?.email || "Operator Email..."}
+                                                                value={lockOperator}
+                                                                onChange={(e) => setLockOperator(e.target.value)}
+                                                                className="w-full bg-black/40 border border-slate-850 focus:border-zinc-700 rounded px-2 py-1 text-xs text-white placeholder-zinc-700 font-mono focus:outline-none uppercase"
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[8px] font-mono text-zinc-500 uppercase block mb-0.5">Secure Lock Passphrase</label>
+                                                            <input
+                                                                type="password"
+                                                                placeholder="Passphrase to lock file..."
+                                                                value={lockPassphrase}
+                                                                onChange={(e) => setLockPassphrase(e.target.value)}
+                                                                className="w-full bg-black/40 border border-slate-850 focus:border-zinc-700 rounded px-2 py-1 text-xs text-white placeholder-zinc-700 font-mono focus:outline-none"
+                                                            />
+                                                        </div>
+                                                        <button
+                                                            onClick={() => handleLockFile(selectedFile)}
+                                                            disabled={isLockingInProgress}
+                                                            className="w-full py-1.5 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-slate-800 text-[9px] font-black tracking-widest uppercase rounded transition-all cursor-pointer"
+                                                        >
+                                                            {isLockingInProgress ? 'ANCHORING...' : 'SEAL WITH SOVEREIGN LOCK'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
+                                    })()}
+                                </div>
+
                                 {/* AI FORENSIC SCAN CENTER */}
                                 <div className="pt-2 border-t border-slate-900 space-y-3">
                                     <div className="flex justify-between items-center">
@@ -921,24 +1132,24 @@ export const GoogleDriveView: React.FC<GoogleDriveViewProps> = ({
             {/* MANDATORY REMOVAL CONFIRMATION MODAL */}
             <AnimatePresence>
                 {fileToDelete && (
-                    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                         <motion.div 
                             initial={{ scale: 0.95, opacity: 0 }}
                             animate={{ scale: 1, opacity: 1 }}
                             exit={{ scale: 0.95, opacity: 0 }}
-                            className="bg-[#050508] border-2 border-red-500 max-w-md w-full rounded-2xl p-6 shadow-[0_0_30px_rgba(239,68,68,0.2)] space-y-4"
+                            className="bg-[#050508] border-2 border-red-550 max-w-md w-full rounded-2xl p-6 shadow-[0_0_35px_rgba(239,68,68,0.25)] space-y-4 animate-fadeIn"
                         >
                             <div className="flex items-center gap-3 text-red-500 border-b border-red-500/25 pb-3">
-                                <AlertCircle className="w-7 h-7" />
-                                <h3 className="text-sm font-black uppercase tracking-widest text-white">DESTRUCTIVE NODE OPERATION REQUIRED</h3>
+                                <AlertCircle className="w-7 h-7 animate-pulse" />
+                                <h3 className="text-sm font-black uppercase tracking-widest text-white">COVENANT SHIELD: PURGE BLOCKED</h3>
                             </div>
 
                             <p className="text-xs text-slate-300 leading-relaxed">
-                                You are requesting to move the following file node to the Google Drive Trash repository:
+                                Under active security constraints, file nodes are protected. They cannot be moved to trash **unless you explicitly say so** and record a scripture covenant reconciliation.
                             </p>
 
                             <div className="bg-black border border-red-500/20 p-3 rounded-lg flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded bg-red-950/20 border border-red-900/40 flex items-center justify-center text-red-400">
+                                <div className="w-8 h-8 rounded bg-red-950/20 border border-red-900/40 flex items-center justify-center text-red-400 shrink-0">
                                     {getFileIcon(fileToDelete.mimeType)}
                                 </div>
                                 <div className="min-w-0">
@@ -947,23 +1158,89 @@ export const GoogleDriveView: React.FC<GoogleDriveViewProps> = ({
                                 </div>
                             </div>
 
-                            <p className="text-[10px] text-zinc-500 leading-normal italic">
-                                Note: Moving nodes to the trash does not delete them permanently, but will purge them from current directory filters. This action must be explicitly authorized.
+                            {/* DELETION PROTOCOL STEPPERS */}
+                            <div className="space-y-3 pt-2 border-t border-slate-900">
+                                
+                                {/* Step 1: Explicit Authorization Phrase */}
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-mono text-red-400 uppercase tracking-wide font-black">
+                                        STEP 1: Verbal Authorization Statement
+                                    </label>
+                                    <p className="text-[9px] text-zinc-500 italic leading-tight mb-1">
+                                        Confirm authorization by typing exactly: "I authorize the deletion of this record"
+                                    </p>
+                                    <input
+                                        type="text"
+                                        placeholder="Type verification phrase..."
+                                        value={deletionPhrase}
+                                        onChange={(e) => setDeletionPhrase(e.target.value)}
+                                        className="w-full bg-slate-950 border border-slate-850 px-3 py-1.5 text-xs text-white placeholder-zinc-700 font-mono rounded-lg focus:outline-none focus:border-red-500"
+                                    />
+                                </div>
+
+                                {/* Step 2: Choose Scripture Reconciliation */}
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-mono text-red-400 uppercase tracking-wide font-black">
+                                        STEP 2: Scripture Reconciliation Seal
+                                    </label>
+                                    <p className="text-[9px] text-zinc-500 italic leading-tight mb-1">
+                                        Select the scripture passage that grants pardon to erase this historic record:
+                                    </p>
+                                    <select
+                                        value={selectedScriptureReconciliation}
+                                        onChange={(e) => setSelectedScriptureReconciliation(e.target.value)}
+                                        className="w-full bg-slate-950 border border-slate-850 px-3 py-1.5 text-xs text-zinc-300 font-mono rounded-lg focus:outline-none focus:border-red-500"
+                                    >
+                                        <option value="">-- Choose Scripture Reconciliation Passage --</option>
+                                        <option value="isaiah_43_25">Isaiah 43:25 — "I, even I, am he who blots out your transgressions..."</option>
+                                        <option value="micah_7_19">Micah 7:19 — "He will again have compassion on us; he will tread our iniquities..."</option>
+                                        <option value="colossians_2_14">Colossians 2:14 — "Having canceled the charge of our legal indebtedness..."</option>
+                                        <option value="psalm_103_12">Psalm 103:12 — "As far as the east is from the west..."</option>
+                                    </select>
+                                </div>
+
+                                {/* Step 3: Sovereign Lock Unlock Passphrase (Colossians 2:14) */}
+                                {fileLocks.some(l => l.id === fileToDelete.id) && (
+                                    <div className="space-y-1 p-2.5 bg-red-950/20 border border-red-550/30 rounded-lg">
+                                        <label className="text-[10px] font-mono text-red-400 uppercase tracking-wide font-black flex items-center gap-1.5">
+                                            <Lock className="w-3.5 h-3.5 text-red-400 animate-pulse" /> STEP 3: Dissolve Sovereign Lock
+                                        </label>
+                                        <p className="text-[9px] text-zinc-400 italic leading-tight mb-1">
+                                            This node is secured by a Sovereign Lock. You must input the lock passphrase to authorize its dissolution:
+                                        </p>
+                                        <input
+                                            type="password"
+                                            placeholder="Enter Lock Passphrase..."
+                                            value={unlockPassphrase}
+                                            onChange={(e) => setUnlockPassphrase(e.target.value)}
+                                            className="w-full bg-slate-950 border border-red-900/40 focus:border-red-500 px-3 py-1.5 text-xs text-white placeholder-zinc-700 font-mono rounded-lg focus:outline-none"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            <p className="text-[10px] text-zinc-500 leading-normal italic pt-1">
+                                "As far as the east is from the west..." Your files are secure and protected by active covenants.
                             </p>
 
-                            <div className="grid grid-cols-2 gap-3 pt-2">
+                            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-900">
                                 <button
-                                    onClick={() => setFileToDelete(null)}
-                                    className="py-2.5 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-black tracking-widest uppercase rounded-lg transition-all cursor-pointer"
+                                    onClick={() => {
+                                        setFileToDelete(null);
+                                        setDeletionPhrase('');
+                                        setSelectedScriptureReconciliation('');
+                                        setUnlockPassphrase('');
+                                    }}
+                                    className="py-2.5 bg-zinc-900 hover:bg-zinc-850 border border-zinc-700 text-zinc-300 text-xs font-black tracking-widest uppercase rounded-lg transition-all cursor-pointer"
                                 >
                                     ABORT CONDUIT
                                 </button>
                                 <button
                                     onClick={handleTrashFile}
-                                    disabled={isDeleting}
-                                    className="py-2.5 bg-red-950/80 hover:bg-red-900 border border-red-500 text-red-200 text-xs font-black tracking-widest uppercase rounded-lg transition-all cursor-pointer"
+                                    disabled={isDeleting || deletionPhrase !== 'I authorize the deletion of this record' || !selectedScriptureReconciliation || (fileLocks.some(l => l.id === fileToDelete.id) && !unlockPassphrase)}
+                                    className="py-2.5 bg-red-950/80 hover:bg-red-900 disabled:opacity-40 disabled:cursor-not-allowed border border-red-500 text-red-200 text-xs font-black tracking-widest uppercase rounded-lg transition-all cursor-pointer shadow-[0_0_15px_rgba(239,68,68,0.15)]"
                                 >
-                                    {isDeleting ? 'TRASHING...' : 'CONFIRM PURGE'}
+                                    {isDeleting ? 'BLOTTING OUT...' : 'CONFIRM PURGE'}
                                 </button>
                             </div>
                         </motion.div>

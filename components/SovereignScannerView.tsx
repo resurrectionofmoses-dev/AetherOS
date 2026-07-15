@@ -550,6 +550,22 @@ Dec-04-2026 Cargo Manifest: Contraband check failed - Trace elements of Cocaine,
 
   const [sealAnimationState, setSealAnimationState] = useState<Record<string, { stage: string; percent: number; status: 'idle' | 'running' | 'success' | 'failed' }>>({});
 
+  const [sealTxIds, setSealTxIds] = useState<Record<string, string>>(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('aetheros_scanner_seal_txids');
+      if (stored) {
+        try {
+          return JSON.parse(stored);
+        } catch (e) {
+          console.error("Error reading seal txids from localStorage", e);
+        }
+      }
+    }
+    return {};
+  });
+
+  const [customSealInputs, setCustomSealInputs] = useState<Record<string, string>>({});
+
   interface Seal {
     id: string;
     name: string;
@@ -631,8 +647,79 @@ Dec-04-2026 Cargo Manifest: Contraband check failed - Trace elements of Cocaine,
     }
   ];
 
-  const handleBreakSeal = async (sealId: string, costShards: number) => {
+  const handleBreakSeal = async (sealId: string, costShards: number, customToken?: string) => {
     if (brokenSeals[sealId]) return;
+
+    if (customToken) {
+      const trimmed = customToken.trim();
+      const isValid = trimmed.length >= 32 && /^[a-zA-Z0-9]+$/.test(trimmed);
+      if (!isValid) {
+        setSealAnimationState(prev => ({
+          ...prev,
+          [sealId]: {
+            stage: 'ERROR: Cryptographic signature failed. Must be at least 32 alphanumeric characters matching [a-zA-Z0-9]{32,}',
+            percent: 0,
+            status: 'failed'
+          }
+        }));
+        return;
+      }
+
+      setSealAnimationState(prev => ({
+        ...prev,
+        [sealId]: {
+          stage: 'Validating cryptographic signature pattern on-chain...',
+          percent: 15,
+          status: 'running'
+        }
+      }));
+
+      const stages = [
+        { msg: 'Connecting to sovereign key registration nodes...', pct: 40 },
+        { msg: `Validating proof signature: ${trimmed.slice(0, 8)}...${trimmed.slice(-8)}`, pct: 75 },
+        { msg: 'Signature verified and locked into blockchain mainnet ledger!', pct: 95 }
+      ];
+
+      for (let i = 0; i < stages.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 600));
+        setSealAnimationState(prev => ({
+          ...prev,
+          [sealId]: {
+            stage: stages[i].msg,
+            percent: stages[i].pct,
+            status: 'running'
+          }
+        }));
+      }
+
+      setSealTxIds(prev => ({
+        ...prev,
+        [sealId]: trimmed
+      }));
+
+      setBrokenSeals(prev => {
+        const updated = { ...prev, [sealId]: true };
+        return updated;
+      });
+
+      setSealAnimationState(prev => ({
+        ...prev,
+        [sealId]: {
+          stage: 'SUCCESS: Bitcoin mainnet transaction fully resolved. Cryptographic seal permanently broken!',
+          percent: 100,
+          status: 'success'
+        }
+      }));
+
+      const seal = COV_LAW_SEALS.find(s => s.id === sealId);
+      if (seal && seal.unlockedSubstance) {
+        setSubstances(prev => {
+          if (prev.some(s => s.id === seal.unlockedSubstance.id)) return prev;
+          return [...prev, seal.unlockedSubstance];
+        });
+      }
+      return;
+    }
 
     if (shards < costShards) {
       setSealAnimationState(prev => ({
@@ -745,6 +832,12 @@ Dec-04-2026 Cargo Manifest: Contraband check failed - Trace elements of Cocaine,
       localStorage.setItem('aetheros_scanner_broken_seals', JSON.stringify(brokenSeals));
     }
   }, [brokenSeals]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('aetheros_scanner_seal_txids', JSON.stringify(sealTxIds));
+    }
+  }, [sealTxIds]);
 
   const handleExportAuditLog = () => {
     try {
@@ -3207,7 +3300,7 @@ Alert: Scan detected trace indicators of MDMA and Ketamine inside envelope.`);
                                            : 'bc1qd8p3tfevqyv2px0xem3pq8mdfpq7qdf8x2cl9f';
 
                     // Generate a mock transaction ID for broken seals
-                    const mockTxId = `f7a20c38de710e${seal.id === 'seal-alpha' ? '1a' : seal.id === 'seal-beta' ? '2b' : seal.id === 'seal-gamma' ? '3c' : '4d'}9f01abef823d04e57b9ac0e608f02ba94a0d9e8dfacb71362e`;
+                    const mockTxId = sealTxIds[seal.id] || `f7a20c38de710e${seal.id === 'seal-alpha' ? '1a' : seal.id === 'seal-beta' ? '2b' : seal.id === 'seal-gamma' ? '3c' : '4d'}9f01abef823d04e57b9ac0e608f02ba94a0d9e8dfacb71362e`;
 
                     return (
                       <div 
@@ -3297,14 +3390,52 @@ Alert: Scan detected trace indicators of MDMA and Ketamine inside envelope.`);
                               </span>
                             </div>
                           ) : (
-                            <div className="space-y-1">
-                              <button
-                                onClick={() => handleBreakSeal(seal.id, seal.costShards)}
-                                className="w-full py-1.5 bg-red-950/60 hover:bg-red-900/40 text-red-400 hover:text-red-300 border border-red-500/30 rounded-lg text-[10px] font-mono font-bold transition flex items-center justify-center gap-1.5"
-                              >
-                                <Zap className="w-3 h-3 text-red-400 animate-pulse" />
-                                <span>Settle & Break Seal</span>
-                              </button>
+                            <div className="space-y-2">
+                              {/* Signature / Code Input */}
+                              <div className="space-y-1">
+                                <label className="text-[8px] font-mono text-zinc-500 uppercase block">
+                                  Proof / Custom Signature
+                                </label>
+                                <input
+                                  type="text"
+                                  value={customSealInputs[seal.id] || ''}
+                                  onChange={(e) => setCustomSealInputs(prev => ({ ...prev, [seal.id]: e.target.value }))}
+                                  placeholder="Enter 32+ char alphanumeric code..."
+                                  className="w-full px-2 py-1 bg-black/50 border border-zinc-800 focus:border-red-500/50 rounded text-[9px] font-mono text-zinc-300 placeholder-zinc-700 focus:outline-none transition-colors"
+                                />
+                              </div>
+
+                              <div className="flex gap-1.5">
+                                <button
+                                  onClick={() => handleBreakSeal(seal.id, seal.costShards)}
+                                  className="flex-1 py-1 bg-red-950/60 hover:bg-red-900/40 text-red-400 hover:text-red-300 border border-red-500/30 rounded-lg text-[9px] font-mono font-bold transition flex items-center justify-center gap-1"
+                                >
+                                  <Zap className="w-2.5 h-2.5 text-red-400 animate-pulse" />
+                                  <span>Pay Shards</span>
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    const inputVal = customSealInputs[seal.id] || '';
+                                    if (inputVal.trim().length >= 32 && /^[a-zA-Z0-9]+$/.test(inputVal.trim())) {
+                                      handleBreakSeal(seal.id, seal.costShards, inputVal.trim());
+                                    } else {
+                                      setSealAnimationState(prev => ({
+                                        ...prev,
+                                        [seal.id]: {
+                                          stage: 'ERROR: Signature must be at least 32 alphanumeric characters matching [a-zA-Z0-9]{32,}',
+                                          percent: 0,
+                                          status: 'failed'
+                                        }
+                                      }));
+                                    }
+                                  }}
+                                  className="flex-1 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 border border-zinc-800 rounded-lg text-[9px] font-mono font-bold transition flex items-center justify-center gap-1"
+                                >
+                                  <Key className="w-2.5 h-2.5 text-amber-500" />
+                                  <span>Apply Seal</span>
+                                </button>
+                              </div>
+
                               {anim.status === 'failed' && (
                                 <span className="text-[8px] text-red-500 font-mono leading-tight block">
                                   {anim.stage}

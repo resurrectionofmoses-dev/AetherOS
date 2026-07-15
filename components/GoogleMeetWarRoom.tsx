@@ -60,9 +60,40 @@ export const GoogleMeetWarRoom: React.FC<GoogleMeetWarRoomProps> = ({ onAddLog }
 
   const [activeSpace, setActiveSpace] = useState<MeetSpaceDetail | null>(null);
   const [spaceHistory, setSpaceHistory] = useState<MeetSpaceDetail[]>([]);
+  
+  const [peaceAccordActive, setPeaceAccordActive] = useState(false);
+
+  useEffect(() => {
+    const checkPeace = () => {
+      setPeaceAccordActive(localStorage.getItem('aetheros_energy_peace_accord') === 'true');
+    };
+    checkPeace();
+    const interval = setInterval(checkPeace, 1000);
+    window.addEventListener('storage', checkPeace);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', checkPeace);
+    };
+  }, []);
+
   const [selectedObjective, setSelectedObjective] = useState('Critical Grid Incursion Review');
 
-  const OBJECTIVES = [
+  // Sync selected objective on peaceAccordActive changes
+  useEffect(() => {
+    if (peaceAccordActive) {
+      setSelectedObjective('🕊️ Global Energy Transition & Decarbonization Sync');
+    } else {
+      setSelectedObjective('Critical Grid Incursion Review');
+    }
+  }, [peaceAccordActive]);
+
+  const OBJECTIVES = peaceAccordActive ? [
+    '🕊️ Global Energy Transition & Decarbonization Sync',
+    '🕊️ Swords into Plowshares Regional Planning Session',
+    '🕊️ Equitable Solar Resource Allocations',
+    '🕊️ Interfaith Energy Cooperation Council',
+    '🕊️ Post-Carbon Defense Coalition Alignments'
+  ] : [
     'Critical Grid Incursion Review',
     'Sovereign Core Incident Response',
     'Tactical Perimeter Re-alignment',
@@ -170,17 +201,27 @@ export const GoogleMeetWarRoom: React.FC<GoogleMeetWarRoomProps> = ({ onAddLog }
   };
 
   return (
-    <div className="flex flex-col bg-black/90 rounded-2xl border-2 border-zinc-800 p-4 space-y-4 shadow-xl select-none font-mono max-w-sm w-full">
+    <div className={`flex flex-col rounded-2xl border-2 p-4 space-y-4 shadow-xl select-none font-mono max-w-sm w-full transition-all duration-500 ${
+      peaceAccordActive 
+        ? 'border-amber-500/40 bg-zinc-950/95 shadow-[0_0_20px_rgba(245,158,11,0.15)] shadow-amber-950/30' 
+        : 'border-zinc-800 bg-black/90'
+    }`}>
       {/* Header */}
-      <div className="flex justify-between items-center border-b border-zinc-900 pb-2">
+      <div className={`flex justify-between items-center border-b pb-2 ${peaceAccordActive ? 'border-amber-950/40' : 'border-zinc-900'}`}>
         <div className="flex items-center gap-2">
-          <VideoIcon className="w-4 h-4 text-emerald-500 animate-pulse" />
+          {peaceAccordActive ? (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-amber-400 animate-pulse">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+            </svg>
+          ) : (
+            <VideoIcon className="w-4 h-4 text-emerald-500 animate-pulse" />
+          )}
           <div>
-            <span className="text-[10px] font-black uppercase text-emerald-500 block tracking-widest">
-              SOVEREIGN WAR ROOM CONTROLS
+            <span className={`text-[10px] font-black uppercase block tracking-widest ${peaceAccordActive ? 'text-amber-400' : 'text-emerald-500'}`}>
+              {peaceAccordActive ? '🕊️ GLOBAL PEACE ASSEMBLY' : 'SOVEREIGN WAR ROOM CONTROLS'}
             </span>
             <span className="text-[7.5px] text-zinc-500 uppercase font-bold">
-              Google Meet Real-time Workspace Sync
+              {peaceAccordActive ? 'Google Meet Global Harmony Council Sync' : 'Google Meet Real-time Workspace Sync'}
             </span>
           </div>
         </div>
@@ -206,7 +247,10 @@ export const GoogleMeetWarRoom: React.FC<GoogleMeetWarRoomProps> = ({ onAddLog }
       {!currentUser ? (
         <div className="space-y-3 py-1">
           <p className="text-[8px] text-zinc-400 leading-relaxed uppercase">
-            Sovereign Shield operators can launch joint defense briefings via Google Meet. Authorize Google Workspace access to spin up secure rooms.
+            {peaceAccordActive 
+              ? 'Sovereign peace ambassadors can launch joint harmony syncs via Google Meet. Authorize Google Workspace access to spin up secure rooms.'
+              : 'Sovereign Shield operators can launch joint defense briefings via Google Meet. Authorize Google Workspace access to spin up secure rooms.'
+            }
           </p>
 
           {/* Genuine Material-Styled Google Auth Button */}
@@ -244,16 +288,20 @@ export const GoogleMeetWarRoom: React.FC<GoogleMeetWarRoomProps> = ({ onAddLog }
               }}
             />
             <div className="min-w-0 flex-1 leading-tight">
-              <span className="text-[8px] font-black text-emerald-400 block tracking-wider truncate uppercase">
-                {currentUser.displayName || 'Sovereign Operator'}
+              <span className={`text-[8px] font-black block tracking-wider truncate uppercase ${peaceAccordActive ? 'text-amber-400' : 'text-emerald-400'}`}>
+                {currentUser.displayName || (peaceAccordActive ? 'Sovereign Peace Ambassador' : 'Sovereign Operator')}
               </span>
               <span className="text-[6.5px] text-zinc-500 font-mono truncate block">
                 {currentUser.email}
               </span>
             </div>
-            <div className="flex h-4 items-center gap-1 bg-emerald-950/60 border border-emerald-900 px-1.5 rounded">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[6px] font-black text-emerald-400 font-sans tracking-wide">ACTIVE</span>
+            <div className={`flex h-4 items-center gap-1 border px-1.5 rounded ${
+              peaceAccordActive ? 'bg-amber-950/60 border-amber-900 text-amber-400 font-bold' : 'bg-emerald-950/60 border-emerald-900 text-emerald-400 font-bold'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${peaceAccordActive ? 'bg-amber-400' : 'bg-emerald-400'}`} />
+              <span className="text-[6px] font-black font-sans tracking-wide uppercase">
+                {peaceAccordActive ? 'PEACE ACTIVE' : 'ACTIVE'}
+              </span>
             </div>
           </div>
 
@@ -261,7 +309,7 @@ export const GoogleMeetWarRoom: React.FC<GoogleMeetWarRoomProps> = ({ onAddLog }
           <div className="space-y-2">
             <div>
               <label className="text-[7.5px] font-black uppercase text-zinc-400 tracking-wider">
-                Defense War Room Objective
+                {peaceAccordActive ? 'Peace Assembly Objective' : 'Defense War Room Objective'}
               </label>
               <select
                 value={selectedObjective}
@@ -277,17 +325,27 @@ export const GoogleMeetWarRoom: React.FC<GoogleMeetWarRoomProps> = ({ onAddLog }
             <button
               onClick={handleCreateMeetSpace}
               disabled={isSpaceCreating}
-              className="w-full h-9 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-650 text-white border border-emerald-500 hover:border-emerald-400 font-black text-[8.5px] uppercase tracking-wider rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+              className={`w-full h-9 border font-black text-[8.5px] uppercase tracking-wider rounded-lg flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50 text-white ${
+                peaceAccordActive 
+                  ? 'bg-amber-600 hover:bg-amber-500 active:bg-amber-650 border-amber-500 hover:border-amber-400' 
+                  : 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-650 border-emerald-500 hover:border-emerald-400'
+              }`}
             >
               {isSpaceCreating ? (
                 <>
                   <SpinnerIcon className="w-3.5 h-3.5 animate-spin" />
-                  <span>INITIALIZING MEETING...</span>
+                  <span>{peaceAccordActive ? 'INITIALIZING HARMONY ASSEMBLY...' : 'INITIALIZING MEETING...'}</span>
                 </>
               ) : (
                 <>
-                  <VideoIcon className="w-3.5 h-3.5" />
-                  <span>LAUNCH GOOGLE MEET SPACE</span>
+                  {peaceAccordActive ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                    </svg>
+                  ) : (
+                    <VideoIcon className="w-3.5 h-3.5" />
+                  )}
+                  <span>{peaceAccordActive ? 'ESTABLISH PEACE ASSEMBLY SPACE' : 'LAUNCH GOOGLE MEET SPACE'}</span>
                 </>
               )}
             </button>
@@ -295,21 +353,25 @@ export const GoogleMeetWarRoom: React.FC<GoogleMeetWarRoomProps> = ({ onAddLog }
 
           {/* Active Space Detail Box */}
           {activeSpace && (
-            <div className="bg-emerald-950/20 border-2 border-emerald-500/40 p-3 rounded-xl space-y-2.5 shadow-md animate-in slide-in-from-bottom duration-200">
+            <div className={`border-2 p-3 rounded-xl space-y-2.5 shadow-md animate-in slide-in-from-bottom duration-200 ${
+              peaceAccordActive ? 'bg-amber-950/20 border-amber-500/40 text-amber-200' : 'bg-emerald-950/20 border-emerald-500/40 text-zinc-400'
+            }`}>
               <div className="flex justify-between items-start">
                 <div>
                   <span className="text-[6.5px] font-black text-zinc-500 uppercase block tracking-wider leading-none">Space ID:</span>
                   <span className="text-[8px] font-bold text-zinc-300 font-mono leading-none">{activeSpace.name}</span>
                 </div>
-                <div className="flex items-center gap-1 bg-emerald-950/60 border border-emerald-500/30 px-1 rounded">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span className="text-[6px] font-black text-emerald-400">{activeSpace.meetingCode}</span>
+                <div className={`flex items-center gap-1 border px-1 rounded ${
+                  peaceAccordActive ? 'bg-amber-950/60 border-amber-500/30 text-amber-400' : 'bg-emerald-950/60 border-emerald-500/30 text-emerald-400'
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${peaceAccordActive ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                  <span className="text-[6px] font-black">{activeSpace.meetingCode}</span>
                 </div>
               </div>
               
-              <div className="border-t border-dashed border-emerald-900/40 pt-2 space-y-1 text-[7px] text-zinc-400">
-                <p className="truncate"><span className="text-zinc-500 font-bold block pb-0.5 uppercase text-[6.5px]">MISSION BRIEFING:</span> {activeSpace.objective}</p>
-                <p className="truncate text-zinc-300 font-bold"><span className="text-zinc-500 uppercase text-[6.5px]">LAUNCH ROOM:</span> <a href={activeSpace.meetingUri} target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline hover:text-cyan-300">{activeSpace.meetingUri}</a></p>
+              <div className={`border-t border-dashed pt-2 space-y-1 text-[7px] ${peaceAccordActive ? 'border-amber-900/40 text-amber-300' : 'border-emerald-900/40 text-zinc-400'}`}>
+                <p className="truncate"><span className="text-zinc-500 font-bold block pb-0.5 uppercase text-[6.5px]">{peaceAccordActive ? 'PEACE COUNCIL PLAN:' : 'MISSION BRIEFING:'}</span> {activeSpace.objective}</p>
+                <p className="truncate text-zinc-300 font-bold"><span className="text-zinc-500 uppercase text-[6.5px]">{peaceAccordActive ? 'HARMONY PORTAL:' : 'LAUNCH ROOM:'}</span> <a href={activeSpace.meetingUri} target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline hover:text-cyan-300">{activeSpace.meetingUri}</a></p>
               </div>
 
               <div className="pt-1 select-all">
@@ -317,10 +379,18 @@ export const GoogleMeetWarRoom: React.FC<GoogleMeetWarRoomProps> = ({ onAddLog }
                   href={activeSpace.meetingUri} 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  className="w-full h-7 bg-zinc-950 hover:bg-zinc-900 border border-emerald-500 hover:border-emerald-400 text-emerald-400 font-black text-[8px] rounded flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className={`w-full h-7 bg-zinc-950 hover:bg-zinc-900 border text-[8px] font-black rounded flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                    peaceAccordActive ? 'border-amber-500 hover:border-amber-400 text-amber-400' : 'border-emerald-500 hover:border-emerald-400 text-emerald-400'
+                  }`}
                 >
-                  <VideoIcon className="w-3 h-3 text-emerald-400 shrink-0" />
-                  JOIN GOOGLE MEET ROOM
+                  {peaceAccordActive ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5 text-amber-400 shrink-0">
+                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                    </svg>
+                  ) : (
+                    <VideoIcon className="w-3 h-3 text-emerald-400 shrink-0" />
+                  )}
+                  {peaceAccordActive ? 'JOIN PEACE ASSEMBLY ROOM' : 'JOIN GOOGLE MEET ROOM'}
                 </a>
               </div>
             </div>
@@ -330,7 +400,7 @@ export const GoogleMeetWarRoom: React.FC<GoogleMeetWarRoomProps> = ({ onAddLog }
           {spaceHistory.length > 0 && (
             <div className="space-y-1.5">
               <p className="text-[7px] font-black text-zinc-500 uppercase tracking-widest pl-1">
-                Active Space Registry ({spaceHistory.length})
+                {peaceAccordActive ? 'Active Peace Assembly Registry' : 'Active Space Registry'} ({spaceHistory.length})
               </p>
               <div className="max-h-24 overflow-y-auto space-y-1 custom-scrollbar pr-1">
                 {spaceHistory.map((sh, idx) => (
@@ -343,9 +413,17 @@ export const GoogleMeetWarRoom: React.FC<GoogleMeetWarRoomProps> = ({ onAddLog }
                       href={sh.meetingUri} 
                       target="_blank"  
                       rel="noopener noreferrer"
-                      className="p-1 border border-zinc-800 hover:border-emerald-500/40 rounded text-zinc-500 hover:text-emerald-400 shrink-0 cursor-pointer"
+                      className={`p-1 border rounded shrink-0 cursor-pointer ${
+                        peaceAccordActive ? 'border-zinc-800 hover:border-amber-500/40 text-zinc-500 hover:text-amber-400' : 'border-zinc-800 hover:border-emerald-500/40 text-zinc-500 hover:text-emerald-400'
+                      }`}
                     >
-                      <VideoIcon className="w-3 h-3" />
+                      {peaceAccordActive ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3">
+                          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+                        </svg>
+                      ) : (
+                        <VideoIcon className="w-3 h-3" />
+                      )}
                     </a>
                   </div>
                 ))}

@@ -74,6 +74,17 @@ export interface ProjectTask {
   status?: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
   tags?: string[];
   dependencies?: string[];
+  assignee?: string;
+}
+
+export interface AssayLog {
+  id: string;
+  siteName: string;
+  sampleMass: number; // in kg
+  colorCount: number; // gold count
+  coordinates: string; // e.g., "39.5121, -121.5543"
+  notes?: string;
+  timestamp: number;
 }
 
 export interface ProjectBlueprint {
@@ -159,8 +170,8 @@ export type MainView =
   | 'apple_lab' | 'mission_lab' | 'cell_phone_lab' | 'sampling_lab' | 'pornography_studio' 
   | 'medical_synthesis_lab' | 'vehicle_telemetry_lab' | 'coding_network_teachers' | 'enlightenment_pool' 
   | 'library_view' | 'timeline' | 'amoeba_heritage' | 'system_exhaustion' | 'recon_vault'
-  | 'constraints_audit' | 'remix_scope_lab' | 'vehicle_management' | 'unknown_physics_lab' | 'logic_pattern_lab'
-  | 'vulnerability_report' | 'tactical_intelligence' | 'behavioral_specs' | 'cognitive_pipeline' | 'data_provenance_lab' | 'sh_crt_loop' | 'user_profile' | 'prompt_forge' | 'sovereign_standard' | 'confusion_logic' | 'knowledge_forum' | 'blockchain_history' | 'main_net' | 'ecosystem' | 'accounts_registry' | 'blacklist' | 'system_integrity' | 'vault_manager' | 'moderator_lounge' | 'biometric_intelligence' | 'card_recovery' | 'project_showcase' | 'labs_flow' | 'google_sheets' | 'ai_telemetry' | 'cascade_investigator' | 'inevitable_crash' | 'scraper_merchant_store' | 'data_academy' | 'reputation_leaderboard' | 'aether_flow_orchestrator' | 'packaging_suite' | 'system_archives' | 'system_diagnostic' | 'aetheros_online_status' | 'regex_editor_lab' | 'mission_items' | 'agent_safeguard' | 'safeguard' | 'gmail' | 'google_drive' | 'sovereign_scanner';
+  | 'constraints_audit' | 'rescue_companion' | 'remix_scope_lab' | 'vehicle_management' | 'unknown_physics_lab' | 'logic_pattern_lab'
+  | 'vulnerability_report' | 'tactical_intelligence' | 'behavioral_specs' | 'cognitive_pipeline' | 'data_provenance_lab' | 'sh_crt_loop' | 'user_profile' | 'prompt_forge' | 'sovereign_standard' | 'confusion_logic' | 'knowledge_forum' | 'blockchain_history' | 'main_net' | 'ecosystem' | 'accounts_registry' | 'blacklist' | 'system_integrity' | 'vault_manager' | 'moderator_lounge' | 'biometric_intelligence' | 'card_recovery' | 'project_showcase' | 'labs_flow' | 'google_sheets' | 'ai_telemetry' | 'cascade_investigator' | 'inevitable_crash' | 'scraper_merchant_store' | 'data_academy' | 'reputation_leaderboard' | 'aether_flow_orchestrator' | 'packaging_suite' | 'system_archives' | 'system_diagnostic' | 'aetheros_online_status' | 'regex_editor_lab' | 'mission_items' | 'agent_safeguard' | 'safeguard' | 'gmail' | 'google_drive' | 'sovereign_scanner' | 'google_docs' | 'biological_integrity_audit' | 'program_frame_visualizer' | 'google_chat' | 'sovereign_scroll_console' | 'hunting_wallet' | 'quantum_ledger_dashboard';
 
 export interface Trajectory {
     id: string;
@@ -520,6 +531,7 @@ export interface ProfileProject {
     liveDemoUrl?: string;
     sourceCodeUrl?: string;
     testimonials?: ProfileProjectTestimonial[];
+    screenshots?: string[]; // "See, I have engraved you on the palms of my hands..." - Isaiah 49:16
 }
 
 export interface WorkExperience {
@@ -547,6 +559,7 @@ export interface UserProfile {
     username: string;
     bio: string;
     skills: string[];
+    skillProficiencies?: Record<string, 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert' | 'Master'>; // "To one he gave five talents, to another two, to another one, to each according to his ability..." - Matthew 25:15
     lookingForSkills?: string[];
     willingToTeachSkills?: string[];
     areasOfInterest?: string[];
@@ -594,6 +607,10 @@ export interface UserProfile {
         logOpenCount?: number;
         jesterName?: string;
     };
+    counselorSessionActive?: boolean;
+    counselorGuidanceReady?: boolean;
+    counselorSelectedFocus?: string;
+    counselorLastGuidance?: string;
 }
 
 export interface NetworkProject {
@@ -618,6 +635,7 @@ export interface NetworkProject {
     collaborators?: string[];
     gitHubRepo?: string;
     tags?: string[];
+    assayLogs?: AssayLog[];
     milestones?: { id: string; title: string; dueDate?: string; completed: boolean; createdAt: number }[];
     chats?: { id: string; sender: string; avatarUrl?: string; content: string; timestamp: number }[];
 }

@@ -1,6 +1,7 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { motion } from 'motion/react';
+import { toast } from 'sonner';
 import type { SystemStatus, MainView, SystemState, SystemGovernance, SoundscapeType } from '../types';
 import { 
     ChevronDownIcon, ShieldIcon, SpeakerIcon
@@ -49,6 +50,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const { user } = useAuth();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  const [safeModeActive, setSafeModeActive] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('aetheros_safe_mode') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handleSafeModeChange = () => {
+      try {
+        setSafeModeActive(localStorage.getItem('aetheros_safe_mode') === 'true');
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    window.addEventListener('aetheros_safe_mode_change', handleSafeModeChange);
+    window.addEventListener('storage', handleSafeModeChange);
+    return () => {
+      window.removeEventListener('aetheros_safe_mode_change', handleSafeModeChange);
+      window.removeEventListener('storage', handleSafeModeChange);
+    };
+  }, []);
 
   const toggleSection = (title: string) => {
       setCollapsed(prev => ({ ...prev, [title]: !prev[title] }));
@@ -168,8 +193,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span className="text-gray-400 text-xl font-bold font-mono tracking-wider group-hover:text-white transition-colors">
                 {formattedTime}
             </span>
-            <span className="text-[7px] text-gray-600 font-black uppercase tracking-widest mt-1">
-                SYSTEM_UPTIME: STABLE
+            <span className={`text-[7px] font-black uppercase tracking-widest mt-1 ${safeModeActive ? 'text-amber-500 animate-pulse' : 'text-gray-600'}`}>
+                {safeModeActive ? '⚠️ SAFE MODE: ACTIVE' : 'SYSTEM_UPTIME: STABLE'}
             </span>
         </motion.div>
       </div>
@@ -268,21 +293,68 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     .map(({ view, text, icon: Icon }) => {
                                     const isActive = currentView === view;
                                     const isLocked = !unlockedViews.includes(view);
+                                    const isCritical = ['chat', 'system_diagnostic', 'diagnostics', 'sovereign_shield', 'user_profile'].includes(view);
+                                    const isBypassedInSafeMode = safeModeActive && !isCritical;
+                                    
                                     if (!Icon) return null;
                                     return (
                                         <motion.button
                                             key={view}
-                                            whileHover={!isLocked ? { x: 4, backgroundColor: "rgba(255, 255, 255, 0.05)" } : {}}
-                                            whileTap={!isLocked ? { scale: 0.97 } : {}}
-                                            onClick={() => !isLocked && onSetView(view)}
-                                            className={`w-full flex items-center gap-3 px-2 py-2 rounded-xl sidebar-button transition-all text-left group ${isActive ? 'active scale-[1.02]' : (isLocked ? 'opacity-30 grayscale cursor-not-allowed' : 'opacity-60 hover:opacity-100')}`}
+                                            whileHover={!isLocked && !isBypassedInSafeMode ? { x: 4, backgroundColor: "rgba(255, 255, 255, 0.05)" } : {}}
+                                            whileTap={!isLocked && !isBypassedInSafeMode ? { scale: 0.97 } : {}}
+                                            onClick={() => {
+                                                if (isBypassedInSafeMode) {
+                                                    toast('MODULE BYPASSED', {
+                                                        description: 'Safe Mode is active. Access to non-critical modules is restricted.',
+                                                        className: 'bg-amber-950/90 border-2 border-amber-500/30 text-amber-200 font-mono text-[10px] uppercase tracking-tighter'
+                                                    });
+                                                    return;
+                                                }
+                                                if (!isLocked) onSetView(view);
+                                            }}
+                                            className={`w-full flex items-center justify-between px-2 py-2 rounded-xl sidebar-button transition-all text-left group ${
+                                                isActive 
+                                                    ? 'active scale-[1.02]' 
+                                                    : (isLocked 
+                                                        ? 'opacity-30 grayscale cursor-not-allowed' 
+                                                        : (isBypassedInSafeMode 
+                                                            ? 'opacity-25 grayscale cursor-not-allowed border border-dashed border-amber-900/40 bg-amber-950/5' 
+                                                            : 'opacity-60 hover:opacity-100'))
+                                            }`}
                                         >
-                                            <div className={`p-1.5 rounded-lg border-2 ${isActive ? 'bg-red-500 border-red-400 shadow-[0_0_12px_rgba(239,68,68,0.25)]' : 'bg-black border-white/5 group-hover:border-white/20'}`}>
-                                                {isLocked ? <ShieldIcon className="w-4 h-4 text-red-900" /> : <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-insight-sapphire'}`} />}
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className={`p-1.5 rounded-lg border-2 ${
+                                                    isActive 
+                                                        ? 'bg-red-500 border-red-400 shadow-[0_0_12px_rgba(239,68,68,0.25)]' 
+                                                        : (isBypassedInSafeMode 
+                                                            ? 'bg-zinc-950 border-amber-900/30' 
+                                                            : 'bg-black border-white/5 group-hover:border-white/20')
+                                                }`}>
+                                                    {isLocked ? (
+                                                        <ShieldIcon className="w-4 h-4 text-red-900" />
+                                                    ) : isBypassedInSafeMode ? (
+                                                        <ShieldIcon className="w-4 h-4 text-amber-700 animate-pulse" />
+                                                    ) : (
+                                                        <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-insight-sapphire'}`} />
+                                                    )}
+                                                </div>
+                                                <span className={`text-[10px] font-black uppercase tracking-tighter truncate ${
+                                                    isActive 
+                                                        ? 'text-white' 
+                                                        : (isLocked 
+                                                            ? 'text-gray-700' 
+                                                            : (isBypassedInSafeMode 
+                                                                ? 'text-amber-700/70 line-through' 
+                                                                : 'text-gray-400'))
+                                                }`}>
+                                                    {isLocked ? 'REDACTED' : text}
+                                                </span>
                                             </div>
-                                            <span className={`text-[10px] font-black uppercase tracking-tighter ${isActive ? 'text-white' : (isLocked ? 'text-gray-700' : 'text-gray-400')}`}>
-                                                {isLocked ? 'REDACTED' : text}
-                                            </span>
+                                            {isBypassedInSafeMode && (
+                                                <span className="text-[6.5px] font-black text-amber-500 bg-amber-950/60 border border-amber-500/30 px-1 rounded uppercase shrink-0">
+                                                    BYPASS
+                                                </span>
+                                            )}
                                         </motion.button>
                                     );
                                 })}

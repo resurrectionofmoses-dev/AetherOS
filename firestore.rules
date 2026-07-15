@@ -38,6 +38,28 @@ service cloud.firestore {
       allow delete: if isValidId(stateId);
     }
 
+    match /subscriptions/{userId} {
+      allow read: if true;
+      allow create, update: if isValidId(userId) && isValidUserSubscription(incoming());
+      allow delete: if isValidId(userId);
+    }
+
+    match /sovereign_file_locks/{lockId} {
+      allow read: if true;
+      allow create, update: if isValidId(lockId) && isValidSovereignFileLock(incoming());
+      allow delete: if isValidId(lockId);
+    }
+
+    function isValidSovereignFileLock(data) {
+      return data.keys().hasAll(['id', 'fileName', 'lockedAt', 'lockedBy', 'passphraseHash'])
+        && data.keys().size() == 5
+        && data.id is string && data.id.size() <= 128
+        && data.fileName is string && data.fileName.size() <= 2000
+        && data.lockedAt is int
+        && data.lockedBy is string && data.lockedBy.size() <= 500
+        && data.passphraseHash is string && data.passphraseHash.size() <= 128;
+    }
+
     function isValidMissionItem(data) {
       return data.keys().hasAll(['id', 'name', 'reason', 'learn', 'go', 'coding', 'createdAt'])
         && data.keys().size() == 7
@@ -71,6 +93,17 @@ service cloud.firestore {
         && data.timestamp is int
         && data.blockSignature is string && data.blockSignature.size() <= 256
         && data.isRevealed is bool;
+    }
+
+    function isValidUserSubscription(data) {
+      return data.keys().hasAll(['userId', 'email', 'status', 'plan', 'expiresAt', 'updatedAt'])
+        && data.keys().size() == 6
+        && data.userId is string && data.userId.size() <= 128
+        && data.email is string && data.email.size() <= 500
+        && data.status is string && (data.status == 'active' || data.status == 'inactive' || data.status == 'expired')
+        && data.plan is string && data.plan.size() <= 128
+        && data.expiresAt is int
+        && data.updatedAt is int;
     }
   }
 }

@@ -183,6 +183,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: 'admin',
         sovereignty: 'CENTRAL_COMMAND'
       };
+    } else if (
+      (email.toLowerCase() === 'resurrectionofmoses@gmail.com' || email.toLowerCase() === 'creator@aetheros.local') &&
+      (pass === 'AetherSovereign2026' || pass === 'Sovereign777' || pass === 'CreatorPass')
+    ) {
+      mockUser = {
+        uid: 'aether-creator-777',
+        displayName: 'Sovereign Creator',
+        email: 'resurrectionofmoses@gmail.com',
+        role: 'admin',
+        sovereignty: 'DIVINE_ORCHESTRATION'
+      };
     } else if (email === 'mod@aetheros.local' && pass === 'GuardianPass') {
       mockUser = {
         uid: 'mod-001',

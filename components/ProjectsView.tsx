@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { KanbanBoard } from './KanbanBoard';
+import { AssayTestLog } from './AssayTestLog';
+import { toast } from 'sonner';
 import type { NetworkProject, ProjectTask, UserProfile } from '../types';
 import { 
   FolderPlus, 
@@ -41,6 +43,20 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   // Active Project Reference
   const activeProject = projects.find(p => p.id === selectedProjectId) || projects[0] || null;
 
+  // Workspace sub-tab states
+  const [activeTab, setActiveTab] = useState<'TASKS' | 'ASSAY_LOG' | 'TEAM'>('TASKS');
+  const [collaboratorInput, setCollaboratorInput] = useState('');
+  const [techTag, setTechTag] = useState('');
+  const [gitHubRepoInput, setGitHubRepoInput] = useState('');
+
+  // Synchronize repo input and sub-tab on selected project transition
+  useEffect(() => {
+    setActiveTab('TASKS');
+    if (activeProject) {
+      setGitHubRepoInput(activeProject.gitHubRepo || '');
+    }
+  }, [selectedProjectId, activeProject?.id]);
+
   // Task operation callbacks that sync updated state back to this parent component
   const handleToggleTask = (projectId: string, taskId: string) => {
     setProjects(prev => prev.map(p => {
@@ -79,6 +95,53 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
         ...updates
       };
     }));
+  };
+
+  const handleAddCollaborator = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!collaboratorInput.trim()) return;
+    if (!activeProject) return;
+    const current = activeProject.collaborators || [];
+    if (current.includes(collaboratorInput.trim())) {
+      toast.error('Collaborator already exists in this project group');
+      return;
+    }
+    const updated = [...current, collaboratorInput.trim()];
+    handleUpdateProject(activeProject.id, { collaborators: updated });
+    setCollaboratorInput('');
+    toast.success(`${collaboratorInput.trim()} added to the project group!`);
+  };
+
+  const handleRemoveCollaborator = (collab: string) => {
+    if (!activeProject) return;
+    const updated = (activeProject.collaborators || []).filter(c => c !== collab);
+    handleUpdateProject(activeProject.id, { collaborators: updated });
+    toast.success(`${collab} removed from the project group.`);
+  };
+
+  const handleAddTag = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!techTag.trim()) return;
+    if (!activeProject) return;
+    const current = activeProject.tags || [];
+    if (current.includes(techTag.trim())) return;
+    const updated = [...current, techTag.trim()];
+    handleUpdateProject(activeProject.id, { tags: updated });
+    setTechTag('');
+    toast.success(`Tagged project with ${techTag.trim()}!`);
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    if (!activeProject) return;
+    const updated = (activeProject.tags || []).filter(t => t !== tag);
+    handleUpdateProject(activeProject.id, { tags: updated });
+  };
+
+  const handleSaveRepo = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeProject) return;
+    handleUpdateProject(activeProject.id, { gitHubRepo: gitHubRepoInput.trim() });
+    toast.success('GitHub repository link configured successfully!');
   };
 
   const handleAddProject = (e: React.FormEvent) => {
@@ -306,16 +369,178 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                 </div>
               </div>
 
-              {/* Core Kanban Board Board Component Integration */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar">
-                <KanbanBoard
-                  project={activeProject}
-                  tasks={activeProject.tasks || []}
-                  onToggleTask={handleToggleTask}
-                  onDeleteTask={handleDeleteTask}
-                  onUpdateProject={handleUpdateProject}
-                  isAudible={true}
-                />
+              {/* Workspace Navigation Tabs */}
+              <div className="flex border-b border-amber-500/10 gap-6 pb-0.5">
+                <button
+                  onClick={() => setActiveTab('TASKS')}
+                  className={`pb-2.5 text-[10px] font-serif uppercase tracking-widest border-b-2 transition-all ${
+                    activeTab === 'TASKS'
+                      ? 'border-amber-400 text-amber-300 font-bold'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  📋 Campaign Objectives
+                </button>
+                <button
+                  onClick={() => setActiveTab('ASSAY_LOG')}
+                  className={`pb-2.5 text-[10px] font-serif uppercase tracking-widest border-b-2 transition-all ${
+                    activeTab === 'ASSAY_LOG'
+                      ? 'border-amber-400 text-amber-300 font-bold'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  🧪 Assay Test Log
+                </button>
+                <button
+                  onClick={() => setActiveTab('TEAM')}
+                  className={`pb-2.5 text-[10px] font-serif uppercase tracking-widest border-b-2 transition-all ${
+                    activeTab === 'TEAM'
+                      ? 'border-amber-400 text-amber-300 font-bold'
+                      : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                  }`}
+                >
+                  👥 Team & Metadata
+                </button>
+              </div>
+
+              {/* Dynamic Sub-View Workspace Content */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar min-h-0">
+                {activeTab === 'TASKS' && (
+                  <KanbanBoard
+                    project={activeProject}
+                    tasks={activeProject.tasks || []}
+                    onToggleTask={handleToggleTask}
+                    onDeleteTask={handleDeleteTask}
+                    onUpdateProject={handleUpdateProject}
+                    isAudible={true}
+                  />
+                )}
+
+                {activeTab === 'ASSAY_LOG' && (
+                  <AssayTestLog 
+                    project={activeProject} 
+                    onUpdateProject={handleUpdateProject} 
+                  />
+                )}
+
+                {activeTab === 'TEAM' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in duration-300">
+                    {/* Card 1: Collaborators & Skills Network Integration */}
+                    <div className="p-5 bg-zinc-950/60 border border-amber-500/10 rounded-2xl space-y-4">
+                      <div className="pb-2 border-b border-amber-500/10 flex justify-between items-center">
+                        <h3 className="text-xs font-serif font-bold uppercase tracking-widest text-amber-300">Project Group Team</h3>
+                        <span className="text-[9px] font-mono text-zinc-500">Collaborative Network</span>
+                      </div>
+
+                      <form onSubmit={handleAddCollaborator} className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Enter user name / collaborator..."
+                          value={collaboratorInput}
+                          onChange={(e) => setCollaboratorInput(e.target.value)}
+                          className="flex-1 bg-black border border-zinc-850 rounded-xl px-3 py-1.5 text-xs text-white placeholder-zinc-700 font-mono focus:border-amber-500/50 outline-none"
+                        />
+                        <button
+                          type="submit"
+                          className="px-4 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 rounded-xl text-[10px] font-mono uppercase tracking-wider"
+                        >
+                          Add Member
+                        </button>
+                      </form>
+
+                      <div className="space-y-1.5 max-h-[220px] overflow-y-auto custom-scrollbar">
+                        {(!activeProject.collaborators || activeProject.collaborators.length === 0) ? (
+                          <p className="text-[10px] text-zinc-650 font-mono italic text-center py-6">No team collaborators assigned yet.</p>
+                        ) : (
+                          activeProject.collaborators.map(member => (
+                            <div key={member} className="flex items-center justify-between p-2.5 bg-black/40 border border-zinc-900 rounded-xl hover:bg-black/60 transition-colors">
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 font-serif text-[10px] font-black uppercase">
+                                  {member.slice(0, 2)}
+                                </div>
+                                <span className="text-xs font-mono text-zinc-300 font-bold">{member}</span>
+                              </div>
+                              <button
+                                onClick={() => handleRemoveCollaborator(member)}
+                                className="text-rose-500 hover:text-rose-400 p-1 text-[10px] font-mono hover:bg-rose-500/10 rounded transition-colors"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card 2: Metadata & Repositories */}
+                    <div className="p-5 bg-zinc-950/60 border border-amber-500/10 rounded-2xl space-y-4 flex flex-col justify-between">
+                      <div className="space-y-4">
+                        <div className="pb-2 border-b border-amber-500/10">
+                          <h3 className="text-xs font-serif font-bold uppercase tracking-widest text-amber-300">Showcase Settings</h3>
+                        </div>
+
+                        {/* GitHub Repo */}
+                        <form onSubmit={handleSaveRepo} className="space-y-1.5">
+                          <label className="text-[9px] font-mono text-zinc-550 uppercase block font-bold">GitHub Repository Link</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="url"
+                              placeholder="e.g. https://github.com/prospector/aetheros"
+                              value={gitHubRepoInput}
+                              onChange={(e) => setGitHubRepoInput(e.target.value)}
+                              className="flex-1 bg-black border border-zinc-850 rounded-xl px-3 py-1.5 text-xs text-white placeholder-zinc-700 font-mono focus:border-amber-500/50 outline-none"
+                            />
+                            <button
+                              type="submit"
+                              className="px-4 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/20 rounded-xl text-[10px] font-mono uppercase tracking-wider transition-colors"
+                            >
+                              Save Link
+                            </button>
+                          </div>
+                        </form>
+
+                        {/* Technology Tags */}
+                        <div className="space-y-2 pt-2">
+                          <label className="text-[9px] font-mono text-zinc-550 uppercase block font-bold">Technology Tags</label>
+                          <form onSubmit={handleAddTag} className="flex gap-2">
+                            <input
+                              type="text"
+                              placeholder="Add technology (e.g. React, D3)..."
+                              value={techTag}
+                              onChange={(e) => setTechTag(e.target.value)}
+                              className="flex-1 bg-black border border-zinc-850 rounded-xl px-3 py-1.5 text-xs text-white placeholder-zinc-700 font-mono focus:border-amber-500/50 outline-none"
+                            />
+                            <button
+                              type="submit"
+                              className="px-4 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 rounded-xl text-[10px] font-mono uppercase tracking-wider transition-colors"
+                            >
+                              Tag
+                            </button>
+                          </form>
+
+                          <div className="flex flex-wrap gap-1.5 pt-1">
+                            {(!activeProject.tags || activeProject.tags.length === 0) ? (
+                              <span className="text-[9px] text-zinc-650 italic font-mono">No tech tags configured yet.</span>
+                            ) : (
+                              activeProject.tags.map(tag => (
+                                <span key={tag} className="text-[9px] font-mono bg-zinc-900 border border-amber-500/10 px-2.5 py-0.5 rounded-md text-amber-300/80 flex items-center gap-1.5">
+                                  {tag}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveTag(tag)}
+                                    className="hover:text-red-400 text-zinc-500 transition-colors"
+                                  >
+                                    ✕
+                                  </button>
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
             </div>

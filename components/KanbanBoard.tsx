@@ -445,6 +445,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     tags?: string[];
     dependencies?: string[];
     status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
+    assignee?: string;
   }) => {
     if (modalMode === 'add') {
       const newTask: ProjectTask = {
@@ -458,6 +459,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         priority: taskData.priority,
         tags: taskData.tags,
         dependencies: taskData.dependencies,
+        assignee: taskData.assignee,
         createdAt: Date.now()
       };
       
@@ -475,7 +477,8 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           priority: taskData.priority,
           dueDate: taskData.dueDate || '',
           tags: taskData.tags,
-          dependencies: taskData.dependencies
+          dependencies: taskData.dependencies,
+          assignee: taskData.assignee
         } : t
       );
       onUpdateProject?.(project.id, { tasks: updatedTasks });
@@ -1088,6 +1091,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
                                       {task.dueDate}
                                     </span>
                                   )}
+                                  {task.assignee && (
+                                    <span className="text-[6.5px] font-mono px-1 py-0.2 rounded bg-amber-500/15 border border-amber-500/30 text-amber-300 flex items-center gap-0.5" title={`Assigned to ${task.assignee}`}>
+                                      👤 {task.assignee}
+                                    </span>
+                                  )}
                                 </div>
 
                                 {/* Right badges: estimation & status cycler */}
@@ -1151,6 +1159,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
       allTasks={tasks}
       isAudible={isAudible}
       playOperatorBeep={playOperatorBeep}
+      projectCollaborators={project.collaborators || []}
     />
     </div>
   );

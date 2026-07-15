@@ -105,9 +105,9 @@ export const aetherOSComponents: AetherOSComponent[] = [
   {
     id: 'forge',
     name: 'Evo Forge',
-    description: 'A playground for crafting and mutating high-dimensional prompts used in Gemini and Claude context templates.',
+    description: 'A playground for crafting and evolving high-dimensional prompts used in Gemini and Claude context templates.',
     filePath: '/components/ForgeView.tsx',
-    keywords: ['forge', 'prompt', 'mutate', 'template', 'craft', 'evolution', 'evo'],
+    keywords: ['forge', 'prompt', 'evolve', 'template', 'craft', 'evolution', 'evo'],
     category: 'Intelligence & Core'
   },
   {
@@ -257,7 +257,7 @@ export const aetherOSComponents: AetherOSComponent[] = [
   {
     id: 'amoeba_heritage',
     name: 'Amoeba Heritage Lab',
-    description: 'A virtual biotope calculating genetic mutations, cell division states, and life-cycle curves in cellular models.',
+    description: 'A virtual biotope calculating genetic evolutions, cell division states, and life-cycle curves in cellular models.',
     filePath: '/components/AmoebaHeritageView.tsx',
     keywords: ['amoeba', 'cell', 'genetic', 'division', 'biotope', 'heritage', 'biology'],
     category: 'Cosmic & Rhythms'

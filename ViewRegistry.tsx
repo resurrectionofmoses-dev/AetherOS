@@ -1,9 +1,11 @@
 
 import React from 'react';
 import { MainView } from './types';
+import { HunterWalletConsole } from './components/HunterWalletConsole';
 import { MissionItemsView } from './components/MissionItemsView';
 import { ProjectShowcaseView } from './components/ProjectShowcaseView';
 import { QuantumLedgerView } from './components/QuantumLedgerView';
+import { QuantumLedgerDashboard } from './components/QuantumLedgerDashboard';
 import { ChatView } from './components/ChatView';
 import { ChatHeader } from './components/ChatHeader';
 import { InputBar } from './components/InputBar';
@@ -123,9 +125,16 @@ import { SafeGuard } from './components/SafeGuard';
 import { GmailView } from './components/GmailView';
 import { GoogleDriveView } from './components/GoogleDriveView';
 import { SovereignScannerView } from './components/SovereignScannerView';
+import { GoogleDocsView } from './components/GoogleDocsView';
+import { BiologicalIntegrityAuditView } from './components/BiologicalIntegrityAuditView';
+import { ProgramFrameVisualizer } from './components/ProgramFrameVisualizer';
+import { GoogleChatView } from './components/GoogleChatView';
+import { SovereignScrollConsole } from './components/SovereignScrollConsole';
+import { RescueCompanionView } from './components/RescueCompanionView';
 import { v4 as uuidv4 } from 'uuid';
 
 export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
+    'rescue_companion': () => <RescueCompanionView />,
     'sovereign_scanner': (props) => (
         <SovereignScannerView 
             shards={props.shards} 
@@ -263,7 +272,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
                 onDeleteProject={(id) => props.setProjects((p: any[]) => p.filter(proj => proj.id !== id))} 
                 onToggleTask={(projectId, taskId) => props.setProjects((prev: any[]) => prev.map(p => p.id === projectId ? { ...p, tasks: p.tasks.map((t: any) => t.id === taskId ? { ...t, completed: !t.completed, status: !t.completed ? 'DONE' : 'TODO', completedAt: !t.completed ? Date.now() : undefined } : t) } : p))} 
                 onDeleteTask={(projectId, taskId) => props.setProjects((prev: any[]) => prev.map(p => p.id === projectId ? { ...p, tasks: p.tasks.filter((t: any) => t.id !== taskId) } : p))}
-                onAddTask={(projectId, text, dueDate, priority) => props.setProjects((prev: any[]) => prev.map(p => p.id === projectId ? { ...p, tasks: [...(p.tasks || []), { id: uuidv4(), text, completed: false, status: 'TODO', dueDate, priority, createdAt: Date.now() }] } : p))} 
+                onAddTask={(projectId, text, dueDate, priority, assignee) => props.setProjects((prev: any[]) => prev.map(p => p.id === projectId ? { ...p, tasks: [...(p.tasks || []), { id: uuidv4(), text, completed: false, status: 'TODO', dueDate, priority, assignee, createdAt: Date.now() }] } : p))} 
                 onUpdateProject={(id, updates) => props.setProjects((prev: any[]) => prev.map(p => p.id === id ? { ...p, ...updates } : p))} 
                 onAddProject={(title, desc, priority, deadline, collaborators, gitHubRepo, tags) => props.setProjects((prev: any[]) => [...prev, { id: uuidv4(), title, description: desc, priority, deadline, status: 'IDEATING', fightVector: 50, crazyLevel: 50, tasks: [], isWisdomHarmonized: false, timestamp: new Date(), collaborators: collaborators || [], gitHubRepo, tags: tags || [] }])}
             />
@@ -284,7 +293,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     ),
     'covenant': () => <NetworkCovenant />,
     'verification_gates': () => <VerificationGatesView />,
-    'project_chronos': () => <ChronosDashboard />,
+    'project_chronos': (props) => <ChronosDashboard onActionReward={props.onActionReward} />,
     'build_logs': () => <BuildLogsView />,
     'rt_ipc_lab': () => <RTIPCLabView />,
     'sovereign_shield': (props) => <SovereignShieldView onNavigateToReport={props.onSetView} projects={props.projects} setProjects={props.setProjects} />,
@@ -394,6 +403,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'sovereign_standard': () => <SovereignStandardView />,
     'blockchain_history': () => <UnifiedChainView />,
     'quantum_ledger': () => <QuantumLedgerView />,
+    'quantum_ledger_dashboard': () => <QuantumLedgerDashboard />,
     'biometric_intelligence': () => <BiometricIntelligenceView />,
     'card_recovery': () => <CardRecoveryView />,
     'project_showcase': () => <ProjectShowcaseView />,
@@ -411,4 +421,10 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'agent_safeguard': () => <AgentSafeguardView />,
     'safeguard': () => <SafeGuard />,
     'gmail': () => <GmailView />,
+    'google_docs': (props) => <GoogleDocsView onAddLog={props.onAddLog} />,
+    'google_chat': (props) => <GoogleChatView onAddLog={props.onAddLog} />,
+    'biological_integrity_audit': () => <BiologicalIntegrityAuditView />,
+    'program_frame_visualizer': () => <ProgramFrameVisualizer />,
+    'sovereign_scroll_console': () => <SovereignScrollConsole />,
+    'hunting_wallet': () => <HunterWalletConsole />,
 };

@@ -9,7 +9,7 @@ import {
 } from './icons';
 import { v4 as uuidv4 } from 'uuid';
 import { safeStorage } from '../services/safeStorage';
-import { extractJSON } from '../utils';
+import { extractJSON, checkAndQuarantine } from '../utils';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Answer {
@@ -542,8 +542,9 @@ export const KnowledgeForumView: React.FC = () => {
             }
 
             const saved = await safeStorage.getItem('AETHER_FORUM_DATA');
+            let loadedQuestions: Question[] = [];
             if (saved) {
-                setQuestions(extractJSON<Question[]>(saved, []));
+                loadedQuestions = extractJSON<Question[]>(saved, []);
             } else {
                 // Seed data
                 const seed: Question[] = [
@@ -616,8 +617,22 @@ In essence, a blockchain system designed with an infinite payload space would be
                         postType: 'Question'
                     }
                 ];
-                setQuestions(seed);
+                loadedQuestions = seed;
             }
+
+            const cleanQuestions = loadedQuestions.filter(q => {
+                const qRes = checkAndQuarantine(q, 'question');
+                if (!qRes.isSafe) return false;
+                
+                if (q.answers && q.answers.length > 0) {
+                    q.answers = q.answers.filter(ans => {
+                        const ansRes = checkAndQuarantine(ans, 'answer');
+                        return ansRes.isSafe;
+                    });
+                }
+                return true;
+            });
+            setQuestions(cleanQuestions);
             setIsForumLoading(false);
         };
         loadForum();
@@ -684,6 +699,15 @@ In essence, a blockchain system designed with an infinite payload space would be
             postType: newPostType
         };
 
+        const quarantineRes = checkAndQuarantine(newQuestion, 'question');
+        if (!quarantineRes.isSafe) {
+            setNewTitle('');
+            setNewContent('');
+            setNewTags('');
+            setIsPosting(false);
+            return;
+        }
+
         setQuestions([newQuestion, ...questions]);
         setNewTitle('');
         setNewContent('');
@@ -715,6 +739,12 @@ In essence, a blockchain system designed with an infinite payload space would be
             upvotes: 0,
             flaggedCount: 0
         };
+
+        const quarantineRes = checkAndQuarantine(newAnswer, 'answer');
+        if (!quarantineRes.isSafe) {
+            setAnswerInput('');
+            return;
+        }
 
         setQuestions(prev => prev.map(q => 
             q.id === questionId ? { ...q, answers: [...q.answers, newAnswer] } : q

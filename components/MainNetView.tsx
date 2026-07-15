@@ -12,8 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { RealMoneySystem, ResourceReserve } from '../services/realMoneySystem';
 
-// --- SYSTEM COMPLIANT HASH ENGINE ---
-// Visual SHA-256 equivalent that is completely deterministic
+// --- SYSTEM COMPLIANT DETECTABLE DETERMINISTIC CRYPTOGRAPHIC HASH ENGINE ---
 const hashString = (str: string): string => {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -27,7 +26,7 @@ const hashString = (str: string): string => {
 
 // Types & Definitions
 interface Tx {
-    id: string; // hash representation
+    id: string; 
     coin: 'BTC' | 'XMR' | 'AERO' | 'SPEND';
     amount: number;
     sender: string;
@@ -56,7 +55,7 @@ interface NetworkStats {
     price: string;
 }
 
-// --- COGNITIVE STATE CACHE FOR TAB RETENTION ---
+// Cognitive tab state retention cache
 interface MainNetCache {
     selectedChain: 'BTC' | 'XMR' | 'AERO' | 'SPEND';
     btcStats: NetworkStats;
@@ -71,11 +70,9 @@ interface MainNetCache {
     rigWorker: string;
     rigTemp: number;
     latestNetworkLogs: string[];
-    // Broadcast Craft states
     craftBTC: { utxoId: string; address: string; amount: string; feeRate: string; btcType: 'SEG_WIT' | 'LEGACY' };
     craftXMR: { stealthAddress: string; amount: string; mixInRingSize: string; blindFactor: string };
     craftAERO: { address: string; amount: string; nonce: string; gasPrice: string; dataHex: string };
-    // Merkle Proof Simulator state
     selectedBlockHeight: number | null;
     selectedTxId: string | null;
     proofSteps: { level: number; value: string; sibling: string; isLeft: boolean; result: string }[];
@@ -84,7 +81,7 @@ interface MainNetCache {
 
 let mainNetCache: MainNetCache | null = null;
 
-// Initial dummy UTXOs and blocks for BTC
+// Initial pre-loaded seed blocks for simulation
 const initialBTCBlocks: Block[] = [
     {
         height: 841230,
@@ -118,7 +115,6 @@ const initialBTCBlocks: Block[] = [
     }
 ];
 
-// Initial XMR blocks
 const initialXMRBlocks: Block[] = [
     {
         height: 3123450,
@@ -152,7 +148,6 @@ const initialXMRBlocks: Block[] = [
     }
 ];
 
-// Initial AERO blocks (Sovereign L1 EVM blockchain)
 const initialAEROBlocks: Block[] = [
     {
         height: 1514233,
@@ -196,7 +191,6 @@ function buildMerkleTree(txs: Tx[]) {
         };
     }
     
-    // Hash leaves deterministically using internal transaction parameters
     const leaves = txs.map(t => {
         const payload = `${t.id}-${t.coin}-${t.amount}-${t.sender}-${t.recipient}-${t.fee}`;
         return hashString(payload);
@@ -209,7 +203,6 @@ function buildMerkleTree(txs: Tx[]) {
         const nextLevel: string[] = [];
         for (let i = 0; i < currentLevel.length; i += 2) {
             const left = currentLevel[i];
-            // Duplicate sibling if odd node at level
             const right = (i + 1 < currentLevel.length) ? currentLevel[i + 1] : left;
             nextLevel.push(hashString(left + right));
         }
@@ -224,7 +217,7 @@ function buildMerkleTree(txs: Tx[]) {
     };
 }
 
-// Generate the specific verification path proof steps
+// Generate specific verification path steps
 function calculateMerkleProofAndSteps(txs: Tx[], targetIndex: number) {
     if (txs.length === 0 || targetIndex < 0 || targetIndex >= txs.length) return [];
     
@@ -239,7 +232,6 @@ function calculateMerkleProofAndSteps(txs: Tx[], targetIndex: number) {
         const isSelfEven = currentIdx % 2 === 0;
         const siblingIdx = isSelfEven ? currentIdx + 1 : currentIdx - 1;
         
-        // Sibling defaults to self if odd leaf elements
         let sibling = currentValue;
         if (siblingIdx < currentLevel.length) {
             sibling = currentLevel[siblingIdx];
@@ -253,7 +245,7 @@ function calculateMerkleProofAndSteps(txs: Tx[], targetIndex: number) {
             level: currentLevelIdx,
             value: currentValue,
             sibling,
-            isLeft: !isSelfEven, // Is sibling to the left?
+            isLeft: !isSelfEven,
             result: nextHash
         });
         
@@ -268,9 +260,6 @@ function calculateMerkleProofAndSteps(txs: Tx[], targetIndex: number) {
 export const MainNetView: React.FC = () => {
     const { user, login, guestLogin, logout, verifyBiometricSignature } = useAuth();
 
-    // -------------------------------------------------------------
-    // ATTACH COGNITIVE STATES WITH RECOVERY CACHE INTERCEPT
-    // -------------------------------------------------------------
     const [selectedChain, setSelectedChain] = useState<'BTC' | 'XMR' | 'AERO' | 'SPEND'>(() => mainNetCache?.selectedChain ?? 'BTC');
 
     const [btcStats, setBtcStats] = useState<NetworkStats>(() => mainNetCache?.btcStats ?? {
@@ -294,20 +283,14 @@ export const MainNetView: React.FC = () => {
         price: '$2.42'
     });
 
-    // Simulated Blockchains
     const [btcBlocks, setBtcBlocks] = useState<Block[]>(() => mainNetCache?.btcBlocks ?? initialBTCBlocks);
     const [xmrBlocks, setXmrBlocks] = useState<Block[]>(() => mainNetCache?.xmrBlocks ?? initialXMRBlocks);
     const [aeroBlocks, setAeroBlocks] = useState<Block[]>(() => mainNetCache?.aeroBlocks ?? initialAEROBlocks);
 
-    // Spend ledger local state persistent hook
     const [spendBlocks, setSpendBlocks] = useState<Block[]>(() => {
         const saved = localStorage.getItem('aetheros_spend_blocks');
         if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) {
-                console.error("Failed to parse spend blocks", e);
-            }
+            try { return JSON.parse(saved); } catch (e) { console.error(e); }
         }
         return [
             {
@@ -329,15 +312,10 @@ export const MainNetView: React.FC = () => {
         localStorage.setItem('aetheros_spend_blocks', JSON.stringify(spendBlocks));
     }, [spendBlocks]);
 
-    // Resource Reserves from RealMoneySystem
     const [reserve, setReserve] = useState<ResourceReserve>(() => {
         const saved = localStorage.getItem('aetheros_resource_reserve');
         if (saved) {
-            try {
-                return JSON.parse(saved);
-            } catch (e) {
-                console.error("Failed to parse resource reserve", e);
-            }
+            try { return JSON.parse(saved); } catch (e) { console.error(e); }
         }
         const newReserve = RealMoneySystem.instantiateReserve();
         localStorage.setItem('aetheros_resource_reserve', JSON.stringify(newReserve));
@@ -356,23 +334,22 @@ export const MainNetView: React.FC = () => {
         price: '1 CPH = 1.00 USD'
     };
 
-    // Form inputs for inline login & log out simulation
     const [loginEmail, setLoginEmail] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
     const [loginLoading, setLoginLoading] = useState(false);
     const [loginError, setLoginError] = useState<string | null>(null);
 
-    // Cryptographic signature states
     const [customPayload, setCustomPayload] = useState('Purchase logistics fuel - 80 CPH');
     const [signingPassphrase, setSigningPassphrase] = useState('');
     const [signedResult, setSignedResult] = useState<string | null>(null);
 
-    // Dynamic Mempool containing unconfirmed transactions
     const [mempool, setMempool] = useState<Tx[]>(() => mainNetCache?.mempool ?? [
         { id: 'tx_un_01', coin: 'BTC', amount: 0.1200, sender: 'bc1q9efb...632fda', recipient: 'bc1q84muhrq6fjed6k9wsqy2av2qtdkzh7t49xfw7h', fee: 0.00015, timestamp: Date.now() - 30000, status: 'PENDING' },
         { id: 'tx_un_02', coin: 'XMR', amount: 4.80, sender: 'StealthAddress_P64D...', recipient: '48memp...55aa66', fee: 0.0012, timestamp: Date.now() - 15000, status: 'PENDING', extraData: { ringSize: 11, commit: 'PedersenCommit[4.80 XMR]', keyImage: '0x81ee82aa...' } },
         { id: 'tx_un_03', coin: 'AERO', amount: 150, sender: '0x8412eB...fFc11', recipient: '0xMemPool...Contract', fee: 0.08, timestamp: Date.now() - 5000, status: 'PENDING', extraData: { nonce: 5, gasLimit: 30000, data: '0x' } }
     ]);
+
+    const [activeOpTab, setActiveOpTab] = useState<'consoles' | 'craftsman' | 'explorer'>('consoles');
 
     const [isMining, setIsMining] = useState(() => mainNetCache?.isMining ?? false);
     const [miningEfficiency, setMiningEfficiency] = useState(() => mainNetCache?.miningEfficiency ?? 0);
@@ -386,12 +363,11 @@ export const MainNetView: React.FC = () => {
         '[AERO_EVM] Gas scheduler initialized. Nonce tracker online.'
     ]);
 
-    // Transaction Builder Inputs (Customized for each ledger style)
     const [craftBTC, setCraftBTC] = useState(() => mainNetCache?.craftBTC ?? {
         utxoId: '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
         address: 'bc1q84muhrq6fjed6k9wsqy2av2qtdkzh7t49xfw7h',
         amount: '0.045',
-        feeRate: '25', // sat/vB
+        feeRate: '25',
         btcType: 'SEG_WIT' as 'SEG_WIT' | 'LEGACY'
     });
 
@@ -406,11 +382,10 @@ export const MainNetView: React.FC = () => {
         address: '0x99213Acef901124faaebdedf0124ffaab0213ccb',
         amount: '75',
         nonce: '4',
-        gasPrice: '28', // gwei
+        gasPrice: '28',
         dataHex: '0x'
     });
 
-    // Merkle Proof Interactive Playground state
     const [selectedBlockHeight, setSelectedBlockHeight] = useState<number | null>(() => mainNetCache?.selectedBlockHeight ?? null);
     const [selectedTxId, setSelectedTxId] = useState<string | null>(() => mainNetCache?.selectedTxId ?? null);
     const [proofSteps, setProofSteps] = useState<{ level: number; value: string; sibling: string; isLeft: boolean; result: string }[]>(() => mainNetCache?.proofSteps ?? []);
@@ -418,7 +393,6 @@ export const MainNetView: React.FC = () => {
 
     const logEndRef = useRef<HTMLDivElement>(null);
 
-    // Initialize block height selection when chain changes
     useEffect(() => {
         const blocks = selectedChain === 'BTC' ? btcBlocks : selectedChain === 'XMR' ? xmrBlocks : selectedChain === 'AERO' ? aeroBlocks : spendBlocks;
         if (blocks.length > 0) {
@@ -427,7 +401,6 @@ export const MainNetView: React.FC = () => {
         }
     }, [selectedChain, btcBlocks, xmrBlocks, aeroBlocks, spendBlocks]);
 
-    // Handle recalculating proofs on transaction/block selection shifts
     useEffect(() => {
         if (selectedBlockHeight === null) {
             setProofSteps([]);
@@ -447,14 +420,12 @@ export const MainNetView: React.FC = () => {
             setProofSteps(steps);
             setCurrentProofStepIndex(0);
         } else {
-            // Fallback if transaction isn't inside
             setSelectedTxId(currentBlock.transactions[0]?.id || null);
         }
     }, [selectedBlockHeight, selectedTxId, selectedChain, btcBlocks, xmrBlocks, aeroBlocks, spendBlocks]);
 
     const isFirstLogsRef = useRef(true);
 
-    // Auto-scroll network logs logs
     useEffect(() => {
         const element = logEndRef.current;
         if (element && element.parentElement && element.parentElement.parentElement) {
@@ -472,29 +443,12 @@ export const MainNetView: React.FC = () => {
         }
     }, [latestNetworkLogs]);
 
-    // Keep System Memory Active via JSON Sync Cache
     useEffect(() => {
         mainNetCache = {
-            selectedChain,
-            btcStats,
-            xmrStats,
-            aeroStats,
-            btcBlocks,
-            xmrBlocks,
-            aeroBlocks,
-            mempool,
-            isMining,
-            miningEfficiency,
-            rigWorker,
-            rigTemp,
-            latestNetworkLogs,
-            craftBTC,
-            craftXMR,
-            craftAERO,
-            selectedBlockHeight,
-            selectedTxId,
-            proofSteps,
-            currentProofStepIndex
+            selectedChain, btcStats, xmrStats, aeroStats, btcBlocks, xmrBlocks,
+            aeroBlocks, mempool, isMining, miningEfficiency, rigWorker, rigTemp,
+            latestNetworkLogs, craftBTC, craftXMR, craftAERO, selectedBlockHeight,
+            selectedTxId, proofSteps, currentProofStepIndex
         };
     }, [
         selectedChain, btcStats, xmrStats, aeroStats, btcBlocks, xmrBlocks,
@@ -503,10 +457,8 @@ export const MainNetView: React.FC = () => {
         selectedTxId, proofSteps, currentProofStepIndex
     ]);
 
-    // Simulated network data variance
     useEffect(() => {
         const interval = setInterval(() => {
-            // Volatility simulator
             setBtcStats(prev => ({
                 ...prev,
                 price: '$' + (parseFloat(prev.price.replace('$', '').replace(',', '')) + (Math.random() - 0.5) * 22).toLocaleString(undefined, { minimumFractionDigits: 2 }),
@@ -531,8 +483,7 @@ export const MainNetView: React.FC = () => {
                 setRigTemp(prev => Math.max(48, prev - 1));
             }
 
-            // Occasional organic mempool additions
-            if (Math.random() > 0.82) {
+            if (Math.random() > 0.85) {
                 const triggerType = Math.random();
                 if (triggerType < 0.4) {
                     const newTx: Tx = {
@@ -546,7 +497,7 @@ export const MainNetView: React.FC = () => {
                         status: 'PENDING'
                     };
                     setMempool(prev => [...prev, newTx]);
-                    setLatestNetworkLogs(l => [...l, `[MEMPOOL] Accepted BTC transaction: ${newTx.amount} BTC to ${newTx.recipient}`]);
+                    setLatestNetworkLogs(l => [...l, `[MEMPOOL] Accepted BTC transaction: ${newTx.amount} BTC`]);
                 } else if (triggerType < 0.7) {
                     const newTx: Tx = {
                         id: 'tx_org_' + Math.random().toString(16).slice(2, 8),
@@ -560,7 +511,7 @@ export const MainNetView: React.FC = () => {
                         extraData: { ringSize: 11, commit: 'PedersenCommit[Masked]', keyImage: '0x' + Math.random().toString(16).slice(2, 10) }
                     };
                     setMempool(prev => [...prev, newTx]);
-                    setLatestNetworkLogs(l => [...l, `[MEMPOOL] Relay private XMR blip: Pedersen transaction buffered.`]);
+                    setLatestNetworkLogs(l => [...l, `[MEMPOOL] Private XMR transaction buffered.`]);
                 } else {
                     const newTx: Tx = {
                         id: 'tx_org_' + Math.random().toString(16).slice(2, 8),
@@ -574,7 +525,7 @@ export const MainNetView: React.FC = () => {
                         extraData: { nonce: Math.floor(Math.random() * 10), gasLimit: 21000, data: '0x' }
                     };
                     setMempool(prev => [...prev, newTx]);
-                    setLatestNetworkLogs(l => [...l, `[MEMPOOL] EVM Gas bound entry: Nonce execution pending.`]);
+                    setLatestNetworkLogs(l => [...l, `[MEMPOOL] EVM transaction queued.`]);
                 }
             }
         }, 4000);
@@ -582,7 +533,6 @@ export const MainNetView: React.FC = () => {
         return () => clearInterval(interval);
     }, [isMining]);
 
-    // Mining Loop Simulator
     useEffect(() => {
         let miningInterval: any;
         if (isMining) {
@@ -590,7 +540,6 @@ export const MainNetView: React.FC = () => {
                 setMiningEfficiency(prev => {
                     const next = prev + 5;
                     if (next >= 100) {
-                        // Mine Block Completed!
                         mineCurrentTransactions();
                         return 0;
                     }
@@ -603,11 +552,8 @@ export const MainNetView: React.FC = () => {
         return () => clearInterval(miningInterval);
     }, [isMining, mempool, selectedChain]);
 
-    // Sealing pending transactions from mempool into selected chain block
     const mineCurrentTransactions = () => {
         const toMine = mempool.filter(tx => tx.coin === selectedChain);
-        
-        // Guarantee at least 4 transactions for a beautiful Merkle proof tree display (simulate filler network txs if needed)
         const blockTxs = [...toMine];
         const requiredTxCount = 4;
         
@@ -615,74 +561,45 @@ export const MainNetView: React.FC = () => {
             const fillerId = 'tx_fill_' + Math.random().toString(16).slice(2, 8);
             if (selectedChain === 'BTC') {
                 blockTxs.push({
-                    id: fillerId,
-                    coin: 'BTC',
-                    amount: parseFloat((Math.random() * 0.08).toFixed(5)),
-                    sender: 'bc1q' + Math.random().toString(16).slice(2,6) + '...filler',
-                    recipient: 'bc1q84muhrq6fjed6k9wsqy2av2qtdkzh7t49xfw7h',
-                    fee: 0.0001,
-                    timestamp: Date.now(),
-                    status: 'CONFIRMED'
+                    id: fillerId, coin: 'BTC', amount: parseFloat((Math.random() * 0.08).toFixed(5)),
+                    sender: 'bc1q' + Math.random().toString(16).slice(2,6) + '...filler', recipient: 'bc1q84muhrq6fjed6k9wsqy2av2qtdkzh7t49xfw7h',
+                    fee: 0.0001, timestamp: Date.now(), status: 'CONFIRMED'
                 });
             } else if (selectedChain === 'XMR') {
                 blockTxs.push({
-                    id: fillerId,
-                    coin: 'XMR',
-                    amount: parseFloat((Math.random() * 5).toFixed(2)),
-                    sender: 'StealthAddress_' + fillerId.toUpperCase(),
-                    recipient: '4' + Math.random().toString(16).slice(2, 10) + '...',
-                    fee: 0.001,
-                    timestamp: Date.now(),
-                    status: 'CONFIRMED',
+                    id: fillerId, coin: 'XMR', amount: parseFloat((Math.random() * 5).toFixed(2)),
+                    sender: 'StealthAddress_' + fillerId.toUpperCase(), recipient: '4' + Math.random().toString(16).slice(2, 10) + '...',
+                    fee: 0.001, timestamp: Date.now(), status: 'CONFIRMED',
                     extraData: { ringSize: 11, commit: 'PedersenCommit[MaskedAmount]', keyImage: '0x' + Math.random().toString(16).slice(2, 10) }
                 });
             } else if (selectedChain === 'AERO') {
                 blockTxs.push({
-                    id: fillerId,
-                    coin: 'AERO',
-                    amount: Math.floor(Math.random() * 80) + 1,
-                    sender: '0x' + Math.random().toString(16).slice(2, 6) + '...filler',
-                    recipient: '0x' + Math.random().toString(16).slice(2,6) + '...filler',
-                    fee: 0.015,
-                    timestamp: Date.now(),
-                    status: 'CONFIRMED',
+                    id: fillerId, coin: 'AERO', amount: Math.floor(Math.random() * 80) + 1,
+                    sender: '0x' + Math.random().toString(16).slice(2, 6) + '...filler', recipient: '0x' + Math.random().toString(16).slice(2,6) + '...filler',
+                    fee: 0.015, timestamp: Date.now(), status: 'CONFIRMED',
                     extraData: { nonce: Math.floor(Math.random() * 10), gasLimit: 21000, data: '0x' }
                 });
             } else {
                 blockTxs.push({
-                    id: fillerId,
-                    coin: 'SPEND',
-                    amount: Math.floor(Math.random() * 25) + 5,
-                    sender: '0xSovereignOwnerWallet',
-                    recipient: 'MerchantPartner_' + Math.floor(Math.random() * 9),
-                    fee: 0.1,
-                    timestamp: Date.now(),
-                    status: 'CONFIRMED',
-                    extraData: { item: 'Simulated Merchant Settlement', details: 'Automated reserve value reconciliation' }
+                    id: fillerId, coin: 'SPEND', amount: Math.floor(Math.random() * 25) + 5,
+                    sender: '0xSovereignOwnerWallet', recipient: 'MerchantPartner_' + Math.floor(Math.random() * 9),
+                    fee: 0.1, timestamp: Date.now(), status: 'CONFIRMED',
+                    extraData: { item: 'Simulated Settlement', details: 'Automated value reconciliation' }
                 });
             }
         }
 
-        // Build Tree Root Hash using our deterministic hashing structure
         const merkle = buildMerkleTree(blockTxs);
         
-        // Create the newly forged block
         if (selectedChain === 'BTC') {
             const lastBlock = btcBlocks[btcBlocks.length - 1];
             const newBlockHeight = lastBlock.height + 1;
             const newBlockHash = hashString(lastBlock.hash + merkle.root);
-            
             const block: Block = {
-                height: newBlockHeight,
-                hash: newBlockHash,
-                prevHash: lastBlock.hash,
-                merkleRoot: merkle.root,
-                timestamp: Date.now(),
-                nonce: Math.floor(Math.random() * 99999999),
-                minedBy: rigWorker,
-                transactions: blockTxs
+                height: newBlockHeight, hash: newBlockHash, prevHash: lastBlock.hash,
+                merkleRoot: merkle.root, timestamp: Date.now(), nonce: Math.floor(Math.random() * 99999999),
+                minedBy: rigWorker, transactions: blockTxs
             };
-            
             setBtcBlocks(prev => [...prev, block]);
             setBtcStats(prev => ({ ...prev, blockHeight: newBlockHeight }));
             setSelectedBlockHeight(newBlockHeight);
@@ -690,18 +607,11 @@ export const MainNetView: React.FC = () => {
             const lastBlock = xmrBlocks[xmrBlocks.length - 1];
             const newBlockHeight = lastBlock.height + 1;
             const newBlockHash = hashString(lastBlock.hash + merkle.root);
-            
             const block: Block = {
-                height: newBlockHeight,
-                hash: newBlockHash,
-                prevHash: lastBlock.hash,
-                merkleRoot: merkle.root,
-                timestamp: Date.now(),
-                nonce: Math.floor(Math.random() * 999999),
-                minedBy: rigWorker,
-                transactions: blockTxs
+                height: newBlockHeight, hash: newBlockHash, prevHash: lastBlock.hash,
+                merkleRoot: merkle.root, timestamp: Date.now(), nonce: Math.floor(Math.random() * 999999),
+                minedBy: rigWorker, transactions: blockTxs
             };
-            
             setXmrBlocks(prev => [...prev, block]);
             setXmrStats(prev => ({ ...prev, blockHeight: newBlockHeight }));
             setSelectedBlockHeight(newBlockHeight);
@@ -709,18 +619,11 @@ export const MainNetView: React.FC = () => {
             const lastBlock = aeroBlocks[aeroBlocks.length - 1];
             const newBlockHeight = lastBlock.height + 1;
             const newBlockHash = hashString(lastBlock.hash + merkle.root);
-            
             const block: Block = {
-                height: newBlockHeight,
-                hash: newBlockHash,
-                prevHash: lastBlock.hash,
-                merkleRoot: merkle.root,
-                timestamp: Date.now(),
-                nonce: Math.floor(Math.random() * 99999),
-                minedBy: rigWorker,
-                transactions: blockTxs
+                height: newBlockHeight, hash: newBlockHash, prevHash: lastBlock.hash,
+                merkleRoot: merkle.root, timestamp: Date.now(), nonce: Math.floor(Math.random() * 99999),
+                minedBy: rigWorker, transactions: blockTxs
             };
-            
             setAeroBlocks(prev => [...prev, block]);
             setAeroStats(prev => ({ ...prev, blockHeight: newBlockHeight }));
             setSelectedBlockHeight(newBlockHeight);
@@ -728,114 +631,71 @@ export const MainNetView: React.FC = () => {
             const lastBlock = spendBlocks[spendBlocks.length - 1];
             const newBlockHeight = lastBlock.height + 1;
             const newBlockHash = hashString(lastBlock.hash + merkle.root);
-            
             const block: Block = {
-                height: newBlockHeight,
-                hash: newBlockHash,
-                prevHash: lastBlock.hash,
-                merkleRoot: merkle.root,
-                timestamp: Date.now(),
-                nonce: Math.floor(Math.random() * 9999),
-                minedBy: 'Sovereign Mining Core',
-                transactions: blockTxs
+                height: newBlockHeight, hash: newBlockHash, prevHash: lastBlock.hash,
+                merkleRoot: merkle.root, timestamp: Date.now(), nonce: Math.floor(Math.random() * 9999),
+                minedBy: 'Sovereign Mining Core', transactions: blockTxs
             };
-            
             setSpendBlocks(prev => [...prev, block]);
             setSelectedBlockHeight(newBlockHeight);
         }
 
-        // Remove confirmed ledger actions from mempool
         setMempool(prev => prev.filter(tx => !toMine.some(tm => tm.id === tx.id)));
         setLatestNetworkLogs(l => [
             ...l, 
-            `[BLOCKCHAIN] Sealed block height #${selectedChain === 'BTC' ? btcStats.blockHeight + 1 : selectedChain === 'XMR' ? xmrStats.blockHeight + 1 : selectedChain === 'AERO' ? aeroStats.blockHeight + 1 : spendBlocks[spendBlocks.length - 1].height + 1}!`,
-            `[BLOCKCHAIN] Merkle Root: ${merkle.root.slice(0, 20)}...`
+            `[BLOCKCHAIN] Forged block #${selectedChain === 'BTC' ? btcStats.blockHeight + 1 : selectedChain === 'XMR' ? xmrStats.blockHeight + 1 : selectedChain === 'AERO' ? aeroStats.blockHeight + 1 : spendBlocks[spendBlocks.length - 1].height + 1}!`,
+            `[BLOCKCHAIN] Merkle Root: ${merkle.root.slice(0, 24)}...`
         ]);
     };
 
-    // Broadcast Handlers (detailed custom simulations)
     const handleCraftBroadcast = (e: React.FormEvent) => {
         e.preventDefault();
-
         let newTx: Tx;
         const txId = 'tx_custom_' + Math.random().toString(16).slice(2, 8);
 
         if (selectedChain === 'BTC') {
             const amt = parseFloat(craftBTC.amount) || 0.005;
             newTx = {
-                id: txId,
-                coin: 'BTC',
-                amount: amt,
-                sender: 'bc1q_UTXO_source_' + craftBTC.utxoId.slice(2, 8),
-                recipient: craftBTC.address,
-                fee: (parseFloat(craftBTC.feeRate) * 141) / 100000000, 
-                timestamp: Date.now(),
-                status: 'PENDING',
-                extraData: {
-                    utxoSpend: craftBTC.utxoId,
-                    scriptType: craftBTC.btcType,
-                    rawHex: '0200000001' + craftBTC.utxoId.slice(2, 16) + '0000000000ffffffff'
-                }
+                id: txId, coin: 'BTC', amount: amt,
+                sender: 'bc1q_UTXO_source_' + craftBTC.utxoId.slice(2, 8), recipient: craftBTC.address,
+                fee: (parseFloat(craftBTC.feeRate) * 141) / 100000000, timestamp: Date.now(), status: 'PENDING',
+                extraData: { utxoSpend: craftBTC.utxoId, scriptType: craftBTC.btcType }
             };
             setLatestNetworkLogs(prev => [
                 ...prev,
                 `[TRANSACTION] Signed with UTXO private key.`,
-                `[TRANSACTION] Broadcasted Legacy/Segwit Raw TX [Bytes: 141]`,
                 `[MEMPOOL] BTC Address bc1q... loaded in memory.`
             ]);
         } else if (selectedChain === 'XMR') {
             const amt = parseFloat(craftXMR.amount) || 1.5;
             newTx = {
-                id: txId,
-                coin: 'XMR',
-                amount: amt,
-                sender: 'StealthAddress_Generated_v8_blip',
-                recipient: craftXMR.stealthAddress,
-                fee: 0.0015,
-                timestamp: Date.now(),
-                status: 'PENDING',
-                extraData: {
-                    ringSize: parseInt(craftXMR.mixInRingSize),
-                    commit: `PedersenCommit[Blinded: ${craftXMR.blindFactor.slice(0, 10)}...]`,
-                    keyImage: '0x' + Array(16).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join(''),
-                    rawPayload: '0x011a0b' + craftXMR.blindFactor.slice(2, 10) + 'abff99'
-                }
+                id: txId, coin: 'XMR', amount: amt,
+                sender: 'StealthAddress_Generated_blip', recipient: craftXMR.stealthAddress,
+                fee: 0.0015, timestamp: Date.now(), status: 'PENDING',
+                extraData: { ringSize: parseInt(craftXMR.mixInRingSize), commit: `PedersenCommit[Blinded: ${craftXMR.blindFactor.slice(0, 10)}...]` }
             };
             setLatestNetworkLogs(prev => [
                 ...prev,
-                `[XMR_PRIVACY] Concealed amount committing via Pedersen commitment vectors.`,
-                `[XMR_PRIVACY] Forged ring signature containing ${craftXMR.mixInRingSize} decoy UTXO keys.`,
-                `[MEMPOOL] RingCT transaction successfully relayed anonymously.`
+                `[XMR_PRIVACY] Concealing amount via Pedersen commitments.`,
+                `[XMR_PRIVACY] Forged ring signature with decoy keys.`
             ]);
         } else {
             const amt = parseFloat(craftAERO.amount) || 12;
             newTx = {
-                id: txId,
-                coin: 'AERO',
-                amount: amt,
-                sender: '0xSovereignOwnerWalletAccount',
-                recipient: craftAERO.address,
-                fee: (parseInt(craftAERO.gasPrice) * 21000) / 1000000000,
-                timestamp: Date.now(),
-                status: 'PENDING',
-                extraData: {
-                    nonce: parseInt(craftAERO.nonce),
-                    gasLimit: 21000 + (craftAERO.dataHex !== '0x' ? 45000 : 0),
-                    data: craftAERO.dataHex,
-                    rawHex: '0xf86a048505bcbe170082520894' + craftAERO.address.slice(2, 14) + '880d'
-                }
+                id: txId, coin: 'AERO', amount: amt,
+                sender: '0xSovereignOwnerWalletAccount', recipient: craftAERO.address,
+                fee: (parseInt(craftAERO.gasPrice) * 21000) / 1000000000, timestamp: Date.now(), status: 'PENDING',
+                extraData: { nonce: parseInt(craftAERO.nonce), gasLimit: 21000, data: craftAERO.dataHex }
             };
             setLatestNetworkLogs(prev => [
                 ...prev,
                 `[AERO_EVM] Gas cost: ${newTx.fee} AERO`,
-                `[AERO_EVM] Validated nonce sequence: #${craftAERO.nonce}`,
-                `[MEMPOOL] EVM transition submitted to network memory pool.`
+                `[MEMPOOL] EVM transition submitted to memory pool.`
             ]);
         }
 
         setMempool(prev => [...prev, newTx]);
 
-        // Clean form states somewhat organically
         if (selectedChain === 'BTC') {
             setCraftBTC(prev => ({ ...prev, utxoId: '0x' + Array(64).fill(0).map(() => Math.floor(Math.random() * 16).toString(16)).join('') }));
         } else if (selectedChain === 'XMR') {
@@ -845,222 +705,264 @@ export const MainNetView: React.FC = () => {
         }
     };
 
-    // Locate active blocks
     const activeBlocks = selectedChain === 'BTC' ? btcBlocks : selectedChain === 'XMR' ? xmrBlocks : selectedChain === 'AERO' ? aeroBlocks : spendBlocks;
     const activeBlock = activeBlocks.find(b => b.height === selectedBlockHeight) || activeBlocks[activeBlocks.length - 1];
 
-    return (
-        <div className="h-full flex flex-col bg-[#020204] text-zinc-300 font-mono overflow-auto select-none">
-            {/* Real-time Crypto Header HUD */}
-            <div className="p-8 border-b border-zinc-900 bg-zinc-950/40 flex flex-col lg:flex-row justify-between lg:items-center relative gap-6">
-                <div className="absolute inset-0 bg-[radial-gradient(circle_at_2%_2%,_rgba(16,185,129,0.04)_0%,_transparent_60%)] pointer-events-none" />
-                <div className="flex items-center gap-6 relative z-10">
-                    <div className="w-14 h-14 bg-emerald-500/5 border border-emerald-500/20 rounded-2xl flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.05)]">
-                        <ActivityIcon className="w-8 h-8 text-emerald-400 animate-pulse" />
-                    </div>
-                    <div>
-                        <h2 className="font-extrabold text-3xl text-white tracking-widest uppercase leading-none">
-                            AERO_Sovereign_Main_Net
-                        </h2>
-                        <p className="text-[9px] text-emerald-400/80 font-bold uppercase tracking-[0.3em] mt-1.5 flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping inline-block" />
-                            Multi-Node Cryptographic Ledger Interface Active
-                        </p>
-                    </div>
-                </div>
+    const chainColorMap = {
+        BTC: { text: 'text-orange-400', border: 'border-orange-500/30', bg: 'bg-orange-500/10', glow: 'shadow-orange-500/10', solid: 'bg-orange-500', hover: 'hover:bg-orange-500/20' },
+        XMR: { text: 'text-purple-400', border: 'border-purple-500/30', bg: 'bg-purple-500/10', glow: 'shadow-purple-500/10', solid: 'bg-purple-500', hover: 'hover:bg-purple-500/20' },
+        AERO: { text: 'text-emerald-400', border: 'border-emerald-500/30', bg: 'bg-emerald-500/10', glow: 'shadow-emerald-500/10', solid: 'bg-emerald-500', hover: 'hover:bg-emerald-500/20' },
+        SPEND: { text: 'text-sky-400', border: 'border-sky-500/30', bg: 'bg-sky-500/10', glow: 'shadow-sky-500/10', solid: 'bg-sky-500', hover: 'hover:bg-sky-500/20' },
+    };
 
-                <div className="flex flex-wrap gap-8 relative z-10 text-xs text-zinc-400">
-                    <div className="border border-zinc-900/80 bg-zinc-950/20 px-4 py-2.5 rounded-xl">
-                        <p className="text-[8px] text-zinc-600 font-black uppercase mb-1 tracking-wider">Active Blockchains</p>
-                        <p className="text-sm font-black text-white flex items-center gap-1.5">
-                            <DatabaseIcon className="w-3.5 h-3.5 text-blue-500" />
-                            <span className="text-emerald-450 text-[11px]">3 Verifiable L1 Peers</span>
-                        </p>
+    const cColors = chainColorMap[selectedChain];
+
+    return (
+        <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#050508] text-zinc-100 font-sans select-text pb-12">
+            {/* Real-time Crypto Header HUD */}
+            <div className="p-6 md:p-8 border-b border-zinc-900 bg-zinc-950/60 relative overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_2%_2%,_rgba(16,185,129,0.05)_0%,_transparent_60%)] pointer-events-none" />
+                <div className="max-w-7xl mx-auto flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 relative z-10">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+                            <ActivityIcon className="w-6 h-6 text-emerald-400 animate-pulse" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl md:text-2xl font-extrabold text-white tracking-wider uppercase">
+                                AERO_Sovereign_Main_Net
+                            </h2>
+                            <p className="text-xs text-emerald-400 font-semibold uppercase tracking-wider mt-1 flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                                Multi-Node Ledger Terminal Active
+                            </p>
+                        </div>
                     </div>
-                    <div className="border border-zinc-900/80 bg-zinc-950/20 px-4 py-2.5 rounded-xl">
-                        <p className="text-[8px] text-zinc-600 font-black uppercase mb-1 tracking-wider">Verifiable Proofing</p>
-                        <p className="text-sm font-black text-white flex items-center gap-1.5">
-                            <ShieldIcon className="w-3.5 h-3.5 text-emerald-400" />
-                            <span className="text-[11px]">SHA-256 Merkle Engine</span>
-                        </p>
-                    </div>
-                    <div className="border border-zinc-900/80 bg-zinc-950/20 px-4 py-2.5 rounded-xl">
-                        <p className="text-[8px] text-zinc-600 font-black uppercase mb-1 tracking-wider">Mempool Status</p>
-                        <p className="text-sm font-black text-rose-400 flex items-center gap-1.5">
-                            <SlidersIcon className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
-                            <span>{mempool.filter(t => t.coin === selectedChain).length} Unconfirmed Tx</span>
-                        </p>
+
+                    <div className="flex flex-wrap gap-4 text-xs">
+                        <div className="border border-zinc-900 bg-zinc-950/40 px-4 py-2 rounded-xl">
+                            <p className="text-[10px] text-zinc-500 uppercase font-black mb-1">Peers Online</p>
+                            <p className="font-bold text-white flex items-center gap-1.5">
+                                <DatabaseIcon className="w-3.5 h-3.5 text-sky-400" />
+                                3 Verifiable L1 Nodes
+                            </p>
+                        </div>
+                        <div className="border border-zinc-900 bg-zinc-950/40 px-4 py-2 rounded-xl">
+                            <p className="text-[10px] text-zinc-500 uppercase font-black mb-1">Verifiable Proofing</p>
+                            <p className="font-bold text-white flex items-center gap-1.5">
+                                <ShieldIcon className="w-3.5 h-3.5 text-emerald-400" />
+                                SHA-256 Merkle Verification
+                            </p>
+                        </div>
+                        <div className="border border-zinc-900 bg-zinc-950/40 px-4 py-2 rounded-xl">
+                            <p className="text-[10px] text-zinc-500 uppercase font-black mb-1">Mempool Status</p>
+                            <p className="font-bold text-rose-400 flex items-center gap-1.5">
+                                <SlidersIcon className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+                                {mempool.filter(t => t.coin === selectedChain).length} Queued Tx
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Blockchain Tab Switchers */}
-            <div className="px-8 pt-6 pb-2 bg-zinc-950/20 border-b border-zinc-900 flex justify-between items-center bg-[radial-gradient(circle_at_50%_0%,rgba(14,165,233,0.03),transparent)]">
-                <div className="flex gap-2">
-                    <button 
-                        onClick={() => setSelectedChain('BTC')}
-                        className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 border ${
-                            selectedChain === 'BTC' 
-                                ? 'bg-orange-500/10 border-orange-500 text-orange-400 shadow-md shadow-orange-500/5' 
-                                : 'bg-transparent border-zinc-900 text-zinc-500 hover:text-zinc-300 hover:border-zinc-800'
-                        }`}
-                    >
-                        <BitcoinIcon className="w-3.5 h-3.5" />
-                        Bitcoin Core (BTC)
-                    </button>
-                    <button 
-                        onClick={() => setSelectedChain('XMR')}
-                        className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 border ${
-                            selectedChain === 'XMR' 
-                                ? 'bg-purple-950/30 border-purple-800 text-purple-400 shadow-md shadow-purple-500/5' 
-                                : 'bg-transparent border-zinc-900 text-zinc-500 hover:text-zinc-300 hover:border-zinc-800'
-                        }`}
-                    >
-                        <LockIcon className="w-3.5 h-3.5" />
-                        Monero Sovereign (XMR)
-                    </button>
-                    <button 
-                        onClick={() => setSelectedChain('AERO')}
-                        className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 border ${
-                            selectedChain === 'AERO' 
-                                ? 'bg-emerald-950/35 border-emerald-700 text-emerald-400 shadow-md shadow-emerald-500/5' 
-                                : 'bg-transparent border-zinc-900 text-zinc-500 hover:text-zinc-300 hover:border-zinc-800'
-                        }`}
-                    >
-                        <ZapIcon className="w-3.5 h-3.5" />
-                        Aether EVM L1 (AERO)
-                    </button>
-                    <button 
-                        onClick={() => setSelectedChain('SPEND')}
-                        className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all flex items-center gap-2 border ${
-                            selectedChain === 'SPEND' 
-                                ? 'bg-sky-500/10 border-sky-500 text-sky-400 shadow-md shadow-sky-500/5' 
-                                : 'bg-transparent border-zinc-900 text-zinc-500 hover:text-zinc-300 hover:border-zinc-800'
-                        }`}
-                    >
-                        <Wallet className="w-3.5 h-3.5" />
-                        Real-World Spend (CPH)
-                    </button>
-                </div>
+            <div className="border-b border-zinc-900 bg-zinc-950/30">
+                <div className="max-w-7xl mx-auto px-6 md:px-8 py-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div className="flex flex-wrap gap-2">
+                        <button 
+                            onClick={() => setSelectedChain('BTC')}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase transition-all flex items-center gap-2 border ${
+                                selectedChain === 'BTC' 
+                                    ? 'bg-orange-500/10 border-orange-500/80 text-orange-400 shadow-lg shadow-orange-500/5' 
+                                    : 'bg-zinc-900/20 border-zinc-900 text-zinc-400 hover:text-zinc-200 hover:border-zinc-800'
+                            }`}
+                        >
+                            <BitcoinIcon className="w-4 h-4" />
+                            Bitcoin Core
+                        </button>
+                        <button 
+                            onClick={() => setSelectedChain('XMR')}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase transition-all flex items-center gap-2 border ${
+                                selectedChain === 'XMR' 
+                                    ? 'bg-purple-500/10 border-purple-500/80 text-purple-400 shadow-lg shadow-purple-500/5' 
+                                    : 'bg-zinc-900/20 border-zinc-900 text-zinc-400 hover:text-zinc-200 hover:border-zinc-800'
+                            }`}
+                        >
+                            <LockIcon className="w-4 h-4" />
+                            Monero Sovereign
+                        </button>
+                        <button 
+                            onClick={() => setSelectedChain('AERO')}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase transition-all flex items-center gap-2 border ${
+                                selectedChain === 'AERO' 
+                                    ? 'bg-emerald-500/10 border-emerald-500/80 text-emerald-400 shadow-lg shadow-emerald-500/5' 
+                                    : 'bg-zinc-900/20 border-zinc-900 text-zinc-400 hover:text-zinc-200 hover:border-zinc-800'
+                            }`}
+                        >
+                            <ZapIcon className="w-4 h-4" />
+                            AERO EVM L1
+                        </button>
+                        <button 
+                            onClick={() => setSelectedChain('SPEND')}
+                            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase transition-all flex items-center gap-2 border ${
+                                selectedChain === 'SPEND' 
+                                    ? 'bg-sky-500/10 border-sky-500/80 text-sky-400 shadow-lg shadow-sky-500/5' 
+                                    : 'bg-zinc-900/20 border-zinc-900 text-zinc-400 hover:text-zinc-200 hover:border-zinc-800'
+                            }`}
+                        >
+                            <Wallet className="w-4 h-4" />
+                            Spend Wallet (CPH)
+                        </button>
+                    </div>
 
-                <div className="text-[10px] font-black text-zinc-650 flex items-center gap-2">
-                    <GlobeIcon className="w-3.5 h-3.5 text-zinc-500" />
-                    <span>L1 PROTOCOLS ONLINE AND INTERCEPTABLE</span>
+                    <div className="text-xs font-semibold text-zinc-500 flex items-center gap-2">
+                        <GlobeIcon className="w-4 h-4 text-emerald-500 animate-spin" style={{ animationDuration: '6s' }} />
+                        <span>INTERCEPTABLE CONSOLE ENABLED</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* High-Tech Operating Mode Switcher */}
+            <div className="max-w-7xl mx-auto w-full px-6 md:px-8 mt-6">
+                <div className="bg-zinc-950/40 border border-zinc-900 rounded-2xl p-1.5 flex flex-wrap gap-2 backdrop-blur-md">
+                    <button
+                        onClick={() => setActiveOpTab('consoles')}
+                        className={`flex-1 min-w-[140px] px-5 py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer border ${activeOpTab === 'consoles' ? 'bg-emerald-600 border-emerald-500 text-black shadow-lg shadow-emerald-500/10 font-extrabold' : 'bg-transparent border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/40'}`}
+                    >
+                        <CpuIcon className="w-4 h-4" />
+                        Cores & Consoles
+                    </button>
+                    <button
+                        onClick={() => setActiveOpTab('craftsman')}
+                        className={`flex-1 min-w-[140px] px-5 py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer border ${activeOpTab === 'craftsman' ? 'bg-purple-600 border-purple-500 text-white shadow-lg shadow-purple-600/10 font-extrabold' : 'bg-transparent border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/40'}`}
+                    >
+                        <SlidersIcon className="w-4 h-4" />
+                        Transaction Craftsman
+                    </button>
+                    <button
+                        onClick={() => setActiveOpTab('explorer')}
+                        className={`flex-1 min-w-[140px] px-5 py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer border ${activeOpTab === 'explorer' ? 'bg-orange-500/10 border-orange-500/80 text-orange-400 shadow-lg shadow-orange-500/5 font-extrabold' : 'bg-transparent border-transparent text-zinc-400 hover:text-white hover:bg-zinc-900/40'}`}
+                    >
+                        <ShieldIcon className="w-4 h-4" />
+                        Merkle Explorer
+                    </button>
                 </div>
             </div>
 
             {/* Main Interactive Grid */}
-            <div className="flex-1 grid grid-cols-1 xl:grid-cols-12 gap-6 p-8 overflow-y-auto">
-
-                {/* Left Section (Column Span 4): Broadcast Craftsman Terminal */}
-                <div className="xl:col-span-4 space-y-6">
+            <div className="max-w-7xl mx-auto w-full px-6 md:px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                
+                {/* Left Section - Responsive Column Width based on Mode */}
+                <div className={`${activeOpTab === 'consoles' ? 'lg:col-span-8' : 'lg:col-span-12'} space-y-8`}>
                     
                     {/* Live Network Stats Cards */}
-                    <div className="bg-zinc-900/20 border border-zinc-900/60 rounded-3xl p-6 relative overflow-hidden backdrop-blur-md">
-                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent pointer-events-none" />
-                        <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <TrendingUpIcon className="w-4 h-4 text-emerald-400" /> 
-                            {selectedChain === 'BTC' ? 'Bitcoin Core Stats' : selectedChain === 'XMR' ? 'Monero Sovereign Stats' : selectedChain === 'AERO' ? 'Aether EVM Stats' : 'Real Spending (CPH) Stats'}
-                        </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="p-3 bg-zinc-950/60 border border-zinc-900 rounded-xl">
-                                <p className="text-[8px] text-zinc-500 font-bold uppercase mb-0.5">Tip Block Height</p>
-                                <p className="text-xs font-black text-white">
-                                    {selectedChain === 'BTC' ? btcStats.blockHeight.toLocaleString() : selectedChain === 'XMR' ? xmrStats.blockHeight.toLocaleString() : selectedChain === 'AERO' ? aeroStats.blockHeight.toLocaleString() : spendStats.blockHeight.toLocaleString()}
-                                </p>
-                            </div>
-                            <div className="p-3 bg-zinc-950/60 border border-zinc-900 rounded-xl">
-                                <p className="text-[8px] text-zinc-500 font-bold uppercase mb-0.5">Asset Quote (USD)</p>
-                                <p className="text-xs font-black text-emerald-450">
-                                    {selectedChain === 'BTC' ? btcStats.price : selectedChain === 'XMR' ? xmrStats.price : selectedChain === 'AERO' ? aeroStats.price : spendStats.price}
-                                </p>
-                            </div>
-                            <div className="p-3 bg-zinc-950/60 border border-zinc-900 rounded-xl">
-                                <p className="text-[8px] text-zinc-500 font-bold uppercase mb-0.5">Backed Total Valuation</p>
-                                <p className="text-[10px] font-bold text-zinc-400 truncate">
-                                    {selectedChain === 'BTC' ? btcStats.hashrate : selectedChain === 'XMR' ? xmrStats.hashrate : selectedChain === 'AERO' ? aeroStats.hashrate : spendStats.hashrate}
-                                </p>
-                            </div>
-                            <div className="p-3 bg-zinc-950/60 border border-zinc-900 rounded-xl">
-                                <p className="text-[8px] text-zinc-500 font-bold uppercase mb-0.5">Conservation Index</p>
-                                <p className="text-[10px] font-bold text-zinc-400 text-sky-455">
-                                    {selectedChain === 'BTC' ? btcStats.difficulty : selectedChain === 'XMR' ? xmrStats.difficulty : selectedChain === 'AERO' ? aeroStats.difficulty : spendStats.difficulty}
-                                </p>
+                    {activeOpTab === 'consoles' && (
+                        <div className="bg-zinc-950/60 border border-zinc-900 rounded-2xl p-6 relative overflow-hidden backdrop-blur-md">
+                            <div className="absolute inset-0 bg-gradient-to-br from-zinc-900/20 to-transparent pointer-events-none" />
+                            <h3 className="text-sm font-bold text-zinc-300 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                <TrendingUpIcon className="w-4.5 h-4.5 text-emerald-400" /> 
+                                {selectedChain === 'BTC' ? 'Bitcoin L1 Core Parameters' : selectedChain === 'XMR' ? 'Monero Sovereign Privacy Parameters' : selectedChain === 'AERO' ? 'Aether EVM Engine Parameters' : 'Real Spending (CPH) Liquidity Backing'}
+                            </h3>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="p-4 bg-black/40 border border-zinc-900 rounded-xl">
+                                    <p className="text-[10px] text-zinc-500 uppercase font-black mb-1">Tip Block Height</p>
+                                    <p className="text-base font-bold text-white">
+                                        {selectedChain === 'BTC' ? btcStats.blockHeight.toLocaleString() : selectedChain === 'XMR' ? xmrStats.blockHeight.toLocaleString() : selectedChain === 'AERO' ? aeroStats.blockHeight.toLocaleString() : spendStats.blockHeight.toLocaleString()}
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-black/40 border border-zinc-900 rounded-xl">
+                                    <p className="text-[10px] text-zinc-500 uppercase font-black mb-1">Asset Quote</p>
+                                    <p className="text-base font-bold text-emerald-400">
+                                        {selectedChain === 'BTC' ? btcStats.price : selectedChain === 'XMR' ? xmrStats.price : selectedChain === 'AERO' ? aeroStats.price : spendStats.price}
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-black/40 border border-zinc-900 rounded-xl col-span-1">
+                                    <p className="text-[10px] text-zinc-500 uppercase font-black mb-1">Network Capacity</p>
+                                    <p className="text-sm font-bold text-zinc-300 truncate">
+                                        {selectedChain === 'BTC' ? btcStats.hashrate : selectedChain === 'XMR' ? xmrStats.hashrate : selectedChain === 'AERO' ? aeroStats.hashrate : spendStats.hashrate}
+                                    </p>
+                                </div>
+                                <div className="p-4 bg-black/40 border border-zinc-900 rounded-xl col-span-1">
+                                    <p className="text-[10px] text-zinc-500 uppercase font-black mb-1">Consensus Difficulty</p>
+                                    <p className="text-sm font-bold text-zinc-300 truncate">
+                                        {selectedChain === 'BTC' ? btcStats.difficulty : selectedChain === 'XMR' ? xmrStats.difficulty : selectedChain === 'AERO' ? aeroStats.difficulty : spendStats.difficulty}
+                                    </p>
+                                </div>
                             </div>
                         </div>
-                    </div>
+                    )}
 
-                    {/* Transaction Maker (Customized details based on active L1 specs) */}
-                    <div className="bg-[#050508] border-2 border-zinc-900 rounded-3xl p-6 relative">
-                        {selectedChain !== 'SPEND' ? (
-                            <>
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-1.5">
-                                        <Share2Icon className="w-4 h-4 text-emerald-400" /> Transaction Craftsman
-                                    </h3>
-                                    <span className="text-[8px] font-black text-indigo-400 bg-indigo-950/20 px-2.5 py-1 rounded border border-indigo-900/60">
-                                        RAW SERIALIZATION
-                                    </span>
-                                </div>
+                    {/* Transaction Maker */}
+                    {activeOpTab === 'craftsman' && (
+                        <div className="bg-zinc-950/60 border border-zinc-900 rounded-2xl p-6">
+                            {selectedChain !== 'SPEND' ? (
+                                <div className="space-y-6">
+                                    <div className="flex justify-between items-center pb-3 border-b border-zinc-900">
+                                        <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                            <Share2Icon className="w-4.5 h-4.5 text-emerald-400" /> Transaction Craftsman
+                                        </h3>
+                                        <span className="text-[10px] font-bold text-indigo-400 bg-indigo-950/30 px-2.5 py-1 rounded border border-indigo-900/50 uppercase">
+                                            RAW SIGNATURE ENGINE
+                                        </span>
+                                    </div>
 
                                 <form onSubmit={handleCraftBroadcast} className="space-y-4">
                                     {selectedChain === 'BTC' && (
-                                        <div className="space-y-3">
-                                            <div className="space-y-1">
-                                                <label className="text-[8px] text-zinc-500 uppercase font-black">UTXO Outpoint Origin Hash</label>
+                                        <div className="space-y-4">
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs text-zinc-400 uppercase font-semibold">UTXO Outpoint Origin Hash</label>
                                                 <input 
                                                     type="text"
                                                     value={craftBTC.utxoId}
                                                     onChange={(e) => setCraftBTC({ ...craftBTC, utxoId: e.target.value })}
-                                                    className="w-full bg-zinc-950 border border-zinc-900 text-white font-mono text-[9px] px-3 py-2 rounded-xl focus:border-orange-500 focus:outline-none"
+                                                    className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-orange-500 focus:outline-none"
                                                 />
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[8px] text-zinc-500 uppercase font-black">Recipient Segwit Address</label>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs text-zinc-400 uppercase font-semibold">Recipient Segwit Address</label>
                                                 <input 
                                                     type="text"
                                                     value={craftBTC.address}
                                                     onChange={(e) => setCraftBTC({ ...craftBTC, address: e.target.value })}
-                                                    className="w-full bg-zinc-950 border border-zinc-900 text-white font-mono text-[9px] px-3 py-2 rounded-xl focus:border-orange-500 focus:outline-none"
+                                                    className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-orange-500 focus:outline-none"
                                                 />
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <div className="space-y-1">
-                                                    <label className="text-[8px] text-zinc-500 uppercase font-black">Value (BTC)</label>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs text-zinc-400 uppercase font-semibold">Value (BTC)</label>
                                                     <input 
                                                         type="number"
                                                         step="0.0001"
                                                         value={craftBTC.amount}
                                                         onChange={(e) => setCraftBTC({ ...craftBTC, amount: e.target.value })}
-                                                        className="w-full bg-zinc-950 border border-zinc-900 text-white font-mono text-xs px-3 py-2 rounded-xl focus:border-orange-500 focus:outline-none"
+                                                        className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-orange-500 focus:outline-none"
                                                     />
                                                 </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[8px] text-zinc-500 uppercase font-black">Fee (sat/vB)</label>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs text-zinc-400 uppercase font-semibold">Fee (sat/vB)</label>
                                                     <input 
                                                         type="number"
                                                         value={craftBTC.feeRate}
                                                         onChange={(e) => setCraftBTC({ ...craftBTC, feeRate: e.target.value })}
-                                                        className="w-full bg-zinc-950 border border-zinc-900 text-white font-mono text-xs px-3 py-2 rounded-xl focus:border-orange-500 focus:outline-none"
+                                                        className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-orange-500 focus:outline-none"
                                                     />
                                                 </div>
                                             </div>
-                                            <div className="pt-2">
-                                                <span className="text-[8px] text-zinc-500 uppercase font-black block mb-1">Encoding Layer</span>
+                                            <div>
+                                                <span className="text-xs text-zinc-400 uppercase font-semibold block mb-2">Encoding Scheme</span>
                                                 <div className="flex gap-2">
                                                     <button 
                                                         type="button"
                                                         onClick={() => setCraftBTC({ ...craftBTC, btcType: 'SEG_WIT' })}
-                                                        className={`flex-1 py-1.5 text-[8px] font-black rounded border italic uppercase transition-all ${craftBTC.btcType === 'SEG_WIT' ? 'bg-orange-500/10 text-orange-400 border-orange-500' : 'bg-transparent border-zinc-900 text-zinc-600'}`}
+                                                        className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all ${craftBTC.btcType === 'SEG_WIT' ? 'bg-orange-500/10 text-orange-400 border-orange-500' : 'bg-transparent border-zinc-800 text-zinc-500'}`}
                                                     >
                                                         Native Segwit (bc1q)
                                                     </button>
                                                     <button 
                                                         type="button"
                                                         onClick={() => setCraftBTC({ ...craftBTC, btcType: 'LEGACY' })}
-                                                        className={`flex-1 py-1.5 text-[8px] font-black rounded border italic uppercase transition-all ${craftBTC.btcType === 'LEGACY' ? 'bg-orange-500/10 text-orange-400 border-orange-500' : 'bg-transparent border-zinc-900 text-zinc-600'}`}
+                                                        className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all ${craftBTC.btcType === 'LEGACY' ? 'bg-orange-500/10 text-orange-400 border-orange-500' : 'bg-transparent border-zinc-800 text-zinc-500'}`}
                                                     >
-                                                        Legacy BTC (Addr 1)
+                                                        Legacy Address (1)
                                                     </button>
                                                 </div>
                                             </div>
@@ -1068,117 +970,117 @@ export const MainNetView: React.FC = () => {
                                     )}
 
                                     {selectedChain === 'XMR' && (
-                                        <div className="space-y-3">
-                                            <div className="space-y-1">
-                                                <label className="text-[8px] text-zinc-500 uppercase font-black">Anonymous Stealth Address</label>
+                                        <div className="space-y-4">
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs text-zinc-400 uppercase font-semibold">Anonymous Stealth Address</label>
                                                 <input 
                                                     type="text"
                                                     value={craftXMR.stealthAddress}
                                                     onChange={(e) => setCraftXMR({ ...craftXMR, stealthAddress: e.target.value })}
-                                                    className="w-full bg-zinc-950 border border-zinc-900 text-white font-mono text-[8px] px-3 py-2 rounded-xl focus:border-purple-500 focus:outline-none leading-relaxed"
+                                                    className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-purple-500 focus:outline-none leading-relaxed"
                                                 />
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <div className="space-y-1">
-                                                    <label className="text-[8px] text-zinc-500 uppercase font-black">Privacy Ring Mixins</label>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs text-zinc-400 uppercase font-semibold">Privacy Ring Mixins</label>
                                                     <select 
                                                         value={craftXMR.mixInRingSize}
                                                         onChange={(e) => setCraftXMR({ ...craftXMR, mixInRingSize: e.target.value })}
-                                                        className="w-full bg-zinc-950 border border-zinc-900 text-purple-400 font-mono text-xs px-3 py-2 rounded-xl focus:border-purple-500 focus:outline-none"
+                                                        className="w-full bg-black border border-zinc-800 text-purple-400 font-mono text-xs px-3 py-2.5 rounded-xl focus:border-purple-500 focus:outline-none"
                                                     >
                                                         <option value="11">Ring Size: 11 (Standard)</option>
-                                                        <option value="16">Ring Size: 16 (Extreme)</option>
+                                                        <option value="16">Ring Size: 16 (Enhanced)</option>
                                                         <option value="24">Ring Size: 24 (Sovereign)</option>
                                                     </select>
                                                 </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[8px] text-zinc-500 uppercase font-black">Confidential (XMR)</label>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs text-zinc-400 uppercase font-semibold">Confidential Value (XMR)</label>
                                                     <input 
                                                         type="number"
                                                         step="0.01"
                                                         value={craftXMR.amount}
                                                         onChange={(e) => setCraftXMR({ ...craftXMR, amount: e.target.value })}
-                                                        className="w-full bg-zinc-950 border border-zinc-900 text-white font-mono text-xs px-3 py-2 rounded-xl focus:border-purple-500 focus:outline-none"
+                                                        className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-purple-500 focus:outline-none"
                                                     />
                                                 </div>
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[8px] text-zinc-500 uppercase font-black">Pedersen Commitment Blinding Factor</label>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs text-zinc-400 uppercase font-semibold">Pedersen Commitment Blinding Factor</label>
                                                 <input 
                                                     type="text"
                                                     value={craftXMR.blindFactor}
                                                     onChange={(e) => setCraftXMR({ ...craftXMR, blindFactor: e.target.value })}
-                                                    className="w-full bg-[#030305] border border-zinc-900 text-white font-mono text-[9px] px-3 py-2 rounded-xl focus:border-purple-500 focus:outline-none"
+                                                    className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-purple-500 focus:outline-none"
                                                 />
                                             </div>
                                         </div>
                                     )}
 
                                     {selectedChain === 'AERO' && (
-                                        <div className="space-y-3">
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <div className="space-y-1">
-                                                    <label className="text-[8px] text-zinc-500 uppercase font-black">Account Sequenced Nonce</label>
+                                        <div className="space-y-4">
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs text-zinc-400 uppercase font-semibold">Nonce Sequence</label>
                                                     <input 
                                                         type="number"
                                                         value={craftAERO.nonce}
                                                         onChange={(e) => setCraftAERO({ ...craftAERO, nonce: e.target.value })}
-                                                        className="w-full bg-zinc-950 border border-zinc-900 text-white font-mono text-xs px-3 py-2 rounded-xl focus:border-emerald-500 focus:outline-none"
+                                                        className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-emerald-500 focus:outline-none"
                                                     />
                                                 </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[8px] text-zinc-500 uppercase font-black">Gas Cost (Gwei)</label>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs text-zinc-400 uppercase font-semibold">Gas Price (Gwei)</label>
                                                     <input 
                                                         type="number"
                                                         value={craftAERO.gasPrice}
                                                         onChange={(e) => setCraftAERO({ ...craftAERO, gasPrice: e.target.value })}
-                                                        className="w-full bg-zinc-950 border border-zinc-900 text-white font-mono text-xs px-3 py-2 rounded-xl focus:border-emerald-500 focus:outline-none"
+                                                        className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-emerald-500 focus:outline-none"
                                                     />
                                                 </div>
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[8px] text-zinc-500 uppercase font-black">Destination Contract/Wallet</label>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs text-zinc-400 uppercase font-semibold">Destination EVM Address</label>
                                                 <input 
                                                     type="text"
                                                     value={craftAERO.address}
                                                     onChange={(e) => setCraftAERO({ ...craftAERO, address: e.target.value })}
-                                                    className="w-full bg-zinc-950 border border-zinc-900 text-white font-mono text-[9px] px-3 py-2 rounded-xl focus:border-emerald-500 focus:outline-none"
+                                                    className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-emerald-500 focus:outline-none"
                                                 />
                                             </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[8px] text-zinc-500 uppercase font-black">Smart Contract Payload Hex</label>
+                                            <div className="space-y-1.5">
+                                                <label className="text-xs text-zinc-400 uppercase font-semibold">Smart Contract Bytecode Data Payload</label>
                                                 <input 
                                                     type="text"
                                                     value={craftAERO.dataHex}
                                                     onChange={(e) => setCraftAERO({ ...craftAERO, dataHex: e.target.value })}
-                                                    className="w-full bg-zinc-950 border border-zinc-900 text-white font-mono text-[9px] px-3 py-2 rounded-xl focus:border-emerald-500 focus:outline-none"
+                                                    className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-emerald-500 focus:outline-none"
                                                 />
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <div className="p-2 bg-zinc-950/40 rounded border border-zinc-900">
-                                                    <span className="text-[7.2px] text-zinc-500 block">Gas Limit</span>
-                                                    <span className="text-[9.5px] font-bold text-white">21,000 Standard</span>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="p-3 bg-black/40 rounded-xl border border-zinc-900 flex flex-col justify-center">
+                                                    <span className="text-[10px] text-zinc-500 uppercase font-black">Intrinsic Gas Limit</span>
+                                                    <span className="text-xs font-bold text-white mt-1">21,000 gas units</span>
                                                 </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[8px] text-zinc-500 uppercase font-black">Amount AERO</label>
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs text-zinc-400 uppercase font-semibold">Amount AERO</label>
                                                     <input 
                                                         type="number"
                                                         value={craftAERO.amount}
                                                         onChange={(e) => setCraftAERO({ ...craftAERO, amount: e.target.value })}
-                                                        className="w-full bg-zinc-950 border border-zinc-900 text-white font-mono text-xs px-3 py-2 rounded-xl focus:border-emerald-500 focus:outline-none"
+                                                        className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-emerald-500 focus:outline-none"
                                                     />
                                                 </div>
                                             </div>
                                         </div>
                                     )}
 
-                                    {/* Serialized Stream Highlight */}
-                                    <div className="p-3 bg-zinc-950 border border-zinc-900 rounded-2xl">
-                                        <p className="text-[7px] text-zinc-500 font-extrabold uppercase mb-1 flex items-center gap-1.5">
-                                            <span className="w-1 h-1 rounded-full bg-zinc-500" />
-                                            Dynamic Pre-Broadcast Serialized Hex
+                                    {/* Serialized Hex Stream Box */}
+                                    <div className="p-4 bg-black/50 border border-zinc-900 rounded-xl">
+                                        <p className="text-[10px] text-zinc-500 font-extrabold uppercase mb-2 flex items-center gap-1.5">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-500" />
+                                            Dynamic Pre-Broadcast Serialized Hex Payload
                                         </p>
-                                        <p className="text-[7px] font-mono leading-relaxed text-zinc-400 break-all bg-black/40 p-2 rounded max-h-12 overflow-y-auto">
+                                        <p className="text-xs font-mono leading-relaxed text-zinc-300 break-all bg-zinc-950 p-3 rounded-lg max-h-16 overflow-y-auto selection:bg-emerald-800 selection:text-white">
                                             {selectedChain === 'BTC' 
                                                 ? `0200000001${craftBTC.utxoId.slice(2,24)}0000000000ffffff1a${hashString(craftBTC.address).slice(2, 28)}` 
                                                 : selectedChain === 'XMR' 
@@ -1190,11 +1092,11 @@ export const MainNetView: React.FC = () => {
 
                                     <button 
                                         type="submit"
-                                        className={`w-full py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2 border shadow-lg ${
+                                        className={`w-full py-3.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all active:scale-[0.98] flex items-center justify-center gap-2 border shadow-lg cursor-pointer ${
                                             selectedChain === 'BTC' 
                                                 ? 'bg-orange-600 hover:bg-orange-500 text-white border-orange-700 hover:shadow-orange-500/10' 
                                                 : selectedChain === 'XMR' 
-                                                ? 'bg-purple-900 hover:bg-purple-800 text-white border-purple-950 hover:shadow-purple-500/10' 
+                                                ? 'bg-purple-600 hover:bg-purple-500 text-white border-purple-700 hover:shadow-purple-500/10' 
                                                 : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-700 hover:shadow-emerald-500/10'
                                         }`}
                                     >
@@ -1202,81 +1104,79 @@ export const MainNetView: React.FC = () => {
                                         Broadcast Cryptographic {selectedChain} TX
                                     </button>
                                 </form>
-                            </>
+                            </div>
                         ) : (
                             // ==========================================
-                            // SOVEREIGN REAL-WORLD SPEND & SIGN PORTAL
+                            // REAL-WORLD SPEND (CPH) PORTAL
                             // ==========================================
                             <div className="space-y-6">
-                                <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
-                                    <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-1.5">
-                                        <Wallet className="w-4 h-4 text-sky-400" /> Spending Handshake
+                                <div className="flex justify-between items-center pb-3 border-b border-zinc-900">
+                                    <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                                        <Wallet className="w-4.5 h-4.5 text-sky-400" /> Spending Handshake
                                     </h3>
-                                    <span className="text-[7.5px] font-black text-sky-450 bg-sky-950/20 px-2 py-0.5 rounded border border-sky-900/60 font-mono">
-                                        VALUATION BACKED
+                                    <span className="text-[10px] font-bold text-sky-400 bg-sky-950/30 px-2.5 py-1 rounded border border-sky-900/50 uppercase">
+                                        BACKED LIQUIDITY
                                     </span>
                                 </div>
 
-                                {/* ACTIVE SESSION CONTAINER */}
-                                <div className="p-4 bg-zinc-950 border border-zinc-900 rounded-2xl space-y-3 relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 h-1 w-full bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-500" />
+                                <div className="p-4 bg-zinc-950 border border-zinc-900 rounded-xl space-y-4 relative overflow-hidden">
+                                    <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-sky-500 via-indigo-500 to-sky-500" />
                                     {user ? (
-                                        <div className="space-y-2.5">
+                                        <div className="space-y-3">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-2">
                                                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                                                    <span className="text-[10px] font-black tracking-wider text-white uppercase">Operator Online</span>
+                                                    <span className="text-xs font-bold text-zinc-200">Operator Session Connected</span>
                                                 </div>
                                                 <button 
                                                     onClick={() => {
                                                         logout();
-                                                        setLatestNetworkLogs(l => [...l, `[SESSION] Sign out successful. Cleared credentials context.`]);
+                                                        setLatestNetworkLogs(l => [...l, `[SESSION] Operator logged out.`]);
                                                     }}
-                                                    className="px-2.5 py-1 text-[7.5px] font-black uppercase text-rose-400 bg-rose-950/20 hover:bg-rose-950/40 border border-rose-900 rounded flex items-center gap-1 transition-all"
+                                                    className="px-3 py-1.5 text-xs font-bold uppercase text-rose-400 bg-rose-950/10 hover:bg-rose-950/30 border border-rose-900/50 rounded-xl flex items-center gap-1 transition-all cursor-pointer"
                                                 >
-                                                    <LogOut className="w-3 h-3" />
+                                                    <LogOut className="w-3.5 h-3.5" />
                                                     Handshake Exit
                                                 </button>
                                             </div>
-                                            <div className="space-y-0.5 text-[8.5px] text-zinc-400 leading-normal font-mono">
-                                                <p><span className="text-zinc-600 uppercase font-black font-sans">Identity:</span> {user.displayName}</p>
-                                                <p><span className="text-zinc-600 uppercase font-black font-sans">Access Key:</span> {user.email}</p>
-                                                <p><span className="text-zinc-600 uppercase font-black font-sans">Role Grade:</span> <span className="text-sky-400 font-bold">{user.role?.toUpperCase()}</span></p>
-                                                <p><span className="text-zinc-600 uppercase font-black font-sans">Sovereign No:</span> {user.sovereignty}</p>
-                                                <p className="truncate"><span className="text-zinc-600 uppercase font-black font-sans">Terminal Node:</span> {user.machineId}</p>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs font-mono text-zinc-400 leading-relaxed">
+                                                <p><span className="text-zinc-650 font-sans font-bold">Identity:</span> {user.displayName}</p>
+                                                <p><span className="text-zinc-650 font-sans font-bold">Key Handle:</span> {user.email}</p>
+                                                <p><span className="text-zinc-650 font-sans font-bold">Role Class:</span> <span className="text-sky-400 font-bold">{user.role?.toUpperCase()}</span></p>
+                                                <p><span className="text-zinc-650 font-sans font-bold">Sovereignty:</span> {user.sovereignty}</p>
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="space-y-3">
-                                            <div className="flex items-center gap-2 text-rose-500 mb-1">
-                                                <span className="w-2 h-2 rounded-full bg-rose-500 animate-[ping_1.5s_infinite]" />
-                                                <span className="text-[10px] font-black uppercase tracking-wider">No Active Handshake</span>
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-2 text-rose-400">
+                                                <AlertTriangleIcon className="w-4 h-4 animate-bounce" />
+                                                <span className="text-xs font-bold uppercase tracking-wider">No Active Handshake Session</span>
                                             </div>
-                                            <p className="text-[8px] text-zinc-500 leading-relaxed">
-                                                A secure operator session is required to initiate real-world biometric signing prompts. Run a secure login.
+                                            <p className="text-xs text-zinc-400 leading-relaxed">
+                                                A secure operator handshake is required to initiate biometrically signed merchant transactions.
                                             </p>
                                             {loginError && (
-                                                <div className="p-2 bg-rose-950/10 border border-rose-900/60 rounded text-[7.5px] text-rose-400 font-bold uppercase leading-relaxed">
+                                                <div className="p-3 bg-rose-950/20 border border-rose-900/50 rounded-xl text-xs text-rose-400 font-bold uppercase">
                                                     Error: {loginError}
                                                 </div>
                                             )}
-                                            <div className="space-y-2">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                                 <input 
                                                     type="email" 
-                                                    placeholder="Operator Email Address" 
+                                                    placeholder="Operator Email" 
                                                     value={loginEmail}
                                                     onChange={e => setLoginEmail(e.target.value)}
-                                                    className="w-full bg-black border border-zinc-900 text-white font-mono text-[9px] px-2.5 py-1.5 rounded-xl focus:border-sky-500 focus:outline-none"
+                                                    className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-sky-500 focus:outline-none"
                                                 />
                                                 <input 
                                                     type="password" 
-                                                    placeholder="Secret Cryptographic Passphrase" 
+                                                    placeholder="Cryptographic Passphrase" 
                                                     value={loginPassword}
                                                     onChange={e => setLoginPassword(e.target.value)}
-                                                    className="w-full bg-black border border-zinc-900 text-white font-mono text-[9px] px-2.5 py-1.5 rounded-xl focus:border-sky-500 focus:outline-none"
+                                                    className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-sky-500 focus:outline-none"
                                                 />
                                             </div>
-                                            <div className="flex gap-2 pt-1">
+                                            <div className="flex gap-2">
                                                 <button 
                                                     type="button"
                                                     disabled={loginLoading}
@@ -1289,160 +1189,143 @@ export const MainNetView: React.FC = () => {
                                                         setLoginError(null);
                                                         try {
                                                             await login(loginEmail, loginPassword);
-                                                            setLatestNetworkLogs(l => [...l, `[SESSION] Secure Conduction Handshake activated. Keys bound: ${loginEmail}`]);
-                                                            setLoginEmail('');
-                                                            setLoginPassword('');
+                                                            setLatestNetworkLogs(l => [...l, `[SESSION] Keys bound: ${loginEmail}`]);
+                                                            setLoginEmail(''); setLoginPassword('');
                                                         } catch (err: any) {
                                                             setLoginError(err.message || 'Key Conduction Handshake failed.');
                                                         } finally {
                                                             setLoginLoading(false);
                                                         }
                                                     }}
-                                                    className="flex-1 py-2 text-[8px] font-black bg-sky-900 hover:bg-sky-800 text-white uppercase rounded-xl border border-sky-950 transition-all flex items-center justify-center gap-1 active:scale-95 disabled:opacity-50"
+                                                    className="flex-1 py-2.5 text-xs font-bold bg-sky-900 hover:bg-sky-800 text-white uppercase rounded-xl border border-sky-950 transition-all flex items-center justify-center gap-1 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                                                 >
-                                                    <LogIn className="w-3 h-3" />
-                                                    Launch Handshake
+                                                    <LogIn className="w-4 h-4" />
+                                                    Conduction Handshake
                                                 </button>
                                                 <button 
                                                     type="button"
                                                     onClick={() => {
                                                         guestLogin();
-                                                        setLatestNetworkLogs(l => [...l, `[SESSION] Guest Direct mode bypass engaged. Partial clearance established.`]);
+                                                        setLatestNetworkLogs(l => [...l, `[SESSION] Guest Mode bypass loaded.`]);
                                                         setLoginError(null);
                                                     }}
-                                                    className="px-3.5 py-2 text-[8px] font-black border border-zinc-900 text-zinc-400 bg-zinc-950 rounded-xl hover:text-white transition-all uppercase"
+                                                    className="px-4 py-2.5 text-xs font-bold border border-zinc-800 text-zinc-300 bg-zinc-900/60 rounded-xl hover:text-white transition-all uppercase cursor-pointer"
                                                 >
-                                                    bypass
+                                                    Bypass
                                                 </button>
                                             </div>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* RESOURCE EXTRACTOR (MINING STATION) */}
-                                <div className="space-y-2">
+                                {/* Resource extraction tools */}
+                                <div className="space-y-3">
                                     <div className="flex justify-between items-center">
-                                        <label className="text-[8px] text-zinc-500 uppercase font-black">Reserve Resource Extractions</label>
-                                        <span className="text-[7.5px] text-sky-420 font-bold bg-sky-950/20 px-2 py-0.5 rounded uppercase">Verify backing value</span>
+                                        <label className="text-xs text-zinc-400 uppercase font-semibold">Reserve Mining & Extractions</label>
+                                        <span className="text-[10px] font-bold text-sky-400 bg-sky-950/20 px-2.5 py-1 rounded border border-sky-900/40 uppercase">CPH Valuation backing</span>
                                     </div>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {/* Energy Solar */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                         <button 
                                             type="button"
                                             onClick={() => {
-                                                if (!user) {
-                                                    alert("Security Lock: Handshake required.");
-                                                    return;
-                                                }
+                                                if (!user) { alert("Security Lock: Operator Handshake required."); return; }
                                                 const res = RealMoneySystem.runExtraction(reserve, 'energy', 'solar_power', 50, 1, 'kWh');
                                                 updateReserveState(res.reserve);
-                                                setLatestNetworkLogs(l => [...l, `[EXTRACTOR] ${user.role === 'guest' ? '[SANDBOX] ' : ''}${(user.displayName || 'Guest').toUpperCase()} generated Solar power: +50 kWh (+50 CPH representation).`]);
+                                                setLatestNetworkLogs(l => [...l, `[EXTRACTOR] Produced Solar Energy: +50 kWh (+50 CPH value)`]);
                                             }}
-                                            className="p-2.5 bg-zinc-950 border border-zinc-900 rounded-xl hover:border-yellow-500/30 transition-all text-center flex flex-col items-center justify-center group active:scale-95"
+                                            className="p-4 bg-zinc-950 border border-zinc-900 rounded-xl hover:border-yellow-500/30 transition-all text-center flex flex-col items-center justify-center group active:scale-95 cursor-pointer"
                                         >
-                                            <ZapIcon className="w-4 h-4 text-yellow-500 mb-1 group-hover:animate-bounce" />
-                                            <span className="text-[7px] text-zinc-550 font-black uppercase">solar power</span>
-                                            <span className="text-[8.5px] font-bold text-white mt-0.5">+50 kWh</span>
-                                            <span className="text-[6.5px] text-zinc-600 mt-0.5 font-mono">+50 CPH</span>
+                                            <ZapIcon className="w-5 h-5 text-yellow-500 mb-1.5 group-hover:animate-bounce" />
+                                            <span className="text-xs text-zinc-400 font-bold uppercase">Solar Power</span>
+                                            <span className="text-xs font-bold text-white mt-1">+50 kWh</span>
+                                            <span className="text-[10px] text-zinc-500 font-mono mt-0.5">+50 CPH</span>
                                         </button>
 
-                                        {/* Food Grain */}
                                         <button 
                                             type="button"
                                             onClick={() => {
-                                                if (!user) {
-                                                    alert("Security Lock: Handshake required.");
-                                                    return;
-                                                }
+                                                if (!user) { alert("Security Lock: Operator Handshake required."); return; }
                                                 const res = RealMoneySystem.runExtraction(reserve, 'food', 'grain', 20, 5, 'kg');
                                                 updateReserveState(res.reserve);
-                                                setLatestNetworkLogs(l => [...l, `[EXTRACTOR] ${user.role === 'guest' ? '[SANDBOX] ' : ''}${(user.displayName || 'Guest').toUpperCase()} harvested Wheat farm: +20 kg grains (+100 CPH backing).`]);
+                                                setLatestNetworkLogs(l => [...l, `[EXTRACTOR] Harvested Wheat farm: +20 kg (+100 CPH backing)`]);
                                             }}
-                                            className="p-2.5 bg-zinc-950 border border-zinc-900 rounded-xl hover:border-orange-500/30 transition-all text-center flex flex-col items-center justify-center group active:scale-95"
+                                            className="p-4 bg-zinc-950 border border-zinc-900 rounded-xl hover:border-orange-500/30 transition-all text-center flex flex-col items-center justify-center group active:scale-95 cursor-pointer"
                                         >
-                                            <BookOpenIcon className="w-4 h-4 text-orange-400 mb-1 group-hover:animate-bounce" />
-                                            <span className="text-[7px] text-zinc-550 font-black uppercase">grain farm</span>
-                                            <span className="text-[8.5px] font-bold text-white mt-0.5">+20 kg</span>
-                                            <span className="text-[6.5px] text-zinc-600 mt-0.5 font-mono">+100 CPH</span>
+                                            <BookOpenIcon className="w-5 h-5 text-orange-400 mb-1.5 group-hover:animate-bounce" />
+                                            <span className="text-xs text-zinc-400 font-bold uppercase">Grain Farm</span>
+                                            <span className="text-xs font-bold text-white mt-1">+20 kg</span>
+                                            <span className="text-[10px] text-zinc-500 font-mono mt-0.5">+100 CPH</span>
                                         </button>
 
-                                        {/* Material Iron */}
                                         <button 
                                             type="button"
                                             onClick={() => {
-                                                if (!user) {
-                                                    alert("Security Lock: Handshake required.");
-                                                    return;
-                                                }
+                                                if (!user) { alert("Security Lock: Operator Handshake required."); return; }
                                                 const res = RealMoneySystem.runExtraction(reserve, 'materials', 'iron_ore', 50, 2, 'kg');
                                                 updateReserveState(res.reserve);
-                                                setLatestNetworkLogs(l => [...l, `[EXTRACTOR] ${user.role === 'guest' ? '[SANDBOX] ' : ''}${(user.displayName || 'Guest').toUpperCase()} dug Iron ore mine: +50 kg materials (+100 CPH value).`]);
+                                                setLatestNetworkLogs(l => [...l, `[EXTRACTOR] Extracted Iron ore: +50 kg (+100 CPH value)`]);
                                             }}
-                                            className="p-2.5 bg-zinc-950 border border-zinc-900 rounded-xl hover:border-sky-500/30 transition-all text-center flex flex-col items-center justify-center group active:scale-95"
+                                            className="p-4 bg-zinc-950 border border-zinc-900 rounded-xl hover:border-sky-500/30 transition-all text-center flex flex-col items-center justify-center group active:scale-95 cursor-pointer"
                                         >
-                                            <DatabaseIcon className="w-4 h-4 text-sky-400 mb-1 group-hover:animate-bounce" />
-                                            <span className="text-[7px] text-zinc-550 font-black uppercase">iron ore</span>
-                                            <span className="text-[8.5px] font-bold text-white mt-0.5">+50 kg</span>
-                                            <span className="text-[6.5px] text-zinc-600 mt-0.5 font-mono">+100 CPH</span>
+                                            <DatabaseIcon className="w-5 h-5 text-sky-400 mb-1.5 group-hover:animate-bounce" />
+                                            <span className="text-xs text-zinc-400 font-bold uppercase">Iron Ore</span>
+                                            <span className="text-xs font-bold text-white mt-1">+50 kg</span>
+                                            <span className="text-[10px] text-zinc-500 font-mono mt-0.5">+100 CPH</span>
                                         </button>
                                     </div>
                                 </div>
 
-                                {/* DETERMINISTIC CRYPTOGRAPHIC PAYLOAD SIGNER */}
-                                <div className="space-y-2 pt-1 border-t border-zinc-900/40">
+                                {/* Payload Signature tool */}
+                                <div className="space-y-3 pt-3 border-t border-zinc-900">
                                     <div className="flex justify-between items-center">
-                                        <label className="text-[8px] text-zinc-500 uppercase font-black">Deterministic Payload Signer</label>
-                                        <span className="text-[7px] font-mono text-zinc-600">Double SHA-256 Engine</span>
+                                        <label className="text-xs text-zinc-400 uppercase font-semibold">Deterministic Payload Signer</label>
+                                        <span className="text-[10px] font-mono text-zinc-500">Double SHA-256 Engine</span>
                                     </div>
-                                    <div className="space-y-2">
+                                    <div className="space-y-3">
                                         <input 
                                             type="text" 
-                                            placeholder="Write payload: e.g. Buy logistics diesel - 80 CPH"
+                                            placeholder="Write signing payload"
                                             value={customPayload}
                                             onChange={e => setCustomPayload(e.target.value)}
-                                            className="w-full bg-zinc-950 border border-zinc-900 text-white font-mono text-[9px] px-3 py-2 rounded-xl focus:border-sky-500 focus:outline-none"
+                                            className="w-full bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-sky-500 focus:outline-none"
                                         />
                                         <div className="flex gap-2">
                                             <input 
                                                 type="text" 
-                                                placeholder="Signing Secret Phrase (Optional)"
+                                                placeholder="Signing passphrase secret (optional)"
                                                 value={signingPassphrase}
                                                 onChange={e => setSigningPassphrase(e.target.value)}
-                                                className="flex-1 bg-zinc-950 border border-zinc-900 text-white font-mono text-[9px] px-3 py-1.5 rounded-xl focus:border-sky-500 focus:outline-none"
+                                                className="flex-1 bg-black border border-zinc-800 text-white font-mono text-xs px-3 py-2.5 rounded-xl focus:border-sky-500 focus:outline-none"
                                             />
                                             <button 
                                                 type="button"
                                                 onClick={async () => {
-                                                    if (!user) {
-                                                        alert("Error: Conduction Handshake required.");
-                                                        return;
-                                                    }
-                                                    // Sign Payload Deterministically - Allow Guest Sandbox testing
+                                                    if (!user) { alert("Error: Conduction Handshake required."); return; }
                                                     const calculatedHash = hashString(customPayload + signingPassphrase);
                                                     const prefix = user.role === 'guest' ? 'GUEST_SANDBOX' : 'DERIV_SIG';
                                                     const simulatedSignature = prefix + '_' + calculatedHash.slice(2, 24).toUpperCase() + '//APPROVED_BY_KEY';
                                                     setSignedResult(simulatedSignature);
-                                                    setLatestNetworkLogs(l => [...l, `[SIGNER] Payload signed with ${(user.role).toUpperCase()} pass keys: ${simulatedSignature.slice(0, 16)}...`]);
+                                                    setLatestNetworkLogs(l => [...l, `[SIGNER] Signed payload with Operator key.`]);
                                                 }}
-                                                className="px-3 py-1.5 text-[8.5px] font-black uppercase text-sky-400 bg-sky-950/20 hover:bg-sky-950/40 border border-sky-900 rounded-xl transition-all"
+                                                className="px-4 py-2.5 text-xs font-bold uppercase text-sky-400 bg-sky-950/20 hover:bg-sky-950/40 border border-sky-900 rounded-xl transition-all cursor-pointer"
                                             >
-                                                Key signature
+                                                Sign Payload
                                             </button>
                                         </div>
                                         {signedResult && (
-                                            <div className="p-2.5 bg-black/40 border border-zinc-900 rounded-xl">
-                                                <p className="text-[6.2px] text-zinc-600 uppercase font-extrabold mb-1">Generated Signature Hash Block</p>
-                                                <p className="text-[7px] font-mono text-sky-400 break-all leading-relaxed bg-zinc-950/50 p-2 rounded">{signedResult}</p>
+                                            <div className="p-3 bg-zinc-950 border border-zinc-900 rounded-xl">
+                                                <p className="text-[10px] text-zinc-500 uppercase font-bold mb-1">Generated Key Signature Hash</p>
+                                                <p className="text-xs font-mono text-sky-400 break-all bg-black p-2 rounded-lg">{signedResult}</p>
                                             </div>
                                         )}
                                     </div>
                                 </div>
 
-                                {/* REAL-WORLD SPEND MERCHANT PLACES */}
-                                <div className="space-y-3 pt-2 border-t border-zinc-900/40">
+                                {/* Spend Merchant places */}
+                                <div className="space-y-3 pt-3 border-t border-zinc-900">
                                     <div className="flex justify-between items-center">
-                                        <label className="text-[8px] text-zinc-500 uppercase font-black font-sans">Spend Wallet Merchant Portal</label>
-                                        <span className="text-[7.2px] text-zinc-650 font-bold uppercase">Biometric Signature Secured</span>
+                                        <label className="text-xs text-zinc-400 uppercase font-semibold font-sans">Spend Wallet Merchant Portal</label>
+                                        <span className="text-[10px] text-zinc-500 font-bold uppercase">Biometric Signature Secured</span>
                                     </div>
 
                                     <div className="space-y-2.5">
@@ -1450,74 +1333,57 @@ export const MainNetView: React.FC = () => {
                                             { name: 'Fresh Groceries Daily Basket', merchant: 'Fresh Market Place', cost: 45, subtype: 'grain', amountNeeded: 9, unit: 'kg', icon: ShoppingCart },
                                             { name: 'Energy Charge & Warm Coffee', merchant: 'Java Junction Cafeteria', cost: 15, subtype: 'solar_power', amountNeeded: 15, unit: 'kWh', icon: ZapIcon },
                                             { name: 'Alpha Logistics Diesel Charge', merchant: 'Alpha Truck Depot', cost: 80, subtype: 'solar_power', amountNeeded: 80, unit: 'kWh', icon: CpuIcon },
-                                            { name: 'Database Server Core Integration Slot', merchant: 'Cloud Native Systems', cost: 150, subtype: 'iron_ore', amountNeeded: 75, unit: 'kg', icon: DatabaseIcon },
-                                            { name: 'Aether-USD Sovereign Cloud Tier', merchant: 'Aether Flow Systems', cost: 100, subtype: 'minted_aether_usd', amountNeeded: 100, unit: 'aetherUSD', icon: ServerIcon },
+                                            { name: 'Server Core Integration Slot', merchant: 'Cloud Native Systems', cost: 150, subtype: 'iron_ore', amountNeeded: 75, unit: 'kg', icon: DatabaseIcon },
                                         ].map((item, idx) => {
                                             const asset = reserve.reserves.find(r => r.subtype === item.subtype);
                                             const canAfford = asset && asset.quantity >= item.amountNeeded;
                                             return (
-                                                <div key={idx} className="p-3 bg-zinc-950 border border-zinc-900 hover:border-zinc-800 rounded-2xl flex items-center justify-between gap-3 relative group overflow-hidden">
-                                                    <div className="flex items-center gap-2.5 min-w-0">
-                                                        <div className="w-8 h-8 rounded-xl bg-sky-950/20 border border-sky-900/60 flex items-center justify-center shrink-0">
-                                                            <item.icon className="w-4 h-4 text-sky-400" />
+                                                <div key={idx} className="p-4 bg-zinc-950 border border-zinc-900 hover:border-zinc-800 rounded-xl flex items-center justify-between gap-4">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div className="w-9 h-9 rounded-xl bg-sky-950/20 border border-sky-900/60 flex items-center justify-center shrink-0">
+                                                            <item.icon className="w-5 h-5 text-sky-400" />
                                                         </div>
                                                         <div className="min-w-0">
-                                                            <p className="text-[9.5px] font-black text-white truncate leading-snug">{item.name}</p>
-                                                            <p className="text-[7px] text-zinc-550 mt-0.5 flex items-center gap-1">
-                                                                <span>Merchant: {item.merchant}</span>
-                                                                <span>•</span>
-                                                                <span className="text-zinc-500">Decays: {item.amountNeeded} {item.unit} {item.subtype.toUpperCase()}</span>
+                                                            <p className="text-xs font-bold text-white truncate">{item.name}</p>
+                                                            <p className="text-[10px] text-zinc-500 mt-1 truncate">
+                                                                Merchant: {item.merchant} • Decays: {item.amountNeeded} {item.unit}
                                                             </p>
                                                         </div>
                                                     </div>
                                                     <div className="text-right shrink-0">
-                                                        <p className="text-[9px] font-black text-sky-450 italic">{item.cost} CPH</p>
+                                                        <p className="text-xs font-bold text-sky-400 italic">{item.cost} CPH</p>
                                                         <button 
                                                             type="button"
                                                             disabled={!canAfford}
                                                             onClick={async () => {
-                                                                if (!user) {
-                                                                    alert("Security Violation: Authorized operator handshake is required.");
-                                                                    return;
-                                                                }
+                                                                if (!user) { alert("Security Violation: Authorized operator handshake required."); return; }
                                                                 try {
-                                                                    const approved = await verifyBiometricSignature(`Real Spend: ${item.cost} CPH at ${item.merchant}`);
+                                                                    const approved = await verifyBiometricSignature(`Spend: ${item.cost} CPH at ${item.merchant}`);
                                                                     if (approved) {
                                                                         const response = RealMoneySystem.runConsumption(reserve, item.subtype, item.amountNeeded);
                                                                         if (response.success) {
                                                                             updateReserveState(response.reserve);
-                                                                            
-                                                                            // Put transaction in unmined mempool
-                                                                            const signatureBlock = 'BIOMETRIC_MD5_' + Math.random().toString(16).slice(2, 10).toUpperCase() + '//DIGITAL_SEAL';
+                                                                            const sigBlock = 'BIOMETRIC_MD5_' + Math.random().toString(16).slice(2, 10).toUpperCase() + '//SEAL';
                                                                             const newTx: Tx = {
                                                                                 id: 'tx_spend_' + Math.random().toString(16).slice(2, 8),
-                                                                                coin: 'SPEND',
-                                                                                amount: item.cost,
-                                                                                sender: user.displayName || '0xSovereignOwnerWallet',
-                                                                                recipient: item.merchant,
-                                                                                fee: 0.1,
-                                                                                timestamp: Date.now(),
-                                                                                status: 'PENDING',
-                                                                                extraData: { item: item.name, verified_by_biometrics: true, checksum: signatureBlock }
+                                                                                coin: 'SPEND', amount: item.cost,
+                                                                                sender: user.displayName || '0xSovereignOwnerWallet', recipient: item.merchant,
+                                                                                fee: 0.1, timestamp: Date.now(), status: 'PENDING',
+                                                                                extraData: { item: item.name, verified_by_biometrics: true, checksum: sigBlock }
                                                                             };
                                                                             setMempool(prev => [...prev, newTx]);
-                                                                            setLatestNetworkLogs(l => [
-                                                                                ...l,
-                                                                                `[SPEND] Biometric Scanner approved of identity. Spent ${item.cost} CPH at ${item.merchant}. Reserves decayed by ${item.amountNeeded} ${item.unit}.`
-                                                                            ]);
+                                                                            setLatestNetworkLogs(l => [...l, `[SPEND] Biometrics approved. Spent ${item.cost} CPH at ${item.merchant}.`]);
                                                                         } else {
-                                                                            alert(`Error decayed assets: ${response.error}`);
+                                                                            alert(`Error: ${response.error}`);
                                                                         }
                                                                     } else {
-                                                                        setLatestNetworkLogs(l => [...l, `[SPEND] Biometrics verification rejected or cancelled by operator.`]);
+                                                                        setLatestNetworkLogs(l => [...l, `[SPEND] Biometrics verification rejected.`]);
                                                                     }
-                                                                } catch (err: any) {
-                                                                    console.error(err);
-                                                                }
+                                                                } catch (err) { console.error(err); }
                                                             }}
-                                                            className={`mt-1.5 px-3 py-1 rounded text-[7.5px] font-black uppercase tracking-wider transition-all active:scale-95 text-center leading-none ${canAfford ? 'bg-sky-600 text-white hover:bg-sky-500 border border-sky-700' : 'bg-zinc-950 text-zinc-700 border border-zinc-900 cursor-not-allowed'}`}
+                                                            className={`mt-1.5 px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all active:scale-95 cursor-pointer ${canAfford ? 'bg-sky-600 text-white hover:bg-sky-500 border border-sky-700' : 'bg-zinc-900 text-zinc-600 border border-zinc-900 cursor-not-allowed'}`}
                                                         >
-                                                            {canAfford ? 'scan & spend' : 'empty reserves'}
+                                                            {canAfford ? 'Scan & Spend' : 'Empty Reserves'}
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1528,77 +1394,34 @@ export const MainNetView: React.FC = () => {
                             </div>
                         )}
                     </div>
+                    )}
 
-                    {/* Unconfirmed Mempool Monitor */}
-                    <div className="bg-[#050508] border border-zinc-900/80 rounded-3xl p-6">
-                        <div className="flex justify-between items-center mb-4">
-                            <span className="text-[9px] font-black tracking-widest text-zinc-400 uppercase">
-                                Global Mempool ({mempool.filter(tx => tx.coin === selectedChain).length})
-                            </span>
-                            <span className="text-[7px] text-zinc-600 font-bold uppercase">Relayd over Peer port</span>
-                        </div>
-                        
-                        <div className="space-y-2.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                            {mempool.filter(tx => tx.coin === selectedChain).length === 0 ? (
-                                <div className="text-center py-6 border border-dashed border-zinc-900 rounded-2xl">
-                                    <p className="text-[9px] text-zinc-600 font-bold uppercase">Mempool Empty</p>
-                                    <p className="text-[7px] text-zinc-700 italic mt-1">Broadcast transactions to load unmined state.</p>
-                                </div>
-                            ) : (
-                                mempool.filter(tx => tx.coin === selectedChain).map((tx) => (
-                                    <div key={tx.id} className="p-3 bg-zinc-950 border border-zinc-900/60 rounded-xl relative overflow-hidden group">
-                                        <div className="absolute right-0 top-0 text-[6px] font-extrabold text-amber-500/30 font-mono bg-amber-950/10 px-2 py-1 uppercase border-l border-b border-zinc-900">
-                                            PENDING SIGN
-                                        </div>
-                                        <div className="flex justify-between items-start">
-                                            <div>
-                                                <p className="text-[9px] font-black text-white italic">
-                                                    {tx.amount} {tx.coin}
-                                                </p>
-                                                <p className="text-[6.5px] text-zinc-500 mt-0.5 max-w-[160px] truncate">
-                                                    Dest: {tx.recipient}
-                                                </p>
-                                            </div>
-                                            <div className="text-right">
-                                                <p className="text-[7px] text-zinc-400 font-bold">Fee: {tx.fee} {tx.coin}</p>
-                                                <p className="text-[5.5px] text-zinc-600 mt-1 font-mono">0x{tx.id.toUpperCase().slice(3)}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Middle Section (Column Span 5): Interactive Blocks, Merkle Proof Playground */}
-                <div className="xl:col-span-5 space-y-6">
-                    
-                    {/* Merkle Proof Trust Engine Simulator */}
-                    <div className="bg-[#050508] border-2 border-zinc-900 rounded-3xl p-6 relative">
+                    {/* Merkle Proof Simulator */}
+                    {activeOpTab === 'explorer' && (
+                        <>
+                            <div className="bg-zinc-950/60 border border-zinc-900 rounded-2xl p-6 relative">
                         <div className="absolute right-6 top-6">
-                            <span className="text-[8px] font-black text-emerald-400 bg-emerald-950/20 px-2.5 py-1 rounded border border-emerald-900 flex items-center gap-1.5 animate-pulse">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 font-bold" />
+                            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-950/30 px-2.5 py-1 rounded border border-emerald-900/60 flex items-center gap-1.5 animate-pulse">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                                 CRYPTO PROVENANCE ACTIVE
                             </span>
                         </div>
 
-                        <h3 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2 mb-2">
-                            <ShieldIcon className="w-4 h-4 text-orange-500" />
+                        <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2 mb-2">
+                            <ShieldIcon className="w-5 h-5 text-orange-500" />
                             Merkle Proof Simulator
                         </h3>
-                        <p className="text-[8.5px] text-zinc-500 leading-relaxed max-w-sm mb-6">
-                            Pick any mined block. Select a transaction to visually verify its mathematical membership inside the Block Header Merkle Root.
+                        <p className="text-xs text-zinc-400 leading-relaxed max-w-xl mb-6">
+                            Select a block height and a target transaction to visually verify its mathematical membership inside the Block Header Merkle Root.
                         </p>
 
-                        {/* Block Selection and Tx Tree */}
-                        <div className="grid grid-cols-2 gap-4 mb-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                             <div className="space-y-1.5">
-                                <label className="text-[7px] text-zinc-500 uppercase font-black">1. Select Mined Block Height</label>
+                                <label className="text-xs text-zinc-500 uppercase font-bold">1. Select Mined Block Height</label>
                                 <select 
                                     value={selectedBlockHeight || ''} 
                                     onChange={(e) => setSelectedBlockHeight(Number(e.target.value))}
-                                    className="w-full bg-zinc-950 border border-zinc-900 text-xs font-black p-2.5 rounded-xl uppercase tracking-wider text-emerald-400 focus:outline-none"
+                                    className="w-full bg-black border border-zinc-800 text-xs font-bold p-3 rounded-xl uppercase tracking-wider text-emerald-400 focus:outline-none"
                                 >
                                     {activeBlocks.map(b => (
                                         <option key={b.height} value={b.height}>
@@ -1609,55 +1432,53 @@ export const MainNetView: React.FC = () => {
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-[7px] text-zinc-500 uppercase font-black">2. Target Tx for Proof</label>
+                                <label className="text-xs text-zinc-500 uppercase font-bold">2. Target Tx for Proof</label>
                                 <select 
                                     value={selectedTxId || ''} 
                                     onChange={(e) => setSelectedTxId(e.target.value)}
-                                    className="w-full bg-zinc-950 border border-zinc-900 text-xs font-mono p-2.5 rounded-xl text-white focus:outline-none"
+                                    className="w-full bg-black border border-zinc-800 text-xs font-mono p-3 rounded-xl text-white focus:outline-none"
                                 >
                                     {activeBlock?.transactions.map((tx, idx) => (
                                         <option key={tx.id} value={tx.id}>
-                                            Tx #{idx}: {tx.amount} {tx.coin}
+                                            Tx #{idx}: {tx.amount} {tx.coin} ({tx.id.slice(0, 10)}...)
                                         </option>
                                     ))}
                                 </select>
                             </div>
                         </div>
 
-                        {/* Interactive Step-by-Step Proof Verification Layout */}
                         {proofSteps.length > 0 && selectedBlockHeight !== null && (
-                            <div className="space-y-4">
-                                <div className="p-4 bg-zinc-950 border border-zinc-900/80 rounded-2xl space-y-3">
+                            <div className="space-y-5">
+                                <div className="p-4 bg-black/40 border border-zinc-900 rounded-xl space-y-4">
                                     <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
-                                        <span className="text-[8px] text-zinc-550 font-black uppercase tracking-wider">
-                                            Step {currentProofStepIndex + 1} of {proofSteps.length} (Cryptographic verification loop)
+                                        <span className="text-xs text-zinc-400 font-bold uppercase">
+                                            Step {currentProofStepIndex + 1} of {proofSteps.length}
                                         </span>
-                                        <span className="text-[7.5px] font-black text-rose-450 italic uppercase">
-                                            Verification Depth Level #{proofSteps[currentProofStepIndex].level}
+                                        <span className="text-xs font-bold text-zinc-500 uppercase">
+                                            Verification Depth: #{proofSteps[currentProofStepIndex].level}
                                         </span>
                                     </div>
 
-                                    {/* Visual Hashing Simulator Row */}
-                                    <div className="space-y-2.5">
-                                        <div className="grid grid-cols-5 items-center gap-2">
-                                            <div className="col-span-2 p-2 bg-zinc-900 border border-zinc-850 rounded-xl">
-                                                <p className="text-[6.5px] text-zinc-500 uppercase font-black">
+                                    <div className="space-y-3">
+                                        <div className="grid grid-cols-1 md:grid-cols-5 items-center gap-3">
+                                            <div className="md:col-span-2 p-3 bg-zinc-900/60 border border-zinc-800 rounded-xl">
+                                                <p className="text-[10px] text-zinc-500 uppercase font-bold mb-1">
                                                     {proofSteps[currentProofStepIndex].isLeft ? 'Sibling Hash (Left)' : 'Target/Calculated Hash'}
                                                 </p>
-                                                <p className="text-[7px] font-mono text-zinc-300 truncate">
+                                                <p className="text-xs font-mono text-zinc-300 truncate selection:bg-indigo-850">
                                                     {proofSteps[currentProofStepIndex].isLeft 
                                                         ? proofSteps[currentProofStepIndex].sibling 
                                                         : proofSteps[currentProofStepIndex].value}
                                                 </p>
                                             </div>
-                                            <div className="text-center text-xs font-black text-zinc-500">
+                                            <div className="text-center text-sm font-black text-zinc-600">
                                                 +
                                             </div>
-                                            <div className="col-span-2 p-2 bg-zinc-900 border border-zinc-850 rounded-xl">
-                                                <p className="text-[6.5px] text-zinc-500 uppercase font-black">
+                                            <div className="md:col-span-2 p-3 bg-zinc-900/60 border border-zinc-800 rounded-xl">
+                                                <p className="text-[10px] text-zinc-500 uppercase font-bold mb-1">
                                                     {proofSteps[currentProofStepIndex].isLeft ? 'Target/Calculated Hash' : 'Sibling Hash (Right)'}
                                                 </p>
-                                                <p className="text-[7px] font-mono text-zinc-300 truncate">
+                                                <p className="text-xs font-mono text-zinc-300 truncate selection:bg-indigo-850">
                                                     {proofSteps[currentProofStepIndex].isLeft 
                                                         ? proofSteps[currentProofStepIndex].value 
                                                         : proofSteps[currentProofStepIndex].sibling}
@@ -1665,23 +1486,22 @@ export const MainNetView: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="w-full p-2.5 bg-black/40 border border-zinc-900 rounded-xl relative">
-                                            <p className="text-[6px] text-zinc-550 uppercase font-bold mb-1 italic">
+                                        <div className="w-full p-3 bg-black/60 border border-zinc-900 rounded-xl">
+                                            <p className="text-[10px] text-zinc-500 uppercase font-bold mb-1 italic">
                                                 Hash Concatenation Result: SHA256(Sibling + Value)
                                             </p>
-                                            <p className="text-[7px] font-mono text-emerald-450 truncate break-all">
+                                            <p className="text-xs font-mono text-emerald-400 truncate selection:bg-emerald-950">
                                                 {proofSteps[currentProofStepIndex].result}
                                             </p>
                                         </div>
                                     </div>
 
-                                    {/* Progress navigation buttons */}
                                     <div className="flex gap-2">
                                         <button 
                                             type="button"
                                             disabled={currentProofStepIndex === 0}
                                             onClick={() => setCurrentProofStepIndex(prev => Math.max(0, prev - 1))}
-                                            className="px-3 py-1.5 text-[8px] font-black border border-zinc-900 text-zinc-400 bg-zinc-950/60 rounded disabled:opacity-20 uppercase"
+                                            className="px-4 py-2 text-xs font-bold border border-zinc-800 text-zinc-400 bg-zinc-900/40 rounded-lg disabled:opacity-20 uppercase cursor-pointer"
                                         >
                                             Previous Level
                                         </button>
@@ -1690,14 +1510,14 @@ export const MainNetView: React.FC = () => {
                                             <button 
                                                 type="button"
                                                 onClick={() => setCurrentProofStepIndex(prev => prev + 1)}
-                                                className="flex-1 py-1.5 text-[8px] font-black bg-indigo-900 hover:bg-indigo-800 text-white rounded uppercase text-center"
+                                                className="flex-1 py-2 text-xs font-bold bg-indigo-900 hover:bg-indigo-800 text-white rounded-lg uppercase text-center cursor-pointer"
                                             >
                                                 Hash with Sibling at next level
                                             </button>
                                         ) : (
-                                            <div className="flex-1 p-1 bg-emerald-950/20 border border-emerald-990 rounded flex items-center justify-center gap-1.5 animate-[pulse_1.5s_infinite]">
-                                                <CheckCircle2Icon className="w-3.5 h-3.5 text-emerald-400" />
-                                                <span className="text-[7.5px] font-black text-emerald-400 uppercase tracking-widest leading-none">
+                                            <div className="flex-1 p-2 bg-emerald-950/20 border border-emerald-900/60 rounded-lg flex items-center justify-center gap-1.5 animate-pulse">
+                                                <CheckCircle2Icon className="w-4 h-4 text-emerald-400" />
+                                                <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
                                                     PROOF VERIFIED UP TO MERKLE ROOT
                                                 </span>
                                             </div>
@@ -1705,26 +1525,25 @@ export const MainNetView: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* Header Roots Match Verification UI */}
-                                <div className="border border-zinc-900 rounded-2xl p-4 bg-zinc-950/40 space-y-2.5">
-                                    <div className="flex items-center justify-between text-[7.5px] font-black">
-                                        <p className="text-zinc-500 uppercase">CALCULATED TARGET PROOF ROOT:</p>
-                                        <p className="text-emerald-400 font-mono">
-                                            {proofSteps[proofSteps.length - 1].result.slice(0, 16)}...({proofSteps[proofSteps.length - 1].result.slice(-16)})
+                                <div className="border border-zinc-900 rounded-xl p-4 bg-black/30 space-y-3">
+                                    <div className="flex items-center justify-between text-xs font-mono">
+                                        <p className="text-zinc-500 uppercase font-sans">Calculated Proof Root:</p>
+                                        <p className="text-emerald-400 truncate max-w-[240px] md:max-w-none">
+                                            {proofSteps[proofSteps.length - 1].result}
                                         </p>
                                     </div>
-                                    <div className="flex items-center justify-between text-[7.5px] font-black">
-                                        <p className="text-zinc-500 uppercase">BLOCK HEADER MERKLE ROOT:</p>
-                                        <p className="text-orange-400 font-mono">
-                                            {activeBlock.merkleRoot.slice(0, 16)}...({activeBlock.merkleRoot.slice(-16)})
+                                    <div className="flex items-center justify-between text-xs font-mono">
+                                        <p className="text-zinc-500 uppercase font-sans">Block Header Root:</p>
+                                        <p className="text-orange-400 truncate max-w-[240px] md:max-w-none">
+                                            {activeBlock.merkleRoot}
                                         </p>
                                     </div>
                                     <div className="h-px bg-zinc-900" />
-                                    <div className="flex items-center gap-2.5 text-[8px] bg-black/40 p-2.5 rounded-xl border border-zinc-900">
-                                        <InfoIcon className="w-4 h-4 text-blue-500" />
-                                        <p className="text-zinc-400 font-semibold leading-relaxed">
-                                            Veracity check: {proofSteps[proofSteps.length - 1].result === activeBlock.merkleRoot 
-                                                ? 'Match confirmed. The selected transaction has been cryptographically proven to be valid and uncorrupted inside block #' + activeBlock.height.toLocaleString() + ' with double SHA256 integrity.' 
+                                    <div className="flex items-start gap-2.5 text-xs bg-black/50 p-3 rounded-lg border border-zinc-900">
+                                        <InfoIcon className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+                                        <p className="text-zinc-400 leading-relaxed">
+                                            Verification Status: {proofSteps[proofSteps.length - 1].result === activeBlock.merkleRoot 
+                                                ? 'Roots match! Cryptographic provenance confirmed. This transaction is guaranteed to reside unaltered within Block #' + activeBlock.height.toLocaleString() + ' with mathematical certainty.'
                                                 : 'Mismatched Root. Please recalculate block elements.'
                                             }
                                         </p>
@@ -1734,49 +1553,44 @@ export const MainNetView: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Cryptographic Peer Directory lists */}
-                    <div className="bg-[#050508] border border-zinc-900 rounded-3xl p-6">
+                    {/* Block Explorer / History */}
+                    <div className="bg-zinc-950/60 border border-zinc-900 rounded-2xl p-6">
                         <div className="flex justify-between items-center mb-4">
-                            <span className="text-xs font-black tracking-widest text-zinc-400 uppercase flex items-center gap-1.5">
-                                <ServerIcon className="w-4 h-4 text-emerald-400" /> Block Ledger History
+                            <span className="text-sm font-bold tracking-wider text-zinc-300 uppercase flex items-center gap-2">
+                                <ServerIcon className="w-4.5 h-4.5 text-emerald-400" /> Block Ledger History
                             </span>
-                            <span className="text-[7.5px] text-zinc-500 font-black uppercase tracking-wider">
+                            <span className="text-xs text-zinc-500 font-bold uppercase">
                                 {selectedChain} Verifications
                             </span>
                         </div>
 
-                        {/* Vertical Blocks Roll */}
-                        <div className="space-y-3 max-h-64 overflow-y-auto">
-                            {activeBlocks.slice().reverse().map((b, idx) => (
+                        <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
+                            {activeBlocks.slice().reverse().map((b) => (
                                 <div 
                                     key={b.height}
                                     onClick={() => {
                                         setSelectedBlockHeight(b.height);
                                         setSelectedTxId(b.transactions[0]?.id || null);
                                     }}
-                                    className={`p-4 border rounded-2xl cursor-pointer text-xs transition-all relative overflow-hidden ${
+                                    className={`p-4 border rounded-xl cursor-pointer transition-all relative overflow-hidden ${
                                         selectedBlockHeight === b.height 
-                                            ? 'bg-zinc-900/60 border-emerald-500 shadow-md shadow-emerald-500/5' 
-                                            : 'bg-zinc-950 hover:bg-zinc-900 border-zinc-900'
+                                            ? 'bg-zinc-900/40 border-emerald-500 shadow-md shadow-emerald-500/5' 
+                                            : 'bg-black/40 hover:bg-zinc-900/20 border-zinc-900'
                                     }`}
                                 >
                                     <div className="flex justify-between items-center">
-                                        <p className="font-extrabold text-white text-xs italic">
+                                        <p className="font-extrabold text-sm text-white italic">
                                             Block Height #{b.height.toLocaleString()}
                                         </p>
-                                        <span className="text-[7px] font-black text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded uppercase">
-                                            {b.transactions.length} confirmed TX
+                                        <span className="text-xs font-bold text-zinc-400 bg-zinc-900 px-2 py-0.5 rounded uppercase">
+                                            {b.transactions.length} Tx
                                         </span>
                                     </div>
-                                    <div className="pt-2.5 pb-1 space-y-1 text-[7.5px] text-zinc-400 leading-normal">
-                                        <p className="truncate font-mono">
-                                            <span className="text-zinc-650 font-bold uppercase">Hash:</span> {b.hash}
-                                        </p>
-                                        <p className="truncate font-mono">
-                                            <span className="text-zinc-650 font-bold uppercase">Root:</span> {b.merkleRoot}
-                                        </p>
+                                    <div className="pt-3 space-y-1.5 text-xs text-zinc-400 font-mono">
+                                        <p className="truncate"><span className="text-zinc-600 font-sans font-bold">Block Hash:</span> {b.hash}</p>
+                                        <p className="truncate"><span className="text-zinc-650 font-sans font-bold">Merkle Root:</span> {b.merkleRoot}</p>
                                     </div>
-                                    <div className="flex justify-between items-center text-[6px] text-zinc-500 font-mono mt-1 opacity-80 pt-1.5 border-t border-zinc-900">
+                                    <div className="flex justify-between items-center text-[10px] text-zinc-500 font-mono mt-3 pt-2 border-t border-zinc-900/60">
                                         <span>MINER: {b.minedBy}</span>
                                         <span>{new Date(b.timestamp).toLocaleTimeString()}</span>
                                     </div>
@@ -1784,36 +1598,40 @@ export const MainNetView: React.FC = () => {
                             ))}
                         </div>
                     </div>
+                        </>
+                    )}
+
                 </div>
 
-                {/* Right Section (Column Span 3): StratumV2 Mining Rig Controls & Logs */}
-                <div className="xl:col-span-3 space-y-6 flex flex-col h-full overflow-hidden">
+                {/* Right Section (Column Span 4) - Console and Side Panel */}
+                {activeOpTab === 'consoles' && (
+                    <div className="lg:col-span-4 space-y-8">
                     
-                    {/* Hashing Simulator Console */}
-                    <div className="bg-black border border-zinc-900 rounded-3xl p-6 shadow-md">
+                    {/* Mining Rig Controls */}
+                    <div className="bg-zinc-950/60 border border-zinc-900 rounded-2xl p-6 shadow-md relative">
                         <div className="flex items-center justify-between mb-4">
-                            <h4 className="text-xs font-black text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                            <h4 className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center gap-2">
                                 <CpuIcon className="w-4.5 h-4.5 text-orange-400" /> Mining Console
                             </h4>
-                            <div className="flex items-center gap-1.5 text-[8px] font-black uppercase">
-                                <div className={`w-1.5 h-1.5 rounded-full ${isMining ? 'bg-orange-500 animate-ping' : 'bg-red-500'}`} />
-                                {isMining ? 'HASHING' : 'IDLE'}
+                            <div className="flex items-center gap-1.5 text-xs font-bold uppercase">
+                                <div className={`w-2 h-2 rounded-full ${isMining ? 'bg-emerald-500 animate-ping' : 'bg-red-500'}`} />
+                                <span className={isMining ? 'text-emerald-400' : 'text-zinc-500'}>{isMining ? 'HASHING' : 'IDLE'}</span>
                             </div>
                         </div>
 
                         <div className="flex flex-col items-center py-4">
-                            <div className="relative w-40 h-40 mb-4 flex items-center justify-center">
+                            <div className="relative w-40 h-40 mb-6 flex items-center justify-center">
                                 <svg className="w-full h-full transform -rotate-90">
                                     <circle 
                                         cx="80" cy="80" r="66" 
                                         fill="transparent" 
-                                        stroke="#0b0b0e" 
+                                        stroke="#101015" 
                                         strokeWidth="10"
                                     />
                                     <circle 
                                         cx="80" cy="80" r="66" 
                                         fill="transparent" 
-                                        stroke={selectedChain === 'BTC' ? '#f7931a' : selectedChain === 'XMR' ? '#9333ea' : '#10b981'} 
+                                        stroke={selectedChain === 'BTC' ? '#f7931a' : selectedChain === 'XMR' ? '#9333ea' : selectedChain === 'AERO' ? '#10b981' : '#0ea5e9'} 
                                         strokeWidth="10"
                                         strokeDasharray={2 * Math.PI * 66}
                                         strokeDashoffset={2 * Math.PI * 66 * (1 - miningEfficiency / 100)}
@@ -1822,28 +1640,28 @@ export const MainNetView: React.FC = () => {
                                     />
                                 </svg>
                                 <div className="absolute flex flex-col items-center">
-                                    <span className="text-2xl font-black text-white italic">{miningEfficiency}%</span>
-                                    <span className="text-[7.5px] font-black text-zinc-500 uppercase tracking-widest mt-1">FORGING BLOCKS</span>
+                                    <span className="text-3xl font-extrabold text-white italic">{miningEfficiency}%</span>
+                                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider mt-1">FORGING BLOCK</span>
                                 </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2.5 w-full mb-4 text-[9px]">
-                                <div className="text-center p-2.5 bg-zinc-950 border border-zinc-900 rounded-xl">
-                                    <p className="text-[6.5px] text-zinc-650 font-black uppercase mb-0.5">SHA Target Chip</p>
-                                    <p className="text-[8px] font-black text-white truncate">{rigWorker}</p>
+                            <div className="grid grid-cols-2 gap-3 w-full mb-4 text-xs">
+                                <div className="p-3 bg-black/40 border border-zinc-900 rounded-xl text-center">
+                                    <p className="text-[10px] text-zinc-500 uppercase font-bold mb-1">Target Rig</p>
+                                    <p className="font-bold text-zinc-200 truncate">{rigWorker.replace('AETHER_RIG_', '')}</p>
                                 </div>
-                                <div className="text-center p-2.5 bg-zinc-950 border border-zinc-900 rounded-xl">
-                                    <p className="text-[6.5px] text-zinc-650 font-black uppercase mb-0.5">Processor Temp</p>
-                                    <p className={`text-[8.5px] font-black ${rigTemp > 75 ? 'text-rose-500 animate-pulse' : 'text-emerald-450'}`}>{rigTemp}°C</p>
+                                <div className="p-3 bg-black/40 border border-zinc-900 rounded-xl text-center">
+                                    <p className="text-[10px] text-zinc-500 uppercase font-bold mb-1">Core Temp</p>
+                                    <p className={`font-bold ${rigTemp > 75 ? 'text-rose-500 animate-pulse' : 'text-emerald-400'}`}>{rigTemp}°C</p>
                                 </div>
                             </div>
 
                             <button 
                                 onClick={() => setIsMining(!isMining)}
-                                className={`w-full py-4 font-black uppercase text-xs tracking-widest rounded-2xl shadow-md transition-all active:scale-95 ${
+                                className={`w-full py-3.5 font-bold uppercase text-xs tracking-widest rounded-xl transition-all active:scale-95 cursor-pointer border ${
                                     isMining 
-                                        ? 'bg-rose-650 text-white hover:bg-rose-600 border border-rose-700' 
-                                        : 'bg-emerald-600 text-black hover:bg-emerald-500 border border-emerald-700'
+                                        ? 'bg-rose-950/20 text-rose-400 border-rose-900 hover:bg-rose-950/40' 
+                                        : 'bg-emerald-600 text-black border-emerald-700 hover:bg-emerald-500'
                                 }`}
                             >
                                 {isMining ? 'Halt Forging Rig' : 'Ignite Hashrate Engine'}
@@ -1851,14 +1669,55 @@ export const MainNetView: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Raw Network Log Terminal representing active state */}
-                    <div className="bg-zinc-950/80 border border-zinc-900 rounded-3xl p-6 flex-1 flex flex-col min-h-[220px]">
-                        <span className="text-[8.5px] font-black text-zinc-500 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                            <ActivityIcon className="w-3.5 h-3.5 text-blue-400" /> Active Protocol Logs
+                    {/* Global Mempool Monitor */}
+                    <div className="bg-zinc-950/60 border border-zinc-900 rounded-2xl p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <span className="text-xs font-bold tracking-wider text-zinc-300 uppercase">
+                                Global Mempool ({mempool.filter(tx => tx.coin === selectedChain).length})
+                            </span>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase">Relayed Peer Broadcasts</span>
+                        </div>
+                        
+                        <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                            {mempool.filter(tx => tx.coin === selectedChain).length === 0 ? (
+                                <div className="text-center py-8 border border-dashed border-zinc-900 rounded-xl">
+                                    <p className="text-xs text-zinc-500 font-bold uppercase">Mempool Empty</p>
+                                    <p className="text-[10px] text-zinc-600 italic mt-1">Submit transactions to populate mempool queue.</p>
+                                </div>
+                            ) : (
+                                mempool.filter(tx => tx.coin === selectedChain).map((tx) => (
+                                    <div key={tx.id} className="p-3 bg-black/40 border border-zinc-900 rounded-xl relative overflow-hidden">
+                                        <div className="absolute right-0 top-0 text-[9px] font-bold text-amber-500 bg-amber-950/20 px-2 py-0.5 border-l border-b border-zinc-900 rounded-bl uppercase">
+                                            PENDING
+                                        </div>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <p className="text-xs font-bold text-white leading-relaxed">
+                                                    {tx.amount} {tx.coin}
+                                                </p>
+                                                <p className="text-[10px] text-zinc-500 mt-1 max-w-[140px] truncate">
+                                                    Rec: {tx.recipient}
+                                                </p>
+                                            </div>
+                                            <div className="text-right">
+                                                <p className="text-[10px] text-zinc-400 font-bold">Fee: {tx.fee}</p>
+                                                <p className="text-[9px] text-zinc-600 mt-1 font-mono">0x{tx.id.slice(-6)}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Active Protocol Logs */}
+                    <div className="bg-zinc-950/60 border border-zinc-900 rounded-2xl p-6 flex flex-col h-72">
+                        <span className="text-xs font-bold text-zinc-300 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                            <SlidersIcon className="w-4 h-4 text-blue-400" /> Active Protocol Logs
                         </span>
                         
-                        <div className="flex-1 overflow-y-auto font-mono text-[7px] text-zinc-400 leading-relaxed bg-black/40 p-4 rounded-xl border border-zinc-900/60 max-h-56">
-                            <div className="space-y-1.5">
+                        <div className="flex-1 overflow-y-auto font-mono text-[11px] text-zinc-400 leading-relaxed bg-black/40 p-4 rounded-xl border border-zinc-900/60 custom-scrollbar">
+                            <div className="space-y-2">
                                 {latestNetworkLogs.map((log, i) => (
                                     <p key={i} className="break-all">
                                         <span className="text-zinc-600">{`>`}</span> {log}
@@ -1869,89 +1728,77 @@ export const MainNetView: React.FC = () => {
                         </div>
                     </div>
                 </div>
+                )}
+
             </div>
 
-            {/* Sovereign Web3 Knowledge Vault & Asset Guide (Row 3, Bottom) */}
-            <div className="px-8 pb-10 pt-4 bg-[#050508] border-t border-zinc-900/60">
-                <div className="max-w-7xl mx-auto space-y-6">
+            {/* Sovereign Web3 Knowledge Vault */}
+            <div className="border-t border-zinc-900/60 pt-8 mt-4">
+                <div className="max-w-7xl mx-auto px-6 md:px-8 space-y-6">
                     <div className="flex items-center gap-2.5 pb-3 border-b border-zinc-900">
                         <BookOpenIcon className="w-5 h-5 text-emerald-400" />
-                        <h3 className="font-extrabold text-white text-base tracking-widest uppercase">
+                        <h3 className="font-bold text-white text-sm uppercase tracking-widest">
                             Sovereign Web3 Knowledge Vault & Asset Guide
                         </h3>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        
-                        {/* Bitcoin Asset Guide */}
-                        <div className="p-5 bg-zinc-950 border border-zinc-900 rounded-2xl hover:border-orange-500/20 transition-all">
-                            <div className="flex items-center gap-2.5 mb-3">
-                                <div className="w-7 h-7 rounded-lg bg-orange-500/5 flex items-center justify-center border border-orange-500/20">
-                                    <BitcoinIcon className="w-4.5 h-4.5 text-orange-400" />
+                    <div 
+                        onWheel={(e) => {
+                            if (e.deltaY !== 0) {
+                                const container = e.currentTarget;
+                                const isAtStart = container.scrollLeft === 0;
+                                const isAtEnd = Math.ceil(container.scrollLeft + container.clientWidth) >= container.scrollWidth;
+                                if ((e.deltaY < 0 && !isAtStart) || (e.deltaY > 0 && !isAtEnd)) {
+                                    e.preventDefault();
+                                    container.scrollLeft += e.deltaY;
+                                }
+                            }
+                        }}
+                        className="flex gap-6 overflow-x-auto snap-x snap-mandatory custom-scrollbar pb-4 scroll-smooth"
+                    >
+                        <div className="p-5 bg-zinc-950 border border-zinc-900 rounded-xl hover:border-orange-500/20 transition-all snap-start shrink-0 w-[290px] sm:w-[340px] md:w-[380px] flex flex-col justify-between">
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <BitcoinIcon className="w-5 h-5 text-orange-400" />
+                                    <h4 className="font-bold text-xs text-white uppercase italic">
+                                        Bitcoin (BTC) Ledger Asset
+                                    </h4>
                                 </div>
-                                <h4 className="font-bold text-sm text-white uppercase italic tracking-tight">
-                                    Bitcoin (BTC) Asset
-                                </h4>
+                                <p className="text-xs text-zinc-400 leading-relaxed">
+                                    Uses the UTXO bookkeeping model, SHA-256 consensus, and Merkle tree verification blocks. Utilize Native Segwit addresses beginning with <code className="text-orange-400">bc1q</code> for optimal routing fees. Use the Mining console to pack unconfirmed pool TXs.
+                                </p>
                             </div>
-                            <p className="text-[10px] text-zinc-400 leading-relaxed space-y-2">
-                                <span><strong>Type:</strong> Peer-to-Peer Store-of-Value.</span>
-                                <br />
-                                <span><strong>Mechanics:</strong> Relies on the UTXO (Unspent Transaction Output) accounting model, SHA-256 Proof of Work consensus algorithms, and Merkle Trees inside block headers.</span>
-                                <br />
-                                <span><strong>How to Use:</strong> Transact with Native Segwit addresses starting with <code>bc1q</code> for ultra-low fee multi-sig inputs. Mine simulated blocks on this net layer to seal pending transfers securely.</span>
-                            </p>
                         </div>
 
-                        {/* Monero Asset Guide */}
-                        <div className="p-5 bg-zinc-950 border border-zinc-900 rounded-2xl hover:border-purple-500/20 transition-all">
-                            <div className="flex items-center gap-2.5 mb-3">
-                                <div className="w-7 h-7 rounded-lg bg-purple-500/5 flex items-center justify-center border border-purple-500/20">
-                                    <LockIcon className="w-4.5 h-4.5 text-purple-400" />
+                        <div className="p-5 bg-zinc-950 border border-zinc-900 rounded-xl hover:border-purple-500/20 transition-all snap-start shrink-0 w-[290px] sm:w-[340px] md:w-[380px] flex flex-col justify-between">
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <LockIcon className="w-5 h-5 text-purple-400" />
+                                    <h4 className="font-bold text-xs text-white uppercase italic">
+                                        Monero (XMR) Privacy Asset
+                                    </h4>
                                 </div>
-                                <h4 className="font-bold text-sm text-white uppercase italic tracking-tight">
-                                    Monero (XMR) Asset
-                                </h4>
+                                <p className="text-xs text-zinc-400 leading-relaxed">
+                                    Focuses on absolute sender and receiver anonymity. Utilizes stealth destination address mapping, decoy ring mixins, and Pedersen Commitments to fully mask raw transaction values on-chain. Stealth addresses span 95 alphanumeric characters.
+                                </p>
                             </div>
-                            <p className="text-[10px] text-zinc-400 leading-relaxed space-y-2">
-                                <span><strong>Type:</strong> Sovereign Untraceable Digital Cash.</span>
-                                <br />
-                                <span><strong>Mechanics:</strong> Shields users via Stealth Addresses (hiding receiver identity), Ring Signatures (mixing sender keys with decoys), and RingCT (masking the amount sent via Pedersen Commitments).</span>
-                                <br />
-                                <span><strong>How to use:</strong> Select Monero, customize anonymous stealth addresses (95 characters) and blinding factors, and use RingCT mixins to broadcast private payments that leave zero digital trace.</span>
-                            </p>
                         </div>
 
-                        {/* Merkle Proof Explanation Guide */}
-                        <div className="p-5 bg-zinc-950 border border-zinc-950 rounded-2xl hover:border-emerald-550/20 transition-all text-xs bg-gradient-to-br from-[#061011] to-zinc-950 border-emerald-950">
-                            <div className="flex items-center gap-2.5 mb-3">
-                                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 animate-pulse">
-                                    <ShieldIcon className="w-4.5 h-4.5 text-emerald-400" />
+                        <div className="p-5 bg-zinc-950 border border-zinc-900 rounded-xl hover:border-emerald-500/20 transition-all snap-start shrink-0 w-[290px] sm:w-[340px] md:w-[380px] flex flex-col justify-between">
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <ZapIcon className="w-5 h-5 text-emerald-400" />
+                                    <h4 className="font-bold text-xs text-white uppercase italic">
+                                        AERO EVM L1 Gas Mechanics
+                                    </h4>
                                 </div>
-                                <h4 className="font-bold text-sm text-emerald-400 uppercase tracking-tight">
-                                    Cryptographic Merkle Proofs
-                                </h4>
+                                <p className="text-xs text-zinc-400 leading-relaxed">
+                                    Built with Account-based sequenced state. Utilizes execution Nonces to secure against replay vector attacks, gas fees scaled in Gwei, and optional hexadecimal bytecode data payloads for direct decentralized smart contract execution.
+                                </p>
                             </div>
-                            <p className="text-[10px] text-zinc-300 leading-relaxed space-y-2">
-                                <span><strong>What is a Merkle Proof?</strong> It allows a light-client (SPV node) to verify that a transaction was indeed packed into a specific block without having to download the gigabytes of full history.</span>
-                                <br />
-                                <span><strong>How to Verify:</strong> Click on any block in the ledger. Select a transaction. The simulator recursively pairs and hashes sibling leaves upwards to reproduce and match the original Block Header Merkle Root with 100% mathematical certainty.</span>
-                            </p>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            {/* Bottom State Status Footer */}
-            <div className="px-8 py-3 bg-zinc-950 border-t border-zinc-900 flex items-center justify-between shrink-0 text-[10px] text-zinc-600">
-                <div className="flex items-center gap-4">
-                    <span className="flex items-center gap-1.5 font-bold">
-                        <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
-                        GLOBAL LEDGERS: SYNCED
-                    </span>
-                    <span>|</span>
-                    <span className="italic">Session memory maintained on tab shift</span>
-                </div>
-                <span>AetherOS v1.82 // Web3 Sovereignty Layer</span>
             </div>
         </div>
     );

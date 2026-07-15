@@ -97,7 +97,7 @@ export const SignalMonitor: React.FC = () => {
     diagnostics: [
       `[HAZARD] Dynamic state feedback loop identified at line 10. setMetric(nextVal) triggers side-effect recursively.`,
       `[DECELERATED] Inspecting closure pointers and variable reference trees... Scanning deep hooks...`,
-      `[MUTATION] Abstracted direct mutation to state functional updater: setMetric(prev => nextVal).`,
+      `[EVOLVE] Abstracted direct resurrection to state functional updater: setMetric(prev => nextVal).`,
       `[LOOKAHEAD CHECK] Re-compiling target hook closure. 0 warnings generated. Runtime frequency stable.`
     ]
   },
@@ -146,7 +146,7 @@ export const AmbientSoundSync = () => {
     diagnostics: [
       `[HAZARD] Resource leakage. Keydown callback bound to window scope lacks disposal on unmount.`,
       `[DECELERATED] Scanning React lifecycle end-hooks... No return cleanup function detected in useEffect.`,
-      `[MUTATION] Refactored inline arrow handler to standard listener function declaration. Injected disposal return block.`,
+      `[EVOLVE] Refactored inline arrow handler to standard listener function declaration. Injected resurrection disposal return block.`,
       `[LOOKAHEAD CHECK] Simulating synthetic memory consumption test. Object count: 0 leaks.`
     ]
   },
@@ -179,7 +179,7 @@ export const AmbientSoundSync = () => {
     diagnostics: [
       `[HAZARD] Silent exception swallow block detected in try-catch wrapper. Hidden failure cascade potential.`,
       `[DECELERATED] Tracing diagnostic coverage ratio... 0% transparency inside catch callback scope.`,
-      `[MUTATION] Decoupling parameters with robust safe-access chaining operators parsing structures. Appended console logging warnings.`,
+      `[EVOLVE] Decoupling parameters with robust safe-access chaining operators parsing structures. Appended console logging warnings.`,
       `[LOOKAHEAD CHECK] Syntactic parity matches ideal exception telemetry specification.`
     ]
   },
@@ -253,7 +253,7 @@ export class Transaction {
     diagnostics: [
       `[HAZARD] Script decompile vulnerability detected at line 12. Uncaught decompile result checks cause TypeError crash.`,
       `[DECELERATED] Mathematical complexity extremely high: 98%. Decelerating clock to capture cryptographic bitmask operations.`,
-      `[MUTATION] Decoupled BLANK_OUTPUT pointer by cloning payload per execution block to avoid global contamination.`,
+      `[EVOLVE] Decoupled BLANK_OUTPUT pointer by cloning payload per execution block to avoid global resurrection contamination.`,
       `[LOOKAHEAD CHECK] TapSighash validation pipeline is green. Type stability matches standard secure BIP-0341 specifications.`
     ]
   },
@@ -344,7 +344,7 @@ export function toOutputScript(address: string, network?: Network): Uint8Array {
     diagnostics: [
       `[HAZARD] Address decoding vulnerability: Invalid witness length or index out of bounds during prefix parsing can crash application.`,
       `[DECELERATED] Normalizing address validator clock speed. High precision Base58 and Bech32 parser scanning in progress...`,
-      `[MUTATION] Secured prefix lookup and injected strict length constraints. Taproot v1 vs. Segwit v0 opcodes successfully aligned.`,
+      `[EVOLVE] Secured prefix lookup and injected strict length constraints. Taproot v1 vs. Segwit v0 opcodes successfully aligned.`,
       `[LOOKAHEAD CHECK] Complete unit test validation and network matching checks passed with zero memory leaks.`
     ]
   }
@@ -637,11 +637,11 @@ export const CognitivePipelineView: React.FC<CognitivePipelineViewProps> = ({ on
                 setActiveHealerPhase('SYNTHESIZING');
                 triggerTone(720, 'sine', 0.08);
                 log(`[SYNTHESIZING] Resolving token tree conflicts in active branch...`, 'INFO');
-                log(selectedSample.diagnostics[2] || `[MUTATION] Injected type safe wrappers.`, 'HEAL');
+                log(selectedSample.diagnostics[2] || `[EVOLVE] Injected type safe wrappers.`, 'HEAL');
                 
                 const originalLength = editableCode.length;
                 const repairedLength = selectedSample.healed.length;
-                log(`[TRANSFORMATION] Code volume mutated from ${originalLength} characters to ${repairedLength} characters.`, 'HEAL');
+                log(`[TRANSFORMATION] Code volume evolved from ${originalLength} characters to ${repairedLength} characters.`, 'HEAL');
                 setRepairedResult(selectedSample.healed);
 
                 // Transition to verification compiler lookahead (Phase 5: Verification)
@@ -1110,11 +1110,11 @@ export const CognitivePipelineView: React.FC<CognitivePipelineViewProps> = ({ on
                                     </pre>
                                 </div>
                                 <div className="text-[9px] text-[#291405] text-red-950/50 pt-2 border-t border-zinc-900/50 mt-2">
-                                    CRITICAL_COMPILE_RISK: Dynamic variables mutation.
+                                    CRITICAL_COMPILE_RISK: Dynamic variables evolution.
                                 </div>
                             </div>
 
-                            {/* MUTATED EXPORT OUTPUT CONTAINER */}
+                            {/* EVOLVED EXPORT OUTPUT CONTAINER */}
                             <div className="bg-zinc-950/80 border border-zinc-900 rounded-xl p-4 text-left flex flex-col justify-between">
                                 <div>
                                     <div className="flex items-center justify-between border-b border-zinc-900 pb-2 mb-2">

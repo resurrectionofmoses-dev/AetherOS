@@ -22,22 +22,22 @@ export class ScraperMerchantStoreClass {
     this.storageMatrix = new Map();
   }
 
-  mutateHeaders(mutationRate: number) {
-    // Generate simulated requests headers based on mutation rate to evade anti-bot defenses
+  evolveHeaders(evolveRate: number) {
+    // Generate simulated requests headers based on evolve rate to evade anti-bot defenses
     return {
-      'User-Agent': `AetherCrawl-W-Axis/v${(mutationRate * 0.1).toFixed(1)} (ReinforceRef; BotBypass)`,
+      'User-Agent': `AetherCrawl-W-Axis/v${(evolveRate * 0.1).toFixed(1)} (ReinforceRef; BotBypass)`,
       'Accept': 'application/ld+json, text/html,application/xhtml+xml',
       'Accept-Language': 'en-W,en;q=0.9,hyper-spatial=1',
       'X-W-Space-Anchor': `node-${this.nodeId.substring(0, 8)}`,
       'Sec-Fetch-Mode': 'navigate',
-      'X-Bot-Mutation-Rate': `0x${mutationRate.toString(16).toUpperCase()}`,
+      'X-Bot-Evolve-Rate': `0x${evolveRate.toString(16).toUpperCase()}`,
       'Connection': 'keep-alive'
     };
   }
 
   async adaptScraper(targetUri: string) {
-    let mutationRate = 0x03E2;
-    let headers = this.mutateHeaders(mutationRate);
+    let evolveRate = 0x03E2;
+    let headers = this.evolveHeaders(evolveRate);
     return { success: true, payload: "Decrypted Hypermedia Stream" };
   }
 
@@ -97,8 +97,8 @@ export const ScraperMerchantStoreView: React.FC = () => {
 
     // Component state
     const [scrapers, setScrapers] = useState<any[]>([
-        { id: 'sc-1', label: 'W-Crawler Alpha', targetUri: 'tor://covenant-consensus.net', status: 'IDLE', mutationRate: 0x03E2, successCount: 14, headers: smsInstance.mutateHeaders(0x03E2) },
-        { id: 'sc-2', label: 'W-Crawler Beta', targetUri: 'hypermedia://omega-nexus/harvest', status: 'HARVESTING', mutationRate: 0x03E2 * 1.5, successCount: 29, headers: smsInstance.mutateHeaders(Math.floor(0x03E2 * 1.5)) },
+        { id: 'sc-1', label: 'W-Crawler Alpha', targetUri: 'tor://covenant-consensus.net', status: 'IDLE', evolveRate: 0x03E2, successCount: 14, headers: smsInstance.evolveHeaders(0x03E2) },
+        { id: 'sc-2', label: 'W-Crawler Beta', targetUri: 'hypermedia://omega-nexus/harvest', status: 'HARVESTING', evolveRate: 0x03E2 * 1.5, successCount: 29, headers: smsInstance.evolveHeaders(Math.floor(0x03E2 * 1.5)) },
     ]);
     const [ledger, setLedger] = useState<any[]>([
         { id: 'tx-1', buyer: 'Aetheros_Prime', dataHash: '0x3E2a7f...d8', price: 12.8, timestamp: Date.now() - 360000, verified: true },
@@ -132,23 +132,23 @@ export const ScraperMerchantStoreView: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
-    // Header mutation live input
-    const [customMutationRate, setCustomMutationRate] = useState<number>(994); // 0x03E2
+    // Header evolution live input
+    const [customEvolveRate, setCustomEvolveRate] = useState<number>(994); // 0x03E2
 
     // Launch new scraper agent
     const launchScraper = () => {
         if (!inputUri.trim()) return;
         playOperatorBeep(880, 'sine', 0.1);
         const newId = `sc-${scrapers.length + 1}`;
-        const targetRate = customMutationRate;
+        const targetRate = customEvolveRate;
         const newScraper = {
             id: newId,
             label: `W-Crawler ${String.fromCharCode(65 + scrapers.length)}`,
             targetUri: inputUri,
             status: 'IDLE',
-            mutationRate: targetRate,
+            evolveRate: targetRate,
             successCount: 0,
-            headers: smsInstance.mutateHeaders(targetRate)
+            headers: smsInstance.evolveHeaders(targetRate)
         };
         setScrapers([...scrapers, newScraper]);
         setInputUri('');
@@ -159,13 +159,13 @@ export const ScraperMerchantStoreView: React.FC = () => {
         playOperatorBeep(650, 'triangle', 0.05);
         setScrapers(prev => prev.map(sc => {
             if (sc.id === id) {
-                // Mutate rate by adding a random hyper-dimension reinforcement delta
-                const nextMutationRate = Math.min(2048, Math.max(100, sc.mutationRate + (Math.random() > 0.5 ? 45 : -35)));
+                // Evolve rate by adding a random hyper-dimension reinforcement delta
+                const nextEvolveRate = Math.min(2048, Math.max(100, sc.evolveRate + (Math.random() > 0.5 ? 45 : -35)));
                 return {
                     ...sc,
                     status: 'ADAPTING',
-                    mutationRate: nextMutationRate,
-                    headers: smsInstance.mutateHeaders(nextMutationRate)
+                    evolveRate: nextEvolveRate,
+                    headers: smsInstance.evolveHeaders(nextEvolveRate)
                 };
             }
             return sc;
@@ -540,11 +540,11 @@ export const ScraperMerchantStoreView: React.FC = () => {
                                     Reinforcement Crawler Agents
                                 </h2>
                             </div>
-                            <span className="text-[10px] text-zinc-500 font-mono">[RL_MUTATE_MATRIX: 0x03E2]</span>
+                            <span className="text-[10px] text-zinc-500 font-mono">[RL_EVOLVE_MATRIX: 0x03E2]</span>
                         </div>
 
                         <p className="text-[11px] text-zinc-400 leading-normal mb-4">
-                            Scraper agents dynamically mutate request headers using reward-based adaptation models. Evading bot protection blocks requires precise entropy scaling.
+                            Scraper agents dynamically evolve request headers using reward-based adaptation models. Evading bot protection blocks requires precise entropy scaling.
                         </p>
 
                         {/* Launch Control Injector */}
@@ -567,11 +567,11 @@ export const ScraperMerchantStoreView: React.FC = () => {
                             </div>
                             <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-zinc-505 font-mono pt-1">
                                 <div className="flex items-center gap-1.5">
-                                    <span>Mutator Constant:</span>
+                                    <span>Evolver Constant:</span>
                                     <input 
                                         type="number"
-                                        value={customMutationRate}
-                                        onChange={(e) => setCustomMutationRate(parseInt(e.target.value) || 0)}
+                                        value={customEvolveRate}
+                                        onChange={(e) => setCustomEvolveRate(parseInt(e.target.value) || 0)}
                                         className="w-16 bg-zinc-900 border border-zinc-800 rounded px-1.5 text-center text-[10px] text-amber-500 font-bold font-black font-mono focus:outline-none"
                                     />
                                     <span className="text-zinc-600">(0x03E2 = 994)</span>
@@ -608,7 +608,7 @@ export const ScraperMerchantStoreView: React.FC = () => {
 
                                         <div className="grid grid-cols-2 gap-2 text-[10px] font-mono text-zinc-500 border-t border-zinc-900/40 pt-2 bg-black/20 p-2 rounded-xl">
                                             <div>
-                                                Mutation Rate: <span className="text-gray-200 font-bold">0x{sc.mutationRate.toString(16).toUpperCase()}</span>
+                                                Evolve Rate: <span className="text-gray-200 font-bold">0x{sc.evolveRate.toString(16).toUpperCase()}</span>
                                             </div>
                                             <div className="text-right">
                                                 Tuned Harvester Rows: <span className="text-emerald-400 font-black">{sc.successCount}</span>
@@ -627,7 +627,7 @@ export const ScraperMerchantStoreView: React.FC = () => {
                                                 }`}
                                             >
                                                 <RefreshCw className={`w-3.5 h-3.5 ${activeAdapting ? 'animate-spin text-red-500' : ''}`} />
-                                                {sc.status === 'SUCCESS' ? 'Retrigger Adapter Loop' : 'Mutate & Harvest Node'}
+                                                {sc.status === 'SUCCESS' ? 'Retrigger Adapter Loop' : 'Resurrect & Harvest Node'}
                                             </button>
                                         </div>
                                     </div>
@@ -640,11 +640,11 @@ export const ScraperMerchantStoreView: React.FC = () => {
                     <div className="mt-4 bg-zinc-950 rounded-2.5xl p-4 border border-zinc-900 font-mono">
                         <div className="flex items-center gap-2 text-[9px] font-black text-gray-500 uppercase tracking-widest pb-2 border-b border-zinc-900 mb-2">
                             <Terminal className="w-3.5 h-3.5 text-zinc-650" />
-                            <span>Evading Mutated Header Request Payload</span>
+                            <span>Evading Evolved Header Request Payload</span>
                         </div>
                         <div className="text-[10px] text-zinc-400 space-y-1 select-all h-[95px] overflow-y-auto custom-scrollbar pr-1">
                             <div>GET /decrypted-hypermedia-stream HTTP/2.0</div>
-                            {Object.entries((scrawlers: any[]) => scrapers[0]?.headers || smsInstance.mutateHeaders(0x03E2)).map(([k, v]: any) => (
+                            {Object.entries((scrawlers: any[]) => scrapers[0]?.headers || smsInstance.evolveHeaders(0x03E2)).map(([k, v]: any) => (
                                 <div key={k} className="truncate">
                                     <span className="text-red-500 font-bold">{k}:</span> {v}
                                 </div>

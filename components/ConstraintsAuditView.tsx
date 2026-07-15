@@ -36,6 +36,8 @@ import {
   Share2
 } from 'lucide-react';
 import { voiceService } from '../services/voiceService';
+import { safeStorage, AuditLogEntry } from '../services/safeStorage';
+import { reportError, ErrorSeverity } from './GlobalErrorHandler';
 
 // ==========================================================
 // CORE PROTOCOL TYPES & SIMULATION ENGINE INTERFACES
@@ -96,9 +98,18 @@ export const ConstraintsAuditView: React.FC = () => {
   // ──────────────────────────────────────────────
   // STATE MANAGEMENT
   // ──────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<'SANDBOX' | 'CONVERGENCE_MATRIX' | 'TRANSITION_LOGS'>('SANDBOX');
+  const [activeTab, setActiveTab] = useState<'SANDBOX' | 'CONVERGENCE_MATRIX' | 'TRANSITION_LOGS' | 'AUDIT_LOG'>('SANDBOX');
   const [activeProtocol, setActiveProtocol] = useState<ProtocolType>('ARK');
   const [agentLogsState, setAgentLogsState] = useState<string[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+
+  useEffect(() => {
+    if (activeTab === 'AUDIT_LOG') {
+      safeStorage.getAuditLogs().then(logs => {
+        setAuditLogs(logs);
+      });
+    }
+  }, [activeTab]);
   
   // Immersive weather & background pulses
   const [magentaPulse, setMagentaPulse] = useState<number>(0);
@@ -578,6 +589,17 @@ export const ConstraintsAuditView: React.FC = () => {
         >
           <Terminal className="w-3.5 h-3.5" />
           Active Journals
+        </button>
+        <button
+          onClick={() => setActiveTab('AUDIT_LOG')}
+          className={`flex-1 sm:flex-initial px-6 py-3 text-xs font-black uppercase tracking-widest transition-all duration-200 flex items-center justify-center gap-2 border-b-2 ${
+            activeTab === 'AUDIT_LOG' 
+              ? 'bg-[#120524] text-white border-fuchsia-500' 
+              : 'text-zinc-500 hover:text-zinc-300 border-transparent hover:bg-white/5'
+          }`}
+        >
+          <Gavel className="w-3.5 h-3.5 text-yellow-500" />
+          Sovereign Audit Log
         </button>
       </nav>
 
@@ -1358,6 +1380,118 @@ export const ConstraintsAuditView: React.FC = () => {
                   );
                 })
               )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: SOVEREIGNTY AUDIT LOG */}
+        {activeTab === 'AUDIT_LOG' && (
+          <div className="p-6 bg-[#0a0314] border border-fuchsia-950 rounded-xl space-y-4">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center border-b border-fuchsia-950 pb-3 gap-3">
+              <div>
+                <h3 className="text-sm font-black text-white uppercase tracking-widest flex items-center gap-2">
+                  <Gavel className="w-5 h-5 text-yellow-500 animate-pulse" /> Cryptographic Sovereign Audit Log
+                </h3>
+                <p className="text-[10px] text-zinc-500 uppercase mt-0.5">
+                  Immutable, append-only records of critical system alerts, access events, and sovereignty level escalations.
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <button
+                  onClick={async () => {
+                    reportError({
+                      title: 'NEURAL_DRIFT_DETECTED',
+                      message: 'A sudden latency spike was detected in the multi-sign oracle gateway, risking network bifurcation.',
+                      severity: ErrorSeverity.CRITICAL,
+                      code: 'ERR_NEURAL_DRIFT_502'
+                    });
+                    setTimeout(async () => {
+                      const logs = await safeStorage.getAuditLogs();
+                      setAuditLogs(logs);
+                    }, 500);
+                  }}
+                  className="px-3 py-1 bg-red-950/40 hover:bg-red-900/40 text-red-400 hover:text-red-300 font-mono text-[10px] font-black uppercase rounded border border-red-900/50 transition-all flex items-center gap-1.5"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Simulate Critical Alert
+                </button>
+                <button
+                  onClick={async () => {
+                    const logs = await safeStorage.getAuditLogs();
+                    setAuditLogs(logs);
+                  }}
+                  className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white font-mono text-[10px] font-black uppercase rounded border border-zinc-800 transition-all flex items-center gap-1.5"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Refresh Logs
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
+              {auditLogs.length === 0 ? (
+                <div className="p-8 text-center text-zinc-600 italic text-xs space-y-2">
+                  <div>No sovereign events logged in safe storage yet.</div>
+                  <div className="text-[10px] text-zinc-500 uppercase">
+                    Try changing your subscription in the Sovereign Guard banner or click "Simulate Critical Alert" to populate this log.
+                  </div>
+                </div>
+              ) : (
+                [...auditLogs].reverse().map(log => {
+                  const badgeColor = 
+                    log.type === 'SYSTEM_ALERT' ? 'text-red-400 border-red-900/60 bg-red-950/30' :
+                    log.type === 'ALERT' ? 'text-amber-400 border-amber-900/60 bg-amber-950/30' :
+                    log.type === 'PERMISSION_CHANGE' ? 'text-yellow-400 border-yellow-900/60 bg-yellow-950/30' :
+                    log.type === 'BYPASS' ? 'text-cyan-400 border-cyan-900/60 bg-cyan-950/30' :
+                    log.type === 'DEACTIVATION' ? 'text-purple-400 border-purple-900/60 bg-purple-950/30' :
+                    'text-zinc-400 border-zinc-900/60 bg-zinc-950/30';
+
+                  return (
+                    <div 
+                      key={log.id} 
+                      className="p-4 bg-black/40 border border-zinc-900 rounded-xl hover:border-zinc-800 transition-all flex flex-col gap-2.5 font-mono text-xs"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-zinc-900/60 pb-2">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-zinc-500 font-bold">[{new Date(log.timestamp).toLocaleString()}]</span>
+                          <span className={`px-2.5 py-0.5 rounded border text-[9px] font-black uppercase tracking-wider ${badgeColor}`}>
+                            {log.type}
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-zinc-600 uppercase font-black tracking-widest">
+                          HASH: {log.id.slice(-8).toUpperCase()}
+                        </span>
+                      </div>
+
+                      <div className="text-zinc-200 font-sans leading-relaxed text-sm">
+                        {log.message}
+                      </div>
+
+                      {log.details && Object.keys(log.details).length > 0 && (
+                        <div className="bg-black/60 p-2.5 rounded border border-zinc-950 text-[10px] text-zinc-500">
+                          <strong className="text-zinc-400 uppercase">Context:</strong> {JSON.stringify(log.details)}
+                        </div>
+                      )}
+
+                      {log.verse && (
+                        <div className="mt-1 text-[11px] bg-yellow-950/10 border border-yellow-900/20 text-yellow-400/90 p-3 rounded-lg font-serif italic relative overflow-hidden">
+                          <div className="absolute top-0 right-0 p-1 opacity-10">
+                            <Sparkles className="w-12 h-12 text-yellow-500" />
+                          </div>
+                          "{log.verse.text}"
+                          <div className="mt-1 text-right text-[10px] font-sans not-italic uppercase tracking-widest text-yellow-500/80 font-bold">
+                            — {log.verse.reference}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            
+            <div className="text-center p-3 bg-zinc-950/40 border border-zinc-900/50 rounded-lg text-[10px] text-zinc-500 uppercase tracking-wider font-mono">
+              🛡️ "Let all things be done decently and in order." — 1 Corinthians 14:40
             </div>
           </div>
         )}

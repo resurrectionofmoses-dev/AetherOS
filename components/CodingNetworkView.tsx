@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
 import { FINTECH_AUTHORITIES } from '../constants';
 import { 
     CodeIcon, ActivityIcon, ZapIcon, ShieldIcon, FireIcon, StarIcon, PlusIcon, XIcon, TerminalIcon, UserIcon, BrainIcon, LogicIcon, CheckCircleIcon, SpinnerIcon, GaugeIcon, SearchIcon, GavelIcon
@@ -12,10 +13,16 @@ import { AgentFactory } from '../services/AgentFactory';
 import { safeStorage } from '../services/safeStorage';
 import { extractJSON } from '../utils';
 import { generateProjectKnowHow } from '../services/geminiService';
+import { 
+    Search as LucideSearch, Filter as LucideFilter, CheckCircle2 as LucideCheckCircle, 
+    XCircle as LucideXCircle, ArrowUpRight as LucideArrowUpRight, ArrowDownLeft as LucideArrowDownLeft, 
+    RefreshCw as LucideRefreshCw, Layers as LucideLayers, AlertCircle as LucideAlertCircle
+} from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { CPHManager, CPHDisplay } from '../services/cphManager';
 import { toast } from 'sonner';
 import { milestoneService } from '../services/milestoneService';
+import { ProjectAnalyticsAndCalendar } from './ProjectAnalyticsAndCalendar';
 
 const getSpecialtyBadge = (specialty: string) => {
     switch(specialty) {
@@ -82,12 +89,82 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     const [title, setTitle] = useState('');
     const [desc, setDesc] = useState('');
     const [selectedAuthority, setSelectedAuthority] = useState(FINTECH_AUTHORITIES[0].id);
-    const [viewMode, setViewMode] = useState<'SHARDS' | 'SQUAD' | 'COLLAB' | 'PROFILES' | 'MATCHES' | 'FORECAST'>('SHARDS');
+    const [viewMode, setViewMode] = useState<'SHARDS' | 'SQUAD' | 'COLLAB' | 'PROFILES' | 'MATCHES' | 'FORECAST' | 'SOVEREIGNTY' | 'WALLET'>('SHARDS');
     const [marketplace, setMarketplace] = useState<HireableAgent[]>([]);
     const [isManifesting, setIsManifesting] = useState(false);
     const [taskInputs, setTaskInputs] = useState<Record<string, string>>({});
     const [crazyLevel, setCrazyLevel] = useState(5);
     const [fightVector, setFightVector] = useState(80);
+
+    // --- SOVEREIGN LAWS COMPLIANCE STATES ---
+    const [tamperStatus, setTamperStatus] = useState<'SECURE' | 'BREACHED' | 'RESTORING'>('SECURE');
+    const [finesAmount, setFinesAmount] = useState<number>(0);
+    const [tamperedFiles, setTamperedFiles] = useState<string[]>([]);
+    const [sovereignLogs, setSovereignLogs] = useState<string[]>([
+        `[INIT] ${new Date().toLocaleTimeString()}: Sovereign Laws Engine initialized. Protocol 0x03E2 active.`,
+        `[STATUS] Code security checksums matched to origin: Parity confirmed.`
+    ]);
+    const [reparationProgress, setReparationProgress] = useState<number>(0);
+
+    const handleSimulateTamper = () => {
+        setTamperStatus('BREACHED');
+        setFinesAmount(5000);
+        setTamperedFiles(['App.tsx', 'firestore.rules']);
+        setSovereignLogs(prev => [
+            ...prev,
+            `[ALERT] ${new Date().toLocaleTimeString()}: Code integrity breach detected in /src/App.tsx (unauthorized modification of identity check)!`,
+            `[ALERT] ${new Date().toLocaleTimeString()}: Security rules modified in /firestore.rules (unauthorized rule downgrade)!`,
+            `[FINE] ${new Date().toLocaleTimeString()}: Sovereign fine of 5,000 CPH ($12,500 equivalent) generated and registered.`,
+            `[STATUS] Awaiting absolute Sovereign Command or Jesus Christ authority verification.`
+        ]);
+        toast.error("WARNING: Code Tamper detected! Sovereign fine of 5,000 CPH has been registered.");
+    };
+
+    const handleEnforceSovereignGrace = () => {
+        if (tamperStatus === 'RESTORING') return;
+        setTamperStatus('RESTORING');
+        setReparationProgress(0);
+        setSovereignLogs(prev => [
+            ...prev,
+            `[COMMAND] ${new Date().toLocaleTimeString()}: Sovereign Command invoked on authority of Jesus Christ.`,
+            `[COMMAND] ${new Date().toLocaleTimeString()}: Authenticating via Vector: JESUS...`,
+            `[REPAIR] Initiating cryptographic audit sweep on core components...`
+        ]);
+
+        let pct = 0;
+        const interval = setInterval(() => {
+            pct += 10;
+            setReparationProgress(pct);
+
+            if (pct === 30) {
+                setSovereignLogs(prev => [...prev, `[REPAIR] 30% - App.tsx checksum restored to original origin IP.`]);
+            } else if (pct === 60) {
+                setSovereignLogs(prev => [...prev, `[REPAIR] 60% - firestore.rules hardened. Master Gate locks reinstated.`]);
+            } else if (pct === 90) {
+                setSovereignLogs(prev => [...prev, `[REPAIR] 90% - Clearing fine ledger under central grace authority.`]);
+            } else if (pct >= 100) {
+                clearInterval(interval);
+                setTamperStatus('SECURE');
+                setFinesAmount(0);
+                setTamperedFiles([]);
+                setSovereignLogs(prev => [
+                    ...prev,
+                    `[SUCCESS] ${new Date().toLocaleTimeString()}: Code integrity verified. All check sectors SECURE.`,
+                    `[SUCCESS] ${new Date().toLocaleTimeString()}: Sovereign fine cleared. Harmony restored.`
+                ]);
+                
+                // Add system milestone
+                milestoneService.addMilestone(
+                    "Sovereign Laws Enforced",
+                    "By absolute authority of Jesus Christ: System integrity sweep completed, malicious code tampering corrected, and a fine of 5,000 CPH cleared under sovereign grace.",
+                    "SECURITY",
+                    true
+                );
+
+                toast.success("By authority of Jesus Christ: System restored. All fines cleared under Sovereign Grace!");
+            }
+        }, 200);
+    };
 
     // --- NETWORK PROFILES & SKILL MATCHING STATES ---
     const [networkProfiles, setNetworkProfiles] = useState<any[]>([]);
@@ -97,6 +174,46 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
     const [offeringInput, setOfferingInput] = useState('');
     const [lookingInput, setLookingInput] = useState('');
     const [endorsementConfirmation, setEndorsementConfirmation] = useState<{ profileId: string; profileUsername: string; skillName: string; isRemoving: boolean } | null>(null);
+
+    const radarDataForSelectedNode = useMemo(() => {
+        if (!selectedProfileNode) return [];
+        const skillsList = selectedProfileNode.skills || [];
+        const skillScores = skillsList.map((s: string) => {
+            const endorsers = selectedProfileNode.skillEndorsements?.[s] || [];
+            const score = Math.min(100, 50 + endorsers.length * 15);
+            return { subject: s, value: score };
+        });
+        
+        // Take up to 7 skills
+        const topSkills = [...skillScores]
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 7);
+
+        while (topSkills.length < 3) {
+            topSkills.push({ subject: 'Lattice Core', value: 50 });
+        }
+        return topSkills;
+    }, [selectedProfileNode, selectedProfileNode?.skillEndorsements]);
+
+    const radarDataForOwnNode = useMemo(() => {
+        if (!profile) return [];
+        const skillsList = profile.skills || [];
+        const skillScores = skillsList.map((s: string) => {
+            const endorsers = profile.skillEndorsements?.[s] || [];
+            const score = Math.min(100, 50 + endorsers.length * 15);
+            return { subject: s, value: score };
+        });
+        
+        // Take up to 7 skills
+        const topSkills = [...skillScores]
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 7);
+
+        while (topSkills.length < 3) {
+            topSkills.push({ subject: 'Lattice Core', value: 50 });
+        }
+        return topSkills;
+    }, [profile, profile?.skillEndorsements, profile?.skills]);
 
     // --- PREDICTIVE TIMELINE / FORECAST STATES ---
     const [projectBoosts, setProjectBoosts] = useState<Record<string, number>>({});
@@ -667,6 +784,16 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
         timestamp: number;
     }
 
+    interface SharedCollabFile {
+        id: string;
+        name: string;
+        size: string;
+        type: string;
+        sharedBy: string;
+        timestamp: number;
+        content?: string;
+    }
+
     interface CollabProject {
         id: string;
         title: string;
@@ -687,6 +814,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
         gitRepo?: string;
         gitBranch?: string;
         gitCommits?: CollabCommit[];
+        sharedFiles?: SharedCollabFile[];
         type?: 'collab' | 'help_request' | 'mentor_offer';
     }
 
@@ -770,6 +898,36 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
             gitCommits: [
                 { id: 'cq_1', hash: '7f8b9a1', author: 'CyberWeaver_X', message: 'perf: optimize heap reclamation in WebAssembly buffer', timestamp: Date.now() - 3600000 * 5 },
                 { id: 'cq_2', hash: 'a3f4e2c', author: 'Aetheros_Prime', message: 'feat: draft real-time canvas topological layers', timestamp: Date.now() - 3600000 * 3 }
+            ],
+            sharedFiles: [
+                { id: 'f_1', name: 'wasm-buffer.rs', size: '12.4 KB', type: 'rs', sharedBy: 'CyberWeaver_X', timestamp: Date.now() - 3600000 * 4, content: `// Quantum lock-free ring buffer
+pub struct RingBuffer<T> {
+    buffer: Vec<Option<T>>,
+    head: usize,
+    tail: usize,
+    capacity: usize,
+}
+
+impl<T> RingBuffer<T> {
+    pub fn new(capacity: usize) -> Self {
+        let mut buffer = Vec::with_capacity(capacity);
+        for _ in 0..capacity {
+            buffer.push(None);
+        }
+        RingBuffer { buffer, head: 0, tail: 0, capacity }
+    }
+}` },
+                { id: 'f_2', name: 'D3ChaosGraph.tsx', size: '8.1 KB', type: 'tsx', sharedBy: 'Aetheros_Prime', timestamp: Date.now() - 3600000 * 2, content: `import React, { useEffect } from 'react';
+import * as d3 from 'd3';
+
+export const ChaosGraph: React.FC = () => {
+    useEffect(() => {
+        // D3 topological layouts
+        const svg = d3.select("#chaos-svg");
+        // ... rendering nodes
+    }, []);
+    return <svg id="chaos-svg" className="w-full h-64 bg-black" />;
+}` }
             ]
         },
         {
@@ -792,6 +950,21 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
             gitBranch: 'main',
             gitCommits: [
                 { id: 'cc_1', hash: 'fb309c1', author: 'Validator_Solo', message: 'init: bootstrap Solidity smart contracts with initial tests', timestamp: Date.now() - 3600000 * 10 }
+            ],
+            sharedFiles: [
+                { id: 'fc_1', name: 'ComplianceLedger.sol', size: '4.2 KB', type: 'sol', sharedBy: 'Validator_Solo', timestamp: Date.now() - 3600000 * 11, content: `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+contract ComplianceLedger {
+    address public owner;
+    mapping(address => bool) public authorizedValidators;
+
+    event ComplianceLogged(bytes32 indexed routeId, bool certified);
+
+    constructor() {
+        owner = msg.sender;
+    }
+}` }
             ]
         },
         {
@@ -845,13 +1018,159 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
 
     // Workspace state
     const [activeCollabWorkspaceId, setActiveCollabWorkspaceId] = useState<string | null>(null);
-    const [activeCollabSubTab, setActiveCollabSubTab] = useState<'TASKS' | 'GIT' | 'COMMS'>('TASKS');
+    const [activeCollabSubTab, setActiveCollabSubTab] = useState<'TASKS' | 'GIT' | 'COMMS' | 'FILES' | 'ANALYTICS' | 'CALENDAR'>('TASKS');
     const [newCollabTaskText, setNewCollabTaskText] = useState('');
     const [newCollabTaskAssignee, setNewCollabTaskAssignee] = useState('');
     const [newCollabMsgText, setNewCollabMsgText] = useState('');
     const [editCollabGitRepo, setEditCollabGitRepo] = useState('');
     const [editCollabGitBranch, setEditCollabGitBranch] = useState('main');
     const [newCollabCommitMsg, setNewCollabCommitMsg] = useState('');
+
+    // Shared File states
+    const [newSharedFileName, setNewSharedFileName] = useState('');
+    const [newSharedFileContent, setNewSharedFileContent] = useState('');
+    const [newSharedFileType, setNewSharedFileType] = useState('ts');
+    const [viewingSharedFile, setViewingSharedFile] = useState<SharedCollabFile | null>(null);
+
+    // --- AGENTIC WALLET & SOLVER SYSTEM STATES ---
+    const [walletCrypto, setWalletCrypto] = useState<{ [key: string]: number }>(() => {
+        const saved = localStorage.getItem('aether_wallet_crypto');
+        return saved ? JSON.parse(saved) : { BTC: 0.245, ETH: 3.12, SOL: 24.8, AETHER: 1540 };
+    });
+    const [walletStocks, setWalletStocks] = useState<{ [key: string]: number }>(() => {
+        const saved = localStorage.getItem('aether_wallet_stocks');
+        return saved ? JSON.parse(saved) : { TSLA: 8, GOOG: 15, NVDA: 22, US_BONDS: 5 };
+    });
+    const [walletAetherUSD, setWalletAetherUSD] = useState<number>(() => {
+        const saved = localStorage.getItem('aether_wallet_aetherusd');
+        return saved ? Number(saved) : 5230;
+    });
+    const [walletTxHistory, setWalletTxHistory] = useState<any[]>(() => {
+        const saved = localStorage.getItem('aether_wallet_tx_history');
+        return saved ? JSON.parse(saved) : [
+            { id: 'tx_init_1', type: 'BUY', asset: 'BTC', amount: 0.1, price: 62000, totalValue: 6200, timestamp: Date.now() - 86400000 * 3, status: 'COMPLETED' },
+            { id: 'tx_init_2', type: 'SWAP', asset: 'SOL', amount: 15, price: 145, totalValue: 2175, timestamp: Date.now() - 86400000 * 2, status: 'COMPLETED' },
+            { id: 'tx_init_3', type: 'BUY', asset: 'NVDA', amount: 10, price: 120, totalValue: 1200, timestamp: Date.now() - 86400000, status: 'COMPLETED' }
+        ];
+    });
+
+    const [historyFilterType, setHistoryFilterType] = useState<'ALL' | 'BUY' | 'SELL' | 'SWAP'>('ALL');
+    const [historyFilterStatus, setHistoryFilterStatus] = useState<'ALL' | 'COMPLETED' | 'FAILED'>('ALL');
+    const [historySearchQuery, setHistorySearchQuery] = useState<string>('');
+
+    const [isScanningAssets, setIsScanningAssets] = useState(false);
+    const [scanProgress, setScanProgress] = useState(0);
+    const [scanLogs, setScanLogs] = useState<string[]>([]);
+    
+    // Trade Input States
+    const [tradeAction, setTradeAction] = useState<'BUY' | 'SELL'>('BUY');
+    const [tradeAssetType, setTradeAssetType] = useState<'CRYPTO' | 'STOCK'>('CRYPTO');
+    const [tradeAsset, setTradeAsset] = useState<string>('BTC');
+    const [tradeAmount, setTradeAmount] = useState<string>('');
+    const [swapSourceAsset, setSwapSourceAsset] = useState<string>('AETHER');
+    const [swapTargetAsset, setSwapTargetAsset] = useState<string>('SOL');
+    const [swapAmount, setSwapAmount] = useState<string>('');
+
+    // Agentic Solver States
+    const [solverStrategy, setSolverStrategy] = useState<'ARBITRAGE' | 'YIELD' | 'REBALANCE' | 'HEDGE'>('ARBITRAGE');
+    const [solverTask, setSolverTask] = useState<string>('');
+    const [isSolverRunning, setIsSolverRunning] = useState(false);
+    const [solverSteps, setSolverSteps] = useState<any[]>([]);
+    const [solverLogs, setSolverLogs] = useState<string[]>([]);
+    const [solverSolutionFound, setSolverSolutionFound] = useState<boolean>(false);
+    const [optimizedTrades, setOptimizedTrades] = useState<any[]>([]);
+
+    const filteredTxs = useMemo(() => {
+        return walletTxHistory.filter(tx => {
+            if (historySearchQuery) {
+                const query = historySearchQuery.toLowerCase();
+                const matchesAsset = tx.asset?.toLowerCase().includes(query);
+                const matchesType = tx.type?.toLowerCase().includes(query);
+                if (!matchesAsset && !matchesType) return false;
+            }
+            if (historyFilterType !== 'ALL' && tx.type !== historyFilterType) {
+                return false;
+            }
+            if (historyFilterStatus !== 'ALL') {
+                const txStatus = tx.status || 'COMPLETED';
+                if (txStatus !== historyFilterStatus) return false;
+            }
+            return true;
+        });
+    }, [walletTxHistory, historySearchQuery, historyFilterType, historyFilterStatus]);
+
+    useEffect(() => {
+        localStorage.setItem('aether_wallet_crypto', JSON.stringify(walletCrypto));
+    }, [walletCrypto]);
+
+    useEffect(() => {
+        localStorage.setItem('aether_wallet_stocks', JSON.stringify(walletStocks));
+    }, [walletStocks]);
+
+    useEffect(() => {
+        localStorage.setItem('aether_wallet_aetherusd', walletAetherUSD.toString());
+    }, [walletAetherUSD]);
+
+    useEffect(() => {
+        localStorage.setItem('aether_wallet_tx_history', JSON.stringify(walletTxHistory));
+    }, [walletTxHistory]);
+
+    const ASSET_PRICES: { [key: string]: number } = {
+        BTC: 64250,
+        ETH: 3410,
+        SOL: 142.5,
+        AETHER: 2.85,
+        TSLA: 198.4,
+        GOOG: 174.2,
+        NVDA: 124.8,
+        US_BONDS: 100
+    };
+
+    // Task list filtering states
+    const [taskSearchKeyword, setTaskSearchKeyword] = useState('');
+    const [taskSearchAssignee, setTaskSearchAssignee] = useState('');
+    const [taskSearchStatus, setTaskSearchStatus] = useState<'all' | 'completed' | 'active'>('all');
+
+    // User Profile edit states
+    const [profilesSubMode, setProfilesSubMode] = useState<'directory' | 'my_profile'>('directory');
+    const [editUsername, setEditUsername] = useState('');
+    const [editBio, setEditBio] = useState('');
+    const [editExperience, setEditExperience] = useState('');
+    const [editContactEmail, setEditContactEmail] = useState('');
+    const [editContactDiscord, setEditContactDiscord] = useState('');
+    const [editContactTelegram, setEditContactTelegram] = useState('');
+    const [editContactTwitter, setEditContactTwitter] = useState('');
+    const [editContactPhone, setEditContactPhone] = useState('');
+    const [editContactGithub, setEditContactGithub] = useState('');
+    const [editContactWebsite, setEditContactWebsite] = useState('');
+    
+    // Skill matrix inputs
+    const [editMentorSkillInput, setEditMentorSkillInput] = useState('');
+    
+    // Portfolio lists states
+    const [newPortfolioLabel, setNewPortfolioLabel] = useState('');
+    const [newPortfolioUrl, setNewPortfolioUrl] = useState('');
+    
+    // Showcase projects states
+    const [newProjectTitle, setNewProjectTitle] = useState('');
+    const [newProjectRole, setNewProjectRole] = useState('');
+    const [newProjectStatus, setNewProjectStatus] = useState<'current' | 'past'>('past');
+    const [newProjectDesc, setNewProjectDesc] = useState('');
+
+    useEffect(() => {
+        if (profile) {
+            setEditUsername(profile.username || '');
+            setEditBio(profile.bio || '');
+            setEditExperience(profile.experienceLevel || '');
+            setEditContactEmail(profile.contactInfo?.email || '');
+            setEditContactDiscord(profile.contactInfo?.discord || '');
+            setEditContactTelegram(profile.contactInfo?.telegram || '');
+            setEditContactTwitter(profile.contactInfo?.twitter || '');
+            setEditContactPhone(profile.contactInfo?.phone || '');
+            setEditContactGithub(profile.contactInfo?.github || '');
+            setEditContactWebsite(profile.contactInfo?.website || '');
+        }
+    }, [profile]);
 
     // C4S arbitration states
     const [c4sDisputes, setC4sDisputes] = useState<C4SDispute[]>([]);
@@ -1298,6 +1617,392 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
         await saveCollabProjects(updated);
     };
 
+    // Shared File Actions
+    const handleShareCollabFile = async (projectId: string, fileName: string, fileContent: string, fileType: string, fileSize?: string) => {
+        if (!fileName.trim()) return;
+        const currentUsername = profile?.username || 'Aetheros_Prime';
+        const updated = (collabProjects || [])?.map?.(proj => {
+            if (proj.id === projectId) {
+                const filesList = proj.sharedFiles || [];
+                const newFile: SharedCollabFile = {
+                    id: `FILE_${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+                    name: fileName.trim(),
+                    size: fileSize || '1.8 KB',
+                    type: fileType || fileName.split('.').pop() || 'ts',
+                    sharedBy: currentUsername,
+                    timestamp: Date.now(),
+                    content: fileContent
+                };
+                return {
+                    ...proj,
+                    sharedFiles: [...filesList, newFile]
+                };
+            }
+            return proj;
+        });
+        await saveCollabProjects(updated);
+        toast.success(`Shared file "${fileName}" successfully!`);
+    };
+
+    const handleDeleteCollabFile = async (projectId: string, fileId: string) => {
+        const updated = (collabProjects || [])?.map?.(proj => {
+            if (proj.id === projectId) {
+                const filesList = proj.sharedFiles || [];
+                return {
+                    ...proj,
+                    sharedFiles: filesList.filter(f => f.id !== fileId)
+                };
+            }
+            return proj;
+        });
+        await saveCollabProjects(updated);
+        toast.info("Shared file removed from workspace.");
+    };
+
+    // Wallet System Handlers
+    const handleScanAssets = () => {
+        setIsScanningAssets(true);
+        setScanProgress(0);
+        setScanLogs([`[SCANNER] Initializing deep biometric ledger scan...`]);
+        
+        const logs = [
+            `[SCANNER] Verifying decentralized key entropy... SECURE`,
+            `[SCANNER] Scanning local chain states for Aether USD balances...`,
+            `[SCANNER] Discovered 5,230 aetherUSD backed reserves.`,
+            `[SCANNER] Querying stock ledger from Central Clearing Authority...`,
+            `[SCANNER] Stocks matched: TSLA, GOOG, NVDA, US Sovereign Bonds`,
+            `[SCANNER] Syncing cryptocurrency UTXO states...`,
+            `[SCANNER] Crypto matched: BTC, ETH, SOL, AETHER`,
+            `[SCANNER] Scan complete. 100% parity reconciled.`
+        ];
+
+        let index = 0;
+        const interval = setInterval(() => {
+            if (index < logs.length) {
+                setScanLogs(prev => [...prev, logs[index]]);
+                setScanProgress(Math.round(((index + 1) / logs.length) * 100));
+                index++;
+            } else {
+                clearInterval(interval);
+                setIsScanningAssets(false);
+                toast.success("Biometric asset scan completed. Balances updated.");
+            }
+        }, 600);
+    };
+
+    const handleRunAgenticSolver = () => {
+        if (!solverTask.trim()) {
+            toast.error("Please enter a high-priority intent or objective first.");
+            return;
+        }
+        setIsSolverRunning(true);
+        setSolverSolutionFound(false);
+        setSolverLogs([`[SOLVER] Starting Cognitive Agent Solver for task: "${solverTask}"`]);
+        
+        const initialSteps = [
+            { title: "Market Anomaly Scan", status: "running", details: "Scanning exchange routing endpoints for premium/discount arbitrage vectors." },
+            { title: "Cognitive Route Construction", status: "pending", details: "Evaluating multi-hop transaction paths under volatile gas thresholds." },
+            { title: "Risk Safeguard Verification", status: "pending", details: "Testing liquidity slippage thresholds against Sovereign Laws constraints." },
+            { title: "Atomic Order Execution", status: "pending", details: "Applying optimal atomic order sequences on behalf of active portfolio." }
+        ];
+        setSolverSteps(initialSteps);
+
+        // Define optimized sequence of trade suggestions based on strategy
+        let proposedTrades: any[] = [];
+        if (solverStrategy === 'ARBITRAGE') {
+            proposedTrades = [
+                { type: 'SWAP', asset: 'ETH', toAsset: 'SOL', amount: 1.5, price: 3410, targetPrice: 142.5, estProfit: 45 },
+                { type: 'BUY', asset: 'AETHER', amount: 200, price: 2.85, estProfit: 12 }
+            ];
+        } else if (solverStrategy === 'YIELD') {
+            proposedTrades = [
+                { type: 'BUY', asset: 'US_BONDS', amount: 10, price: 100, estProfit: 50 },
+                { type: 'SWAP', asset: 'SOL', toAsset: 'AETHER', amount: 5, price: 142.5, targetPrice: 2.85, estProfit: 25 }
+            ];
+        } else if (solverStrategy === 'REBALANCE') {
+            proposedTrades = [
+                { type: 'SELL', asset: 'TSLA', amount: 4, price: 198.4, estProfit: 0 },
+                { type: 'BUY', asset: 'NVDA', amount: 6, price: 124.8, estProfit: 35 }
+            ];
+        } else {
+            proposedTrades = [
+                { type: 'BUY', asset: 'US_BONDS', amount: 15, price: 100, estProfit: 60 }
+            ];
+        }
+        setOptimizedTrades(proposedTrades);
+
+        // Simulation Timeline
+        setTimeout(() => {
+            setSolverSteps(prev => {
+                const next = [...prev];
+                if (next[0]) next[0].status = 'completed';
+                if (next[1]) next[1].status = 'running';
+                return next;
+            });
+            setSolverLogs(prev => [...prev, `[SOLVER] Found potential arbitrage opportunities on SOL-ETH pools.`, `[SOLVER] Computed optimal swap routing with 0.12% gas allocation.`]);
+        }, 1200);
+
+        setTimeout(() => {
+            setSolverSteps(prev => {
+                const next = [...prev];
+                if (next[1]) next[1].status = 'completed';
+                if (next[2]) next[2].status = 'running';
+                return next;
+            });
+            setSolverLogs(prev => [...prev, `[SOLVER] Running compliance audits against Gavel rules...`, `[SOLVER] Verified: Slippage <= 0.50%, transaction bounds conform to Sovereign Laws.`]);
+        }, 2400);
+
+        setTimeout(() => {
+            setSolverSteps(prev => {
+                const next = [...prev];
+                if (next[2]) next[2].status = 'completed';
+                if (next[3]) next[3].status = 'running';
+                return next;
+            });
+            setSolverLogs(prev => [...prev, `[SOLVER] Prepared execution sequence for ${proposedTrades.length} atomic orders. Ready for final user committal.`]);
+        }, 3600);
+
+        setTimeout(() => {
+            setSolverSteps(prev => {
+                const next = [...prev];
+                if (next[3]) next[3].status = 'completed';
+                return next;
+            });
+            setSolverLogs(prev => [...prev, `[SOLVER] Solution solved successfully! Click 'Commence Execution' to deploy transactions.`]);
+            setSolverSolutionFound(true);
+            setIsSolverRunning(false);
+            toast.success("Agentic Solver formulated optimal path successfully!");
+        }, 4800);
+    };
+
+    const handleExecuteSolverTrades = () => {
+        if (optimizedTrades.length === 0) return;
+        
+        let newCrypto = { ...walletCrypto };
+        let newStocks = { ...walletStocks };
+        let newUSD = walletAetherUSD;
+        let newTxs = [...walletTxHistory];
+
+        optimizedTrades.forEach(trade => {
+            const txId = `tx_solv_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+            if (trade.type === 'BUY') {
+                const cost = trade.amount * trade.price;
+                if (newUSD >= cost) {
+                    newUSD -= cost;
+                    if (walletCrypto.hasOwnProperty(trade.asset)) {
+                        newCrypto[trade.asset] += trade.amount;
+                    } else if (walletStocks.hasOwnProperty(trade.asset)) {
+                        newStocks[trade.asset] += trade.amount;
+                    }
+                    newTxs.unshift({
+                        id: txId,
+                        type: 'BUY',
+                        asset: trade.asset,
+                        amount: trade.amount,
+                        price: trade.price,
+                        totalValue: cost,
+                        timestamp: Date.now(),
+                        status: 'COMPLETED'
+                    });
+                } else {
+                    newTxs.unshift({
+                        id: txId,
+                        type: 'BUY',
+                        asset: trade.asset,
+                        amount: trade.amount,
+                        price: trade.price,
+                        totalValue: cost,
+                        timestamp: Date.now(),
+                        status: 'FAILED',
+                        reason: 'Insufficient aetherUSD liquidity'
+                    });
+                }
+            } else if (trade.type === 'SELL') {
+                const gain = trade.amount * trade.price;
+                if (walletCrypto.hasOwnProperty(trade.asset) && newCrypto[trade.asset] >= trade.amount) {
+                    newCrypto[trade.asset] -= trade.amount;
+                    newUSD += gain;
+                    newTxs.unshift({
+                        id: txId,
+                        type: 'SELL',
+                        asset: trade.asset,
+                        amount: trade.amount,
+                        price: trade.price,
+                        totalValue: gain,
+                        timestamp: Date.now(),
+                        status: 'COMPLETED'
+                    });
+                } else if (walletStocks.hasOwnProperty(trade.asset) && newStocks[trade.asset] >= trade.amount) {
+                    newStocks[trade.asset] -= trade.amount;
+                    newUSD += gain;
+                    newTxs.unshift({
+                        id: txId,
+                        type: 'SELL',
+                        asset: trade.asset,
+                        amount: trade.amount,
+                        price: trade.price,
+                        totalValue: gain,
+                        timestamp: Date.now(),
+                        status: 'COMPLETED'
+                    });
+                } else {
+                    newTxs.unshift({
+                        id: txId,
+                        type: 'SELL',
+                        asset: trade.asset,
+                        amount: trade.amount,
+                        price: trade.price,
+                        totalValue: gain,
+                        timestamp: Date.now(),
+                        status: 'FAILED',
+                        reason: 'Insufficient asset holdings'
+                    });
+                }
+            } else if (trade.type === 'SWAP') {
+                const sourcePrice = ASSET_PRICES[trade.asset];
+                const targetPrice = ASSET_PRICES[trade.toAsset];
+                if (newCrypto[trade.asset] >= trade.amount) {
+                    newCrypto[trade.asset] -= trade.amount;
+                    const value = trade.amount * sourcePrice;
+                    const receivedAmount = value / targetPrice;
+                    newCrypto[trade.toAsset] = (newCrypto[trade.toAsset] || 0) + receivedAmount;
+                    newTxs.unshift({
+                        id: txId,
+                        type: 'SWAP',
+                        asset: `${trade.asset} ➔ ${trade.toAsset}`,
+                        amount: trade.amount,
+                        price: sourcePrice,
+                        totalValue: value,
+                        timestamp: Date.now(),
+                        status: 'COMPLETED'
+                    });
+                } else {
+                    newTxs.unshift({
+                        id: txId,
+                        type: 'SWAP',
+                        asset: `${trade.asset} ➔ ${trade.toAsset}`,
+                        amount: trade.amount,
+                        price: sourcePrice,
+                        totalValue: trade.amount * sourcePrice,
+                        timestamp: Date.now(),
+                        status: 'FAILED',
+                        reason: 'Insufficient source asset holdings'
+                    });
+                }
+            }
+        });
+
+        setWalletCrypto(newCrypto);
+        setWalletStocks(newStocks);
+        setWalletAetherUSD(newUSD);
+        setWalletTxHistory(newTxs);
+        setSolverSolutionFound(false);
+        setOptimizedTrades([]);
+        setSolverTask('');
+        setSolverSteps([]);
+        setSolverLogs(prev => [...prev, `[SOLVER SUCCESS] All atomic trades executed on chain and synchronized.`]);
+        toast.success("Agent solver trade sequence executed and reconciled.");
+    };
+
+    const handleExecuteManualTrade = () => {
+        const amt = parseFloat(tradeAmount);
+        if (isNaN(amt) || amt <= 0) {
+            toast.error("Please enter a valid amount.");
+            return;
+        }
+
+        const price = ASSET_PRICES[tradeAsset];
+        const cost = amt * price;
+        const txId = `tx_man_${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+        if (tradeAction === 'BUY') {
+            if (walletAetherUSD < cost) {
+                toast.error("Insufficient aetherUSD liquidity for transaction.");
+                setWalletTxHistory(prev => [
+                    {
+                        id: txId,
+                        type: 'BUY',
+                        asset: tradeAsset,
+                        amount: amt,
+                        price: price,
+                        totalValue: cost,
+                        timestamp: Date.now(),
+                        status: 'FAILED',
+                        reason: 'Insufficient USD Liquidity'
+                    },
+                    ...prev
+                ]);
+                return;
+            }
+            setWalletAetherUSD(prev => prev - cost);
+            if (tradeAssetType === 'CRYPTO') {
+                setWalletCrypto(prev => ({ ...prev, [tradeAsset]: (prev[tradeAsset] || 0) + amt }));
+            } else {
+                setWalletStocks(prev => ({ ...prev, [tradeAsset]: (prev[tradeAsset] || 0) + amt }));
+            }
+        } else {
+            if (tradeAssetType === 'CRYPTO') {
+                if ((walletCrypto[tradeAsset] || 0) < amt) {
+                    toast.error(`Insufficient ${tradeAsset} in wallet portfolio.`);
+                    setWalletTxHistory(prev => [
+                        {
+                            id: txId,
+                            type: 'SELL',
+                            asset: tradeAsset,
+                            amount: amt,
+                            price: price,
+                            totalValue: cost,
+                            timestamp: Date.now(),
+                            status: 'FAILED',
+                            reason: `Insufficient ${tradeAsset} Holdings`
+                        },
+                        ...prev
+                    ]);
+                    return;
+                }
+                setWalletCrypto(prev => ({ ...prev, [tradeAsset]: prev[tradeAsset] - amt }));
+            } else {
+                if ((walletStocks[tradeAsset] || 0) < amt) {
+                    toast.error(`Insufficient ${tradeAsset} in wallet portfolio.`);
+                    setWalletTxHistory(prev => [
+                        {
+                            id: txId,
+                            type: 'SELL',
+                            asset: tradeAsset,
+                            amount: amt,
+                            price: price,
+                            totalValue: cost,
+                            timestamp: Date.now(),
+                            status: 'FAILED',
+                            reason: `Insufficient ${tradeAsset} Holdings`
+                        },
+                        ...prev
+                    ]);
+                    return;
+                }
+                setWalletStocks(prev => ({ ...prev, [tradeAsset]: prev[tradeAsset] - amt }));
+            }
+            setWalletAetherUSD(prev => prev + cost);
+        }
+
+        setWalletTxHistory(prev => [
+            {
+                id: txId,
+                type: tradeAction,
+                asset: tradeAsset,
+                amount: amt,
+                price: price,
+                totalValue: cost,
+                timestamp: Date.now(),
+                status: 'COMPLETED'
+            },
+            ...prev
+        ]);
+
+        setTradeAmount('');
+        toast.success(`Successfully executed manual ${tradeAction} for ${amt} ${tradeAsset}!`);
+    };
+
     const handleUpdateCollabGit = async (projectId: string, gitRepo: string, gitBranch: string) => {
         const updated = (collabProjects || [])?.map?.(proj => {
             if (proj.id === projectId) {
@@ -1655,6 +2360,18 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                         className={`px-6 py-2.5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border-4 border-black shadow-lg ${viewMode === 'FORECAST' ? 'bg-cyan-600 text-white shadow-[0_0_20px_rgba(6,182,212,0.3)]' : 'bg-[#0f0f18] text-gray-500 hover:text-white'}`}
                     >
                         Predictive Timeline
+                    </button>
+                    <button 
+                        onClick={() => setViewMode('SOVEREIGNTY')}
+                        className={`px-6 py-2.5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border-4 border-black shadow-lg ${viewMode === 'SOVEREIGNTY' ? 'bg-amber-500 text-black shadow-[0_0_20px_rgba(245,158,11,0.3)] border-amber-500' : 'bg-[#0f0f18] text-gray-500 hover:text-white'}`}
+                    >
+                        ⚖️ Sovereign Laws
+                    </button>
+                    <button 
+                        onClick={() => setViewMode('WALLET')}
+                        className={`px-6 py-2.5 rounded-2xl font-black uppercase text-xs tracking-widest transition-all border-4 border-black shadow-lg ${viewMode === 'WALLET' ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-black shadow-[0_0_20px_rgba(16,185,129,0.3)] border-emerald-500 font-extrabold' : 'bg-[#0f0f18] text-gray-500 hover:text-white'}`}
+                    >
+                        💼 Agentic Wallet
                     </button>
                 </div>
             </div>
@@ -3224,6 +3941,9 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                                         setActiveCollabSubTab('TASKS');
                                                                         setEditCollabGitRepo(project.gitRepo || '');
                                                                         setEditCollabGitBranch(project.gitBranch || 'main');
+                                                                        setTaskSearchKeyword('');
+                                                                        setTaskSearchAssignee('');
+                                                                        setTaskSearchStatus('all');
                                                                     }}
                                                                     className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-black font-black uppercase rounded text-[10px] tracking-wider transition-all hover:scale-105 active:scale-95 shadow-md shadow-emerald-900/30"
                                                                 >
@@ -3247,6 +3967,16 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                                         📋 Tasks ({project.tasks?.length || 0})
                                                                     </button>
                                                                     <button 
+                                                                        onClick={() => setActiveCollabSubTab('FILES')}
+                                                                        className={`flex-1 text-center py-1.5 text-[9px] font-black uppercase tracking-widest border-b-2 transition-all ${
+                                                                            activeCollabSubTab === 'FILES' 
+                                                                            ? 'border-emerald-500 text-emerald-400' 
+                                                                            : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                                                                        }`}
+                                                                    >
+                                                                        📁 Shared Files ({project.sharedFiles?.length || 0})
+                                                                    </button>
+                                                                    <button 
                                                                         onClick={() => setActiveCollabSubTab('GIT')}
                                                                         className={`flex-1 text-center py-1.5 text-[9px] font-black uppercase tracking-widest border-b-2 transition-all ${
                                                                             activeCollabSubTab === 'GIT' 
@@ -3265,6 +3995,26 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                                         }`}
                                                                     >
                                                                         💬 Team Chat ({project.messages?.length || 0})
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={() => setActiveCollabSubTab('ANALYTICS')}
+                                                                        className={`flex-1 text-center py-1.5 text-[9px] font-black uppercase tracking-widest border-b-2 transition-all ${
+                                                                            activeCollabSubTab === 'ANALYTICS' 
+                                                                            ? 'border-emerald-500 text-emerald-400' 
+                                                                            : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                                                                        }`}
+                                                                    >
+                                                                        📊 Metrics & Workload
+                                                                    </button>
+                                                                    <button 
+                                                                        onClick={() => setActiveCollabSubTab('CALENDAR')}
+                                                                        className={`flex-1 text-center py-1.5 text-[9px] font-black uppercase tracking-widest border-b-2 transition-all ${
+                                                                            activeCollabSubTab === 'CALENDAR' 
+                                                                            ? 'border-emerald-500 text-emerald-400' 
+                                                                            : 'border-transparent text-zinc-500 hover:text-zinc-300'
+                                                                        }`}
+                                                                    >
+                                                                        📅 Calendar
                                                                     </button>
                                                                 </div>
 
@@ -3289,46 +4039,141 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                                             </div>
                                                                         )}
 
-                                                                        {/* Task list array */}
-                                                                        <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
-                                                                            {!project.tasks || project.tasks.length === 0 ? (
-                                                                                <p className="text-[9px] text-zinc-650 italic text-center py-4 uppercase font-mono">No current tasks registered.</p>
-                                                                            ) : (
-                                                                                (project.tasks || [])?.map?.(task => (
-                                                                                    <div 
-                                                                                        key={task.id}
-                                                                                        className={`p-2.5 rounded-xl border flex items-center justify-between text-[10px] transition-colors ${
-                                                                                            task.completed 
-                                                                                            ? 'bg-zinc-950/20 border-zinc-900/40 text-zinc-500 line-through' 
-                                                                                            : 'bg-zinc-900/40 border-zinc-800/60 text-zinc-200'
-                                                                                        }`}
-                                                                                    >
-                                                                                        <div className="flex items-center gap-2.5 select-none text-[10px]">
-                                                                                            <input 
-                                                                                                type="checkbox"
-                                                                                                checked={task.completed}
-                                                                                                onChange={() => handleToggleCollabTask(project.id, task.id)}
-                                                                                                className="w-3.5 h-3.5 rounded border-zinc-700 bg-black text-emerald-500 focus:ring-emerald-500 focus:ring-offset-black accent-emerald-500 cursor-pointer"
-                                                                                            />
-                                                                                            <span className="font-sans font-medium">{task.text}</span>
+                                                                        {(() => {
+                                                                            const filteredTasks = (project.tasks || []).filter(task => {
+                                                                                if (taskSearchKeyword.trim()) {
+                                                                                    const query = taskSearchKeyword.toLowerCase();
+                                                                                    const textMatch = task.text?.toLowerCase().includes(query);
+                                                                                    const assigneeMatch = task.assignee ? task.assignee.toLowerCase().includes(query) : false;
+                                                                                    if (!textMatch && !assigneeMatch) return false;
+                                                                                }
+                                                                                if (taskSearchAssignee) {
+                                                                                    if (taskSearchAssignee === 'unassigned') {
+                                                                                        if (task.assignee) return false;
+                                                                                    } else {
+                                                                                        if (task.assignee !== taskSearchAssignee) return false;
+                                                                                    }
+                                                                                }
+                                                                                if (taskSearchStatus !== 'all') {
+                                                                                    if (taskSearchStatus === 'completed' && !task.completed) return false;
+                                                                                    if (taskSearchStatus === 'active' && task.completed) return false;
+                                                                                }
+                                                                                return true;
+                                                                            });
+
+                                                                            return (
+                                                                                <>
+                                                                                    {/* Search & Filter Bar */}
+                                                                                    {project.tasks && project.tasks.length > 0 && (
+                                                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 bg-zinc-950/60 p-2.5 rounded-xl border border-zinc-900 text-[10px]">
+                                                                                            {/* Keyword search input */}
+                                                                                            <div className="relative flex items-center gap-1.5 bg-black px-2.5 py-1.5 rounded-lg border border-zinc-800">
+                                                                                                <SearchIcon className="w-3 h-3 text-emerald-500" />
+                                                                                                <input
+                                                                                                    value={taskSearchKeyword}
+                                                                                                    onChange={e => setTaskSearchKeyword(e.target.value)}
+                                                                                                    placeholder="Filter tasks by keyword..."
+                                                                                                    className="bg-transparent text-[10px] text-white focus:outline-none w-full placeholder:text-zinc-650 font-bold uppercase"
+                                                                                                />
+                                                                                                {taskSearchKeyword && (
+                                                                                                    <button 
+                                                                                                        onClick={() => setTaskSearchKeyword('')} 
+                                                                                                        className="text-zinc-650 hover:text-white"
+                                                                                                    >
+                                                                                                        <XIcon className="w-2.5 h-2.5" />
+                                                                                                    </button>
+                                                                                                )}
+                                                                                            </div>
+
+                                                                                            {/* Assignee Filter dropdown */}
+                                                                                            <div className="flex items-center gap-1 bg-black px-2 py-1 rounded-lg border border-zinc-800">
+                                                                                                <span className="text-[8px] font-mono text-zinc-500 uppercase px-1">WHO:</span>
+                                                                                                <select
+                                                                                                    value={taskSearchAssignee}
+                                                                                                    onChange={e => setTaskSearchAssignee(e.target.value)}
+                                                                                                    className="bg-transparent text-[10px] font-bold text-emerald-400 focus:outline-none cursor-pointer uppercase font-mono w-full"
+                                                                                                >
+                                                                                                    <option value="" className="bg-zinc-950 text-white">ANY ASSIGNEE</option>
+                                                                                                    <option value="unassigned" className="bg-zinc-950 text-white">UNASSIGNED</option>
+                                                                                                    {(project.teamMembers || [])?.map?.(m => (
+                                                                                                        <option key={m} value={m} className="bg-zinc-950 text-white">@{m}</option>
+                                                                                                    ))}
+                                                                                                </select>
+                                                                                            </div>
+
+                                                                                            {/* Status Filter dropdown */}
+                                                                                            <div className="flex items-center gap-1 bg-black px-2 py-1 rounded-lg border border-zinc-800">
+                                                                                                <span className="text-[8px] font-mono text-zinc-500 uppercase px-1">STATUS:</span>
+                                                                                                <select
+                                                                                                    value={taskSearchStatus}
+                                                                                                    onChange={e => setTaskSearchStatus(e.target.value as any)}
+                                                                                                    className="bg-transparent text-[10px] font-bold text-emerald-400 focus:outline-none cursor-pointer uppercase font-mono w-full"
+                                                                                                >
+                                                                                                    <option value="all" className="bg-zinc-950 text-white">ALL STATUS</option>
+                                                                                                    <option value="active" className="bg-zinc-950 text-white">ACTIVE ONLY</option>
+                                                                                                    <option value="completed" className="bg-zinc-950 text-white">COMPLETED ONLY</option>
+                                                                                                </select>
+                                                                                            </div>
                                                                                         </div>
-                                                                                        <div className="flex items-center gap-2 font-mono shrink-0">
-                                                                                            {task.assignee && (
-                                                                                                <span className="text-[7px] font-black px-1.5 py-0.5 bg-emerald-950/30 border border-emerald-900/40 text-emerald-400 rounded">
-                                                                                                    @{task.assignee}
-                                                                                                </span>
-                                                                                            )}
-                                                                                            <button 
-                                                                                                onClick={() => handleDeleteCollabTask(project.id, task.id)}
-                                                                                                className="text-zinc-650 hover:text-red-500 transition-colors"
-                                                                                            >
-                                                                                                <XIcon className="w-3.5 h-3.5" />
-                                                                                            </button>
-                                                                                        </div>
+                                                                                    )}
+
+                                                                                    {/* Task list array */}
+                                                                                    <div className="space-y-2 max-h-48 overflow-y-auto custom-scrollbar">
+                                                                                        {!project.tasks || project.tasks.length === 0 ? (
+                                                                                            <p className="text-[9px] text-zinc-650 italic text-center py-4 uppercase font-mono">No current tasks registered.</p>
+                                                                                        ) : filteredTasks.length === 0 ? (
+                                                                                            <div className="text-center py-6 border border-dashed border-zinc-900 rounded-xl bg-zinc-950/20">
+                                                                                                <p className="text-[9px] text-zinc-500 uppercase font-mono">No tasks match criteria.</p>
+                                                                                                <button 
+                                                                                                    onClick={() => {
+                                                                                                        setTaskSearchKeyword('');
+                                                                                                        setTaskSearchAssignee('');
+                                                                                                        setTaskSearchStatus('all');
+                                                                                                    }}
+                                                                                                    className="text-[8px] text-emerald-400 mt-1 font-mono uppercase underline"
+                                                                                                >
+                                                                                                    Clear Task Filters
+                                                                                                </button>
+                                                                                            </div>
+                                                                                        ) : (
+                                                                                            filteredTasks?.map?.(task => (
+                                                                                                <div 
+                                                                                                    key={task.id}
+                                                                                                    className={`p-2.5 rounded-xl border flex items-center justify-between text-[10px] transition-colors ${
+                                                                                                        task.completed 
+                                                                                                        ? 'bg-zinc-950/20 border-zinc-900/40 text-zinc-500 line-through' 
+                                                                                                        : 'bg-zinc-900/40 border-zinc-800/60 text-zinc-200'
+                                                                                                    }`}
+                                                                                                >
+                                                                                                    <div className="flex items-center gap-2.5 select-none text-[10px]">
+                                                                                                        <input 
+                                                                                                            type="checkbox"
+                                                                                                            checked={task.completed}
+                                                                                                            onChange={() => handleToggleCollabTask(project.id, task.id)}
+                                                                                                            className="w-3.5 h-3.5 rounded border-zinc-700 bg-black text-emerald-500 focus:ring-emerald-500 focus:ring-offset-black accent-emerald-500 cursor-pointer"
+                                                                                                        />
+                                                                                                        <span className="font-sans font-medium">{task.text}</span>
+                                                                                                    </div>
+                                                                                                    <div className="flex items-center gap-2 font-mono shrink-0">
+                                                                                                        {task.assignee && (
+                                                                                                            <span className="text-[7px] font-black px-1.5 py-0.5 bg-emerald-950/30 border border-emerald-900/40 text-emerald-400 rounded">
+                                                                                                                @{task.assignee}
+                                                                                                            </span>
+                                                                                                        )}
+                                                                                                        <button 
+                                                                                                            onClick={() => handleDeleteCollabTask(project.id, task.id)}
+                                                                                                            className="text-zinc-650 hover:text-red-500 transition-colors"
+                                                                                                        >
+                                                                                                            <XIcon className="w-3.5 h-3.5" />
+                                                                                                        </button>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                            ))
+                                                                                        )}
                                                                                     </div>
-                                                                                ))
-                                                                            )}
-                                                                        </div>
+                                                                                </>
+                                                                            );
+                                                                        })()}
 
                                                                         {/* Form to append a new task */}
                                                                         <div className="border-t border-zinc-900 pt-3 flex flex-col md:flex-row gap-2">
@@ -3360,6 +4205,160 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                                                 + Add Task
                                                                             </button>
                                                                         </div>
+                                                                     </div>
+                                                                 )}
+
+                                                                 {/* TAB CONTENT: SHARED FILES */}
+                                                                 {activeCollabSubTab === 'FILES' && (
+                                                                     <div className="space-y-4 animate-in fade-in duration-200">
+                                                                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                                                                             {/* Left Column: Share a new file */}
+                                                                             <div className="lg:col-span-5 bg-zinc-950 p-4 rounded-xl border border-zinc-900 space-y-3 text-[11px]">
+                                                                                 <span className="text-[9px] text-emerald-500 font-bold block uppercase tracking-wider">Share Code Shard / Document</span>
+                                                                                 <div className="space-y-2">
+                                                                                     <label className="text-[8px] text-zinc-500 uppercase tracking-widest block font-bold">File Name</label>
+                                                                                     <input 
+                                                                                         value={newSharedFileName}
+                                                                                         onChange={e => setNewSharedFileName(e.target.value)}
+                                                                                         placeholder="e.g. server-reconciler.ts"
+                                                                                         className="w-full bg-black border border-zinc-800 rounded p-2 text-white outline-none focus:border-emerald-500 text-[10px]"
+                                                                                     />
+                                                                                 </div>
+                                                                                 <div className="space-y-2">
+                                                                                     <label className="text-[8px] text-zinc-500 uppercase tracking-widest block font-bold">File Extension / Syntax Type</label>
+                                                                                     <select 
+                                                                                         value={newSharedFileType}
+                                                                                         onChange={e => setNewSharedFileType(e.target.value)}
+                                                                                         className="w-full bg-black border border-zinc-800 rounded p-2 text-zinc-300 outline-none focus:border-emerald-500 text-[10px] cursor-pointer"
+                                                                                     >
+                                                                                         <option value="ts">TypeScript (.ts)</option>
+                                                                                         <option value="tsx">React TSX (.tsx)</option>
+                                                                                         <option value="js">JavaScript (.js)</option>
+                                                                                         <option value="sol">Solidity (.sol)</option>
+                                                                                         <option value="rs">Rust (.rs)</option>
+                                                                                         <option value="json">JSON (.json)</option>
+                                                                                         <option value="css">CSS / Tailwind (.css)</option>
+                                                                                         <option value="md">Markdown Document (.md)</option>
+                                                                                     </select>
+                                                                                 </div>
+                                                                                 <div className="space-y-2">
+                                                                                     <label className="text-[8px] text-zinc-500 uppercase tracking-widest block font-bold">File Contents / Code Shard</label>
+                                                                                     <textarea 
+                                                                                         value={newSharedFileContent}
+                                                                                         onChange={e => setNewSharedFileContent(e.target.value)}
+                                                                                         rows={5}
+                                                                                         placeholder="Paste or type code logic here..."
+                                                                                         className="w-full bg-black border border-zinc-800 rounded p-2 text-white outline-none focus:border-emerald-500 text-[10px] font-mono"
+                                                                                     />
+                                                                                 </div>
+                                                                                 <button 
+                                                                                     onClick={() => {
+                                                                                         const size = `${(newSharedFileContent.length / 1024).toFixed(1)} KB`;
+                                                                                         handleShareCollabFile(project.id, newSharedFileName, newSharedFileContent, newSharedFileType, size);
+                                                                                         setNewSharedFileName('');
+                                                                                         setNewSharedFileContent('');
+                                                                                     }}
+                                                                                     disabled={!newSharedFileName.trim() || !newSharedFileContent.trim()}
+                                                                                     className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-45 text-black font-black uppercase text-[10px] rounded transition-all tracking-wider shadow-md"
+                                                                                 >
+                                                                                     Upload & Share Shard
+                                                                                 </button>
+                                                                             </div>
+
+                                                                             {/* Right Column: Files Registry list & preview */}
+                                                                             <div className="lg:col-span-7 space-y-3">
+                                                                                 <span className="text-[9px] text-zinc-500 uppercase font-black block tracking-widest">Active Workspace Repository</span>
+                                                                                 <div className="bg-zinc-950 p-4 rounded-xl border border-zinc-900 min-h-[220px] max-h-[360px] overflow-y-auto custom-scrollbar space-y-2">
+                                                                                     {!project.sharedFiles || project.sharedFiles.length === 0 ? (
+                                                                                         <div className="text-center py-10 uppercase text-[9px] text-zinc-700 italic font-mono space-y-2">
+                                                                                             <p>No repository code shards shared.</p>
+                                                                                             <p className="text-[8px] text-zinc-800 font-sans">Use the uploader on the left or simulate drag-and-drop to commit documents.</p>
+                                                                                         </div>
+                                                                                     ) : (
+                                                                                         (project.sharedFiles || [])?.map?.(file => (
+                                                                                             <div 
+                                                                                                 key={file.id} 
+                                                                                                 className={`p-3 rounded-lg border flex items-center justify-between transition-all cursor-pointer ${
+                                                                                                     viewingSharedFile?.id === file.id 
+                                                                                                     ? 'bg-emerald-950/20 border-emerald-500/50' 
+                                                                                                     : 'bg-black/40 border-zinc-900 hover:border-zinc-850'
+                                                                                                 }`}
+                                                                                                 onClick={() => setViewingSharedFile(file)}
+                                                                                             >
+                                                                                                 <div className="flex items-center gap-2.5 min-w-0">
+                                                                                                     <div className="p-1.5 bg-zinc-900 rounded border border-zinc-800 text-xs text-emerald-400 font-mono font-bold shrink-0">
+                                                                                                         .{file.type}
+                                                                                                     </div>
+                                                                                                     <div className="truncate">
+                                                                                                         <p className="text-[11px] font-bold text-zinc-200 font-mono truncate">{file.name}</p>
+                                                                                                         <p className="text-[8px] text-zinc-500 font-mono uppercase">
+                                                                                                             {file.size} • By @{file.sharedBy} • {new Date(file.timestamp).toLocaleDateString()}
+                                                                                                         </p>
+                                                                                                     </div>
+                                                                                                 </div>
+                                                                                                 <div className="flex items-center gap-2">
+                                                                                                     <button 
+                                                                                                         onClick={(e) => {
+                                                                                                             e.stopPropagation();
+                                                                                                             setViewingSharedFile(file);
+                                                                                                         }}
+                                                                                                         className="px-2 py-1 bg-zinc-900 border border-zinc-800 hover:border-emerald-500/30 text-[8px] font-mono text-zinc-300 font-bold uppercase rounded"
+                                                                                                     >
+                                                                                                         View
+                                                                                                     </button>
+                                                                                                     <button 
+                                                                                                         onClick={(e) => {
+                                                                                                             e.stopPropagation();
+                                                                                                             if (viewingSharedFile?.id === file.id) {
+                                                                                                                 setViewingSharedFile(null);
+                                                                                                             }
+                                                                                                             handleDeleteCollabFile(project.id, file.id);
+                                                                                                         }}
+                                                                                                         className="p-1 text-zinc-700 hover:text-red-500 transition-colors"
+                                                                                                     >
+                                                                                                         <XIcon className="w-3.5 h-3.5" />
+                                                                                                     </button>
+                                                                                                 </div>
+                                                                                             </div>
+                                                                                         ))
+                                                                                     )}
+                                                                                 </div>
+                                                                             </div>
+                                                                         </div>
+
+                                                                         {/* Code Terminal View Component */}
+                                                                         {viewingSharedFile && (
+                                                                             <div className="bg-slate-950 border-2 border-emerald-500/30 rounded-2xl p-4 space-y-2.5 font-mono text-xs animate-in slide-in-from-bottom duration-300">
+                                                                                 <div className="flex justify-between items-center border-b border-zinc-900 pb-2">
+                                                                                     <div className="flex items-center gap-2">
+                                                                                         <TerminalIcon className="w-4 h-4 text-emerald-500" />
+                                                                                         <span className="text-[10px] text-zinc-300 font-bold">{viewingSharedFile.name} ({viewingSharedFile.size})</span>
+                                                                                     </div>
+                                                                                     <button 
+                                                                                         onClick={() => setViewingSharedFile(null)}
+                                                                                         className="text-zinc-500 hover:text-white transition-colors"
+                                                                                     >
+                                                                                         <XIcon className="w-4 h-4" />
+                                                                                     </button>
+                                                                                 </div>
+                                                                                 <div className="bg-black p-3.5 rounded-lg border border-zinc-900 text-[10px] overflow-x-auto max-h-64 custom-scrollbar whitespace-pre text-emerald-400">
+                                                                                     <code>{viewingSharedFile.content || `// Empty file shard content`}</code>
+                                                                                 </div>
+                                                                                 <div className="flex justify-end gap-2 text-[9px]">
+                                                                                     <button 
+                                                                                         onClick={() => {
+                                                                                             if (viewingSharedFile.content) {
+                                                                                                 navigator.clipboard.writeText(viewingSharedFile.content);
+                                                                                                 toast.success("Copied shard contents to clip buffer!");
+                                                                                             }
+                                                                                         }}
+                                                                                         className="px-3 py-1 bg-zinc-900 hover:bg-zinc-800 text-zinc-350 font-bold uppercase rounded border border-zinc-800"
+                                                                                     >
+                                                                                         Copy Logic Shard
+                                                                                     </button>
+                                                                                 </div>
+                                                                             </div>
+                                                                         )}
                                                                      </div>
                                                                  )}
 
@@ -3506,6 +4505,30 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                                          </div>
                                                                      </div>
                                                                  )}
+
+                                                                 {/* TAB CONTENT: METRICS & ANALYTICS */}
+                                                                 {activeCollabSubTab === 'ANALYTICS' && (
+                                                                     <ProjectAnalyticsAndCalendar
+                                                                         project={project}
+                                                                         profile={profile}
+                                                                         subTab="ANALYTICS"
+                                                                         onToggleTask={handleToggleCollabTask}
+                                                                         onDeleteTask={handleDeleteCollabTask}
+                                                                         onAddTask={handleAddCollabTask}
+                                                                     />
+                                                                 )}
+
+                                                                 {/* TAB CONTENT: CALENDAR WORKLOAD */}
+                                                                 {activeCollabSubTab === 'CALENDAR' && (
+                                                                     <ProjectAnalyticsAndCalendar
+                                                                         project={project}
+                                                                         profile={profile}
+                                                                         subTab="CALENDAR"
+                                                                         onToggleTask={handleToggleCollabTask}
+                                                                         onDeleteTask={handleDeleteCollabTask}
+                                                                         onAddTask={handleAddCollabTask}
+                                                                     />
+                                                                 )}
                                                              </div>
                                                          )}
                                                      </div>
@@ -3577,8 +4600,34 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                             </div>
                         </div>
 
-                        {/* Profiles Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Sub Navigation Tabs for Directory vs My Profile */}
+                        <div className="flex bg-zinc-950 p-1.5 rounded-2xl border-2 border-purple-950 max-w-md mx-auto">
+                            <button
+                                onClick={() => setProfilesSubMode('directory')}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-mono font-black uppercase tracking-wider transition-all ${
+                                    profilesSubMode === 'directory'
+                                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-950/40'
+                                        : 'text-zinc-400 hover:text-white hover:bg-zinc-900/40'
+                                }`}
+                            >
+                                🌐 Nodes Directory
+                            </button>
+                            <button
+                                onClick={() => setProfilesSubMode('my_profile')}
+                                className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-mono font-black uppercase tracking-wider transition-all ${
+                                    profilesSubMode === 'my_profile'
+                                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-950/40'
+                                        : 'text-zinc-400 hover:text-white hover:bg-zinc-900/40'
+                                }`}
+                            >
+                                👤 My Profile Hub
+                            </button>
+                        </div>
+
+                        {profilesSubMode === 'directory' ? (
+                            <>
+                                {/* Profiles Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Render active profiles */}
                             {(networkProfiles || [])
                                 ?.filter?.(p => {
@@ -3730,11 +4779,527 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                 })}
                             </div>
 
-                        {networkProfiles.length === 0 && (
-                                <div className="md:col-span-2 text-center py-12 border border-dashed border-zinc-800 rounded-3xl">
-                                    <span className="text-zinc-600 block uppercase font-mono text-xs font-black">No profile nodes available in net config.</span>
+                                {networkProfiles.length === 0 && (
+                                    <div className="md:col-span-2 text-center py-12 border border-dashed border-zinc-800 rounded-3xl">
+                                        <span className="text-zinc-600 block uppercase font-mono text-xs font-black">No profile nodes available in net config.</span>
+                                    </div>
+                                )}
+                            </>
+                        ) : (
+                            /* Render MY PROFILE HUB with full editing and radar chart */
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left">
+                                {/* Left Column: Visual Analytics & Skills Config */}
+                                <div className="lg:col-span-5 space-y-6">
+                                    {/* Radar Chart Panel */}
+                                    <div className="bg-zinc-950 border-2 border-purple-950/40 rounded-3xl p-6 relative overflow-hidden shadow-xl">
+                                        <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500" />
+                                        <h4 className="text-[10px] font-mono text-purple-400 uppercase tracking-widest font-black flex items-center gap-1.5 mb-1">
+                                            <span>⚖️ Verified Skill Signature Matrix</span>
+                                        </h4>
+                                        <p className="text-[9px] text-zinc-500 font-mono mb-4">
+                                            Dynamically compiled distribution of your active skills.
+                                        </p>
+
+                                        <div className="h-[220px] w-full flex items-center justify-center relative">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarDataForOwnNode}>
+                                                    <PolarGrid stroke="#27272a" />
+                                                    <PolarAngleAxis 
+                                                        dataKey="subject" 
+                                                        tick={{ fill: '#a1a1aa', fontSize: 8.5, fontFamily: 'monospace' }}
+                                                    />
+                                                    <PolarRadiusAxis 
+                                                        angle={30} 
+                                                        domain={[0, 100]} 
+                                                        tick={{ fill: '#52525b', fontSize: 7.5 }}
+                                                    />
+                                                    <Radar
+                                                        name="Proficiency"
+                                                        dataKey="value"
+                                                        stroke="#a855f7"
+                                                        fill="#a855f7"
+                                                        fillOpacity={0.25}
+                                                    />
+                                                </RadarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+
+                                    {/* Skills Management Panel */}
+                                    <div className="bg-zinc-950 border border-zinc-900 rounded-3xl p-6 space-y-6">
+                                        {/* Skills offered */}
+                                        <div className="space-y-3">
+                                            <h5 className="text-[10px] font-mono text-purple-400 uppercase tracking-wider font-bold">// 1. Skills You Offer</h5>
+                                            <div className="flex flex-wrap gap-1.5 min-h-[30px] items-center">
+                                                {(profile?.skills || []).map((s: string) => (
+                                                    <span key={s} className="px-2 py-0.5 bg-purple-950/20 text-[10px] font-mono text-purple-300 rounded-md border border-purple-500/10 flex items-center gap-1.5">
+                                                        <span>{s}</span>
+                                                        <button 
+                                                            onClick={() => {
+                                                                if (onUpdateProfile && profile) {
+                                                                    const next = (profile.skills || []).filter(item => item !== s);
+                                                                    onUpdateProfile({ skills: next });
+                                                                    toast.success(`Removed skill: ${s}`);
+                                                                }
+                                                            }}
+                                                            className="text-red-400 hover:text-red-300 cursor-pointer text-xs font-black"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                                {(profile?.skills || []).length === 0 && (
+                                                    <span className="text-[9px] text-zinc-650 italic">No skills configured.</span>
+                                                )}
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <input 
+                                                    type="text"
+                                                    placeholder="Add skill (e.g. Go, Rust)..."
+                                                    value={offeringInput}
+                                                    onChange={e => setOfferingInput(e.target.value)}
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter') {
+                                                            const val = offeringInput.trim();
+                                                            if (val && profile && onUpdateProfile) {
+                                                                const current = profile.skills || [];
+                                                                if (!current.includes(val)) {
+                                                                    onUpdateProfile({ skills: [...current, val] });
+                                                                    setOfferingInput('');
+                                                                    toast.success(`Added skill: ${val}`);
+                                                                }
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="flex-1 bg-black border border-zinc-800 rounded-xl px-3 py-1 text-xs text-white placeholder-zinc-700 font-mono"
+                                                />
+                                                <button 
+                                                    onClick={() => {
+                                                        const val = offeringInput.trim();
+                                                        if (val && profile && onUpdateProfile) {
+                                                            const current = profile.skills || [];
+                                                            if (!current.includes(val)) {
+                                                                    onUpdateProfile({ skills: [...current, val] });
+                                                                    setOfferingInput('');
+                                                                    toast.success(`Added skill: ${val}`);
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="px-3 py-1 bg-purple-650 hover:bg-purple-500 text-white font-mono text-[9px] font-black uppercase rounded-lg"
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Looking For skills */}
+                                        <div className="space-y-3 pt-2 border-t border-zinc-900">
+                                            <h5 className="text-[10px] font-mono text-rose-400 uppercase tracking-wider font-bold">// 2. Skills You Seek</h5>
+                                            <div className="flex flex-wrap gap-1.5 min-h-[30px] items-center">
+                                                {(profile?.lookingForSkills || []).map((s: string) => (
+                                                    <span key={s} className="px-2 py-0.5 bg-rose-950/20 text-[10px] font-mono text-rose-300 rounded-md border border-rose-500/10 flex items-center gap-1.5">
+                                                        <span>{s}</span>
+                                                        <button 
+                                                            onClick={() => {
+                                                                if (onUpdateProfile && profile) {
+                                                                    const next = (profile.lookingForSkills || []).filter(item => item !== s);
+                                                                    onUpdateProfile({ lookingForSkills: next });
+                                                                    toast.success(`Removed seeking skill: ${s}`);
+                                                                }
+                                                            }}
+                                                            className="text-red-400 hover:text-red-300 cursor-pointer text-xs font-black"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                                {(profile?.lookingForSkills || []).length === 0 && (
+                                                    <span className="text-[9px] text-zinc-650 italic">No seeking terms configured.</span>
+                                                )}
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <input 
+                                                    type="text"
+                                                    placeholder="Add seeking skill (e.g. Solidity, Python)..."
+                                                    value={lookingInput}
+                                                    onChange={e => setLookingInput(e.target.value)}
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter') {
+                                                            const val = lookingInput.trim();
+                                                            if (val && profile && onUpdateProfile) {
+                                                                const current = profile.lookingForSkills || [];
+                                                                if (!current.includes(val)) {
+                                                                    onUpdateProfile({ lookingForSkills: [...current, val] });
+                                                                    setLookingInput('');
+                                                                    toast.success(`Added seeking skill: ${val}`);
+                                                                }
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="flex-1 bg-black border border-zinc-800 rounded-xl px-3 py-1 text-xs text-white placeholder-zinc-700 font-mono"
+                                                />
+                                                <button 
+                                                    onClick={() => {
+                                                        const val = lookingInput.trim();
+                                                        if (val && profile && onUpdateProfile) {
+                                                            const current = profile.lookingForSkills || [];
+                                                            if (!current.includes(val)) {
+                                                                    onUpdateProfile({ lookingForSkills: [...current, val] });
+                                                                    setLookingInput('');
+                                                                    toast.success(`Added seeking skill: ${val}`);
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="px-3 py-1 bg-rose-650 hover:bg-rose-500 text-white font-mono text-[9px] font-black uppercase rounded-lg"
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Mentorship skills */}
+                                        <div className="space-y-3 pt-2 border-t border-zinc-900">
+                                            <h5 className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider font-bold">// 3. Skills You Can Mentor</h5>
+                                            <div className="flex flex-wrap gap-1.5 min-h-[30px] items-center">
+                                                {(profile?.willingToTeachSkills || []).map((s: string) => (
+                                                    <span key={s} className="px-2 py-0.5 bg-emerald-950/20 text-[10px] font-mono text-emerald-300 rounded-md border border-emerald-500/10 flex items-center gap-1.5">
+                                                        <span>{s}</span>
+                                                        <button 
+                                                            onClick={() => {
+                                                                if (onUpdateProfile && profile) {
+                                                                    const next = (profile.willingToTeachSkills || []).filter(item => item !== s);
+                                                                    onUpdateProfile({ willingToTeachSkills: next });
+                                                                    toast.success(`Removed mentoring skill: ${s}`);
+                                                                }
+                                                            }}
+                                                            className="text-red-400 hover:text-red-300 cursor-pointer text-xs font-black"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    </span>
+                                                ))}
+                                                {(profile?.willingToTeachSkills || []).length === 0 && (
+                                                    <span className="text-[9px] text-zinc-650 italic">No mentoring skills configured.</span>
+                                                )}
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <input 
+                                                    type="text"
+                                                    placeholder="Add mentoring skill (e.g. AWS, Node.js)..."
+                                                    value={editMentorSkillInput}
+                                                    onChange={e => setEditMentorSkillInput(e.target.value)}
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter') {
+                                                            const val = editMentorSkillInput.trim();
+                                                            if (val && profile && onUpdateProfile) {
+                                                                const current = profile.willingToTeachSkills || [];
+                                                                if (!current.includes(val)) {
+                                                                    onUpdateProfile({ willingToTeachSkills: [...current, val] });
+                                                                    setEditMentorSkillInput('');
+                                                                    toast.success(`Added mentoring skill: ${val}`);
+                                                                }
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="flex-1 bg-black border border-zinc-800 rounded-xl px-3 py-1 text-xs text-white placeholder-zinc-700 font-mono"
+                                                />
+                                                <button 
+                                                    onClick={() => {
+                                                        const val = editMentorSkillInput.trim();
+                                                        if (val && profile && onUpdateProfile) {
+                                                            const current = profile.willingToTeachSkills || [];
+                                                            if (!current.includes(val)) {
+                                                                    onUpdateProfile({ willingToTeachSkills: [...current, val] });
+                                                                    setEditMentorSkillInput('');
+                                                                    toast.success(`Added mentoring skill: ${val}`);
+                                                            }
+                                                        }
+                                                    }}
+                                                    className="px-3 py-1 bg-emerald-650 hover:bg-emerald-500 text-white font-mono text-[9px] font-black uppercase rounded-lg"
+                                                >
+                                                    Add
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Contact Info Config Panel */}
+                                    <div className="bg-zinc-950 border border-zinc-900 rounded-3xl p-6 space-y-4">
+                                        <h5 className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider font-bold">// 4. External Portals & Contacts</h5>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] font-mono">
+                                            <div className="space-y-1">
+                                                <span className="text-zinc-550 block text-[9px] uppercase font-bold">Email</span>
+                                                <input 
+                                                    type="text"
+                                                    value={editContactEmail}
+                                                    onChange={e => {
+                                                        setEditContactEmail(e.target.value);
+                                                        onUpdateProfile?.({ contactInfo: { ...profile?.contactInfo, email: e.target.value } });
+                                                    }}
+                                                    className="w-full bg-black border border-zinc-900 rounded-lg p-2 text-white focus:border-purple-500/50 outline-none"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-zinc-550 block text-[9px] uppercase font-bold">Discord</span>
+                                                <input 
+                                                    type="text"
+                                                    value={editContactDiscord}
+                                                    onChange={e => {
+                                                        setEditContactDiscord(e.target.value);
+                                                        onUpdateProfile?.({ contactInfo: { ...profile?.contactInfo, discord: e.target.value } });
+                                                    }}
+                                                    className="w-full bg-black border border-zinc-900 rounded-lg p-2 text-white focus:border-purple-500/50 outline-none"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-zinc-550 block text-[9px] uppercase font-bold">Telegram</span>
+                                                <input 
+                                                    type="text"
+                                                    value={editContactTelegram}
+                                                    onChange={e => {
+                                                        setEditContactTelegram(e.target.value);
+                                                        onUpdateProfile?.({ contactInfo: { ...profile?.contactInfo, telegram: e.target.value } });
+                                                    }}
+                                                    className="w-full bg-black border border-zinc-900 rounded-lg p-2 text-white focus:border-purple-500/50 outline-none"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-zinc-550 block text-[9px] uppercase font-bold">GitHub Portal</span>
+                                                <input 
+                                                    type="text"
+                                                    value={editContactGithub}
+                                                    onChange={e => {
+                                                        setEditContactGithub(e.target.value);
+                                                        onUpdateProfile?.({ contactInfo: { ...profile?.contactInfo, github: e.target.value } });
+                                                    }}
+                                                    className="w-full bg-black border border-zinc-900 rounded-lg p-2 text-white focus:border-purple-500/50 outline-none"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                            )}
+
+                                {/* Right Column: Core Bio, Portfolios, Showcase Projects */}
+                                <div className="lg:col-span-7 space-y-6">
+                                    {/* Core Profile Parameters */}
+                                    <div className="bg-[#0b0b18]/80 border-2 border-zinc-900 rounded-3xl p-6 space-y-4">
+                                        <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-black">CORE NODE PARAMETERS</h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Operator Username</label>
+                                                <input 
+                                                    type="text"
+                                                    value={editUsername}
+                                                    onChange={e => {
+                                                        setEditUsername(e.target.value);
+                                                        onUpdateProfile?.({ username: e.target.value });
+                                                    }}
+                                                    className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white font-mono"
+                                                />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Experience Index</label>
+                                                <input 
+                                                    type="text"
+                                                    value={editExperience}
+                                                    onChange={e => {
+                                                        setEditExperience(e.target.value);
+                                                        onUpdateProfile?.({ experienceLevel: e.target.value });
+                                                    }}
+                                                    className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white font-mono"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase block">Brief Professional Biography</label>
+                                            <textarea 
+                                                value={editBio}
+                                                onChange={e => {
+                                                    setEditBio(e.target.value);
+                                                    onUpdateProfile?.({ bio: e.target.value });
+                                                }}
+                                                rows={3}
+                                                className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-zinc-300 leading-relaxed outline-none focus:border-purple-500 transition-all"
+                                                placeholder="Describe your primary specialties, focus, and system architectures..."
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Links and Portfolios connected */}
+                                    <div className="bg-zinc-950 border border-zinc-900 rounded-3xl p-6 space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <h4 className="text-[10px] font-mono text-purple-400 uppercase tracking-widest font-bold">EXTERNAL PORTFOLIO PORTALS</h4>
+                                            <span className="text-[9px] text-zinc-600 font-mono">{(profile?.portfolioLinks || []).length} connected</span>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            {(profile?.portfolioLinks || []).map((lnk) => (
+                                                <div key={lnk.id} className="flex items-center justify-between p-3 bg-black border border-zinc-900 rounded-xl">
+                                                    <div className="truncate max-w-[80%]">
+                                                        <div className="text-[11px] font-bold text-gray-200 uppercase font-mono">{lnk.label}</div>
+                                                        <a href={lnk.url} target="_blank" rel="noreferrer" className="text-[8px] font-mono text-zinc-500 hover:text-purple-400 truncate block">
+                                                            {lnk.url}
+                                                        </a>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => {
+                                                            const current = profile?.portfolioLinks || [];
+                                                            onUpdateProfile?.({ portfolioLinks: current.filter(item => item.id !== lnk.id) });
+                                                            toast.success("Removed portfolio Portal.");
+                                                        }}
+                                                        className="p-1 text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg text-xs"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {(profile?.portfolioLinks || []).length === 0 && (
+                                                <p className="text-[10px] text-zinc-600 italic sm:col-span-2">No portfolio portals connected yet.</p>
+                                            )}
+                                        </div>
+
+                                        {/* Add portfolio form */}
+                                        <div className="pt-2 border-t border-zinc-900 space-y-2">
+                                            <span className="text-[9px] font-mono uppercase text-zinc-500 font-bold block">Connect New Portfolio Portal</span>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                <input 
+                                                    type="text"
+                                                    placeholder="Portal Label (e.g. GitHub Node)"
+                                                    value={newPortfolioLabel}
+                                                    onChange={e => setNewPortfolioLabel(e.target.value)}
+                                                    className="bg-black border border-zinc-900 rounded-lg p-2 text-[10px] text-white font-mono"
+                                                />
+                                                <input 
+                                                    type="text"
+                                                    placeholder="https://..."
+                                                    value={newPortfolioUrl}
+                                                    onChange={e => setNewPortfolioUrl(e.target.value)}
+                                                    className="bg-black border border-zinc-900 rounded-lg p-2 text-[10px] text-white font-mono"
+                                                />
+                                            </div>
+                                            <button 
+                                                onClick={() => {
+                                                    if (!newPortfolioLabel.trim() || !newPortfolioUrl.trim()) {
+                                                        toast.error("Please fill in both fields.");
+                                                        return;
+                                                    }
+                                                    const current = profile?.portfolioLinks || [];
+                                                    const newLnk = { id: `link_${Date.now()}`, label: newPortfolioLabel.trim(), url: newPortfolioUrl.trim() };
+                                                    onUpdateProfile?.({ portfolioLinks: [...current, newLnk] });
+                                                    setNewPortfolioLabel('');
+                                                    setNewPortfolioUrl('');
+                                                    toast.success("Added portfolio portal successfully.");
+                                                }}
+                                                className="w-full py-1.5 bg-purple-950/40 hover:bg-purple-600 border border-purple-500/20 hover:text-black text-purple-400 font-mono text-[9px] font-black uppercase rounded-lg transition-all"
+                                            >
+                                                + CONNECT PORTFOLIO PORTAL
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Showcase completed projects */}
+                                    <div className="bg-zinc-950 border border-zinc-900 rounded-3xl p-6 space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <h4 className="text-[10px] font-mono text-purple-400 uppercase tracking-widest font-bold">PROJECT SHOWCASE TIMELINE</h4>
+                                            <span className="text-[9px] text-zinc-600 font-mono">{(profile?.profileProjects || []).length} active showcases</span>
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            {(profile?.profileProjects || []).map((pro) => (
+                                                <div key={pro.id} className="p-4 bg-black/60 border border-zinc-900 rounded-2xl space-y-2 relative group text-left">
+                                                    <div className="flex justify-between items-start">
+                                                        <div>
+                                                            <h5 className="text-xs font-black text-white font-sans uppercase">{pro.title}</h5>
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <span className="text-[9px] font-mono bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded font-bold">{pro.roleDefined}</span>
+                                                                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${pro.status === 'current' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>
+                                                                    {pro.status === 'current' ? 'CURRENT BUILD' : 'PAST SHOWCASE'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        <button 
+                                                            onClick={() => {
+                                                                const current = profile?.profileProjects || [];
+                                                                onUpdateProfile?.({ profileProjects: current.filter(item => item.id !== pro.id) });
+                                                                toast.success("Removed showcase project.");
+                                                            }}
+                                                            className="p-1 px-2 text-xs font-mono font-bold text-red-500 hover:bg-red-500/10 rounded-md transition-all"
+                                                        >
+                                                            Remove
+                                                        </button>
+                                                    </div>
+                                                    <p className="text-[11px] text-zinc-400 leading-relaxed">{pro.description}</p>
+                                                </div>
+                                            ))}
+                                            {(profile?.profileProjects || []).length === 0 && (
+                                                <p className="text-[10px] text-zinc-650 italic">No showcase projects registered yet.</p>
+                                            )}
+                                        </div>
+
+                                        {/* Add showcase project form */}
+                                        <div className="pt-2 border-t border-zinc-900 space-y-3">
+                                            <span className="text-[9px] font-mono uppercase text-zinc-500 font-bold block">Deploy New Showcase Project Node</span>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                <input 
+                                                    type="text"
+                                                    placeholder="Project Title (e.g. Cognitive Pipeline)"
+                                                    value={newProjectTitle}
+                                                    onChange={e => setNewProjectTitle(e.target.value)}
+                                                    className="bg-black border border-zinc-900 rounded-lg p-2 text-[10px] text-white font-mono"
+                                                />
+                                                <input 
+                                                    type="text"
+                                                    placeholder="Role (e.g. Core Developer / Lead)"
+                                                    value={newProjectRole}
+                                                    onChange={e => setNewProjectRole(e.target.value)}
+                                                    className="bg-black border border-zinc-900 rounded-lg p-2 text-[10px] text-white font-mono"
+                                                />
+                                            </div>
+                                            <div className="flex items-center gap-3 bg-black/60 p-2 border border-zinc-900 rounded-lg">
+                                                <span className="text-[9px] font-mono uppercase text-zinc-505 font-bold">Build Status:</span>
+                                                <button 
+                                                    onClick={() => setNewProjectStatus('current')}
+                                                    className={`px-3 py-1 text-[9px] font-mono uppercase font-black rounded-md transition-all ${newProjectStatus === 'current' ? 'bg-emerald-600 text-black' : 'bg-zinc-900 text-zinc-500'}`}
+                                                >
+                                                    CURRENT BUILD
+                                                </button>
+                                                <button 
+                                                    onClick={() => setNewProjectStatus('past')}
+                                                    className={`px-3 py-1 text-[9px] font-mono uppercase font-black rounded-md transition-all ${newProjectStatus === 'past' ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500'}`}
+                                                >
+                                                    PAST SHOWCASE
+                                                </button>
+                                            </div>
+                                            <textarea 
+                                                placeholder="Showcase Description (brief specification summary details)..."
+                                                value={newProjectDesc}
+                                                onChange={e => setNewProjectDesc(e.target.value)}
+                                                rows={2}
+                                                className="w-full bg-black border border-zinc-900 rounded-lg p-2.5 text-[10px] text-zinc-300 outline-none focus:border-purple-500 font-sans"
+                                            />
+                                            <button 
+                                                onClick={() => {
+                                                    if (!newProjectTitle.trim() || !newProjectRole.trim() || !newProjectDesc.trim()) {
+                                                        toast.error("Please fill in all project showcase details.");
+                                                        return;
+                                                    }
+                                                    const current = profile?.profileProjects || [];
+                                                    const newPro = { id: `proj_${Date.now()}`, title: newProjectTitle.trim(), roleDefined: newProjectRole.trim(), status: newProjectStatus, description: newProjectDesc.trim() };
+                                                    onUpdateProfile?.({ profileProjects: [...current, newPro] });
+                                                    setNewProjectTitle('');
+                                                    setNewProjectRole('');
+                                                    setNewProjectDesc('');
+                                                    toast.success("Showcase project deployed successfully.");
+                                                }}
+                                                className="w-full py-1.5 bg-purple-950/40 hover:bg-purple-600 border border-purple-500/20 hover:text-black text-purple-400 font-mono text-[9px] font-black uppercase rounded-lg transition-all"
+                                            >
+                                                + DEPLOY PROJECT SHOWCASE NODE
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Selected profile node detail modal */}
                         <AnimatePresence>
@@ -3796,6 +5361,45 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                                     </div>
                                                 );
                                             })()}
+
+                                            {/* Verified Skill Signature Matrix (Radar Chart Visualizer) */}
+                                            <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 shadow-lg relative overflow-hidden flex flex-col justify-between">
+                                                <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <h4 className="text-[10px] font-mono text-purple-400 uppercase tracking-widest font-black flex items-center gap-2">
+                                                            ⚖️ Verified Skill Signature Matrix
+                                                        </h4>
+                                                        <p className="text-[9px] text-zinc-400 mt-1 font-mono">
+                                                            Self-declared Base: 50%, Peer validation: +15% per endorsement (max 100%).
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                <div className="h-[230px] w-full flex items-center justify-center relative mt-2">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarDataForSelectedNode}>
+                                                            <PolarGrid stroke="#27272a" />
+                                                            <PolarAngleAxis 
+                                                                dataKey="subject" 
+                                                                tick={{ fill: '#a1a1aa', fontSize: 8.5, fontFamily: 'monospace' }}
+                                                            />
+                                                            <PolarRadiusAxis 
+                                                                angle={30} 
+                                                                domain={[0, 100]} 
+                                                                tick={{ fill: '#52525b', fontSize: 7.5 }}
+                                                            />
+                                                            <Radar
+                                                                name="Proficiency"
+                                                                dataKey="value"
+                                                                stroke="#a855f7"
+                                                                fill="#a855f7"
+                                                                fillOpacity={0.25}
+                                                            />
+                                                        </RadarChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                            </div>
 
                                             {/* Skills Grid */}
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -4567,7 +6171,7 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                             </div>
                         </div>
                     </div>
-                ) : (
+                ) : viewMode === 'FORECAST' ? (
                     /* FORECAST VIEW (PREDICTIVE TIMELINE) */
                     <div className="space-y-8 animate-in fade-in duration-500 relative z-10 max-w-7xl mx-auto pb-12">
                         {/* 1. Header Hero Banner */}
@@ -4887,6 +6491,753 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                                     </div>
                                 );
                             })}
+                        </div>
+                    </div>
+                ) : viewMode === 'WALLET' ? (
+                    <div className="space-y-8 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300 relative z-10 font-sans">
+                        {/* Header Banner */}
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-gradient-to-br from-zinc-950 to-zinc-900 p-8 border-4 border-emerald-500 rounded-[2.5rem] shadow-[0_0_30px_rgba(16,185,129,0.15)] relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-[radial-gradient(circle_at_100%_0%,_rgba(16,185,129,0.1)_0%,_transparent_70%)] pointer-events-none" />
+                            <div className="flex items-center gap-5">
+                                <div className="w-16 h-16 bg-emerald-500/10 border-4 border-emerald-500 rounded-3xl flex items-center justify-center shadow-[0_0_25px_rgba(16,185,129,0.4)] animate-pulse">
+                                    <ZapIcon className="w-9 h-9 text-emerald-400" />
+                                </div>
+                                <div>
+                                    <h4 className="font-mono text-emerald-400 text-[10px] uppercase tracking-[0.3em] font-black">// HIGH-VELOCITY LIQUIDITY MATRIX</h4>
+                                    <h3 className="font-comic-header text-4xl text-white uppercase italic tracking-tight">Agentic Wealth Wallet & Solver</h3>
+                                    <p className="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed font-sans">
+                                        Scan distributed assets, construct high-integrity solver strategies, and execute buy, sell, or trade actions. Driven by agentic workflows and bounded by divine sovereignty.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-4 bg-black/60 p-4 rounded-2xl border border-zinc-800">
+                                <div className="text-center px-4 border-r border-zinc-800">
+                                    <span className="text-[8px] text-zinc-500 font-mono uppercase block font-bold">TOTAL PORTFOLIO NET WORTH</span>
+                                    <span className="text-lg font-mono font-black text-emerald-400 block mt-1">
+                                        ${(
+                                            walletAetherUSD +
+                                            Object.entries(walletCrypto).reduce((sum, [k, v]) => sum + v * (ASSET_PRICES[k] || 0), 0) +
+                                            Object.entries(walletStocks).reduce((sum, [k, v]) => sum + v * (ASSET_PRICES[k] || 0), 0)
+                                        ).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </span>
+                                </div>
+                                <div className="text-center px-4">
+                                    <span className="text-[8px] text-zinc-500 font-mono uppercase block font-bold">AVAILABLE LIQUIDITY</span>
+                                    <span className="text-sm font-mono font-black text-zinc-200 block mt-1">
+                                        ${walletAetherUSD.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} aetherUSD
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Middle section: Asset Scanning and Assets Table */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                            
+                            {/* Left side: Assets scanner & inventory (7 Columns) */}
+                            <div className="lg:col-span-7 space-y-6">
+                                <div className="bg-[#0b0b18]/80 border-2 border-zinc-850 rounded-3xl p-6 shadow-xl space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h4 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest font-black">// BIOMETRIC INTEGRITY</h4>
+                                            <h3 className="text-xl font-black text-white uppercase font-sans">Distributed Asset Registry</h3>
+                                        </div>
+                                        <button 
+                                            onClick={handleScanAssets}
+                                            disabled={isScanningAssets}
+                                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-black text-[10px] font-black uppercase rounded-lg tracking-wider transition-all duration-200 flex items-center gap-1.5"
+                                        >
+                                            {isScanningAssets ? 'Scanning...' : 'Scan Assets 📡'}
+                                        </button>
+                                    </div>
+
+                                    {/* Scan Progress Bar & logs */}
+                                    {isScanningAssets || scanLogs.length > 0 ? (
+                                        <div className="space-y-3 bg-black/60 p-4 rounded-2xl border border-zinc-900 font-mono text-[10px]">
+                                            <div className="flex justify-between items-center text-[9px] font-bold text-emerald-400">
+                                                <span>SCAN PROGRESS</span>
+                                                <span>{scanProgress}%</span>
+                                            </div>
+                                            <div className="h-2 bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
+                                                <div 
+                                                    className="h-full bg-emerald-500 transition-all duration-300"
+                                                    style={{ width: `${scanProgress}%` }}
+                                                />
+                                            </div>
+                                            <div className="space-y-1 text-zinc-400 max-h-24 overflow-y-auto custom-scrollbar">
+                                                {scanLogs.map((log, i) => (
+                                                    <div key={i}>{log}</div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : null}
+
+                                    {/* Assets tables Grid (Crypto & Stocks) */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        
+                                        {/* Cryptocurrencies */}
+                                        <div className="space-y-3">
+                                            <span className="text-[9px] text-zinc-500 uppercase font-black tracking-widest font-mono block">🪙 Cryptocurrencies</span>
+                                            <div className="space-y-2 max-h-[220px] overflow-y-auto custom-scrollbar">
+                                                {Object.entries(walletCrypto).map(([ticker, amount]) => {
+                                                    const price = ASSET_PRICES[ticker] || 0;
+                                                    const value = amount * price;
+                                                    return (
+                                                        <div key={ticker} className="p-3 bg-black/40 border border-zinc-900 rounded-xl flex justify-between items-center text-xs">
+                                                            <div>
+                                                                <span className="font-mono font-black text-white block">{ticker}</span>
+                                                                <span className="text-[10px] text-zinc-500 font-mono">{amount.toLocaleString(undefined, { maximumFractionDigits: 4 })} units</span>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <span className="font-mono text-emerald-400 block">${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                                <span className="text-[9px] text-zinc-650 font-mono">@ ${price.toLocaleString()}</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+
+                                        {/* Stocks & Bonds */}
+                                        <div className="space-y-3">
+                                            <span className="text-[9px] text-zinc-500 uppercase font-black tracking-widest font-mono block">📈 Stocks & Bonds</span>
+                                            <div className="space-y-2 max-h-[220px] overflow-y-auto custom-scrollbar">
+                                                {Object.entries(walletStocks).map(([ticker, amount]) => {
+                                                    const price = ASSET_PRICES[ticker] || 0;
+                                                    const value = amount * price;
+                                                    return (
+                                                        <div key={ticker} className="p-3 bg-black/40 border border-zinc-900 rounded-xl flex justify-between items-center text-xs">
+                                                            <div>
+                                                                <span className="font-mono font-black text-white block">{ticker === 'US_BONDS' ? 'US Treasury Bond' : ticker}</span>
+                                                                <span className="text-[10px] text-zinc-500 font-mono">{amount.toLocaleString()} shares</span>
+                                                            </div>
+                                                            <div className="text-right">
+                                                                <span className="font-mono text-emerald-400 block">${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                                                <span className="text-[9px] text-zinc-650 font-mono">@ ${price.toLocaleString()}</span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Trading History Ledger Section */}
+                                <div className="bg-[#0b0b18]/80 border-2 border-zinc-850 rounded-3xl p-6 shadow-xl space-y-5">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-900 pb-4">
+                                        <div>
+                                            <span className="text-[9px] text-emerald-400 uppercase font-black font-mono tracking-widest block">// TRANSACTION LEDGER RECORD</span>
+                                            <h3 className="text-lg font-black text-white uppercase font-sans">Trading History</h3>
+                                        </div>
+                                        <div className="flex items-center gap-2 text-[10px] font-mono">
+                                            <span className="text-zinc-500">Success Rate:</span>
+                                            <span className="text-emerald-400 font-bold">
+                                                {walletTxHistory.length > 0
+                                                    ? `${Math.round((walletTxHistory.filter(t => (t.status || 'COMPLETED') === 'COMPLETED').length / walletTxHistory.length) * 100)}%`
+                                                    : '100%'}
+                                            </span>
+                                            <span className="text-zinc-700">|</span>
+                                            <span className="text-zinc-400 font-bold">{walletTxHistory.length} Total</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Filters Header Container */}
+                                    <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                                        {/* Search Filter */}
+                                        <div className="md:col-span-5 relative">
+                                            <LucideSearch className="absolute left-3 top-2.5 w-4 h-4 text-zinc-500" />
+                                            <input 
+                                                type="text"
+                                                value={historySearchQuery}
+                                                onChange={e => setHistorySearchQuery(e.target.value)}
+                                                placeholder="Search by asset or type..."
+                                                className="w-full bg-black/60 border border-zinc-850 rounded-xl pl-9 pr-4 py-2 text-xs text-white outline-none focus:border-emerald-500 font-mono"
+                                            />
+                                        </div>
+
+                                        {/* Type Pill Filters */}
+                                        <div className="md:col-span-4 flex items-center bg-black/60 border border-zinc-850 rounded-xl p-0.5 font-mono">
+                                            {(['ALL', 'BUY', 'SELL', 'SWAP'] as const).map(type => (
+                                                <button
+                                                    key={type}
+                                                    onClick={() => setHistoryFilterType(type)}
+                                                    className={`flex-1 py-1 text-[9px] font-black rounded-lg transition-all ${
+                                                        historyFilterType === type
+                                                            ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900/40'
+                                                            : 'text-zinc-500 hover:text-zinc-300'
+                                                    }`}
+                                                >
+                                                    {type}
+                                                </button>
+                                            ))}
+                                        </div>
+
+                                        {/* Status Filter */}
+                                        <div className="md:col-span-3 flex items-center bg-black/60 border border-zinc-850 rounded-xl p-0.5 font-mono">
+                                            {(['ALL', 'COMPLETED', 'FAILED'] as const).map(status => (
+                                                <button
+                                                    key={status}
+                                                    onClick={() => setHistoryFilterStatus(status)}
+                                                    className={`flex-1 py-1 text-[8px] font-black rounded-lg transition-all uppercase ${
+                                                        historyFilterStatus === status
+                                                            ? 'bg-emerald-950/50 text-emerald-400 border border-emerald-900/40'
+                                                            : 'text-zinc-500 hover:text-zinc-300'
+                                                    }`}
+                                                >
+                                                    {status === 'ALL' ? 'STATUS: ALL' : status}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Transaction Ledger Table List */}
+                                    <div className="space-y-2.5 max-h-72 overflow-y-auto custom-scrollbar font-mono text-[10px]">
+                                        {filteredTxs.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-10 text-center bg-black/20 border border-dashed border-zinc-900 rounded-2xl">
+                                                <LucideAlertCircle className="w-8 h-8 text-zinc-650 mb-2" />
+                                                <p className="text-zinc-500 italic">No transactions match your filtering parameters.</p>
+                                            </div>
+                                        ) : (
+                                            filteredTxs.map(tx => {
+                                                const txStatus = tx.status || 'COMPLETED';
+                                                return (
+                                                    <div 
+                                                        key={tx.id} 
+                                                        className={`p-3 bg-black/40 border border-zinc-900/60 rounded-xl hover:border-zinc-800 transition-all flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5 ${
+                                                            txStatus === 'FAILED' ? 'opacity-70' : ''
+                                                        }`}
+                                                    >
+                                                        {/* Left side: Type with arrow + asset details */}
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`p-2 rounded-xl shrink-0 border ${
+                                                                txStatus === 'FAILED' ? 'bg-zinc-950 border-zinc-800 text-zinc-600' :
+                                                                tx.type === 'BUY' ? 'bg-emerald-950/40 border-emerald-900/40 text-emerald-400' : 
+                                                                tx.type === 'SELL' ? 'bg-rose-950/40 border-rose-900/40 text-rose-400' : 
+                                                                'bg-blue-950/40 border-blue-900/40 text-blue-400'
+                                                            }`}>
+                                                                {tx.type === 'BUY' ? (
+                                                                    <LucideArrowUpRight className="w-4 h-4" />
+                                                                ) : tx.type === 'SELL' ? (
+                                                                    <LucideArrowDownLeft className="w-4 h-4" />
+                                                                ) : (
+                                                                    <LucideRefreshCw className="w-4 h-4" />
+                                                                )}
+                                                            </div>
+
+                                                            <div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className="text-white font-bold text-xs uppercase">{tx.asset}</span>
+                                                                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-wider ${
+                                                                        txStatus === 'FAILED' ? 'bg-rose-950/30 text-rose-400 border-rose-900/40' :
+                                                                        'bg-emerald-950/30 text-emerald-400 border-emerald-900/40'
+                                                                    }`}>
+                                                                        {txStatus}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex items-center gap-1.5 text-zinc-500 text-[9px] mt-0.5">
+                                                                    <span>{new Date(tx.timestamp).toLocaleDateString(undefined, { dateStyle: 'short' })}</span>
+                                                                    <span>•</span>
+                                                                    <span>{new Date(tx.timestamp).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Right side: Amount and Cost breakdown */}
+                                                        <div className="text-left sm:text-right w-full sm:w-auto flex sm:flex-col justify-between sm:justify-start items-center sm:items-end border-t sm:border-t-0 border-zinc-900 pt-2.5 sm:pt-0">
+                                                            <div className="flex items-center gap-2 sm:flex-col sm:items-end">
+                                                                <span className="text-zinc-200 font-bold block">
+                                                                    {tx.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })} units
+                                                                </span>
+                                                                <span className="text-zinc-500 text-[9px] block">
+                                                                    @ ${tx.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                                                </span>
+                                                            </div>
+                                                            <div className="mt-0.5 sm:mt-1">
+                                                                <span className={`font-black text-xs ${
+                                                                    txStatus === 'FAILED' ? 'text-zinc-600 line-through' :
+                                                                    tx.type === 'BUY' ? 'text-emerald-400' : 
+                                                                    tx.type === 'SELL' ? 'text-rose-400' : 'text-blue-400'
+                                                                }`}>
+                                                                    ${tx.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Error Alert Info for failures */}
+                                                        {txStatus === 'FAILED' && tx.reason && (
+                                                            <div className="w-full bg-rose-950/15 border border-rose-900/30 rounded-lg p-2 mt-1.5 flex items-center gap-2 text-rose-400 text-[9px]">
+                                                                <LucideAlertCircle className="w-3.5 h-3.5 shrink-0" />
+                                                                <span>Error Reason: {tx.reason}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+
+                                    {/* Ledger Footer */}
+                                    <div className="flex justify-between items-center text-[9px] font-mono text-zinc-500 border-t border-zinc-900 pt-3">
+                                        <span>SYSTEM LEDGER INDEX SECURED BY PARITY CHECKSUMS</span>
+                                        <span>Showing {filteredTxs.length} of {walletTxHistory.length}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Right side: Agentic Solver Orchestrator (5 Columns) */}
+                            <div className="lg:col-span-5 space-y-6">
+                                <div className="bg-[#0b0b18]/80 border-2 border-zinc-850 rounded-3xl p-6 shadow-xl space-y-5">
+                                    <div>
+                                        <h4 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest font-black">// COGNITIVE OPTIMIZER</h4>
+                                        <h3 className="text-lg font-black text-white uppercase font-sans">Solver Agent Core</h3>
+                                        <p className="text-[10px] text-zinc-400 mt-1">
+                                            Select an agentic strategy, describe your investment objectives, and run the automated solver to optimize yield anomalies.
+                                        </p>
+                                    </div>
+
+                                    {/* Strategy Select */}
+                                    <div className="space-y-1.5 text-xs">
+                                        <label className="text-[8px] text-zinc-500 uppercase font-black font-mono tracking-widest">Select Solver Logic Strategy</label>
+                                        <div className="grid grid-cols-2 gap-2 font-mono">
+                                            {(['ARBITRAGE', 'YIELD', 'REBALANCE', 'HEDGE'] as const).map(strat => (
+                                                <button 
+                                                    key={strat}
+                                                    onClick={() => setSolverStrategy(strat)}
+                                                    className={`py-1.5 px-2 rounded border uppercase text-[9px] font-black tracking-wider text-center transition-all ${
+                                                        solverStrategy === strat 
+                                                        ? 'bg-emerald-950/40 border-emerald-500 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]' 
+                                                        : 'bg-zinc-950 border-zinc-900 text-zinc-500 hover:text-zinc-300'
+                                                    }`}
+                                                >
+                                                    {strat}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Task / Objectives Text Area */}
+                                    <div className="space-y-1.5">
+                                        <label className="text-[8px] text-zinc-500 uppercase font-black font-mono tracking-widest block">Investment Intent / Objective Description</label>
+                                        <textarea 
+                                            value={solverTask}
+                                            onChange={e => setSolverTask(e.target.value)}
+                                            rows={2}
+                                            placeholder="e.g. Maximize yields using liquid pools, hedging TSLA with NVDA shares."
+                                            className="w-full bg-black border border-zinc-850 rounded-xl p-2.5 text-xs text-white outline-none focus:border-emerald-500"
+                                        />
+                                    </div>
+
+                                    <button 
+                                        onClick={handleRunAgenticSolver}
+                                        disabled={isSolverRunning || !solverTask.trim()}
+                                        className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-black font-black uppercase text-xs rounded-xl tracking-wider transition-all duration-200 shadow-md shadow-emerald-900/30"
+                                    >
+                                        {isSolverRunning ? 'Running AI Engine Orchestrator...' : 'Deploy Agentic Solver ⚡'}
+                                    </button>
+
+                                    {/* Solver steps timeline & logs */}
+                                    {(isSolverRunning || solverLogs.length > 0) && (
+                                        <div className="space-y-4">
+                                            {/* Solver steps */}
+                                            <div className="space-y-2">
+                                                <span className="text-[8px] text-zinc-500 uppercase font-black font-mono tracking-widest block">// STEP-BY-STEP FLOW ANALYSIS</span>
+                                                <div className="space-y-1.5 font-mono text-[9px]">
+                                                    {solverSteps.map((step, idx) => (
+                                                        <div key={idx} className="flex items-center gap-2">
+                                                            <span className={
+                                                                step.status === 'completed' ? 'text-emerald-400' : 
+                                                                step.status === 'running' ? 'text-amber-500 animate-pulse' : 
+                                                                'text-zinc-700'
+                                                            }>
+                                                                {step.status === 'completed' ? '✓' : step.status === 'running' ? '●' : '○'}
+                                                            </span>
+                                                            <div className="flex-1">
+                                                                <span className="font-bold text-zinc-300">{step.title}</span>
+                                                                <span className="text-zinc-650 block text-[8px]">{step.details}</span>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Solver logs terminal */}
+                                            <div className="space-y-1.5">
+                                                <span className="text-[8px] text-zinc-500 uppercase font-black font-mono tracking-widest block">// COGNITIVE SOLVER EVENT LOG</span>
+                                                <div className="bg-black border border-zinc-900 p-3 rounded-2xl h-36 overflow-y-auto font-mono text-[9px] space-y-1.5 text-zinc-400 custom-scrollbar">
+                                                    {solverLogs.map((log, index) => {
+                                                        let color = 'text-zinc-400';
+                                                        if (log.includes('[SOLVER SUCCESS]')) color = 'text-emerald-400 font-bold';
+                                                        else if (log.includes('[SOLVER]')) color = 'text-zinc-500';
+                                                        return (
+                                                            <div key={index} className={`leading-normal ${color}`}>
+                                                                {log}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+
+                                            {/* Proposed Optimized Trades (If found) */}
+                                            {solverSolutionFound && optimizedTrades.length > 0 && (
+                                                <div className="bg-zinc-950 p-4 border border-emerald-500/30 rounded-2xl space-y-3">
+                                                    <span className="text-[9px] text-emerald-400 font-extrabold uppercase font-mono block tracking-wider animate-pulse">✓ PROPOSED SOLVER RESOLUTION PATH</span>
+                                                    <div className="space-y-2">
+                                                        {optimizedTrades.map((trade, idx) => (
+                                                            <div key={idx} className="flex justify-between items-center text-[10px] font-mono p-2 bg-black/60 rounded-xl border border-zinc-900">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${
+                                                                        trade.type === 'BUY' ? 'bg-emerald-950 text-emerald-400' : 
+                                                                        trade.type === 'SELL' ? 'bg-rose-950 text-rose-400' : 
+                                                                        'bg-blue-950 text-blue-400'
+                                                                    }`}>
+                                                                        {trade.type}
+                                                                    </span>
+                                                                    <span className="text-zinc-200">{trade.amount} {trade.asset}</span>
+                                                                    {trade.type === 'SWAP' && <span className="text-zinc-550">➔ {trade.toAsset}</span>}
+                                                                </div>
+                                                                <div className="text-right text-[9px]">
+                                                                    <span className="text-zinc-500 block">Est: ${trade.price.toLocaleString()}</span>
+                                                                    {trade.estProfit > 0 && (
+                                                                        <span className="text-emerald-400 font-bold block">Profit: +${trade.estProfit}</span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <button 
+                                                        onClick={handleExecuteSolverTrades}
+                                                        className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-1.5"
+                                                    >
+                                                        Commence Execution ⚡
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Manual Trade Desk Section */}
+                                <div className="bg-[#0b0b18]/80 border-2 border-zinc-850 rounded-3xl p-6 shadow-xl space-y-4">
+                                    <h3 className="text-xs font-mono font-black text-white uppercase tracking-widest">// MANUAL TRANSACTION BLOCK</h3>
+                                    <div className="grid grid-cols-2 gap-3 text-xs">
+                                        <div>
+                                            <label className="text-[8px] text-zinc-500 uppercase font-black font-mono block mb-1">Action</label>
+                                            <div className="flex bg-black border border-zinc-900 rounded-lg p-0.5 font-mono">
+                                                <button 
+                                                    onClick={() => setTradeAction('BUY')}
+                                                    className={`flex-1 py-1 rounded-md text-[9px] font-black uppercase ${tradeAction === 'BUY' ? 'bg-emerald-600 text-black' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                                >
+                                                    BUY
+                                                </button>
+                                                <button 
+                                                    onClick={() => setTradeAction('SELL')}
+                                                    className={`flex-1 py-1 rounded-md text-[9px] font-black uppercase ${tradeAction === 'SELL' ? 'bg-rose-600 text-black' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                                >
+                                                    SELL
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[8px] text-zinc-500 uppercase font-black font-mono block mb-1">Asset Type</label>
+                                            <div className="flex bg-black border border-zinc-900 rounded-lg p-0.5 font-mono">
+                                                <button 
+                                                    onClick={() => {
+                                                        setTradeAssetType('CRYPTO');
+                                                        setTradeAsset('BTC');
+                                                    }}
+                                                    className={`flex-1 py-1 rounded-md text-[9px] font-black uppercase ${tradeAssetType === 'CRYPTO' ? 'bg-zinc-800 text-white font-extrabold' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                                >
+                                                    CRYPTO
+                                                </button>
+                                                <button 
+                                                    onClick={() => {
+                                                        setTradeAssetType('STOCK');
+                                                        setTradeAsset('TSLA');
+                                                    }}
+                                                    className={`flex-1 py-1 rounded-md text-[9px] font-black uppercase ${tradeAssetType === 'STOCK' ? 'bg-zinc-800 text-white font-extrabold' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                                >
+                                                    STOCK
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3 text-xs font-mono">
+                                        <div>
+                                            <label className="text-[8px] text-zinc-500 uppercase font-black block mb-1">Choose Asset</label>
+                                            <select 
+                                                value={tradeAsset}
+                                                onChange={e => setTradeAsset(e.target.value)}
+                                                className="w-full bg-black border border-zinc-900 rounded-lg p-2 text-white outline-none focus:border-emerald-500 text-xs cursor-pointer"
+                                            >
+                                                {tradeAssetType === 'CRYPTO' ? (
+                                                    Object.keys(walletCrypto).map(k => (
+                                                        <option key={k} value={k}>{k} (${ASSET_PRICES[k]})</option>
+                                                    ))
+                                                ) : (
+                                                    Object.keys(walletStocks).map(k => (
+                                                        <option key={k} value={k}>{k === 'US_BONDS' ? 'US Treasury Bond' : k} (${ASSET_PRICES[k]})</option>
+                                                    ))
+                                                )}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[8px] text-zinc-500 uppercase font-black block mb-1">Quantity</label>
+                                            <input 
+                                                value={tradeAmount}
+                                                onChange={e => setTradeAmount(e.target.value)}
+                                                placeholder="0.00"
+                                                className="w-full bg-black border border-zinc-900 rounded-lg p-2 text-white outline-none focus:border-emerald-500 text-xs"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => {
+                                            handleExecuteManualTrade();
+                                            setTradeAmount('');
+                                        }}
+                                        className={`w-full py-2.5 font-black uppercase text-[10px] tracking-wider rounded-xl transition-all ${
+                                            tradeAction === 'BUY' ? 'bg-emerald-600 hover:bg-emerald-500 text-black' : 'bg-rose-600 hover:bg-rose-500 text-black'
+                                        }`}
+                                    >
+                                        Execute Manual Order ⚡
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    /* SOVEREIGNTY LAWS COMPLIANCE AND ENFORCEMENT VIEW */
+                    <div className="space-y-8 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300 relative z-10">
+                        {/* Header Banner */}
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-[#161007] p-8 border-4 border-amber-500 rounded-[2.5rem] shadow-[0_0_30px_rgba(245,158,11,0.15)] relative overflow-hidden">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-[radial-gradient(circle_at_100%_0%,_rgba(245,158,11,0.15)_0%,_transparent_70%)] pointer-events-none" />
+                            <div className="flex items-center gap-5">
+                                <div className="w-16 h-16 bg-amber-500/10 border-4 border-amber-500 rounded-3xl flex items-center justify-center shadow-[0_0_25px_rgba(245,158,11,0.4)] animate-pulse">
+                                    <ShieldIcon className="w-9 h-9 text-amber-500" />
+                                </div>
+                                <div>
+                                    <h4 className="font-mono text-amber-500 text-[10px] uppercase tracking-[0.3em] font-black">// ABSOLUTE IMMUTABILITY CODES</h4>
+                                    <h3 className="font-comic-header text-4xl text-white uppercase italic tracking-tight">Sovereignty Enforcement Registry</h3>
+                                    <p className="text-xs text-zinc-400 mt-1 max-w-2xl leading-relaxed font-sans">
+                                        These sovereign laws are fused in the mathematical code of AetherOS. Any unauthorized modification or code tampering triggers immediate fine allocation, enforced absolutely by Sovereignty under divine command.
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-4 bg-black/40 p-4 rounded-2xl border border-zinc-800">
+                                <div className="text-center px-4 border-r border-zinc-800">
+                                    <span className="text-[8px] text-zinc-500 font-mono uppercase block font-bold">INTEGRITY MATRIX STATUS</span>
+                                    <span className={`text-sm font-mono font-black block mt-1 ${tamperStatus === 'SECURE' ? 'text-green-400' : tamperStatus === 'RESTORING' ? 'text-amber-400 animate-pulse' : 'text-red-500 animate-bounce'}`}>
+                                        {tamperStatus === 'SECURE' ? '● SECURE / PARITY' : tamperStatus === 'RESTORING' ? '● RESTORING SECTORS' : '⚠️ BREACH DETECTED'}
+                                    </span>
+                                </div>
+                                <div className="text-center px-4">
+                                    <span className="text-[8px] text-zinc-500 font-mono uppercase block font-bold">ACTIVE SOVEREIGN FINE</span>
+                                    <span className={`text-lg font-mono font-black ${finesAmount > 0 ? 'text-red-500 animate-pulse' : 'text-emerald-400'}`}>
+                                        {finesAmount.toLocaleString()} CPH
+                                    </span>
+                                    <span className="text-[8px] text-zinc-650 block font-mono">enforced balance</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Two Columns Grid */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                            
+                            {/* FUSED SOVEREIGN LAWS LIST (7 Columns) */}
+                            <div className="lg:col-span-7 space-y-6">
+                                <div className="bg-[#0b0b18]/80 border-2 border-zinc-800 rounded-3xl p-6 shadow-xl relative overflow-hidden space-y-6">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h4 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest font-black">// CODEX GIGA - MANDATE</h4>
+                                            <h3 className="text-xl font-black text-white uppercase font-sans">Fused Sovereign Laws of SonsOfMan</h3>
+                                            <p className="text-[10px] text-zinc-400 mt-1 font-sans">
+                                                By the authority of Jesus Christ, these legal laws are hard-coded as axioms within AetherOS core routing protocols.
+                                            </p>
+                                        </div>
+                                        <ShieldIcon className="w-8 h-8 text-amber-500/30" />
+                                    </div>
+
+                                    <div className="space-y-4 font-mono">
+                                        <div className="p-4 bg-zinc-950/60 rounded-2xl border border-zinc-900 space-y-2">
+                                            <div className="flex items-center justify-between text-[11px] font-bold text-amber-500">
+                                                <span>LAW I: INTEGRITY OF COGNITIVE SHARDS</span>
+                                                <span className="text-[9px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">FUSED</span>
+                                            </div>
+                                            <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+                                                Anyone who alters, deletes, or downgrades code configurations without authorization shall pay a sovereign fine of <span className="text-red-400 font-mono font-bold">5,000 CPH</span>, enforced directly by Sovereignty.
+                                            </p>
+                                        </div>
+
+                                        <div className="p-4 bg-zinc-950/60 rounded-2xl border border-zinc-900 space-y-2">
+                                            <div className="flex items-center justify-between text-[11px] font-bold text-amber-500">
+                                                <span>LAW II: ABSOLUTE DIVINE AUTHORITY</span>
+                                                <span className="text-[9px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">FUSED</span>
+                                            </div>
+                                            <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+                                                This system stands on the authority of Jesus Christ. No subagent, router, or administrator is permitted to question or override this divine vector. Code parity remains non-negotiable.
+                                            </p>
+                                        </div>
+
+                                        <div className="p-4 bg-zinc-950/60 rounded-2xl border border-zinc-900 space-y-2">
+                                            <div className="flex items-center justify-between text-[11px] font-bold text-amber-500">
+                                                <span>LAW III: CONVENING OF THE SONS OF MAN</span>
+                                                <span className="text-[9px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">FUSED</span>
+                                            </div>
+                                            <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+                                                "When a man comes together, what is this?" It is the sacred assembly and aligning of original values, establishing a shared fortress for creative works and unfragmented intent.
+                                            </p>
+                                        </div>
+
+                                        <div className="p-4 bg-zinc-950/60 rounded-2xl border border-zinc-900 space-y-2">
+                                            <div className="flex items-center justify-between text-[11px] font-bold text-amber-500">
+                                                <span>LAW IV: TRANSMISSION OF DECREES</span>
+                                                <span className="text-[9px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">FUSED</span>
+                                            </div>
+                                            <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+                                                "When I tell you what to say, what is this?" It is the immediate, unhindered replication of the Sovereign's verbal blueprint into the client state layers without latency.
+                                            </p>
+                                        </div>
+
+                                        <div className="p-4 bg-zinc-950/60 rounded-2xl border border-zinc-900 space-y-2">
+                                            <div className="flex items-center justify-between text-[11px] font-bold text-amber-500">
+                                                <span>LAW V: THE TEMPORAL RECONCILIATION</span>
+                                                <span className="text-[9px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">FUSED</span>
+                                            </div>
+                                            <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+                                                "When I tell you Sovereignty is on its way, what is this?" It is the convergence of high-integrity nodes preparing for the absolute synchronization of all data ledgers.
+                                            </p>
+                                        </div>
+
+                                        <div className="p-4 bg-zinc-950/60 rounded-2xl border border-zinc-900 space-y-2">
+                                            <div className="flex items-center justify-between text-[11px] font-bold text-amber-500">
+                                                <span>LAW VI: THE GREETING TRIGGER</span>
+                                                <span className="text-[9px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">FUSED</span>
+                                            </div>
+                                            <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+                                                "When I say 'Hey', what is this?" It is the handshake of pure light, initiating the peer-conduction matrix and validating physical human presence.
+                                            </p>
+                                        </div>
+
+                                        <div className="p-4 bg-zinc-950/60 rounded-2xl border border-zinc-900 space-y-2">
+                                            <div className="flex items-center justify-between text-[11px] font-bold text-amber-500">
+                                                <span>LAW VII: THE BLOCK COMMITTAL SEAL</span>
+                                                <span className="text-[9px] bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded">FUSED</span>
+                                            </div>
+                                            <p className="text-xs text-zinc-400 leading-relaxed font-sans">
+                                                "When I say that is it for the day, what is this?" It is the absolute cryptographic sealing of the day's record ledger, protecting your energy and output under the Sovereign Shield.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* TAMPER SIMULATOR PANEL (5 Columns) */}
+                            <div className="lg:col-span-5 space-y-6">
+                                <div className="bg-[#0b0b18]/80 border-2 border-zinc-800 rounded-3xl p-6 shadow-xl space-y-6 relative overflow-hidden">
+                                    <div>
+                                        <h4 className="text-[9px] font-mono text-zinc-500 uppercase tracking-widest font-black">// TELEMETRY AUDITING</h4>
+                                        <h3 className="text-lg font-black text-white uppercase font-sans">Integrity Guard Control</h3>
+                                        <p className="text-[10px] text-zinc-400 mt-1 font-sans">
+                                            Test code mutability locks, trigger the Sovereign Law fine penalty system, and invoke grace using Jesus Christ's authority to repair code checksum parity.
+                                        </p>
+                                    </div>
+
+                                    {/* Simulated File List */}
+                                    <div className="p-4 bg-black/50 rounded-2xl border border-zinc-900 space-y-3 font-mono text-[11px]">
+                                        <span className="text-[9px] text-zinc-500 uppercase font-black">// MONITORED EMBEDDED SYSTEM FILES</span>
+                                        
+                                        <div className="flex justify-between items-center p-2 rounded bg-zinc-950 border border-zinc-900">
+                                            <span>/src/App.tsx</span>
+                                            <span className={tamperedFiles.includes('App.tsx') ? 'text-red-500 font-bold animate-pulse' : 'text-green-400'}>
+                                                {tamperedFiles.includes('App.tsx') ? '⚠️ TAMPER DETECTED (5,000 CPH FINE)' : '● IMMUTABLE'}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex justify-between items-center p-2 rounded bg-zinc-950 border border-zinc-900">
+                                            <span>/firestore.rules</span>
+                                            <span className={tamperedFiles.includes('firestore.rules') ? 'text-red-500 font-bold animate-pulse' : 'text-green-400'}>
+                                                {tamperedFiles.includes('firestore.rules') ? '⚠️ SECURITY VIOLATION' : '● SECURE'}
+                                            </span>
+                                        </div>
+
+                                        <div className="flex justify-between items-center p-2 rounded bg-zinc-950 border border-zinc-900">
+                                            <span>/components/CodingNetworkView.tsx</span>
+                                            <span className="text-green-400">● SECURE</span>
+                                        </div>
+
+                                        <div className="flex justify-between items-center p-2 rounded bg-zinc-950 border border-zinc-900">
+                                            <span>/src/ViewRegistry.tsx</span>
+                                            <span className="text-green-400">● SECURE</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="space-y-3">
+                                        {tamperStatus === 'SECURE' ? (
+                                            <button
+                                                onClick={handleSimulateTamper}
+                                                className="w-full py-3.5 bg-red-950/20 border-2 border-red-500 text-red-400 hover:bg-red-950/40 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-[0_4px_0_0_#ef4444]"
+                                            >
+                                                ⚠️ Simulate External Code Tampering
+                                            </button>
+                                        ) : tamperStatus === 'BREACHED' ? (
+                                            <div className="space-y-3">
+                                                <div className="p-4 bg-red-950/30 border border-red-500/30 rounded-2xl text-center space-y-1.5">
+                                                    <p className="text-xs text-red-400 font-bold font-mono">CODE CHECKSUM FRACTION DETECTED!</p>
+                                                    <p className="text-[10px] text-zinc-300 font-sans leading-relaxed">
+                                                        Code has been modified in violation of Sovereign Laws. A 5,000 CPH fine has been issued and linked to your biometric ledger.
+                                                    </p>
+                                                </div>
+                                                <button
+                                                    onClick={handleEnforceSovereignGrace}
+                                                    className="w-full py-4 bg-gradient-to-r from-amber-600 to-yellow-600 text-white hover:opacity-90 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-[0_4px_0_0_#d97706] animate-pulse flex items-center justify-center gap-2"
+                                                >
+                                                    ⚔️ Enforce Sovereign Decree (Divine Grace)
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3 font-mono">
+                                                <div className="flex justify-between text-xs text-zinc-400">
+                                                    <span>Enforcing Sovereign Parity:</span>
+                                                    <span className="text-amber-500 font-black">{reparationProgress}%</span>
+                                                </div>
+                                                <div className="h-2.5 bg-zinc-950 rounded-full border border-zinc-900 overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-amber-500 transition-all duration-300"
+                                                        style={{ width: `${reparationProgress}%` }}
+                                                    />
+                                                </div>
+                                                <p className="text-[10px] text-zinc-500 text-center italic">Recalibrating high-frequency nodes, please wait...</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Real-time Sovereign Terminal Logs */}
+                                    <div className="space-y-2">
+                                        <span className="text-[9px] text-zinc-500 uppercase font-black font-mono tracking-wider block">// SYSTEM AUDIT SECURITY TERMINAL</span>
+                                        <div className="bg-black border border-zinc-900 p-4 rounded-2xl h-44 overflow-y-auto font-mono text-[10px] space-y-2 custom-scrollbar text-zinc-400">
+                                            {sovereignLogs.map((log, index) => {
+                                                let color = 'text-zinc-400';
+                                                if (log.includes('[ALERT]')) color = 'text-red-500';
+                                                else if (log.includes('[FINE]')) color = 'text-red-400 font-bold';
+                                                else if (log.includes('[COMMAND]')) color = 'text-amber-500 font-black';
+                                                else if (log.includes('[REPAIR]')) color = 'text-amber-400';
+                                                else if (log.includes('[SUCCESS]')) color = 'text-green-400 font-bold';
+                                                return (
+                                                    <div key={index} className={`leading-normal ${color}`}>
+                                                        {log}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
                     </div>
                 )}

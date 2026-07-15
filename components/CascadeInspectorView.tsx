@@ -268,15 +268,73 @@ export const CascadeInspectorView: React.FC = () => {
         return Array.from(classes);
     }, [aaptResources]);
 
+    // Parse regex flags and state for AAPT queries
+    const searchAaptQueryRegexState = useMemo(() => {
+        const trimmedQuery = searchAaptQuery.trim();
+        if (!trimmedQuery) return { isRegex: false, isValid: false, pattern: '' };
+        
+        const isRegexTrigger = trimmedQuery.startsWith('(?x)') || 
+                               trimmedQuery.includes('\\x') || 
+                               trimmedQuery.includes('[') || 
+                               trimmedQuery.includes('(');
+                               
+        if (isRegexTrigger) {
+            try {
+                let pattern = trimmedQuery;
+                if (pattern.startsWith('(?x)')) {
+                    pattern = pattern.substring(4).replace(/\s+/g, '');
+                }
+                new RegExp(pattern);
+                return { isRegex: true, isValid: true, pattern };
+            } catch (err) {
+                return { isRegex: true, isValid: false, pattern: '' };
+            }
+        }
+        return { isRegex: false, isValid: false, pattern: '' };
+    }, [searchAaptQuery]);
+
     // Filter resources based on query and group filter
     const filteredAaptResources = useMemo(() => {
+        let regex: RegExp | null = null;
+        if (searchAaptQueryRegexState.isValid) {
+            try {
+                regex = new RegExp(searchAaptQueryRegexState.pattern);
+            } catch (e) {
+                regex = null;
+            }
+        }
+
         return aaptResources.filter(r => {
             const matchesClass = selectedAaptClass === 'all' || r.className === selectedAaptClass;
-            const matchesQuery = r.name.toLowerCase().includes(searchAaptQuery.toLowerCase()) || 
-                                 r.hex.toLowerCase().includes(searchAaptQuery.toLowerCase());
+            
+            let matchesQuery = false;
+            if (regex) {
+                if (regex.test(r.name)) {
+                    matchesQuery = true;
+                } else if (regex.test(r.hex)) {
+                    matchesQuery = true;
+                } else {
+                    // Convert Hex to 4-byte string and test regex on raw bytes
+                    const val = parseInt(r.hex, 16);
+                    if (!isNaN(val)) {
+                        const b0 = (val >> 24) & 0xff;
+                        const b1 = (val >> 16) & 0xff;
+                        const b2 = (val >> 8) & 0xff;
+                        const b3 = val & 0xff;
+                        const byteString = String.fromCharCode(b0, b1, b2, b3);
+                        if (regex.test(byteString)) {
+                            matchesQuery = true;
+                        }
+                    }
+                }
+            } else {
+                matchesQuery = r.name.toLowerCase().includes(searchAaptQuery.toLowerCase()) || 
+                               r.hex.toLowerCase().includes(searchAaptQuery.toLowerCase());
+            }
+
             return matchesClass && matchesQuery;
         });
-    }, [aaptResources, selectedAaptClass, searchAaptQuery]);
+    }, [aaptResources, selectedAaptClass, searchAaptQuery, searchAaptQueryRegexState]);
 
     // Dynamic Cascade Difference Calculator: parses hex indices and returns distance offsets
     const addrDiffValue = useMemo(() => {
@@ -1322,6 +1380,23 @@ export const CascadeInspectorView: React.FC = () => {
                                     className="w-full bg-[#050508] border border-zinc-800 rounded-xl px-3 py-1.5 pl-8 text-white focus:outline-none focus:border-cyan-500 text-[10px]"
                                 />
                                 <SearchIcon className="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-2" />
+                                {searchAaptQueryRegexState.isRegex && (
+                                    <div className={`text-[8px] font-mono font-bold uppercase px-2 py-1 rounded border mt-1.5 flex items-center justify-between transition-all duration-300 ${
+                                        searchAaptQueryRegexState.isValid 
+                                            ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-400' 
+                                            : 'bg-rose-950/20 border-rose-500/30 text-rose-400'
+                                    }`}>
+                                        <span className="flex items-center gap-1">
+                                            {searchAaptQueryRegexState.isValid 
+                                                ? `✓ Regex Mode: /${searchAaptQueryRegexState.pattern}/` 
+                                                : '✗ Invalid Regex Pattern'
+                                            }
+                                        </span>
+                                        <span className="text-[7px] text-zinc-500">
+                                            {searchAaptQueryRegexState.isValid && 'Kink Detector Engaged'}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Class Category Pills */}

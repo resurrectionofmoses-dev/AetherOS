@@ -10,6 +10,7 @@ import {
     getAccessToken 
 } from '../services/firebaseAuthService';
 import { callAIProxy } from '../services/geminiService';
+import { checkAndQuarantine } from '../utils';
 import { 
     Mail, Send, Search, ShieldAlert, Sparkles, RefreshCw, 
     Trash2, Layers, CheckCircle, BrainCircuit, Info, AlertCircle,
@@ -184,7 +185,11 @@ export const GmailView: React.FC = () => {
             }
 
             const list = await gmailService.listMessages(12, finalQuery);
-            setEmails(list);
+            const cleanList = list.filter(m => {
+                const res = checkAndQuarantine(m, 'email');
+                return res.isSafe;
+            });
+            setEmails(cleanList);
             
             // Try to extract user email address from list if available
             if (list.length > 0 && !userEmailAddress) {

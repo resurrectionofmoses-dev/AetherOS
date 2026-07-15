@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { UserProfile, NetworkProject, PortfolioLink, ProfileProject, WorkExperience, Education, ProfileProjectTestimonial } from '../types';
+import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { PortfolioProjectCard } from './PortfolioProjectCard';
 import { UserIcon, EditIcon, CheckIcon, CodeIcon, XIcon, PlusIcon, ShieldIcon } from './icons';
 import { 
@@ -59,6 +60,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
     const [workExperience, setWorkExperience] = useState<WorkExperience[]>([]);
     const [education, setEducation] = useState<Education[]>([]);
     const [skillEndorsements, setSkillEndorsements] = useState<Record<string, string[]>>({});
+    const [radarViewMode, setRadarViewMode] = useState<'CATEGORY' | 'INDIVIDUAL'>('CATEGORY');
     
     const [newSkill, setNewSkill] = useState('');
     const [newCatSkill, setNewCatSkill] = useState<Record<string, string>>({});
@@ -244,6 +246,51 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
             'DeFi Protocols': ['Operator-Gamma']
         });
     }, [profile, isEditing]);
+
+    const radarData = useMemo(() => {
+        const categories = (isEditing ? editForm?.categorizedSkills : editForm?.categorizedSkills) || [
+            { category: 'Frontend', skills: ['React', 'TypeScript', 'Tailwind CSS', 'Framer Motion'] },
+            { category: 'Backend', skills: ['Node.js', 'Express', 'GraphQL', 'WebSockets'] },
+            { category: 'DevOps & Cloud', skills: ['Docker', 'Kubernetes', 'Google Cloud Platform', 'CI/CD'] },
+            { category: 'Smart Contracts', skills: ['Solidity', 'Rust', 'Web3.js', 'Hardhat'] },
+            { category: 'Data & AI', skills: ['Python', 'PyTorch', 'SQL', 'Gemini SDK'] }
+        ];
+
+        if (radarViewMode === 'CATEGORY') {
+            return categories.map(cat => {
+                let totalScore = 0;
+                const skillList = cat.skills || [];
+                skillList.forEach(s => {
+                    const endorsementsCount = (skillEndorsements[s] || []).length;
+                    const score = Math.min(100, 50 + endorsementsCount * 15);
+                    totalScore += score;
+                });
+                const averageScore = skillList.length > 0 ? Math.round(totalScore / skillList.length) : 0;
+                return {
+                    subject: cat.category,
+                    value: averageScore === 0 && skillList.length === 0 ? 0 : Math.max(15, averageScore)
+                };
+            });
+        } else {
+            const flatSkills = categories.flatMap(cat => cat.skills || []);
+            const allSkills = flatSkills.length > 0 ? flatSkills : (editForm?.skills || []);
+            
+            const skillScores = allSkills.map(s => {
+                const endorsementsCount = (skillEndorsements[s] || []).length;
+                const score = Math.min(100, 50 + endorsementsCount * 15);
+                return { subject: s, value: score };
+            });
+
+            const topSkills = [...skillScores]
+                .sort((a, b) => b.value - a.value)
+                .slice(0, 7);
+
+            while (topSkills.length < 3) {
+                topSkills.push({ subject: 'Lattice Core', value: 50 });
+            }
+            return topSkills;
+        }
+    }, [editForm?.categorizedSkills, editForm?.skills, skillEndorsements, radarViewMode]);
 
     const handleSetPassphrase = () => {
         if (!passphrase.trim()) return;
@@ -1131,6 +1178,22 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                                 {cat.skills.map(skill => {
                                                     const endorseCount = (skillEndorsements?.[skill] || []).length;
                                                     const alreadyEndorsed = (skillEndorsements?.[skill] || []).includes('Operator-You');
+                                                    
+                                                    // Determine skill proficiency
+                                                    const viewProficiency = profile.skillProficiencies?.[skill] || 'Intermediate';
+                                                    const editProficiency = editForm.skillProficiencies?.[skill] || 'Intermediate';
+                                                    
+                                                    const getProficiencyStyle = (p: string) => {
+                                                        switch(p) {
+                                                            case 'Beginner': return 'bg-zinc-900 border-zinc-800 text-zinc-400';
+                                                            case 'Intermediate': return 'bg-blue-950/10 border-blue-500/25 text-blue-400';
+                                                            case 'Advanced': return 'bg-purple-950/10 border-purple-500/25 text-purple-400';
+                                                            case 'Expert': return 'bg-amber-950/10 border-amber-500/25 text-amber-500';
+                                                            case 'Master': return 'bg-emerald-950/10 border-emerald-500/25 text-emerald-400';
+                                                            default: return 'bg-zinc-900 border-zinc-800 text-zinc-400';
+                                                        }
+                                                    };
+
                                                     return (
                                                         <motion.div 
                                                             key={skill} 
@@ -1139,16 +1202,49 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                                             exit={{ opacity: 0, scale: 0.95 }}
                                                             className="bg-purple-950/10 border border-purple-500/10 border-purple-900/40 rounded-lg p-2 flex items-center justify-between gap-3 text-[10px] uppercase font-black"
                                                         >
-                                                            <div className="flex items-center gap-2 min-w-0">
-                                                                <span className="text-purple-300 truncate tracking-wider font-mono text-[9.5px]">{skill}</span>
-                                                                {endorseCount > 0 && (
-                                                                    <span className="bg-purple-500/20 text-purple-300 text-[8px] font-black px-1 py-0.5 rounded flex items-center gap-1 shrink-0">
-                                                                        <Award className="w-2.5 h-2.5 text-purple-400" /> {endorseCount}
+                                                            <div className="flex flex-col gap-1 min-w-0">
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    <span className="text-purple-300 truncate tracking-wider font-mono text-[9.5px]">{skill}</span>
+                                                                    {endorseCount > 0 && (
+                                                                        <span className="bg-purple-500/20 text-purple-300 text-[8px] font-black px-1 py-0.5 rounded flex items-center gap-1 shrink-0">
+                                                                            <Award className="w-2.5 h-2.5 text-purple-400" /> {endorseCount}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                {!isEditing && (
+                                                                    <span className={`text-[7.5px] px-1 py-0.2 rounded border max-w-max uppercase tracking-wider font-mono font-bold leading-none ${getProficiencyStyle(viewProficiency)}`}>
+                                                                        {viewProficiency}
                                                                     </span>
                                                                 )}
                                                             </div>
                                                             
                                                             <div className="flex items-center gap-1.5 shrink-0">
+                                                                {isEditing && (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="text-[7px] text-zinc-550 uppercase font-black tracking-wider mr-1">Level:</span>
+                                                                        <select 
+                                                                            value={editProficiency}
+                                                                            onChange={e => {
+                                                                                const val = e.target.value as any;
+                                                                                setEditForm(prev => ({
+                                                                                    ...prev,
+                                                                                    skillProficiencies: {
+                                                                                        ...(prev.skillProficiencies || {}),
+                                                                                        [skill]: val
+                                                                                    }
+                                                                                }));
+                                                                            }}
+                                                                            className="bg-black border border-zinc-800 rounded px-1 py-0.5 text-[8.5px] font-mono text-purple-300 focus:outline-none focus:border-purple-500 h-6 cursor-pointer"
+                                                                        >
+                                                                            <option value="Beginner">Beginner</option>
+                                                                            <option value="Intermediate">Intermediate</option>
+                                                                            <option value="Advanced">Advanced</option>
+                                                                            <option value="Expert">Expert</option>
+                                                                            <option value="Master">Master</option>
+                                                                        </select>
+                                                                    </div>
+                                                                )}
+
                                                                 {!isEditing && (
                                                                     <div className="flex items-center gap-1.5">
                                                                         <button 
@@ -1177,7 +1273,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                                                 {isEditing && (
                                                                     <button 
                                                                         onClick={() => handleRemoveCategorizedSkill(cat.category, skill)} 
-                                                                        className="text-zinc-500 hover:text-red-400 transition-colors cursor-pointer p-0.5 rounded bg-zinc-900 border border-zinc-850"
+                                                                        className="text-zinc-500 hover:text-red-400 transition-colors cursor-pointer p-0.5 rounded bg-zinc-900 border border-zinc-850 h-6 w-6 flex items-center justify-center"
                                                                         title="Detach Skill"
                                                                     >
                                                                         <XIcon className="w-3 h-3" />
@@ -1247,6 +1343,68 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                         </div>
                                     </div>
                                 )}
+                            </div>
+                        </motion.div>
+
+                        {/* Verified Skill Signature Matrix (Radar Chart Visualizer) */}
+                        <motion.div 
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: 0.22 }}
+                            className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 shadow-lg relative overflow-hidden flex flex-col justify-between"
+                        >
+                            <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
+                            
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 flex items-center gap-2">
+                                        <Award className="w-3.5 h-3.5 text-purple-400" /> Verified Skill Signature Matrix
+                                    </h3>
+                                    <p className="text-[9px] text-zinc-400 mt-1 font-mono">
+                                        Base: 50% for declared skills, Peer validation: +15% per endorsement (max 100%).
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* View toggle */}
+                            <div className="flex bg-black/40 p-1 rounded-xl border border-zinc-900 mb-4 self-start">
+                                <button
+                                    onClick={() => setRadarViewMode('CATEGORY')}
+                                    className={`px-3 py-1 text-[9px] font-mono font-black rounded-lg transition-all ${radarViewMode === 'CATEGORY' ? 'bg-purple-600 text-black' : 'text-zinc-400 hover:text-white'}`}
+                                >
+                                    CATEGORY VIEW
+                                </button>
+                                <button
+                                    onClick={() => setRadarViewMode('INDIVIDUAL')}
+                                    className={`px-3 py-1 text-[9px] font-mono font-black rounded-lg transition-all ${radarViewMode === 'INDIVIDUAL' ? 'bg-purple-600 text-black' : 'text-zinc-400 hover:text-white'}`}
+                                >
+                                    TOP TECH STACK
+                                </button>
+                            </div>
+
+                            {/* Radar Chart rendering */}
+                            <div className="h-[250px] w-full flex items-center justify-center relative">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarData}>
+                                        <PolarGrid stroke="#27272a" />
+                                        <PolarAngleAxis 
+                                            dataKey="subject" 
+                                            tick={{ fill: '#a1a1aa', fontSize: 8.5, fontFamily: 'monospace' }}
+                                        />
+                                        <PolarRadiusAxis 
+                                            angle={30} 
+                                            domain={[0, 100]} 
+                                            tick={{ fill: '#52525b', fontSize: 7.5 }}
+                                        />
+                                        <Radar
+                                            name="Proficiency"
+                                            dataKey="value"
+                                            stroke="#a855f7"
+                                            fill="#a855f7"
+                                            fillOpacity={0.25}
+                                        />
+                                    </RadarChart>
+                                </ResponsiveContainer>
                             </div>
                         </motion.div>
 
@@ -2060,13 +2218,22 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                                 </div>
 
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                                                    <div className="space-y-1.5 col-span-2">
+                                                    <div className="space-y-1.5">
                                                         <label className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">Source Code Repo URL</label>
                                                         <input 
                                                             value={p.sourceCodeUrl || ''}
                                                             onChange={e => handleUpdateProject(p.id, 'sourceCodeUrl', e.target.value)}
                                                             className="w-full bg-zinc-950 border border-zinc-850 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
                                                             placeholder="https://github.com/username/project"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <label className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">Screenshot URLs (comma separated)</label>
+                                                        <input 
+                                                            value={(p.screenshots || []).join(', ')}
+                                                            onChange={e => handleUpdateProject(p.id, 'screenshots', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                                                            placeholder="https://images.unsplash.com/photo-1, https://images.unsplash.com/photo-2"
                                                         />
                                                     </div>
                                                 </div>

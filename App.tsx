@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { AndroidTransition } from './components/AndroidTransition';
 import { v4 as uuidv4 } from 'uuid';
 import { Toaster, toast } from 'sonner';
@@ -18,6 +18,7 @@ import { SonicMetric } from './components/SonicMetric';
 import { ConjunctionThroughputMeter } from './components/ConjunctionThroughputMeter';
 import { LockdownOverlay } from './components/LockdownOverlay';
 import { MatrixCodeRain } from './components/MatrixCodeRain';
+import { SovereignAccessGuard } from './components/SovereignAccessGuard';
 import { TopNavBar } from './components/TopNavBar';
 import { TheShroud } from './components/TheShroud';
 import { WaveVisualizer } from './components/WaveVisualizer';
@@ -28,7 +29,7 @@ import { GhostLayer } from './components/GhostLayer';
 import { cellularEngine } from './services/cellularEngine';
 
 import { startChatSession, sendMessageSovereign, generateSoftwareModule, checkConnectivity, scanBinaryFile } from './services/geminiService';
-import { getMimeType } from './utils';
+import { getMimeType, checkAndQuarantine } from './utils';
 import { EmergencyKillSwitch } from './services/emergencyKillSwitch';
 import { safeStorage } from './services/safeStorage';
 import { PredictionEngine } from './services/predictionEngine';
@@ -538,7 +539,7 @@ if (typeof window !== 'undefined') {
 }
 
 const ALL_VIEWS_LIST: MainView[] = [
-  'chat', 'absolute_reliability_network', 'coding_network', 'universal_search', 
+  'chat', 'rescue_companion', 'absolute_reliability_network', 'coding_network', 'universal_search', 
   'gold_conjunction', 'shard_store', 'conjunction_gates', 'projects', 'forge', 
   'covenant', 'verification_gates', 'project_chronos', 'build_logs', 'rt_ipc_lab', 
   'sovereign_shield', 'spectre_browser', 'unified_chain', 'fuel_optimizer', 'vault', 
@@ -567,6 +568,7 @@ export const App: React.FC = () => {
     });
     const [manualOverrides, setManualOverrides] = useState<Partial<Record<keyof SystemStatus, SystemState>>>({});
     const [diagnosticSearchQuery, setDiagnosticSearchQuery] = useState<string>('');
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const handleUpdateSystemStatus = useCallback((system: keyof SystemStatus, state: SystemState) => {
         setManualOverrides(prev => ({
@@ -591,6 +593,7 @@ export const App: React.FC = () => {
     const [isMutedCooldown, setIsMutedCooldown] = useState(false);
     const [muteTimerRemaining, setMuteTimerRemaining] = useState(0);
     const [activityDensity, setActivityDensity] = useState(0);
+    const [heartbeatDuration, setHeartbeatDuration] = useState(1.6);
 
     const [isDeepStasisDebugOpen, setIsDeepStasisDebugOpen] = useState(false);
     const [stasisRemainingTime, setStasisRemainingTime] = useState(8);
@@ -698,7 +701,26 @@ export const App: React.FC = () => {
                 if (savedProfile) {
                     try {
                         const parsedProfile = JSON.parse(savedProfile);
-                        setUserProfile(parsedProfile);
+                        const res = checkAndQuarantine(parsedProfile, 'profile');
+                        if (res.isSafe) {
+                            setUserProfile(parsedProfile);
+                        } else {
+                            setUserProfile({
+                                id: 'OP-7734-X',
+                                username: 'Aetheros_Prime',
+                                bio: 'Lead architect of the Sovereign Shield. Specializing in recursive self-improvement and high-frequency cognitive pipelines.',
+                                skills: ['TypeScript', 'React', 'Node.js', 'Quantum Logic', 'System Architecture'],
+                                lookingForSkills: ['Python', 'AWS', 'Go', 'Rust', 'Solidity'],
+                                experienceLevel: 'Senior / Lead Architect',
+                                role: 'operator',
+                                sovereignty: 'SOVEREIGN_SYSTEM',
+                                sovereigntyTier: 3,
+                                portfolioLinks: [
+                                    { id: 'link_1', label: 'GitHub', url: 'https://github.com/aetheros-prime' },
+                                    { id: 'link_2', label: 'Website', url: 'https://aetheros.network' }
+                                ]
+                            });
+                        }
                     } catch (e) {
                         console.error("[AetherOS] Failed to restore user profile", e);
                     }
@@ -708,7 +730,11 @@ export const App: React.FC = () => {
                 const savedChat = await safeStorage.getItem('aetheros_chat_history');
                 if (savedChat) {
                     const parsed = JSON.parse(savedChat);
-                    setMessages(parsed.map((m: any) => ({
+                    const cleanChat = parsed.filter((m: any) => {
+                        const res = checkAndQuarantine(m, 'message');
+                        return res.isSafe;
+                    });
+                    setMessages(cleanChat.map((m: any) => ({
                         ...m,
                         timestamp: new Date(m.timestamp)
                     })));
@@ -1527,6 +1553,13 @@ export const App: React.FC = () => {
             const density = recentPulses.length;
             setActivityDensity(density);
 
+            // Calculate randomized/organic heartbeat animation speed variation based on activityDensity.
+            // Higher activityDensity makes the heartbeat faster. We introduce a random organic variation (+/- 15%).
+            const baseDuration = Math.max(0.3, 1.6 / (1 + density * 0.15));
+            const variance = (Math.random() * 0.3 - 0.15) * baseDuration;
+            const finalDuration = parseFloat((baseDuration + variance).toFixed(2));
+            setHeartbeatDuration(finalDuration);
+
             // Compute acoustic pressure: base value 30.0 dB SPL + 5.5 dB per event
             const computedPressure = Math.min(120.0, 30.0 + (density * 5.5));
             setAcousticPressure(parseFloat(computedPressure.toFixed(2)));
@@ -1894,6 +1927,31 @@ export const App: React.FC = () => {
 
         setCurrentView(view);
     };
+
+    // Safe Mode automatic redirection effect
+    useEffect(() => {
+        const handleSafeModeCheck = () => {
+            const safeModeActive = localStorage.getItem('aetheros_safe_mode') === 'true';
+            const criticalViews = ['chat', 'system_diagnostic', 'diagnostics', 'sovereign_shield', 'user_profile'];
+            if (safeModeActive && !criticalViews.includes(currentView)) {
+                // Redirect to a safe view (e.g., diagnostics)
+                handleSetView('diagnostics' as any);
+                reportError({
+                    title: 'SAFE_MODE_BYPASS',
+                    message: `Redirected to stable Forensic Audit. Safe Mode active.`,
+                    severity: ErrorSeverity.MEDIUM
+                });
+            }
+        };
+
+        handleSafeModeCheck();
+        window.addEventListener('aetheros_safe_mode_change', handleSafeModeCheck);
+        window.addEventListener('storage', handleSafeModeCheck);
+        return () => {
+            window.removeEventListener('aetheros_safe_mode_change', handleSafeModeCheck);
+            window.removeEventListener('storage', handleSafeModeCheck);
+        };
+    }, [currentView]);
 
     const renderContent = () => {
         const viewRenderer = ViewRegistry[currentView];
@@ -2352,24 +2410,135 @@ export const App: React.FC = () => {
     return (
         <ErrorBoundary>
             <GlobalErrorHandler />
-            <Toaster position="top-right" theme="dark" />
+            <Toaster 
+                position="top-right" 
+                theme="dark" 
+                visibleToasts={2} 
+                duration={2200}
+                toastOptions={{
+                    style: {
+                        background: 'rgba(9, 9, 11, 0.92)',
+                        border: '1px solid rgba(63, 63, 70, 0.4)',
+                        color: '#a1a1aa',
+                        fontFamily: 'monospace',
+                        fontSize: '11px',
+                        letterSpacing: '0.025em',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                    }
+                }}
+            />
+            <style>{`
+                [data-sonner-toast] {
+                    background: rgba(9, 9, 11, 0.92) !important;
+                    border: 1px solid rgba(63, 63, 70, 0.4) !important;
+                    color: #a1a1aa !important;
+                }
+                [data-sonner-toast][data-type="success"] {
+                    border-color: rgba(16, 185, 129, 0.35) !important;
+                    color: #34d399 !important;
+                }
+                [data-sonner-toast][data-type="error"] {
+                    border-color: rgba(239, 68, 68, 0.35) !important;
+                    color: #f87171 !important;
+                }
+                [data-sonner-toast][data-type="info"] {
+                    border-color: rgba(59, 130, 246, 0.35) !important;
+                    color: #60a5fa !important;
+                }
+
+                @keyframes fracture-heartbeat {
+                    0%, 100% {
+                        box-shadow: inset 0 0 30px rgba(244, 63, 94, 0);
+                        background-color: transparent;
+                    }
+                    14% {
+                        box-shadow: inset 0 0 50px rgba(244, 63, 94, 0.12);
+                        background-color: rgba(244, 63, 94, 0.03);
+                    }
+                    28% {
+                        box-shadow: inset 0 0 40px rgba(244, 63, 94, 0.05);
+                        background-color: rgba(244, 63, 94, 0.01);
+                    }
+                    42% {
+                        box-shadow: inset 0 0 70px rgba(244, 63, 94, 0.22);
+                        background-color: rgba(244, 63, 94, 0.05);
+                    }
+                    70% {
+                        box-shadow: inset 0 0 30px rgba(244, 63, 94, 0);
+                        background-color: transparent;
+                    }
+                }
+                .fracture-heartbeat-active {
+                    animation: fracture-heartbeat ${heartbeatDuration}s infinite cubic-bezier(0.215, 0.61, 0.355, 1);
+                }
+            `}</style>
             <div className="flex h-screen w-screen overflow-hidden bg-black text-gray-200">
                 {rubyFilterActive && (
                     <div className="pointer-events-none fixed inset-0 z-[9999] opacity-25 bg-red-600/10 mix-blend-color-dodge ring-inset ring-[15px] ring-red-500/30">
                         <div className="w-full h-full bg-[linear-gradient(rgba(239,68,68,0.12)_50%,_transparent_50%)] bg-[length:100%_4px] animate-pulse" />
                     </div>
                 )}
-            <Sidebar 
-                systemStatus={systemStatus} systemDetails={{}} currentView={currentView as MainView} onSetView={(v) => handleSetView(v as any)} 
-                currentDateTime={currentTime} timeFormat={timeFormat} onToggleTimeFormat={() => setTimeFormat(prev => prev === '12hr' ? '24hr' : '12hr')} 
-                unlockedViews={[...unlockedViews, 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any, 'ai_telemetry' as any, 'cascade_investigator' as any, 'inevitable_crash' as any, 'mission_items' as any, 'gmail' as any]} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
-                onSelectSystemIndicator={(sysName) => {
-                    setDiagnosticSearchQuery(sysName);
-                    handleSetView('system_diagnostic');
-                }}
-            />
+            {/* Desktop Sidebar */}
+            <div className="hidden md:flex h-full">
+                <Sidebar 
+                    systemStatus={systemStatus} systemDetails={{}} currentView={currentView as MainView} onSetView={(v) => handleSetView(v as any)} 
+                    currentDateTime={currentTime} timeFormat={timeFormat} onToggleTimeFormat={() => setTimeFormat(prev => prev === '12hr' ? '24hr' : '12hr')} 
+                    unlockedViews={[...unlockedViews, 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any, 'ai_telemetry' as any, 'cascade_investigator' as any, 'inevitable_crash' as any, 'mission_items' as any, 'gmail' as any, 'sovereign_scroll_console' as any]} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
+                    onSelectSystemIndicator={(sysName) => {
+                        setDiagnosticSearchQuery(sysName);
+                        handleSetView('system_diagnostic');
+                    }}
+                />
+            </div>
+
+            {/* Mobile/Tablet Sidebar Drawer */}
+            <AnimatePresence>
+                {isSidebarOpen && (
+                    <div className="fixed inset-0 z-[200] md:hidden flex">
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 0.6 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setIsSidebarOpen(false)}
+                            className="fixed inset-0 bg-black"
+                        />
+                        {/* Drawer body */}
+                        <motion.div
+                            initial={{ x: '-100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '-100%' }}
+                            transition={{ type: 'tween', duration: 0.22 }}
+                            className="relative h-full w-60 bg-[#050505] z-50 flex flex-col border-r-2 border-zinc-900 shadow-2xl"
+                        >
+                            {/* Close button at top-right inside mobile sidebar drawer */}
+                            <div className="absolute top-2.5 right-2.5 z-[210]">
+                                <button 
+                                    onClick={() => setIsSidebarOpen(false)}
+                                    className="p-1 rounded bg-zinc-950 border border-zinc-800 text-zinc-500 hover:text-white transition-colors active:scale-90"
+                                >
+                                    <span className="sr-only">Close sidebar</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
+                            </div>
+                            <Sidebar 
+                                systemStatus={systemStatus} systemDetails={{}} currentView={currentView as MainView} onSetView={(v) => { handleSetView(v as any); setIsSidebarOpen(false); }} 
+                                currentDateTime={currentTime} timeFormat={timeFormat} onToggleTimeFormat={() => setTimeFormat(prev => prev === '12hr' ? '24hr' : '12hr')} 
+                                unlockedViews={[...unlockedViews, 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any, 'ai_telemetry' as any, 'cascade_investigator' as any, 'inevitable_crash' as any, 'mission_items' as any, 'gmail' as any, 'sovereign_scroll_console' as any]} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
+                                onSelectSystemIndicator={(sysName) => {
+                                    setDiagnosticSearchQuery(sysName);
+                                    handleSetView('system_diagnostic');
+                                    setIsSidebarOpen(false);
+                                }}
+                            />
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
             
-            <main className={`flex-1 flex flex-col relative overflow-hidden transition-all duration-75 flex-hinge dpi-300-shield ${isTerminal ? 'terminal-mode font-mono bg-black text-green-500 border-l-2 border-green-900/40' : ''} ${isHalted ? 'brightness-50 grayscale pointer-events-none' : ''}`}>
+            <main className={`flex-1 flex flex-col relative overflow-hidden transition-all duration-75 flex-hinge dpi-300-shield ${isTerminal ? 'terminal-mode font-mono bg-black text-green-500 border-l-2 border-green-900/40' : ''} ${isHalted ? 'brightness-50 grayscale pointer-events-none' : ''} ${isSystemFractured ? 'fracture-heartbeat-active' : ''}`}>
                 <TheShroud isSensitive={isGhostMode}>
                     <TopNavBar 
                         currentView={currentView as MainView} 
@@ -2381,6 +2550,7 @@ export const App: React.FC = () => {
                         onToggleGhostMode={() => setIsGhostMode(!isGhostMode)}
                         profile={userProfile}
                         onUpdateProfile={(updates: any) => setUserProfile(prev => ({ ...prev, ...updates }))}
+                        onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
                     />
                     <GuestBanner role={user?.role || 'guest'} />
                     <BreakCoordinator />
@@ -2412,7 +2582,9 @@ export const App: React.FC = () => {
                         )}
                         <AnimatePresence mode="wait">
                             <AndroidTransition key={currentView} type="abc_fade_in" className="flex-1 min-h-0 flex flex-col">
-                                {renderContent()}
+                                <SovereignAccessGuard currentView={currentView}>
+                                    {renderContent()}
+                                </SovereignAccessGuard>
                             </AndroidTransition>
                         </AnimatePresence>
                         {isSystemFractured && (
@@ -2524,6 +2696,26 @@ export const App: React.FC = () => {
                                             className="h-full bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500 transition-all duration-300"
                                             style={{ width: `${(acousticPressure / 120) * 100}%` }}
                                         />
+                                    </div>
+
+                                    <div className="pt-2 border-t border-zinc-800/40">
+                                        <div className="flex justify-between items-center mb-1.5">
+                                            <span className="text-[10px] text-zinc-400 uppercase font-bold">MANUAL THRESHOLD TUNER:</span>
+                                            <span className="text-xs font-bold text-rose-400/90">{acousticThreshold} dB SPL</span>
+                                        </div>
+                                        <input 
+                                            type="range"
+                                            min="50"
+                                            max="110"
+                                            step="5"
+                                            value={acousticThreshold}
+                                            onChange={(e) => setAcousticThreshold(Number(e.target.value))}
+                                            className="w-full accent-rose-500 cursor-pointer h-1.5 bg-zinc-800 rounded-lg appearance-none"
+                                        />
+                                        <div className="flex justify-between text-[8px] text-zinc-600 mt-1">
+                                            <span>50 dB (SENSITIVE)</span>
+                                            <span>110 dB (LOADED)</span>
+                                        </div>
                                     </div>
                                 </div>
 

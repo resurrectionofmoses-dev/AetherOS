@@ -28,12 +28,14 @@ interface TaskModalProps {
     tags?: string[];
     dependencies?: string[];
     status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
+    assignee?: string;
   }) => void;
   task?: ProjectTask | null; // If provided, we are in EDIT mode
   allTasks: ProjectTask[];   // To select dependencies
   initialStatus?: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE'; // For ADD mode, which column was clicked
   isAudible?: boolean;
   playOperatorBeep?: (freq?: number, type?: OscillatorType, duration?: number) => void;
+  projectCollaborators?: string[];
 }
 
 export const TaskModal: React.FC<TaskModalProps> = ({
@@ -44,7 +46,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   allTasks,
   initialStatus = 'TODO',
   isAudible = false,
-  playOperatorBeep
+  playOperatorBeep,
+  projectCollaborators = []
 }) => {
   const [text, setText] = useState('');
   const [description, setDescription] = useState('');
@@ -54,6 +57,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [tags, setTags] = useState<string[]>([]);
   const [dependencies, setDependencies] = useState<string[]>([]);
   const [customTag, setCustomTag] = useState('');
+  const [assignee, setAssignee] = useState('');
 
   // Pre-defined quick tags
   const predefinedTags = ['Urgent', 'Low Priority', 'Research', 'Bug', 'Feature', 'Refactor'];
@@ -69,6 +73,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         setStatus(task.status || (task.completed ? 'DONE' : 'TODO'));
         setTags(task.tags || []);
         setDependencies(task.dependencies || []);
+        setAssignee(task.assignee || '');
       } else {
         setText('');
         setDescription('');
@@ -77,6 +82,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         setStatus(initialStatus);
         setTags([]);
         setDependencies([]);
+        setAssignee('');
       }
     }
   }, [isOpen, task, initialStatus]);
@@ -96,7 +102,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
       dueDate: dueDate || undefined,
       tags: tags.length > 0 ? tags : undefined,
       dependencies: dependencies.length > 0 ? dependencies : undefined,
-      status
+      status,
+      assignee: assignee || undefined
     });
     onClose();
   };
@@ -310,6 +317,29 @@ export const TaskModal: React.FC<TaskModalProps> = ({
                     <option value="DONE">COMPLETED</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Assignee Selector */}
+              <div className="space-y-1">
+                <label className="text-[9px] font-mono font-bold uppercase text-amber-500/70 tracking-wider block">
+                  Assigned Team Member
+                </label>
+                <select
+                  value={assignee}
+                  onChange={(e) => {
+                    setAssignee(e.target.value);
+                    if (isAudible && playOperatorBeep) playOperatorBeep(450, 'sine', 0.02);
+                  }}
+                  className="w-full bg-zinc-950 border border-amber-500/20 rounded-xl px-3 py-2 text-[10px] text-zinc-300 font-mono focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-500/20"
+                  id="task-assignee-select"
+                >
+                  <option value="">Unassigned</option>
+                  {(projectCollaborators || []).map(member => (
+                    <option key={member} value={member}>
+                      {member}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Tag Multi-Select Section */}

@@ -70,6 +70,8 @@ export const LoginView: React.FC = () => {
 
   // Dual layout mode inside Manual Override
   const [showTerminal, setShowTerminal] = useState(false);
+  const [bioScanType, setBioScanType] = useState<'HAND' | 'FACE'>('FACE');
+  const [targetProfileId, setTargetProfileId] = useState<'admin' | 'mod' | 'operator' | 'creator'>('creator');
 
   // Biometrics MFA Specific States
   const [biometricStatus, setBiometricStatus] = useState<'IDLE' | 'REQUESTING_API' | 'API_MATCHED' | 'API_FAILED' | 'API_SANDBOX_RESTRICTED'>('IDLE');
@@ -207,6 +209,9 @@ export const LoginView: React.FC = () => {
           ...prev,
           "------------------------------------------------------------",
           "DECLASSIFIED ACCESS CHANNELS:",
+          "  0. SOVEREIGN CREATOR [ROLE: admin] (GRANDFATHERED)",
+          "     Email: resurrectionofmoses@gmail.com",
+          "     Pass:  AetherSovereign2026 (or Sovereign777)",
           "  1. SYSTEM ADMINISTRATOR [ROLE: admin]",
           "     Email: admin@aetheros.local",
           "     Pass:  AetherSovereign2026",
@@ -331,7 +336,7 @@ export const LoginView: React.FC = () => {
 
   // Synthetic canvas scanning feed drawing loop for offline/sandboxed state (Neural Hand-ID page)
   useEffect(() => {
-    if (authMode !== 'NEURAL' || !cameraError || authStep !== 'INITIAL') return;
+    if (authMode !== 'NEURAL' || authStep !== 'INITIAL') return;
     const canvas = neuralCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -346,7 +351,7 @@ export const LoginView: React.FC = () => {
       const cy = canvas.height / 2;
 
       // Draw cybernetic grid matrix lines in crimson/amber
-      ctx.strokeStyle = 'rgba(239, 68, 68, 0.05)';
+      ctx.strokeStyle = cameraError ? 'rgba(239, 68, 68, 0.05)' : 'rgba(239, 68, 68, 0.03)';
       ctx.lineWidth = 1;
       for (let i = 20; i < canvas.width; i += 40) {
         ctx.beginPath();
@@ -362,11 +367,18 @@ export const LoginView: React.FC = () => {
       }
 
       // Falling glowing green/red digital coordinate indicators
-      ctx.fillStyle = 'rgba(239, 68, 68, 0.15)';
+      ctx.fillStyle = cameraError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(239, 68, 68, 0.25)';
       ctx.font = '8px monospace';
       ctx.fillText(`COORD_X: ${(cx + Math.sin(angle) * 30).toFixed(2)}`, 10, 20);
       ctx.fillText(`COORD_Y: ${(cy + Math.cos(angle) * 30).toFixed(2)}`, 10, 32);
       ctx.fillText(`VECTOR_LOCK: ${scanStatus === 'SUCCESS' ? 'SECURE' : 'PENDING'}`, 10, 44);
+      ctx.fillText(`SCAN_TYPE: ${bioScanType === 'FACE' ? 'FACE_ID_PRIMARY' : 'HAND_ID_MATRIX'}`, 10, 56);
+      
+      let targetEmail = 'admin@aetheros.local';
+      if (targetProfileId === 'mod') targetEmail = 'mod@aetheros.local';
+      else if (targetProfileId === 'operator') targetEmail = 'operator@aetheros.local';
+      else if (targetProfileId === 'creator') targetEmail = 'resurrectionofmoses@gmail.com';
+      ctx.fillText(`TARGET_SIG: ${targetEmail.toUpperCase()}`, 10, 68);
 
       // Target Concentric Circles
       ctx.strokeStyle = 'rgba(239, 68, 68, 0.12)';
@@ -377,30 +389,93 @@ export const LoginView: React.FC = () => {
       ctx.arc(cx, cy, 80, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Hand/Face Wireframe Outline
-      ctx.strokeStyle = 'rgba(248, 113, 113, 0.35)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(cx - 30, cy + 50); // Wrist L
-      ctx.lineTo(cx + 30, cy + 50); // Wrist R
-      ctx.lineTo(cx + 25, cy + 5);  // Palm R
-      ctx.lineTo(cx + 35, cy - 30); // Pinky
-      ctx.lineTo(cx + 25, cy - 40); 
-      ctx.lineTo(cx + 12, cy + 5);
-      ctx.lineTo(cx + 12, cy - 50); // Ring Finger
-      ctx.lineTo(cx + 2, cy - 50);
-      ctx.lineTo(cx - 2, cy + 5);
-      ctx.lineTo(cx - 2, cy - 55);  // Middle Finger
-      ctx.lineTo(cx - 12, cy - 55);
-      ctx.lineTo(cx - 12, cy + 5);
-      ctx.lineTo(cx - 22, cy - 45); // Index Finger
-      ctx.lineTo(cx - 30, cy - 40);
-      ctx.lineTo(cx - 25, cy + 15); // Thumb base
-      ctx.lineTo(cx - 45, cy + 5);  // Thumb
-      ctx.lineTo(cx - 50, cy + 20);
-      ctx.lineTo(cx - 30, cy + 32);
-      ctx.closePath();
-      ctx.stroke();
+      if (bioScanType === 'FACE') {
+        // Draw Face Wireframe
+        ctx.strokeStyle = 'rgba(248, 113, 113, 0.35)';
+        ctx.lineWidth = 1.5;
+        
+        // Face Oval
+        ctx.beginPath();
+        ctx.ellipse(cx, cy - 5, 45, 60, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        
+        // Eyes
+        ctx.beginPath();
+        ctx.arc(cx - 15, cy - 15, 4, 0, Math.PI * 2);
+        ctx.arc(cx + 15, cy - 15, 4, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.5)';
+        ctx.fill();
+        
+        // Nose bridge and bottom
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - 15);
+        ctx.lineTo(cx, cy + 5);
+        ctx.lineTo(cx - 5, cy + 8);
+        ctx.lineTo(cx + 5, cy + 8);
+        ctx.stroke();
+        
+        // Mouth Arc
+        ctx.beginPath();
+        ctx.arc(cx, cy + 20, 10, 0.1, Math.PI - 0.1);
+        ctx.stroke();
+
+        // Eyebrows
+        ctx.beginPath();
+        ctx.moveTo(cx - 22, cy - 23);
+        ctx.lineTo(cx - 8, cy - 23);
+        ctx.moveTo(cx + 8, cy - 23);
+        ctx.lineTo(cx + 22, cy - 23);
+        ctx.stroke();
+
+        // Face corner target borders
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
+        ctx.lineWidth = 2;
+        // Top Left corner
+        ctx.beginPath();
+        ctx.moveTo(cx - 65, cy - 75); ctx.lineTo(cx - 65, cy - 55);
+        ctx.moveTo(cx - 65, cy - 75); ctx.lineTo(cx - 45, cy - 75);
+        ctx.stroke();
+        // Top Right corner
+        ctx.beginPath();
+        ctx.moveTo(cx + 65, cy - 75); ctx.lineTo(cx + 65, cy - 55);
+        ctx.moveTo(cx + 65, cy - 75); ctx.lineTo(cx + 45, cy - 75);
+        ctx.stroke();
+        // Bottom Left corner
+        ctx.beginPath();
+        ctx.moveTo(cx - 65, cy + 65); ctx.lineTo(cx - 65, cy + 45);
+        ctx.moveTo(cx - 65, cy + 65); ctx.lineTo(cx - 45, cy + 65);
+        ctx.stroke();
+        // Bottom Right corner
+        ctx.beginPath();
+        ctx.moveTo(cx + 65, cy + 65); ctx.lineTo(cx + 65, cy + 45);
+        ctx.moveTo(cx + 65, cy + 65); ctx.lineTo(cx + 45, cy + 65);
+        ctx.stroke();
+      } else {
+        // Hand Wireframe Outline
+        ctx.strokeStyle = 'rgba(248, 113, 113, 0.35)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(cx - 30, cy + 50); // Wrist L
+        ctx.lineTo(cx + 30, cy + 50); // Wrist R
+        ctx.lineTo(cx + 25, cy + 5);  // Palm R
+        ctx.lineTo(cx + 35, cy - 30); // Pinky
+        ctx.lineTo(cx + 25, cy - 40); 
+        ctx.lineTo(cx + 12, cy + 5);
+        ctx.lineTo(cx + 12, cy - 50); // Ring Finger
+        ctx.lineTo(cx + 2, cy - 50);
+        ctx.lineTo(cx - 2, cy + 5);
+        ctx.lineTo(cx - 2, cy - 55);  // Middle Finger
+        ctx.lineTo(cx - 12, cy - 55);
+        ctx.lineTo(cx - 12, cy + 5);
+        ctx.lineTo(cx - 22, cy - 45); // Index Finger
+        ctx.lineTo(cx - 30, cy - 40);
+        ctx.lineTo(cx - 25, cy + 15); // Thumb base
+        ctx.lineTo(cx - 45, cy + 5);  // Thumb
+        ctx.lineTo(cx - 50, cy + 20);
+        ctx.lineTo(cx - 30, cy + 32);
+        ctx.closePath();
+        ctx.stroke();
+      }
 
       // Sweeping radar scanning line
       angle += 0.035;
@@ -414,7 +489,16 @@ export const LoginView: React.FC = () => {
       ctx.stroke();
 
       // Target matching node coordinate system
-      const nodePoints = [
+      const nodePoints = bioScanType === 'FACE' ? [
+        { x: cx - 15, y: cy - 15 }, // L Eye
+        { x: cx + 15, y: cy - 15 }, // R Eye
+        { x: cx, y: cy - 5 },       // Nose top
+        { x: cx, y: cy + 8 },       // Nose tip
+        { x: cx - 30, y: cy - 5 },  // L Cheek
+        { x: cx + 30, y: cy - 5 },  // R Cheek
+        { x: cx, y: cy + 20 },      // Mouth
+        { x: cx, y: cy - 40 },      // Forehead
+      ] : [
         { x: cx, y: cy - 20 },
         { x: cx - 18, y: cy - 42 },
         { x: cx - 7, y: cy - 50 },
@@ -425,7 +509,7 @@ export const LoginView: React.FC = () => {
       ];
 
       nodePoints.forEach((pt, idx) => {
-        const active = (scanStatus === 'SCANNING' && scanProgress > idx * 14) || scanStatus === 'SUCCESS';
+        const active = (scanStatus === 'SCANNING' && scanProgress > idx * (100 / nodePoints.length)) || scanStatus === 'SUCCESS';
         ctx.beginPath();
         ctx.arc(pt.x, pt.y, active ? 4.5 : 2.5, 0, Math.PI * 2);
         ctx.fillStyle = active ? '#ef4444' : 'rgba(239, 68, 68, 0.3)';
@@ -451,7 +535,7 @@ export const LoginView: React.FC = () => {
 
     draw();
     return () => cancelAnimationFrame(frameId);
-  }, [authMode, cameraError, scanStatus, scanProgress, authStep]);
+  }, [authMode, cameraError, scanStatus, scanProgress, authStep, bioScanType, targetProfileId]);
 
   // Drawing loop for local simulated biometric fingerprint engine (MFA Bypass mode)
   useEffect(() => {
@@ -503,13 +587,52 @@ export const LoginView: React.FC = () => {
       ctx.closePath();
       ctx.fill();
 
-      // Interactive Fingerprint wireframe waves
-      ctx.strokeStyle = 'rgba(52, 211, 153, 0.45)';
-      ctx.lineWidth = 1.8;
-      for (let r = 8; r < 55; r += 7) {
+      if (bioScanType === 'FACE') {
+        // Draw Face Wireframe for local scanner in emerald
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.45)';
+        ctx.lineWidth = 1.5;
+        
+        // Face Oval
         ctx.beginPath();
-        ctx.arc(cx, cy + 10, r, Math.PI + 0.2, Math.PI * 2 - 0.2);
+        ctx.ellipse(cx, cy - 5, 40, 52, 0, 0, Math.PI * 2);
         ctx.stroke();
+        
+        // Eyes
+        ctx.beginPath();
+        ctx.arc(cx - 15, cy - 15, 3.5, 0, Math.PI * 2);
+        ctx.arc(cx + 15, cy - 15, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(52, 211, 153, 0.5)';
+        ctx.fill();
+        
+        // Nose
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - 15);
+        ctx.lineTo(cx, cy + 5);
+        ctx.lineTo(cx - 5, cy + 8);
+        ctx.lineTo(cx + 5, cy + 8);
+        ctx.stroke();
+        
+        // Mouth Arc
+        ctx.beginPath();
+        ctx.arc(cx, cy + 18, 8, 0.1, Math.PI - 0.1);
+        ctx.stroke();
+
+        // Eyebrows
+        ctx.beginPath();
+        ctx.moveTo(cx - 20, cy - 22);
+        ctx.lineTo(cx - 8, cy - 22);
+        ctx.moveTo(cx + 8, cy - 22);
+        ctx.lineTo(cx + 20, cy - 22);
+        ctx.stroke();
+      } else {
+        // Interactive Fingerprint wireframe waves
+        ctx.strokeStyle = 'rgba(52, 211, 153, 0.45)';
+        ctx.lineWidth = 1.8;
+        for (let r = 8; r < 55; r += 7) {
+          ctx.beginPath();
+          ctx.arc(cx, cy + 10, r, Math.PI + 0.2, Math.PI * 2 - 0.2);
+          ctx.stroke();
+        }
       }
       
       // Sweep Scanning Laser line
@@ -522,7 +645,14 @@ export const LoginView: React.FC = () => {
       ctx.stroke();
 
       // Glowing edge triangulation node points
-      const bioNodes = [
+      const bioNodes = bioScanType === 'FACE' ? [
+        { x: cx - 15, y: cy - 15, active: mfaScanProgress > 15 }, // L Eye
+        { x: cx + 15, y: cy - 15, active: mfaScanProgress > 30 }, // R Eye
+        { x: cx, y: cy + 5, active: mfaScanProgress > 48 },      // Nose
+        { x: cx - 22, y: cy + 10, active: mfaScanProgress > 65 }, // L Cheek
+        { x: cx + 22, y: cy + 10, active: mfaScanProgress > 80 }, // R Cheek
+        { x: cx, y: cy + 18, active: mfaScanProgress > 92 },     // Mouth
+      ] : [
         { x: cx - 25, y: cy - 20, active: mfaScanProgress > 22 },
         { x: cx + 25, y: cy - 15, active: mfaScanProgress > 45 },
         { x: cx - 35, y: cy + 15, active: mfaScanProgress > 65 },
@@ -547,7 +677,7 @@ export const LoginView: React.FC = () => {
 
     draw();
     return () => cancelAnimationFrame(frameId);
-  }, [authStep, showManualScanner, mfaScanProgress]);
+  }, [authStep, showManualScanner, mfaScanProgress, bioScanType]);
 
   const handleNeuralLogin = async () => {
     if (scanStatus !== 'IDLE') return;
@@ -580,12 +710,44 @@ export const LoginView: React.FC = () => {
     
     setScanStatus('SUCCESS');
     
-    // Trigger biometric checkpoint
-    setLoginEmailInput('admin@aetheros.local');
-    setLoginPasswordInput('AetherSovereign2026');
+    let targetEmail = 'admin@aetheros.local';
+    let targetPass = 'AetherSovereign2026';
+
+    if (targetProfileId === 'mod') {
+      targetEmail = 'mod@aetheros.local';
+      targetPass = 'GuardianPass';
+    } else if (targetProfileId === 'operator') {
+      targetEmail = 'operator@aetheros.local';
+      targetPass = 'OperatorActive';
+    } else if (targetProfileId === 'creator') {
+      targetEmail = 'resurrectionofmoses@gmail.com';
+      targetPass = 'AetherSovereign2026';
+    }
+
+    if (bioScanType === 'FACE') {
+      // Direct sign-in for facial recognition to bypass WebAuthn iframe restrictions!
+      setTimeout(async () => {
+        try {
+          setLoading(true);
+          await login(targetEmail, targetPass);
+          playBeep(1200, 'sine', 0.5); // Success chime
+        } catch (err: any) {
+          playBeep(250, 'sawtooth', 0.35); // Error tone
+          setError(err?.message || "Facial recognition verification failed.");
+          setScanStatus('IDLE');
+        } finally {
+          setLoading(false);
+        }
+      }, 1000);
+      return;
+    }
+
+    // Trigger biometric checkpoint for Hand-ID
+    setLoginEmailInput(targetEmail);
+    setLoginPasswordInput(targetPass);
     setAuthStep('BIOMETRIC_MFA');
     setTimeout(() => {
-      triggerBrowserBiometric('admin@aetheros.local');
+      triggerBrowserBiometric(targetEmail);
     }, 600);
   };
 
@@ -771,6 +933,15 @@ export const LoginView: React.FC = () => {
   };
 
   const getScanStatusText = (progress: number) => {
+    if (bioScanType === 'FACE') {
+      if (progress < 15) return "LOCATING FACIAL BOUNDING RETICLE...";
+      if (progress < 30) return "PROBING FACIAL LANDMARK SURFACE MATRIX...";
+      if (progress < 45) return "COMPARING SOVEREIGN BIOMETRIC SEED...";
+      if (progress < 60) return "EXTRACTING CRYPTO EMBEDDED HASH CODES...";
+      if (progress < 75) return "VERIFYING LIVENESS PATTERN CONDUCTION...";
+      if (progress < 90) return "DECRYPTING TRUSTED SIGNATURE KEY...";
+      return "STABILIZING SECURED AUTHENTICATION PROFILE...";
+    }
     if (progress < 15) return "CALIBRATING OPTICAL CORE VERTICES...";
     if (progress < 30) return "PROBING PALM INTEGRITY MATRIX...";
     if (progress < 45) return "RESOLVING SOVEREIGN MULTISIG RING...";
@@ -781,7 +952,7 @@ export const LoginView: React.FC = () => {
   };
 
   return (
-    <div id="aetheros-view-wrapper" className="min-h-screen bg-[#050505] flex items-center justify-center font-mono text-gray-200 p-4 relative overflow-hidden">
+    <div id="aetheros-view-wrapper" className="min-h-screen bg-[#050505] flex items-center justify-center font-mono text-gray-200 p-4 relative overflow-y-auto py-12 md:py-8">
       {/* Background Effects */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,_rgba(239,68,68,0.05)_0%,_transparent_70%)] pointer-events-none" />
       <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
@@ -1039,12 +1210,12 @@ export const LoginView: React.FC = () => {
                                             onClick={handleLocalMfaScan}
                                             className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl transition-all shadow-[6px_6px_0_0_#065f46] uppercase tracking-widest text-sm flex items-center justify-center gap-2 active:translate-y-0.5"
                                         >
-                                            <Fingerprint className="w-4 h-4 text-white animate-pulse" /> Verify Biometric Conduction
+                                            <Fingerprint className="w-4 h-4 text-white animate-pulse" /> {bioScanType === 'FACE' ? 'Verify Facial Signature' : 'Verify Biometric Conduction'}
                                         </button>
                                     ) : (
                                         <div className="text-center py-2">
                                             <p className="text-[9px] text-emerald-500 font-mono tracking-widest animate-pulse uppercase">
-                                                Scanning: Align palm or fingerprint node grid with sensor...
+                                                {bioScanType === 'FACE' ? 'Scanning: Keep face centered in local optical frame...' : 'Scanning: Align palm or fingerprint node grid with sensor...'}
                                             </p>
                                         </div>
                                     )}
@@ -1100,22 +1271,21 @@ export const LoginView: React.FC = () => {
                     className="w-full space-y-6"
                 >
                     <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border-4 border-red-950/50 group shadow-inner flex items-center justify-center">
-                        {cameraError ? (
-                            <canvas 
-                                ref={neuralCanvasRef}
-                                width="320"
-                                height="180"
-                                className="absolute inset-0 w-full h-full object-cover"
-                            />
-                        ) : (
+                        {!cameraError && (
                             <video 
                                 ref={videoRef}
                                 autoPlay
                                 playsInline
                                 muted
-                                className="w-full h-full object-cover grayscale brightness-75 contrast-125"
+                                className="absolute inset-0 w-full h-full object-cover grayscale brightness-75 contrast-125"
                             />
                         )}
+                        <canvas 
+                            ref={neuralCanvasRef}
+                            width="320"
+                            height="180"
+                            className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10"
+                        />
                         
                         {/* Scanner Grids */}
                         <div className="absolute inset-0 grid grid-cols-6 grid-rows-6 opacity-30 pointer-events-none">
@@ -1134,14 +1304,14 @@ export const LoginView: React.FC = () => {
                         )}
 
                         {/* UI Overlays */}
-                        <div className="absolute top-4 left-4 flex gap-2">
+                        <div className="absolute top-4 left-4 flex gap-2 z-20">
                             <div className={`w-1.5 h-1.5 rounded-full ${cameraError ? 'bg-amber-500' : 'bg-red-500'} animate-pulse`} />
                             <span className="text-[8px] font-black text-red-500 uppercase tracking-widest">
                                 {cameraError ? 'Synthetic_Lattice_Uplink' : 'Optical_Feed_Live'}
                             </span>
                         </div>
 
-                        <div className="absolute bottom-4 right-4 flex items-center gap-3">
+                        <div className="absolute bottom-4 right-4 flex items-center gap-3 z-20">
                             <span className="text-[8px] font-black text-zinc-500 uppercase">
                                 {cameraError ? 'Sim_Target: Active' : 'Lattice_Sync: 0.98'}
                             </span>
@@ -1160,10 +1330,85 @@ export const LoginView: React.FC = () => {
                                     <p className="text-[10px] text-zinc-400 font-mono italic">"Verifying Sovereignty..."</p>
                                 </motion.div>
                             )}
+                            {scanStatus === 'SUCCESS' && (
+                                <motion.div 
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-30 animate-pulse"
+                                >
+                                    <div className="w-16 h-16 bg-emerald-950 border-2 border-emerald-500 rounded-full flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+                                        <CheckCircle className="w-8 h-8 text-emerald-400 animate-bounce" />
+                                    </div>
+                                    <p className="text-xs font-black text-emerald-400 uppercase tracking-[0.3em] mb-2">ACCESS GRANTED</p>
+                                    <p className="text-[10px] text-zinc-400 font-mono italic">
+                                        {bioScanType === 'FACE' ? '"Facial Profile Matched. Secure session created."' : '"Hand Matrix Decrypted. Secure session created."'}
+                                    </p>
+                                </motion.div>
+                            )}
                         </AnimatePresence>
                     </div>
 
                     <div className="bg-black/40 border-2 border-red-950/30 p-6 rounded-2xl flex flex-col items-center gap-4">
+                        {/* Biometrics Type Toggle Selection tabs */}
+                        <div className="w-full flex gap-1 bg-zinc-950 p-1 rounded-xl mb-1 border border-red-900/15">
+                            <button 
+                                type="button"
+                                onClick={() => {
+                                  playBeep(900, 'sine', 0.05);
+                                  setBioScanType('FACE');
+                                }}
+                                className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${bioScanType === 'FACE' ? 'bg-red-950/80 text-red-400 border border-red-900/40' : 'text-zinc-500 hover:text-zinc-400'}`}
+                            >
+                                <span className="flex items-center justify-center gap-1">
+                                    <Video className="w-2.5 h-2.5" />
+                                    Facial Face-ID
+                                </span>
+                            </button>
+                            <button 
+                                type="button"
+                                onClick={() => {
+                                  playBeep(900, 'sine', 0.05);
+                                  setBioScanType('HAND');
+                                }}
+                                className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${bioScanType === 'HAND' ? 'bg-red-950/80 text-red-400 border border-red-900/40' : 'text-zinc-500 hover:text-zinc-400'}`}
+                            >
+                                <span className="flex items-center justify-center gap-1">
+                                    <Fingerprint className="w-2.5 h-2.5" />
+                                    Hand-ID Matrix
+                                </span>
+                            </button>
+                        </div>
+
+                        {/* Target Identity Selector */}
+                        <div className="w-full space-y-1 mb-1">
+                            <label className="text-[8px] text-zinc-500 uppercase font-black tracking-[0.25em] pl-1 block text-left">Target Profile Signature</label>
+                            <div className="grid grid-cols-4 gap-1 bg-zinc-950 p-1 rounded-xl border border-red-900/15">
+                                {[
+                                    { id: 'creator', label: 'Creator', email: 'resurrectionofmoses@gmail.com' },
+                                    { id: 'admin', label: 'Admin', email: 'admin@aetheros.local' },
+                                    { id: 'mod', label: 'Guardian', email: 'mod@aetheros.local' },
+                                    { id: 'operator', label: 'Operator', email: 'operator@aetheros.local' }
+                                ].map((profile) => {
+                                    const active = targetProfileId === profile.id;
+                                    return (
+                                        <button
+                                            key={profile.id}
+                                            type="button"
+                                            disabled={scanStatus !== 'IDLE'}
+                                            onClick={() => {
+                                                playBeep(850, 'sine', 0.03);
+                                                setTargetProfileId(profile.id as any);
+                                            }}
+                                            className={`py-1 text-[8px] font-black uppercase tracking-wider rounded-lg transition-all ${active ? 'bg-red-950 text-red-400 border border-red-900/40' : 'text-zinc-600 hover:text-zinc-400'} ${scanStatus !== 'IDLE' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            title={profile.email}
+                                        >
+                                            {profile.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
                         <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden mb-1">
                             <motion.div 
                                 className="h-full bg-red-600 shadow-[0_0_10px_#ef4444]"
@@ -1177,11 +1422,23 @@ export const LoginView: React.FC = () => {
                                 onClick={handleNeuralLogin}
                                 className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-5 rounded-2xl transition-all shadow-[8px_8px_0_0_#991b1b] uppercase tracking-[0.2em] text-sm flex flex-col items-center gap-1 active:translate-y-1"
                             >
-                                <span className="flex items-center gap-3">
-                                    <Fingerprint className="w-5 h-5 text-white animate-pulse" />
-                                    Initialize Hand-ID Scan
-                                </span>
-                                <span className="text-[8px] opacity-60 font-medium tracking-tight">Center hand in optical aperture</span>
+                                {bioScanType === 'FACE' ? (
+                                    <>
+                                        <span className="flex items-center gap-3">
+                                            <Video className="w-5 h-5 text-white animate-pulse" />
+                                            Initialize Facial Scan
+                                        </span>
+                                        <span className="text-[8px] opacity-60 font-medium tracking-tight">Center face in camera viewport</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="flex items-center gap-3">
+                                            <Fingerprint className="w-5 h-5 text-white animate-pulse" />
+                                            Initialize Hand-ID Scan
+                                        </span>
+                                        <span className="text-[8px] opacity-60 font-medium tracking-tight">Center hand in optical aperture</span>
+                                    </>
+                                )}
                             </button>
                         ) : (
                             <div className="text-center py-2 w-full">

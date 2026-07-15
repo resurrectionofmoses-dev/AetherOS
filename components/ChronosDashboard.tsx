@@ -4,7 +4,7 @@ import {
     Clock, Activity, Zap, Shield, Terminal, 
     Gauge, Flame, Brain, Star, Code, Lock, CheckCircle,
     Mic, MicOff, Trash2, Copy, Rocket, Lightbulb, Play, Square, Sparkles, FolderPlus, ArrowUpRight, Check,
-    Wallet
+    Wallet, Coins
 } from 'lucide-react';
 import type { ChronosTelemetry, LabComponentProps, NetworkProject } from '../types';
 import { sttService } from '../services/sttService';
@@ -12,6 +12,7 @@ import { safeStorage } from '../services/safeStorage';
 import { toast } from 'sonner';
 import { RealWorldSpendingWallet } from './RealWorldSpendingWallet';
 import { EternalMemoryVault } from './EternalMemoryVault';
+import { TreasuryLedger } from './TreasuryLedger';
 
 interface InspirationShard {
     id: string;
@@ -38,7 +39,7 @@ export const ChronosDashboard: React.FC<LabComponentProps> = ({ onActionReward }
     const [activeNodes, setActiveNodes] = useState<Set<number>>(new Set());
     const [witnessedNodes, setWitnessedNodes] = useState<Set<number>>(new Set());
     const [selectedTab, setSelectedTab] = useState<'ALL' | 'SECURITY' | 'LATTICE' | 'STT'>('ALL');
-    const [currentSection, setCurrentSection] = useState<'MESH' | 'INSPIRATION' | 'WALLET' | 'MEMORY'>('MESH');
+    const [currentSection, setCurrentSection] = useState<'MESH' | 'INSPIRATION' | 'WALLET' | 'MEMORY' | 'TREASURY'>('MESH');
 
     // ----------------------------------------------------
     // New Inspiration & STT States
@@ -333,10 +334,10 @@ export const ChronosDashboard: React.FC<LabComponentProps> = ({ onActionReward }
     });
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto px-4 pb-16">
+        <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar space-y-8 animate-in fade-in duration-500 max-w-7xl mx-auto px-4 pb-16 w-full">
             
             {/* Header Telemetry Panel */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="glass-card bg-[#030307]/90 p-4 rounded-xl border border-sky-500/10 flex items-center gap-4 hover:border-sky-500/20 transition-all">
                     <div className="p-3 bg-sky-500/10 rounded-lg border border-sky-500/20 text-sky-400">
                         <Activity className="w-5 h-5 animate-pulse" />
@@ -417,6 +418,17 @@ export const ChronosDashboard: React.FC<LabComponentProps> = ({ onActionReward }
                     >
                         <Wallet className="w-3.5 h-3.5" />
                         REAL-WORLD WALLET
+                    </button>
+                    <button
+                        onClick={() => setCurrentSection('TREASURY')}
+                        className={`px-4 py-2 rounded-lg text-xs font-mono font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                            currentSection === 'TREASURY'
+                                ? 'bg-amber-500 text-stone-950 shadow-[0_0_15px_rgba(245,158,11,0.25)] font-black'
+                                : 'text-stone-400 hover:text-stone-200 hover:bg-stone-900/50'
+                        }`}
+                    >
+                        <Coins className="w-3.5 h-3.5" />
+                        TREASURY LEDGER
                     </button>
                     <button
                         onClick={() => setCurrentSection('MEMORY')}
@@ -638,7 +650,7 @@ export const ChronosDashboard: React.FC<LabComponentProps> = ({ onActionReward }
                                 <div className="bg-[#030307] p-5 rounded-xl border border-stone-900 space-y-4">
                                     <h4 className="text-xs font-bold text-stone-400 uppercase tracking-wider">Classification Tags</h4>
                                     
-                                    <div className="grid grid-cols-2 gap-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
                                             <label className="block text-[10px] text-stone-500 font-bold uppercase mb-1.5">Category</label>
                                             <select
@@ -827,7 +839,14 @@ export const ChronosDashboard: React.FC<LabComponentProps> = ({ onActionReward }
                 </div>
             )}
 
-            {/* Section 4: Eternal Memory Vault */}
+            {/* Section 4: Treasury Ledger */}
+            {currentSection === 'TREASURY' && (
+                <div className="animate-in fade-in duration-300">
+                    <TreasuryLedger />
+                </div>
+            )}
+
+            {/* Section 5: Eternal Memory Vault */}
             {currentSection === 'MEMORY' && (
                 <div className="animate-in fade-in duration-300">
                     <EternalMemoryVault />

@@ -6,6 +6,18 @@
   --dpi-scale: 1;
 }
 
+/* -----------------------------------------
+   Sovereign Clipboard & Selection Unleashed (Philippians 4:8)
+   Allow users to select all, copy, and paste text freely in all labs.
+   "Finally, brethren, whatever things are true... think on these things."
+   ----------------------------------------- */
+html, body, #root, main, .terminal-lab, div, p, span, pre, code, input, textarea, select, h1, h2, h3, h4, h5, h6, table, tr, td, th {
+  user-select: text !important;
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+}
+
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
   :root {
     --dpi-scale: 0.5;

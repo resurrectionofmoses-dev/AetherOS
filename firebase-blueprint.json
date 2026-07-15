@@ -105,6 +105,67 @@
         }
       },
       "required": ["id", "name", "cellsJson", "phase", "timestamp"]
+    },
+    "UserSubscription": {
+      "title": "UserSubscription",
+      "description": "User subscription status and details.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "User's unique identifier"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "inactive", "expired"],
+          "description": "Subscription status"
+        },
+        "plan": {
+          "type": "string",
+          "description": "Subscription plan name"
+        },
+        "expiresAt": {
+          "type": "integer",
+          "description": "Epoch timestamp when subscription expires"
+        },
+        "updatedAt": {
+          "type": "integer",
+          "description": "Timestamp when subscription was last updated"
+        }
+      },
+      "required": ["userId", "email", "status", "plan", "expiresAt", "updatedAt"]
+    },
+    "SovereignFileLock": {
+      "title": "SovereignFileLock",
+      "description": "A secure lock mapping representing Google Drive files that are flagged as undeletable without authorized passphrases.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "The unique Google Drive File Identifier"
+        },
+        "fileName": {
+          "type": "string",
+          "description": "The Google Drive file name"
+        },
+        "lockedAt": {
+          "type": "integer",
+          "description": "Epoch timestamp of lock initialization"
+        },
+        "lockedBy": {
+          "type": "string",
+          "description": "Operator account email or designation"
+        },
+        "passphraseHash": {
+          "type": "string",
+          "description": "The secure, salted lock phrase digest"
+        }
+      },
+      "required": ["id", "fileName", "lockedAt", "lockedBy", "passphraseHash"]
     }
   },
   "firestore": {
@@ -119,6 +180,14 @@
     "/cellular_states/{stateId}": {
       "schema": "CellularState",
       "description": "Collection of saved cellular grid states."
+    },
+    "/subscriptions/{userId}": {
+      "schema": "UserSubscription",
+      "description": "Collection of user subscription state data."
+    },
+    "/sovereign_file_locks/{lockId}": {
+      "schema": "SovereignFileLock",
+      "description": "Collection of Google Drive file lock security assertions."
     }
   }
 }

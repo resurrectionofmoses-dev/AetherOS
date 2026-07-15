@@ -111,6 +111,52 @@ const CRYPTO_ENGINE = {
   }
 };
 
+export interface AuditLogEntry {
+  id: string;
+  timestamp: number;
+  type: 'SYSTEM_ALERT' | 'PERMISSION_CHANGE' | 'BYPASS' | 'DEACTIVATION' | 'ALERT' | 'SECURITY';
+  message: string;
+  details?: any;
+  verse?: {
+    reference: string;
+    text: string;
+  };
+}
+
+export function getRandomVerse(type: string) {
+  const verses = {
+    integrity: [
+      { reference: "Proverbs 11:3", text: "The integrity of the upright guides them, but the unfaithful are destroyed by their duplicity." },
+      { reference: "Proverbs 10:9", text: "Whoever walks in integrity walks securely, but whoever takes crooked paths will be found out." },
+      { reference: "Psalm 25:21", text: "May integrity and uprightness protect me, because my hope, Lord, is in you." },
+      { reference: "Titus 2:7", text: "In everything set them an example by doing what is good. In your teaching show integrity, seriousness..." }
+    ],
+    alert: [
+      { reference: "Proverbs 18:10", text: "The name of the Lord is a fortified tower; the righteous run to it and are safe." },
+      { reference: "Isaiah 41:10", text: "So do not fear, for I am with you; do not be dismayed, for I am your God. I will strengthen you and help you." },
+      { reference: "Philippians 4:6", text: "Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God." },
+      { reference: "Psalm 46:1", text: "God is our refuge and strength, an ever-present help in trouble." }
+    ],
+    healing: [
+      { reference: "Exodus 15:26", text: "For I am the Lord, who heals you." },
+      { reference: "Psalm 147:3", text: "He heals the brokenhearted and binds up their wounds." },
+      { reference: "Jeremiah 17:14", text: "Heal me, Lord, and I will be healed; save me and I will be saved, for you are the one I praise." },
+      { reference: "James 5:16", text: "Confess your sins to each other and pray for each other so that you may be healed." }
+    ]
+  };
+
+  if (type === 'PERMISSION_CHANGE' || type === 'BYPASS' || type === 'DEACTIVATION') {
+    const list = verses.integrity;
+    return list[Math.floor(Math.random() * list.length)];
+  } else if (type === 'SYSTEM_ALERT' || type === 'ALERT') {
+    const list = verses.alert;
+    return list[Math.floor(Math.random() * list.length)];
+  } else {
+    const list = verses.healing;
+    return list[Math.floor(Math.random() * list.length)];
+  }
+}
+
 export const safeStorage = {
   /**
    * Inject user passphrase into the secure context.
@@ -118,6 +164,42 @@ export const safeStorage = {
   setPassphrase: (pass: string) => {
     SESSION_PASSPHRASE = pass;
     console.log("[AetherOS] Sovereign Passphrase Engaged.");
+  },
+
+  getAuditLogs: async (): Promise<AuditLogEntry[]> => {
+    try {
+      const stored = await safeStorage.getItem('aetheros_audit_log');
+      if (!stored) {
+        return [];
+      }
+      return JSON.parse(stored) as AuditLogEntry[];
+    } catch (e) {
+      console.error("[AetherOS] Failed to get audit logs:", e);
+      return [];
+    }
+  },
+
+  appendAuditLog: async (
+    type: 'SYSTEM_ALERT' | 'PERMISSION_CHANGE' | 'BYPASS' | 'DEACTIVATION' | 'ALERT' | 'SECURITY',
+    message: string,
+    details?: any
+  ): Promise<void> => {
+    try {
+      const logs = await safeStorage.getAuditLogs();
+      const newEntry: AuditLogEntry = {
+        id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: Date.now(),
+        type,
+        message,
+        details,
+        verse: getRandomVerse(type)
+      };
+      
+      const updatedLogs = [...logs, newEntry];
+      await safeStorage.setItem('aetheros_audit_log', JSON.stringify(updatedLogs));
+    } catch (e) {
+      console.error("[AetherOS] Failed to append audit log:", e);
+    }
   },
 
   getItem: async (key: string): Promise<string | null> => {

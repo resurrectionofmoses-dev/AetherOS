@@ -5,5 +5,6 @@
   "authDomain": "device-streaming-1076aa50.firebaseapp.com",
   "storageBucket": "device-streaming-1076aa50.firebasestorage.app",
   "messagingSenderId": "159690403802",
-  "measurementId": ""
+  "measurementId": "",
+  "oAuthClientId": "159690403802-3au21dtmlig37egjt6vtr793l0blheod.apps.googleusercontent.com"
 }

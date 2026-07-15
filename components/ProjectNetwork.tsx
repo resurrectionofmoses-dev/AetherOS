@@ -38,7 +38,7 @@ interface ProjectNetworkProps {
     onToggleFracture?: (val?: boolean) => void;
     onDeleteProject: (id: string) => void;
     onToggleTask: (projectId: string, taskId: string) => void;
-    onAddTask: (projectId: string, text: string, dueDate?: string, priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL') => void;
+    onAddTask: (projectId: string, text: string, dueDate?: string, priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL', assignee?: string) => void;
     onDeleteTask: (projectId: string, taskId: string) => void;
     onUpdateProject?: (projectId: string, updates: Partial<NetworkProject>) => void;
     onAddProject?: (title: string, desc: string, priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL', deadline?: string, collaborators?: string[], gitHubRepo?: string, tags?: string[]) => void;
@@ -262,6 +262,7 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
     const [taskInputs, setTaskInputs] = useState<Record<string, string>>({});
     const [dateInputs, setDateInputs] = useState<Record<string, string>>({});
     const [priorityInputs, setPriorityInputs] = useState<Record<string, 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'>>({});
+    const [assigneeInputs, setAssigneeInputs] = useState<Record<string, string>>({});
     const [taskFilters, setTaskFilters] = useState<Record<string, 'all' | 'active' | 'completed'>>({});
     const [taskSorts, setTaskSorts] = useState<Record<string, 'default' | 'dueDate' | 'alphabetical' | 'priority' | 'creationDate'>>({});
     const [taskSearchQueries, setTaskSearchQueries] = useState<Record<string, string>>({});
@@ -434,11 +435,13 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
         const text = taskInputs[projectId];
         const dueDate = dateInputs[projectId];
         const priority = priorityInputs[projectId] || 'MEDIUM';
+        const assignee = assigneeInputs[projectId] || 'Operator-You';
         if (!text?.trim()) return;
-        onAddTask(projectId, text, dueDate, priority);
+        onAddTask(projectId, text, dueDate, priority, assignee);
         setTaskInputs(prev => ({...prev, [projectId]: ''}));
         setDateInputs(prev => ({...prev, [projectId]: ''}));
         setPriorityInputs(prev => ({...prev, [projectId]: 'MEDIUM'}));
+        setAssigneeInputs(prev => ({...prev, [projectId]: 'Operator-You'}));
     };
 
     const confirmDelete = () => {
@@ -1771,6 +1774,11 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                                                                                             📅 {task.dueDate}
                                                                                         </span>
                                                                                     )}
+                                                                                    {task.assignee && (
+                                                                                        <span className="text-[6.5px] font-black px-1.5 py-0.2 rounded border bg-purple-950/40 text-purple-400 border-purple-500/20 flex items-center gap-0.5">
+                                                                                            👤 {task.assignee}
+                                                                                        </span>
+                                                                                    )}
                                                                                 </div>
                                                                             </div>
                                                                         </div>
@@ -1842,6 +1850,18 @@ export const ProjectNetwork: React.FC<ProjectNetworkProps> = ({ profile, project
                                                             <option value="MEDIUM">Medium</option>
                                                             <option value="HIGH">High</option>
                                                             <option value="CRITICAL">Critical</option>
+                                                        </select>
+                                                        <span className="text-[8px] font-black text-gray-600 uppercase ml-2">Assign:</span>
+                                                        <select
+                                                            value={assigneeInputs[p.id] || 'Operator-You'}
+                                                            onChange={e => setAssigneeInputs(prev => ({...prev, [p.id]: e.target.value}))}
+                                                            className="bg-black/20 border border-black/40 rounded px-2 py-0.5 text-[8px] text-zinc-400 focus:outline-none focus:border-blue-600/50 transition-all"
+                                                        >
+                                                            <option value="Operator-You">Operator-You</option>
+                                                            <option value="CyberWeaver_X">CyberWeaver_X</option>
+                                                            <option value="AcousticWeaver">AcousticWeaver</option>
+                                                            <option value="Aetheros-Admin">Aetheros-Admin</option>
+                                                            <option value="Validator_Solo">Validator_Solo</option>
                                                         </select>
                                                     </div>
                                                 </div>

@@ -31,6 +31,7 @@ export const PortfolioProjectCard: React.FC<PortfolioProjectCardProps> = ({
     const [newComment, setNewComment] = useState('');
     const [newRating, setNewRating] = useState(5);
     const [authorName, setAuthorName] = useState(currentUsername === 'Operator-You' ? '' : currentUsername);
+    const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null);
 
     const averageRating = project.rating || 5;
     const endorsementsCount = (project.endorsements || []).length;
@@ -96,6 +97,82 @@ export const PortfolioProjectCard: React.FC<PortfolioProjectCardProps> = ({
                     ))}
                 </div>
             )}
+
+            {/* Project Screenshots */}
+            {project.screenshots && project.screenshots.length > 0 && (
+                <div className="space-y-1.5 pt-2 text-left">
+                    <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-bold block font-mono">
+                        Visual Showcases:
+                    </span>
+                    <div 
+                        onWheel={(e) => {
+                            if (e.deltaY !== 0) {
+                                const container = e.currentTarget;
+                                const isAtStart = container.scrollLeft === 0;
+                                const isAtEnd = Math.ceil(container.scrollLeft + container.clientWidth) >= container.scrollWidth;
+                                if ((e.deltaY < 0 && !isAtStart) || (e.deltaY > 0 && !isAtEnd)) {
+                                    e.preventDefault();
+                                    container.scrollLeft += e.deltaY;
+                                }
+                            }
+                        }}
+                        className="flex gap-2 overflow-x-auto pb-1.5 custom-scrollbar"
+                    >
+                        {project.screenshots.map((url, sIdx) => (
+                            <div 
+                                key={sIdx}
+                                onClick={() => setSelectedScreenshot(url)}
+                                className="w-20 h-14 rounded-lg border border-zinc-900 overflow-hidden shrink-0 cursor-pointer hover:border-purple-500/40 transition-colors relative group"
+                                title="Enlarge showcase image"
+                            >
+                                <img 
+                                    src={url} 
+                                    alt={`Screenshot ${sIdx + 1}`} 
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-250"
+                                    referrerPolicy="no-referrer"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Lightbox Modal */}
+            <AnimatePresence>
+                {selectedScreenshot && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setSelectedScreenshot(null)}
+                        className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
+                    >
+                        <motion.div 
+                            initial={{ scale: 0.95, y: 10 }}
+                            animate={{ scale: 1, y: 0 }}
+                            exit={{ scale: 0.95, y: 10 }}
+                            className="relative max-w-4xl max-h-[85vh] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950 p-2 shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <img 
+                                src={selectedScreenshot} 
+                                alt="Zoomed Showcase Screenshot" 
+                                className="max-w-full max-h-[70vh] object-contain rounded-xl"
+                                referrerPolicy="no-referrer"
+                            />
+                            <div className="flex justify-between items-center mt-3 px-1 text-[10px] font-mono text-zinc-400">
+                                <span className="uppercase text-zinc-500">Showcase: {project.title}</span>
+                                <button 
+                                    onClick={() => setSelectedScreenshot(null)}
+                                    className="px-3 py-1 bg-zinc-900 hover:bg-purple-650 hover:text-white text-zinc-300 rounded-lg uppercase text-[9px] font-black cursor-pointer border border-zinc-800 transition-all"
+                                >
+                                    Close View
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Project Links Section */}
             {(project.link || project.liveDemoUrl || project.sourceCodeUrl) && (
