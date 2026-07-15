@@ -18,6 +18,13 @@ export default defineConfig(({ mode }) => {
           '@': path.resolve(__dirname, '.'),
         }
       },
+      esbuild: {
+        pure: mode === 'production' ? ['console.log', 'console.debug', 'console.info'] : [],
+        legalComments: 'none',
+        minifyIdentifiers: true,
+        minifySyntax: true,
+        minifyWhitespace: true,
+      },
       build: {
         chunkSizeWarningLimit: 1500,
         rollupOptions: {

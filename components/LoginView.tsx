@@ -17,8 +17,13 @@ import {
   User,
   ShieldAlert,
   Video,
-  VideoOff
+  VideoOff,
+  Info,
+  Trash2,
+  Camera,
+  Cpu
 } from 'lucide-react';
+import { logFaceAuthAttempt, getFaceAuthLogs, clearFaceAuthLogs, FacialAuthLog } from '../services/facialAuthLogger';
 
 // ==========================================
 // IMMERSIVE SOVEREIGN WEB AUDIO ENGINE
@@ -94,6 +99,15 @@ export const LoginView: React.FC = () => {
   const [terminalStep, setTerminalStep] = useState<'COMMAND' | 'EMAIL' | 'PASSWORD' | 'TWOFA'>('COMMAND');
   const [loginEmailInput, setLoginEmailInput] = useState("");
   const [loginPasswordInput, setLoginPasswordInput] = useState("");
+  const [showFaceLogs, setShowFaceLogs] = useState(false);
+  const [faceLogs, setFaceLogs] = useState<FacialAuthLog[]>([]);
+
+  useEffect(() => {
+    if (showFaceLogs) {
+      setFaceLogs(getFaceAuthLogs());
+    }
+  }, [showFaceLogs]);
+
   const terminalBottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -313,17 +327,51 @@ export const LoginView: React.FC = () => {
     try {
       setCameraError(false);
       setError(null);
+      
+      const targetEmail = targetProfileId === 'creator' 
+        ? 'resurrectionofmoses@gmail.com' 
+        : `${targetProfileId}@aetheros.local`;
+        
+      logFaceAuthAttempt(
+        targetProfileId,
+        targetEmail,
+        'INITIALIZED',
+        undefined,
+        { confidenceScore: 0, landmarkPoints: 0, hasCameraError: false }
+      );
+
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play().catch(e => console.warn("Video autoplay blocked or failed", e));
+        videoRef.current.play().catch(e => {
+          console.warn("Video autoplay blocked or failed", e);
+          logFaceAuthAttempt(
+            targetProfileId,
+            targetEmail,
+            'CAMERA_ERROR',
+            `Autoplay blocked: ${e.message || e}`,
+            { hasCameraError: true }
+          );
+        });
       }
       setScanStatus('IDLE');
-    } catch (err) {
+    } catch (err: any) {
       console.warn("Camera hardware access denied or unavailable. Initializing Synthetic Optical Lattice...", err);
       setCameraError(true);
       setScanStatus('IDLE');
+      
+      const targetEmail = targetProfileId === 'creator' 
+        ? 'resurrectionofmoses@gmail.com' 
+        : `${targetProfileId}@aetheros.local`;
+        
+      logFaceAuthAttempt(
+        targetProfileId,
+        targetEmail,
+        'CAMERA_ERROR',
+        err?.message || "Camera access denied or hardware unavailable.",
+        { hasCameraError: true }
+      );
     }
   };
 
@@ -682,6 +730,21 @@ export const LoginView: React.FC = () => {
   const handleNeuralLogin = async () => {
     if (scanStatus !== 'IDLE') return;
     
+    let targetEmail = 'admin@aetheros.local';
+    if (targetProfileId === 'mod') targetEmail = 'mod@aetheros.local';
+    else if (targetProfileId === 'operator') targetEmail = 'operator@aetheros.local';
+    else if (targetProfileId === 'creator') targetEmail = 'resurrectionofmoses@gmail.com';
+
+    if (bioScanType === 'FACE') {
+      logFaceAuthAttempt(
+        targetProfileId,
+        targetEmail,
+        'SCANNING',
+        undefined,
+        { confidenceScore: 34.5, landmarkPoints: 64, hasCameraError: cameraError }
+      );
+    }
+
     playBeep(520, 'sawtooth', 0.15); // Sweep active initiation tone
     setScanStatus('SCANNING');
     setScanProgress(0);
@@ -731,10 +794,27 @@ export const LoginView: React.FC = () => {
           setLoading(true);
           await login(targetEmail, targetPass);
           playBeep(1200, 'sine', 0.5); // Success chime
+          
+          logFaceAuthAttempt(
+            targetProfileId,
+            targetEmail,
+            'SUCCESS',
+            undefined,
+            { confidenceScore: 99.1, landmarkPoints: 128, hasCameraError: cameraError }
+          );
         } catch (err: any) {
           playBeep(250, 'sawtooth', 0.35); // Error tone
-          setError(err?.message || "Facial recognition verification failed.");
+          const errMsg = err?.message || "Facial recognition verification failed.";
+          setError(errMsg);
           setScanStatus('IDLE');
+          
+          logFaceAuthAttempt(
+            targetProfileId,
+            targetEmail,
+            'FAILURE',
+            errMsg,
+            { confidenceScore: 18.7, landmarkPoints: 12, hasCameraError: cameraError }
+          );
         } finally {
           setLoading(false);
         }
@@ -1467,6 +1547,129 @@ export const LoginView: React.FC = () => {
                         <Zap className="w-3.5 h-3.5 text-zinc-600 hover:text-red-500" />
                         Bypass with Guest Observer Pass
                       </button>
+                    </div>
+
+                    {/* FACIAL SCANNING TROUBLESHOOTING & AUDIT LOG PANEL */}
+                    <div className="border-t border-zinc-900/60 pt-3 mt-1 text-center">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          playBeep(700, 'sine', 0.05);
+                          setShowFaceLogs(!showFaceLogs);
+                        }}
+                        className="text-[9px] text-zinc-500 hover:text-red-400 font-black uppercase tracking-wider transition-colors duration-150 flex items-center gap-1.5 mx-auto focus:outline-none"
+                      >
+                        <Terminal className="w-3.5 h-3.5 text-zinc-600 hover:text-red-500" />
+                        {showFaceLogs ? 'Hide Optical Trouble Logs' : 'View Face-ID Trouble Logs'}
+                      </button>
+
+                      <AnimatePresence>
+                        {showFaceLogs && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden text-left mt-3 bg-black/60 border border-zinc-900 rounded-xl p-3 space-y-3"
+                          >
+                            <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
+                              <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1.5">
+                                <Cpu className="w-3.5 h-3.5" />
+                                Optical Diagnostics Audit
+                              </span>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    playBeep(1100, 'triangle', 0.1);
+                                    // Manually log a simulated diagnostic failure
+                                    const mockErr = ["Lattice convergence deviation threshold exceeded.", "Pupillary distance out of calibration bounds.", "Illumination variance below standard threshold (ambient lux too dark).", "Hardware frame latency spike detected (>250ms).", "Biometric facial coordinates spoof detected."][Math.floor(Math.random() * 5)];
+                                    logFaceAuthAttempt(
+                                      targetProfileId,
+                                      targetProfileId === 'creator' ? 'resurrectionofmoses@gmail.com' : `${targetProfileId}@aetheros.local`,
+                                      'FAILURE',
+                                      mockErr,
+                                      { confidenceScore: 31.4, landmarkPoints: 18 }
+                                    );
+                                    setFaceLogs(getFaceAuthLogs());
+                                  }}
+                                  className="text-[8px] bg-red-950/40 hover:bg-red-950 text-red-400 border border-red-900/30 px-1.5 py-0.5 rounded uppercase font-bold"
+                                  title="Add simulated error log to verify logging behavior"
+                                >
+                                  Simulate Fail
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    playBeep(400, 'sawtooth', 0.1);
+                                    clearFaceAuthLogs();
+                                    setFaceLogs([]);
+                                  }}
+                                  className="text-[8px] text-zinc-500 hover:text-zinc-300 flex items-center gap-1"
+                                >
+                                  <Trash2 className="w-2.5 h-2.5" />
+                                  Clear
+                                </button>
+                              </div>
+                            </div>
+
+                            <p className="text-[8.5px] text-zinc-500 leading-normal font-sans">
+                              Persists local auth event telemetry. Failures logged here automatically map into the global system diagnostic hub.
+                            </p>
+
+                            <div className="max-h-48 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                              {faceLogs.length === 0 ? (
+                                <p className="text-[9px] text-zinc-600 font-mono italic text-center py-4">No optical log telemetry saved.</p>
+                              ) : (
+                                faceLogs.map((log) => {
+                                  const isSuccess = log.status === 'SUCCESS';
+                                  const isFailure = log.status === 'FAILURE' || log.status === 'CAMERA_ERROR';
+                                  const isScanning = log.status === 'SCANNING';
+                                  
+                                  return (
+                                    <div 
+                                      key={log.id} 
+                                      className={`p-2 rounded-lg border text-[9px] font-mono ${
+                                        isSuccess 
+                                          ? 'bg-emerald-950/20 border-emerald-900/20 text-emerald-300' 
+                                          : isFailure 
+                                            ? 'bg-red-950/20 border-red-900/20 text-red-300' 
+                                            : 'bg-zinc-900/40 border-zinc-900/60 text-zinc-300'
+                                      }`}
+                                    >
+                                      <div className="flex justify-between items-center mb-1">
+                                        <span className={`font-bold uppercase tracking-wider text-[8px] ${
+                                          isSuccess ? 'text-emerald-400' : isFailure ? 'text-red-400' : 'text-zinc-400'
+                                        }`}>
+                                          {log.status}
+                                        </span>
+                                        <span className="text-zinc-500 text-[8px]">{log.localTime}</span>
+                                      </div>
+
+                                      <div className="space-y-0.5">
+                                        <p className="leading-tight break-all font-mono">
+                                          <span className="text-zinc-500">Target:</span> {log.targetProfileId.toUpperCase()} ({log.targetEmail})
+                                        </p>
+                                        {log.errorMessage && (
+                                          <p className="text-red-400 bg-red-950/30 p-1 rounded border border-red-900/10 mt-1 font-mono">
+                                            <span className="font-bold font-sans">Error:</span> {log.errorMessage}
+                                          </p>
+                                        )}
+                                        <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-1.5 pt-1 border-t border-zinc-900/40 text-[8px] text-zinc-400 font-mono">
+                                          <div>Match Confidence: <span className="text-zinc-200">{log.details.confidenceScore}%</span></div>
+                                          <div>Landmarks: <span className="text-zinc-200">{log.details.landmarkPoints}</span></div>
+                                          <div>Execution Time: <span className="text-zinc-200">{log.details.executionTimeMs}ms</span></div>
+                                          <div>Viewport: <span className="text-zinc-200">{log.details.viewport}</span></div>
+                                          <div className="col-span-2 truncate">UA: <span className="text-zinc-500 text-[7px]">{log.details.browserAgent}</span></div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                 </motion.div>
             ) : (

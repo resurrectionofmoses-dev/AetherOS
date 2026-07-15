@@ -12,6 +12,32 @@ dist
 dist-ssr
 *.local
 
+# Local configurations and sensitive credentials
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.*
+!.env.example
+
+# Database / Local backups / Evolution State
+backups/
+evo.json
+firebase-applet-config.json
+firebase-applet-config*.json
+firebase_applet_config*.xml
+firestore-debug.log
+firebase-debug.log
+
+# Key/Cert stores
+*.key
+*.pem
+*.pfx
+*.cer
+credentials*.json
+service-account*.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -22,3 +48,4 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
