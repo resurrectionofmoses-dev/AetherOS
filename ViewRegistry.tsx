@@ -86,6 +86,7 @@ import { TacticalIntelligenceView } from './components/TacticalIntelligenceView'
 import { BehavioralSpecsView } from './components/BehavioralSpecsView';
 import { CognitivePipelineView } from './components/CognitivePipelineView';
 import { DataProvenanceLab } from './components/DataProvenanceLab';
+import { BoundObserverView } from './components/BoundObserverView';
 import { SelfHealingCRTView } from './components/SelfHealingCRTView';
 import { UserProfileView } from './components/UserProfileView';
 import { CollaborativeEditorView } from './components/CollaborativeEditorView';
@@ -396,6 +397,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'behavioral_specs': (props) => <BehavioralSpecsView onClose={() => props.onSetView('sovereign_shield')} />,
     'cognitive_pipeline': (props) => <CognitivePipelineView onClose={() => props.onSetView('sovereign_shield')} />,
     'data_provenance_lab': () => <DataProvenanceLab />,
+    'bound_observer': () => <BoundObserverView />,
     'sh_crt_loop': () => <SelfHealingCRTView />,
     'user_profile': (props) => <UserProfileView profile={props.profile} projects={props.projects} onUpdateProfile={(updates) => props.onUpdateProfile(updates)} onSetView={props.onSetView} />,
     'prompt_forge': () => <PromptForge />,

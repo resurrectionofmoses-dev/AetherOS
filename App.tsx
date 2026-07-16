@@ -557,7 +557,7 @@ const ALL_VIEWS_LIST: MainView[] = [
   'vulnerability_report', 'tactical_intelligence', 'behavioral_specs', 'cognitive_pipeline', 'data_provenance_lab', 
   'sh_crt_loop', 'user_profile', 'prompt_forge', 'sovereign_standard', 'confusion_logic', 'knowledge_forum', 
   'blockchain_history', 'main_net', 'ecosystem', 'accounts_registry', 'blacklist', 'system_integrity', 
-  'vault_manager', 'moderator_lounge', 'biometric_intelligence', 'card_recovery', 'project_showcase', 'quantum_ledger' as any, 'ai_telemetry', 'inevitable_crash', 'scraper_merchant_store', 'data_academy', 'reputation_leaderboard', 'aether_flow_orchestrator', 'packaging_suite', 'system_archives', 'system_diagnostic', 'aetheros_online_status', 'regex_editor_lab', 'agent_safeguard', 'safeguard', 'gmail', 'google_drive', 'sovereign_scanner', 'activity_logs'
+  'vault_manager', 'moderator_lounge', 'biometric_intelligence', 'card_recovery', 'project_showcase', 'quantum_ledger' as any, 'ai_telemetry', 'inevitable_crash', 'scraper_merchant_store', 'data_academy', 'reputation_leaderboard', 'aether_flow_orchestrator', 'packaging_suite', 'system_archives', 'system_diagnostic', 'aetheros_online_status', 'regex_editor_lab', 'agent_safeguard', 'safeguard', 'gmail', 'google_drive', 'sovereign_scanner', 'activity_logs', 'bound_observer'
 ];
 
 export const App: React.FC = () => {

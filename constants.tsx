@@ -83,6 +83,7 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
           { view: 'system_archives', text: 'SYSTEM ARCHIVES', icon: DatabaseIcon },
           { view: 'rt_ipc_lab', text: 'RT-IPC LAB', icon: SignalIcon },
           { view: 'sovereign_shield', text: 'SOVEREIGN SHIELD', icon: ShieldIcon },
+          { view: 'bound_observer' as any, text: 'BOUND OBSERVER', icon: ShieldIcon },
           { view: 'sovereign_standard' as any, text: 'SOVEREIGN STANDARD', icon: ShieldIcon },
           { view: 'spectre_browser', text: 'SPECTRE BROWSER', icon: EyeIcon },
           { view: 'unified_chain', text: 'UNIFIED CHAIN', icon: ShieldIcon },
