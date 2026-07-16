@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { MainView } from './types';
+import { ActivityLogsView } from './components/ActivityLogsView';
 import { HunterWalletConsole } from './components/HunterWalletConsole';
 import { MissionItemsView } from './components/MissionItemsView';
 import { ProjectShowcaseView } from './components/ProjectShowcaseView';
@@ -427,4 +428,5 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'program_frame_visualizer': () => <ProgramFrameVisualizer />,
     'sovereign_scroll_console': () => <SovereignScrollConsole />,
     'hunting_wallet': () => <HunterWalletConsole />,
+    'activity_logs': () => <ActivityLogsView />,
 };

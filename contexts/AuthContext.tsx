@@ -237,26 +237,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const guestLogin = async () => {
-    setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 800));
-    const guestUser: User = {
-      uid: `guest-${uuidv4().split('-')[0]}`,
-      displayName: 'Guest Observer',
-      email: 'guest@aetheros.local',
-      role: 'guest',
-      sovereignty: 'UNKNOWN_SECTOR'
-    };
-    const userWithStatus = { 
-        ...guestUser, 
-        status: 'active' as UserStatus, 
-        lastActive: Date.now(),
-        machineId: getMachineId(),
-        seclusionActive: false
-    };
-    setUser(userWithStatus);
-    safeLocal.setItem('aetheros_user', JSON.stringify(userWithStatus));
-    syncToRegistry(userWithStatus);
-    setLoading(false);
+    throw new Error("SECURITY_POSTURE_BREACH: Emergency guest/bypass login is strictly prohibited under sovereign facial-recognition directives.");
   };
 
   const logout = async () => {

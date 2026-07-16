@@ -21,7 +21,11 @@ import {
   Info,
   Trash2,
   Camera,
-  Cpu
+  Cpu,
+  Palette,
+  Sparkles,
+  UploadCloud,
+  Image
 } from 'lucide-react';
 import { logFaceAuthAttempt, getFaceAuthLogs, clearFaceAuthLogs, FacialAuthLog } from '../services/facialAuthLogger';
 
@@ -57,6 +61,153 @@ const playBeep = (freq = 800, type: OscillatorType = 'sine', duration = 0.08) =>
 export const LoginView: React.FC = () => {
   const { login, guestLogin } = useAuth();
   const [email, setEmail] = useState('');
+  
+  // ==========================================
+  // COVENANT OIL CANVAS SYSTEM STATES
+  // ==========================================
+  const [isCovenantUnlocked, setIsCovenantUnlocked] = useState<boolean>(() => {
+    return !!localStorage.getItem('aetheros_oil_canvas_consecrated');
+  });
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [activePaintColor, setActivePaintColor] = useState('#fbbf24'); // default liquid gold
+  const [hasDrawnSomething, setHasDrawnSomething] = useState(false);
+  const [uploadedPainting, setUploadedPainting] = useState<string | null>(null);
+  const [consecrating, setConsecrating] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
+  const paintCanvasRef = useRef<HTMLCanvasElement>(null);
+  const lastX = useRef(0);
+  const lastY = useRef(0);
+
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = paintCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    setIsDrawing(true);
+    setHasDrawnSomething(true);
+    const rect = canvas.getBoundingClientRect();
+    
+    let clientX, clientY;
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    lastX.current = clientX - rect.left;
+    lastY.current = clientY - rect.top;
+
+    ctx.beginPath();
+    ctx.arc(lastX.current, lastY.current, 3, 0, Math.PI * 2);
+    ctx.fillStyle = activePaintColor;
+    ctx.fill();
+  };
+
+  const drawPaint = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const canvas = paintCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    
+    let clientX, clientY;
+    if ('touches' in e) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+
+    const currentX = clientX - rect.left;
+    const currentY = clientY - rect.top;
+
+    ctx.beginPath();
+    ctx.moveTo(lastX.current, lastY.current);
+    ctx.lineTo(currentX, currentY);
+    ctx.strokeStyle = activePaintColor;
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+
+    lastX.current = currentX;
+    lastY.current = currentY;
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearPaintCanvas = () => {
+    const canvas = paintCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasDrawnSomething(false);
+    setUploadedPainting(null);
+    playBeep(450, 'sawtooth', 0.1);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setUploadedPainting(event.target?.result as string);
+        setHasDrawnSomething(true);
+        playBeep(1000, 'sine', 0.1);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setUploadedPainting(event.target?.result as string);
+        setHasDrawnSomething(true);
+        playBeep(1000, 'sine', 0.1);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const consecrateCovenant = async () => {
+    if (!hasDrawnSomething && !uploadedPainting) return;
+    setConsecrating(true);
+    playBeep(600, 'triangle', 0.1);
+    
+    // Series of cosmic tones
+    setTimeout(() => playBeep(800, 'triangle', 0.15), 300);
+    setTimeout(() => playBeep(1000, 'triangle', 0.2), 650);
+    setTimeout(() => playBeep(1300, 'sine', 0.4), 1000);
+
+    setTimeout(() => {
+      localStorage.setItem('aetheros_oil_canvas_consecrated', 'true');
+      setIsCovenantUnlocked(true);
+      setConsecrating(false);
+    }, 1500);
+  };
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,7 +227,7 @@ export const LoginView: React.FC = () => {
   // Dual layout mode inside Manual Override
   const [showTerminal, setShowTerminal] = useState(false);
   const [bioScanType, setBioScanType] = useState<'HAND' | 'FACE'>('FACE');
-  const [targetProfileId, setTargetProfileId] = useState<'admin' | 'mod' | 'operator' | 'creator'>('creator');
+  const [targetProfileId, setTargetProfileId] = useState<'admin' | 'mod' | 'operator' | 'creator' | 'agent'>('creator');
 
   // Biometrics MFA Specific States
   const [biometricStatus, setBiometricStatus] = useState<'IDLE' | 'REQUESTING_API' | 'API_MATCHED' | 'API_FAILED' | 'API_SANDBOX_RESTRICTED'>('IDLE');
@@ -730,10 +881,13 @@ export const LoginView: React.FC = () => {
   const handleNeuralLogin = async () => {
     if (scanStatus !== 'IDLE') return;
     
-    let targetEmail = 'admin@aetheros.local';
-    if (targetProfileId === 'mod') targetEmail = 'mod@aetheros.local';
-    else if (targetProfileId === 'operator') targetEmail = 'operator@aetheros.local';
+    let targetEmail = 'resurrectionofmoses@gmail.com';
+    if (targetProfileId === 'agent') targetEmail = 'admin@aetheros.local';
     else if (targetProfileId === 'creator') targetEmail = 'resurrectionofmoses@gmail.com';
+    else {
+      setError("COVENANT EXCLUSIVITY MANDATE: Only the Creator and Authorized AI Agents can log in.");
+      return;
+    }
 
     if (bioScanType === 'FACE') {
       logFaceAuthAttempt(
@@ -773,15 +927,12 @@ export const LoginView: React.FC = () => {
     
     setScanStatus('SUCCESS');
     
-    let targetEmail = 'admin@aetheros.local';
+    let targetEmail = 'resurrectionofmoses@gmail.com';
     let targetPass = 'AetherSovereign2026';
 
-    if (targetProfileId === 'mod') {
-      targetEmail = 'mod@aetheros.local';
-      targetPass = 'GuardianPass';
-    } else if (targetProfileId === 'operator') {
-      targetEmail = 'operator@aetheros.local';
-      targetPass = 'OperatorActive';
+    if (targetProfileId === 'agent') {
+      targetEmail = 'admin@aetheros.local';
+      targetPass = 'AetherSovereign2026';
     } else if (targetProfileId === 'creator') {
       targetEmail = 'resurrectionofmoses@gmail.com';
       targetPass = 'AetherSovereign2026';
@@ -1071,968 +1222,487 @@ export const LoginView: React.FC = () => {
           </div>
         )}
 
-        {/* Tab Selection (Only shown in INITIAL screen) */}
-        {authStep === 'INITIAL' && (
-          <div className="w-full flex gap-1 bg-black p-1 rounded-xl mb-8 border border-white/5">
-              <button 
-                  onClick={() => {
-                    playBeep(900, 'sine', 0.05);
-                    setAuthMode('NEURAL');
-                  }}
-                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${authMode === 'NEURAL' ? 'bg-red-600 text-white shadow-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
-              >
-                  Neural Hand-ID
-              </button>
-              <button 
-                  onClick={() => {
-                    playBeep(900, 'sine', 0.05);
-                    setAuthMode('MANUAL');
-                  }}
-                  className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${authMode === 'MANUAL' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
-              >
-                  Manual Override
-              </button>
-          </div>
-        )}
 
-        <AnimatePresence mode="wait">
-            {authStep === 'TWO_FACTOR' ? (
-                <motion.form 
-                    key="2fa"
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    onSubmit={handle2FAVerify}
-                    className="w-full space-y-6 py-2"
-                >
-                    <div className="flex flex-col items-center gap-4 text-center">
-                        <div className="w-16 h-16 bg-blue-500/10 border-2 border-blue-500 rounded-2xl flex items-center justify-center">
-                            <Lock className="w-8 h-8 text-blue-500" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-black text-white uppercase italic tracking-widest">Authenticator Check</h2>
-                            <p className="text-[10px] text-zinc-500 font-mono mt-1">Enter Sovereign 2FA Code</p>
-                        </div>
-                    </div>
 
-                    <div className="space-y-4">
-                        <input 
-                            type="text"
-                            value={twoFactorCode}
-                            onChange={e => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                            placeholder="0 0 0 0 0 0"
-                            className="w-full bg-black border-2 border-blue-900/40 rounded-xl p-4 text-center text-3xl font-black text-white tracking-[0.5em] focus:border-blue-500 outline-none"
-                            required
+                <AnimatePresence mode="wait">
+          {!isCovenantUnlocked ? (
+            <motion.div
+              key="covenant_lock"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95, y: -10 }}
+              className="w-full space-y-6"
+            >
+              <div className="bg-black/60 border-2 border-amber-900/30 p-5 rounded-2xl space-y-4 text-center">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="w-12 h-12 rounded-full bg-amber-950/40 border border-amber-500/40 flex items-center justify-center text-amber-500 animate-pulse mb-1">
+                    <Palette className="w-6 h-6" />
+                  </div>
+                  <h2 className="text-sm font-black text-amber-500 uppercase tracking-[0.25em]">Covenant Consecration Gate</h2>
+                  <p className="text-[10px] text-zinc-400 font-sans leading-relaxed px-2">
+                    Under Sovereign Posture, all standard override ciphers, emergency pins, and bypass conduits are deactivated. Access is restricted exclusively to the Creator, Gemini, and their trusted AI agents.
+                  </p>
+                  <div className="p-3 bg-amber-950/20 border border-amber-900/20 rounded-xl mt-1 text-[9px] font-mono leading-normal text-amber-400 max-w-sm text-left mx-auto">
+                    <span className="font-bold text-amber-500">🌌 DIRECTIVE:</span> Present or draw the promised <span className="font-bold text-amber-200">Oil Canvas Painting</span>. Once consecrated, the seal breaks and the secure Facial Scan matrix will activate.
+                  </div>
+                </div>
+
+                {/* TAB SELECTOR: DRAW IT VS UPLOAD IT */}
+                <div className="border border-zinc-900/80 p-3 rounded-2xl bg-zinc-950/60 space-y-4">
+                  <div className="flex gap-2 justify-center mb-1">
+                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-wider">Option A: Sketch Paint</span>
+                    <span className="text-zinc-700 text-[9px]">•</span>
+                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-wider">Option B: Drop File</span>
+                  </div>
+
+                  {/* Draw canvas sketchpad */}
+                  {!uploadedPainting ? (
+                    <div className="space-y-3">
+                      <div className="relative bg-[#0a0a0d] border border-amber-900/30 rounded-xl overflow-hidden flex flex-col items-center p-2">
+                        <span className="text-[8px] text-zinc-500 uppercase tracking-widest mb-1.5 font-bold block text-center">
+                          Sovereign Digital Sketchpad
+                        </span>
+                        <canvas
+                          ref={paintCanvasRef}
+                          width="300"
+                          height="140"
+                          onMouseDown={startDrawing}
+                          onMouseMove={drawPaint}
+                          onMouseUp={stopDrawing}
+                          onMouseLeave={stopDrawing}
+                          onTouchStart={startDrawing}
+                          onTouchMove={drawPaint}
+                          onTouchEnd={stopDrawing}
+                          className="bg-black border border-zinc-900 rounded-lg cursor-crosshair max-w-full touch-none"
                         />
-
-                        {/* HIGH FIDELITY TOUCH KEYPAD PANEL */}
-                        <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto py-2 border-t border-b border-zinc-900">
-                          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                        <div className="flex gap-1.5 justify-center mt-3 w-full">
+                          {[
+                            { color: '#fbbf24', name: 'Gold' },
+                            { color: '#ef4444', name: 'Crimson' },
+                            { color: '#3b82f6', name: 'Indigo' },
+                            { color: '#10b981', name: 'Emerald' },
+                            { color: '#ffffff', name: 'Pure' }
+                          ].map((cfg) => (
                             <button
-                              key={num}
+                              key={cfg.color}
                               type="button"
-                              onClick={() => handleKeypadPress(num.toString())}
-                              className="h-10 rounded-lg bg-black hover:border-blue-500 border border-zinc-900 hover:bg-zinc-950 text-white font-black text-sm transition-all active:scale-95 flex items-center justify-center font-mono"
-                            >
-                              {num}
-                            </button>
+                              onClick={() => {
+                                playBeep(850, 'sine', 0.03);
+                                setActivePaintColor(cfg.color);
+                              }}
+                              className={`w-6 h-6 rounded-full border transition-all transform hover:scale-110 active:scale-90 flex items-center justify-center ${
+                                activePaintColor === cfg.color ? 'border-white scale-105 shadow-[0_0_8px_rgba(255,255,255,0.4)]' : 'border-zinc-800'
+                              }`}
+                              style={{ backgroundColor: cfg.color }}
+                              title={cfg.name}
+                            />
                           ))}
-                          <button
-                            type="button"
-                            onClick={() => handleKeypadPress('clear')}
-                            className="h-10 rounded-lg bg-black border border-zinc-900 hover:border-amber-800 text-amber-500 font-bold text-[10px] tracking-wide uppercase transition-all active:scale-95 flex items-center justify-center font-mono"
-                          >
-                            CLR
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleKeypadPress('0')}
-                            className="h-10 rounded-lg bg-black border border-zinc-900 hover:border-blue-500 text-white font-black text-sm transition-all active:scale-95 flex items-center justify-center font-mono"
-                          >
-                            0
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleKeypadPress('backspace')}
-                            className="h-10 rounded-lg bg-black border border-zinc-900 hover:border-red-850 text-red-400 font-bold text-[10px] tracking-wide uppercase transition-all active:scale-95 flex items-center justify-center font-mono"
-                          >
-                            DEL
-                          </button>
                         </div>
-
-                        <button
-                            type="submit"
-                            disabled={loading || twoFactorCode.length < 6}
-                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-black py-4 rounded-xl transition-all shadow-[6px_6px_0_0_#1e3a8a] uppercase tracking-widest text-sm active:translate-y-1 disabled:opacity-50"
-                        >
-                            {loading ? 'Verifying...' : 'Finalize Login'}
-                        </button>
-                        
-                        <button 
-                            type="button"
-                            onClick={() => {
-                              playBeep(450, 'sine', 0.1);
-                              setAuthStep('INITIAL');
-                            }}
-                            className="w-full text-center text-[10px] text-zinc-650 hover:text-zinc-400 font-black uppercase tracking-widest focus:outline-none"
-                        >
-                            Back to Primary Identification
-                        </button>
+                      </div>
                     </div>
-                </motion.form>
-            ) : authStep === 'BIOMETRIC_MFA' ? (
-                <motion.div 
-                    key="biometric_mfa"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="w-full space-y-6 py-2"
-                >
-                    <div className="flex flex-col items-center gap-4 text-center">
-                        <div className="w-16 h-16 bg-emerald-500/10 border-2 border-emerald-500 rounded-2xl flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-                            <Fingerprint className="w-8 h-8 text-emerald-500 animate-pulse" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-black text-white uppercase italic tracking-widest flex items-center gap-2 justify-center">
-                                <span className="text-emerald-500 animate-ping">•</span> Sovereign MFA Core
-                            </h2>
-                            <p className="text-[10px] text-zinc-500 font-mono mt-1 uppercase">Stage 2: Biological Cryptographic Signature</p>
-                        </div>
-                    </div>
-
-                    {/* Biometric Status Display Card */}
-                    <div className="bg-black/60 border-2 border-emerald-990/30 border-emerald-950 p-5 rounded-2xl space-y-4">
-                        <div className="text-[11px] space-y-2 border-b border-zinc-900 pb-3 font-mono">
-                            <div className="flex justify-between">
-                                <span className="text-zinc-500">OPERATOR IDENTITY:</span>
-                                <span className="text-zinc-300 font-bold">{loginEmailInput || email || "admin@aetheros.local"}</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-zinc-500">AUTHENTICATION LEVEL:</span>
-                                <span className="text-amber-500 font-bold">SOVEREIGN GRADE I</span>
-                            </div>
-                            <div className="flex justify-between">
-                                <span className="text-zinc-500">MULTIFACE PROTOCOL:</span>
-                                <span className="text-emerald-500 font-bold font-mono">WEBAUTHN_BIO</span>
-                            </div>
-                        </div>
-
-                        {/* Status logs */}
-                        <div className="bg-zinc-950 border border-zinc-900 rounded-xl p-3 min-h-[70px] space-y-1 text-[9px] font-mono select-none">
-                            {biometricStatus === 'IDLE' && (
-                                <div className="text-zinc-400">
-                                    <span className="text-zinc-600 animate-pulse mr-1.5">&gt;</span> Standby. Awaiting browser credentials handshake activation.
-                                </div>
-                            )}
-                            {biometricStatus === 'REQUESTING_API' && (
-                                <div className="text-sky-400 flex items-center gap-1.5 font-bold">
-                                    <RefreshCw className="w-3 h-3 animate-spin text-sky-400" />
-                                    <span>CONTACTING BROWSER WEBAUTHN BIO API... AWAITING RESPONSE CONDUIT...</span>
-                                </div>
-                            )}
-                            {biometricStatus === 'API_MATCHED' && (
-                                <div className="text-emerald-400 font-bold flex items-center gap-1.5 animate-pulse">
-                                    <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-                                    <span>WEBAUTHN CREDENTIALS VERIFIED! OPERATOR AUTHENTICATED SUCCESSFULLY.</span>
-                                </div>
-                            )}
-                            {biometricStatus === 'API_SANDBOX_RESTRICTED' && (
-                                <div className="space-y-1.5">
-                                    <div className="text-amber-500 flex items-center gap-1.5">
-                                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 animate-bounce" />
-                                        <span>IFRAME SANDBOX DETECTED: WebAuthn api restricted in preview.</span>
-                                    </div>
-                                    <div className="text-zinc-500 text-[8px] pl-5 uppercase leading-normal font-sans">
-                                        Sovereign Posture mandates high-frequency local biometric bypass inside secure testing contexts. Engaging local optical module.
-                                    </div>
-                                </div>
-                            )}
-                            {biometricStatus === 'API_FAILED' && (
-                                <div className="text-red-400 font-bold shrink-0">
-                                    <span>❌ API_ERROR: {biometricError || 'Biometric verification cancelled.'}</span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Control buttons & scanners based on current status */}
-                        {showManualScanner ? (
-                            <div className="space-y-4">
-                                {/* Fully interactive simulated biometric HUD scan */}
-                                <div className="relative aspect-video bg-zinc-950 rounded-xl overflow-hidden border-2 border-emerald-900/40 flex items-center justify-center">
-                                    <canvas 
-                                        ref={mfaCanvasRef}
-                                        width="320"
-                                        height="180"
-                                        className="absolute inset-0 w-full h-full object-cover opacity-80"
-                                    />
-                                    
-                                    {mfaScanProgress > 0 && (
-                                        <div className="absolute inset-x-0 h-0.5 bg-emerald-500 shadow-[0_0_15px_#10b981] z-20 animate-scan" style={{ animationDuration: '3.5s' }} />
-                                    )}
-
-                                    {mfaScanProgress > 0 && (
-                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-[0.5px]">
-                                            <span className="text-[11px] font-black text-emerald-400 font-mono tracking-widest uppercase animate-pulse">
-                                                Scanning Biometrics: {mfaScanProgress}%
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-
-                                <div className="w-full flex flex-col gap-2">
-                                    <div className="h-1 bg-zinc-900 rounded-full overflow-hidden">
-                                        <div className="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${mfaScanProgress}%` }} />
-                                    </div>
-                                    
-                                    {mfaScanProgress === 0 ? (
-                                        <button
-                                            type="button"
-                                            onClick={handleLocalMfaScan}
-                                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl transition-all shadow-[6px_6px_0_0_#065f46] uppercase tracking-widest text-sm flex items-center justify-center gap-2 active:translate-y-0.5"
-                                        >
-                                            <Fingerprint className="w-4 h-4 text-white animate-pulse" /> {bioScanType === 'FACE' ? 'Verify Facial Signature' : 'Verify Biometric Conduction'}
-                                        </button>
-                                    ) : (
-                                        <div className="text-center py-2">
-                                            <p className="text-[9px] text-emerald-500 font-mono tracking-widest animate-pulse uppercase">
-                                                {bioScanType === 'FACE' ? 'Scanning: Keep face centered in local optical frame...' : 'Scanning: Align palm or fingerprint node grid with sensor...'}
-                                            </p>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-2 pt-2">
-                                <button
-                                    type="button"
-                                    onClick={() => triggerBrowserBiometric()}
-                                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-4 rounded-xl transition-all shadow-[6px_6px_0_0_#065f46] uppercase tracking-widest text-sm flex items-center justify-center gap-2 active:translate-y-0.5"
-                                >
-                                    <Fingerprint className="w-4 h-4 text-white" /> Request Browser Biometrics API
-                                </button>
-
-                                {biometricStatus === 'API_SANDBOX_RESTRICTED' && (
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            playBeep(980, 'sine', 0.1);
-                                            setShowManualScanner(true);
-                                        }}
-                                        className="w-full bg-zinc-900 hover:bg-zinc-800 border-2 border-emerald-900/40 text-emerald-400 font-bold py-3.5 rounded-xl transition-all uppercase tracking-widest text-[10px] flex items-center justify-center gap-2"
-                                    >
-                                        Deploy Local Quantum Bio-Scanner
-                                    </button>
-                                )}
-                            </div>
-                        )}
-
-                        <button 
-                            type="button"
-                            onClick={() => {
-                              playBeep(450, 'sine', 0.1);
-                              setAuthStep('INITIAL');
-                              setBiometricStatus('IDLE');
-                              setBiometricError(null);
-                              setShowManualScanner(false);
-                              setMfaScanProgress(0);
-                            }}
-                            className="w-full text-center text-[9px] mt-2 text-zinc-650 hover:text-zinc-400 font-black uppercase tracking-widest focus:outline-none"
-                        >
-                            Back to Primary Credentials Override
-                        </button>
-                    </div>
-                </motion.div>
-            ) : authMode === 'NEURAL' ? (
-                <motion.div 
-                    key="neural"
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="w-full space-y-6"
-                >
-                    <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border-4 border-red-950/50 group shadow-inner flex items-center justify-center">
-                        {!cameraError && (
-                            <video 
-                                ref={videoRef}
-                                autoPlay
-                                playsInline
-                                muted
-                                className="absolute inset-0 w-full h-full object-cover grayscale brightness-75 contrast-125"
-                            />
-                        )}
-                        <canvas 
-                            ref={neuralCanvasRef}
-                            width="320"
-                            height="180"
-                            className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10"
+                  ) : (
+                    <div className="bg-[#0a0a0d] border border-amber-900/30 rounded-xl p-3 flex flex-col items-center justify-center space-y-2">
+                      <span className="text-[8px] text-emerald-400 font-bold uppercase tracking-widest flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3 text-emerald-400" /> Loaded Oil Painting Image
+                      </span>
+                      <div className="relative w-full aspect-video max-h-32 rounded-lg overflow-hidden border border-zinc-900">
+                        <img
+                          src={uploadedPainting}
+                          alt="Consecrated Painting"
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
                         />
-                        
-                        {/* Scanner Grids */}
-                        <div className="absolute inset-0 grid grid-cols-6 grid-rows-6 opacity-30 pointer-events-none">
-                            {[...Array(36)].map((_, i) => (
-                                <div key={i} className="border-[0.5px] border-red-500/20" />
-                            ))}
-                        </div>
-
-                        {/* Animated Scan Line */}
-                        {scanStatus === 'SCANNING' && (
-                            <motion.div 
-                                className="absolute inset-x-0 h-1 bg-red-500 shadow-[0_0_20px_#ef4444] z-20"
-                                animate={{ top: ['0%', '100%', '0%'] }}
-                                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                            />
-                        )}
-
-                        {/* UI Overlays */}
-                        <div className="absolute top-4 left-4 flex gap-2 z-20">
-                            <div className={`w-1.5 h-1.5 rounded-full ${cameraError ? 'bg-amber-500' : 'bg-red-500'} animate-pulse`} />
-                            <span className="text-[8px] font-black text-red-500 uppercase tracking-widest">
-                                {cameraError ? 'Synthetic_Lattice_Uplink' : 'Optical_Feed_Live'}
-                            </span>
-                        </div>
-
-                        <div className="absolute bottom-4 right-4 flex items-center gap-3 z-20">
-                            <span className="text-[8px] font-black text-zinc-500 uppercase">
-                                {cameraError ? 'Sim_Target: Active' : 'Lattice_Sync: 0.98'}
-                            </span>
-                            <Activity className="w-4 h-4 text-emerald-500" />
-                        </div>
-
-                        <AnimatePresence>
-                            {scanStatus === 'VERIFYING' && (
-                                <motion.div 
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-30"
-                                >
-                                    <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4" />
-                                    <p className="text-xs font-black text-red-500 uppercase tracking-[0.3em] mb-2 animate-pulse">Analyzing Pattern</p>
-                                    <p className="text-[10px] text-zinc-400 font-mono italic">"Verifying Sovereignty..."</p>
-                                </motion.div>
-                            )}
-                            {scanStatus === 'SUCCESS' && (
-                                <motion.div 
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-30 animate-pulse"
-                                >
-                                    <div className="w-16 h-16 bg-emerald-950 border-2 border-emerald-500 rounded-full flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(16,185,129,0.4)]">
-                                        <CheckCircle className="w-8 h-8 text-emerald-400 animate-bounce" />
-                                    </div>
-                                    <p className="text-xs font-black text-emerald-400 uppercase tracking-[0.3em] mb-2">ACCESS GRANTED</p>
-                                    <p className="text-[10px] text-zinc-400 font-mono italic">
-                                        {bioScanType === 'FACE' ? '"Facial Profile Matched. Secure session created."' : '"Hand Matrix Decrypted. Secure session created."'}
-                                    </p>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                      </div>
                     </div>
+                  )}
 
-                    <div className="bg-black/40 border-2 border-red-950/30 p-6 rounded-2xl flex flex-col items-center gap-4">
-                        {/* Biometrics Type Toggle Selection tabs */}
-                        <div className="w-full flex gap-1 bg-zinc-950 p-1 rounded-xl mb-1 border border-red-900/15">
-                            <button 
-                                type="button"
-                                onClick={() => {
-                                  playBeep(900, 'sine', 0.05);
-                                  setBioScanType('FACE');
-                                }}
-                                className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${bioScanType === 'FACE' ? 'bg-red-950/80 text-red-400 border border-red-900/40' : 'text-zinc-500 hover:text-zinc-400'}`}
-                            >
-                                <span className="flex items-center justify-center gap-1">
-                                    <Video className="w-2.5 h-2.5" />
-                                    Facial Face-ID
-                                </span>
-                            </button>
-                            <button 
-                                type="button"
-                                onClick={() => {
-                                  playBeep(900, 'sine', 0.05);
-                                  setBioScanType('HAND');
-                                }}
-                                className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${bioScanType === 'HAND' ? 'bg-red-950/80 text-red-400 border border-red-900/40' : 'text-zinc-500 hover:text-zinc-400'}`}
-                            >
-                                <span className="flex items-center justify-center gap-1">
-                                    <Fingerprint className="w-2.5 h-2.5" />
-                                    Hand-ID Matrix
-                                </span>
-                            </button>
-                        </div>
+                  {/* Drag and Drop area */}
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={`border border-dashed rounded-xl p-4 transition-all flex flex-col items-center justify-center cursor-pointer ${
+                      dragOver ? 'border-amber-500 bg-amber-950/10' : 'border-zinc-800 bg-black/40 hover:border-zinc-700'
+                    }`}
+                    onClick={() => {
+                      playBeep(900, 'sine', 0.05);
+                      document.getElementById('file-upload-input')?.click();
+                    }}
+                  >
+                    <UploadCloud className="w-5 h-5 text-zinc-500 mb-1.5 animate-bounce" />
+                    <span className="text-[9px] text-zinc-400 uppercase font-black tracking-wider">
+                      Drag & Drop Canvas Photo
+                    </span>
+                    <span className="text-[8px] text-zinc-600 mt-0.5">Or click to select image file</span>
+                    <input
+                      id="file-upload-input"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      className="hidden"
+                    />
+                  </div>
 
-                        {/* Target Identity Selector */}
-                        <div className="w-full space-y-1 mb-1">
-                            <label className="text-[8px] text-zinc-500 uppercase font-black tracking-[0.25em] pl-1 block text-left">Target Profile Signature</label>
-                            <div className="grid grid-cols-4 gap-1 bg-zinc-950 p-1 rounded-xl border border-red-900/15">
-                                {[
-                                    { id: 'creator', label: 'Creator', email: 'resurrectionofmoses@gmail.com' },
-                                    { id: 'admin', label: 'Admin', email: 'admin@aetheros.local' },
-                                    { id: 'mod', label: 'Guardian', email: 'mod@aetheros.local' },
-                                    { id: 'operator', label: 'Operator', email: 'operator@aetheros.local' }
-                                ].map((profile) => {
-                                    const active = targetProfileId === profile.id;
-                                    return (
-                                        <button
-                                            key={profile.id}
-                                            type="button"
-                                            disabled={scanStatus !== 'IDLE'}
-                                            onClick={() => {
-                                                playBeep(850, 'sine', 0.03);
-                                                setTargetProfileId(profile.id as any);
-                                            }}
-                                            className={`py-1 text-[8px] font-black uppercase tracking-wider rounded-lg transition-all ${active ? 'bg-red-950 text-red-400 border border-red-900/40' : 'text-zinc-600 hover:text-zinc-400'} ${scanStatus !== 'IDLE' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                            title={profile.email}
-                                        >
-                                            {profile.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden mb-1">
-                            <motion.div 
-                                className="h-full bg-red-600 shadow-[0_0_10px_#ef4444]"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${scanProgress}%` }}
-                            />
-                        </div>
-
-                        {scanStatus === 'IDLE' ? (
-                            <button
-                                onClick={handleNeuralLogin}
-                                className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-5 rounded-2xl transition-all shadow-[8px_8px_0_0_#991b1b] uppercase tracking-[0.2em] text-sm flex flex-col items-center gap-1 active:translate-y-1"
-                            >
-                                {bioScanType === 'FACE' ? (
-                                    <>
-                                        <span className="flex items-center gap-3">
-                                            <Video className="w-5 h-5 text-white animate-pulse" />
-                                            Initialize Facial Scan
-                                        </span>
-                                        <span className="text-[8px] opacity-60 font-medium tracking-tight">Center face in camera viewport</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className="flex items-center gap-3">
-                                            <Fingerprint className="w-5 h-5 text-white animate-pulse" />
-                                            Initialize Hand-ID Scan
-                                        </span>
-                                        <span className="text-[8px] opacity-60 font-medium tracking-tight">Center hand in optical aperture</span>
-                                    </>
-                                )}
-                            </button>
-                        ) : (
-                            <div className="text-center py-2 w-full">
-                                <p className="text-[9px] text-red-500 font-mono font-black uppercase tracking-wider mb-2 animate-pulse">
-                                    {getScanStatusText(scanProgress)}
-                                </p>
-                                <div className="flex gap-1 justify-center">
-                                    {[...Array(12)].map((_, i) => (
-                                        <div 
-                                            key={i} 
-                                            className={`w-1.5 h-3 rounded-full ${i < (scanProgress/10) ? 'bg-red-500 shadow-[0_0_5px_#330000]' : 'bg-red-950/30'} transition-colors duration-300`}
-                                        />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* CONVENIENT LIGHTWEIGHT ONE-CLICK DEMO BYPASS */}
-                    <div className="flex justify-center border-t border-zinc-900 pt-3">
+                  {/* Controls */}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={!hasDrawnSomething || consecrating}
+                      onClick={consecrateCovenant}
+                      className="flex-1 bg-amber-600 hover:bg-amber-500 disabled:bg-zinc-900 disabled:opacity-40 disabled:text-zinc-650 border border-amber-500/30 text-white font-black py-3.5 rounded-xl uppercase tracking-widest text-[10px] transition-all flex items-center justify-center gap-1.5 shadow-[4px_4px_0_0_#78350f] active:translate-y-0.5"
+                    >
+                      {consecrating ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Consecrating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5 text-amber-200 animate-pulse" /> Consecrate Covenant
+                        </>
+                      )}
+                    </button>
+                    {(hasDrawnSomething || uploadedPainting) && (
                       <button
                         type="button"
-                        onClick={handleGuestAccess}
-                        className="text-center text-[9px] text-zinc-500 hover:text-red-400 font-black uppercase tracking-wider transition-colors duration-150 flex items-center gap-1.5 focus:outline-none"
+                        onClick={clearPaintCanvas}
+                        className="bg-zinc-950 border border-zinc-900 hover:border-red-950 hover:text-red-400 px-4 py-3.5 rounded-xl text-zinc-500 text-[10px] uppercase font-black tracking-widest transition-all"
                       >
-                        <Zap className="w-3.5 h-3.5 text-zinc-600 hover:text-red-500" />
-                        Bypass with Guest Observer Pass
+                        Reset
                       </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="facial_scanner"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full space-y-6"
+            >
+              <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border-4 border-red-950/50 group shadow-inner flex items-center justify-center">
+                {!cameraError && (
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="absolute inset-0 w-full h-full object-cover grayscale brightness-75 contrast-125"
+                  />
+                )}
+                <canvas
+                  ref={neuralCanvasRef}
+                  width="320"
+                  height="180"
+                  className="absolute inset-0 w-full h-full object-cover pointer-events-none z-10"
+                />
+
+                {/* Scanner Grids */}
+                <div className="absolute inset-0 grid grid-cols-6 grid-rows-6 opacity-30 pointer-events-none">
+                  {[...Array(36)].map((_, i) => (
+                    <div key={i} className="border-[0.5px] border-red-500/20" />
+                  ))}
+                </div>
+
+                {/* Animated Scan Line */}
+                {scanStatus === 'SCANNING' && (
+                  <motion.div
+                    className="absolute inset-x-0 h-1 bg-red-500 shadow-[0_0_20px_#ef4444] z-20"
+                    animate={{ top: ['0%', '100%', '0%'] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                  />
+                )}
+
+                {/* UI Overlays */}
+                <div className="absolute top-4 left-4 flex gap-2 z-20">
+                  <div className={`w-1.5 h-1.5 rounded-full ${cameraError ? 'bg-amber-500' : 'bg-red-500'} animate-pulse`} />
+                  <span className="text-[8px] font-black text-red-500 uppercase tracking-widest">
+                    {cameraError ? 'Synthetic_Lattice_Uplink' : 'Optical_Feed_Live'}
+                  </span>
+                </div>
+
+                <div className="absolute bottom-4 right-4 flex items-center gap-3 z-20">
+                  <span className="text-[8px] font-black text-zinc-500 uppercase">
+                    {cameraError ? 'Sim_Target: Active' : 'Lattice_Sync: 0.98'}
+                  </span>
+                  <Activity className="w-4 h-4 text-emerald-500" />
+                </div>
+
+                <AnimatePresence>
+                  {scanStatus === 'VERIFYING' && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="absolute inset-0 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-30"
+                    >
+                      <div className="w-16 h-16 border-4 border-red-500 border-t-transparent rounded-full animate-spin mb-4" />
+                      <p className="text-xs font-black text-red-500 uppercase tracking-[0.3em] mb-2 animate-pulse">
+                        Analyzing Pattern
+                      </p>
+                      <p className="text-[10px] text-zinc-400 font-mono italic">"Verifying Sovereignty..."</p>
+                    </motion.div>
+                  )}
+                  {scanStatus === 'SUCCESS' && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="absolute inset-0 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-30 animate-pulse"
+                    >
+                      <div className="w-16 h-16 bg-emerald-950 border-2 border-emerald-500 rounded-full flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+                        <CheckCircle className="w-8 h-8 text-emerald-400 animate-bounce" />
+                      </div>
+                      <p className="text-xs font-black text-emerald-400 uppercase tracking-[0.3em] mb-2">
+                        ACCESS GRANTED
+                      </p>
+                      <p className="text-[10px] text-zinc-400 font-mono italic">
+                        "Facial Profile Matched. Secure session created."
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div className="bg-black/40 border-2 border-red-950/30 p-6 rounded-2xl flex flex-col items-center gap-4">
+                {/* Target Identity Selector */}
+                <div className="w-full space-y-1 mb-1">
+                  <label className="text-[8px] text-zinc-500 uppercase font-black tracking-[0.25em] pl-1 block text-left">
+                    Target Profile Signature
+                  </label>
+                  <div className="grid grid-cols-2 gap-1 bg-zinc-950 p-1 rounded-xl border border-red-900/15">
+                    {[
+                      { id: 'creator', label: 'Creator', email: 'resurrectionofmoses@gmail.com' },
+                      { id: 'agent', label: 'Sovereign Agent', email: 'gemini@aetheros.local' }
+                    ].map((profile) => {
+                      const active = targetProfileId === profile.id;
+                      return (
+                        <button
+                          key={profile.id}
+                          type="button"
+                          disabled={scanStatus !== 'IDLE'}
+                          onClick={() => {
+                            playBeep(850, 'sine', 0.03);
+                            setTargetProfileId(profile.id as any);
+                          }}
+                          className={`py-2 text-[8.5px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                            active ? 'bg-red-950 text-red-400 border border-red-900/40' : 'text-zinc-650 hover:text-zinc-400'
+                          } ${scanStatus !== 'IDLE' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          title={profile.email}
+                        >
+                          {profile.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="w-full bg-zinc-900 h-1.5 rounded-full overflow-hidden mb-1">
+                  <motion.div
+                    className="h-full bg-red-600 shadow-[0_0_10px_#ef4444]"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${scanProgress}%` }}
+                  />
+                </div>
+
+                {scanStatus === 'IDLE' ? (
+                  <button
+                    onClick={handleNeuralLogin}
+                    className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-5 rounded-2xl transition-all shadow-[8px_8px_0_0_#991b1b] uppercase tracking-[0.2em] text-sm flex flex-col items-center gap-1 active:translate-y-1 animate-in fade-in zoom-in-95"
+                  >
+                    <span className="flex items-center gap-3">
+                      <Video className="w-5 h-5 text-white animate-pulse" />
+                      Initialize Facial Scan
+                    </span>
+                    <span className="text-[8px] opacity-60 font-medium tracking-tight">
+                      Center face in camera viewport
+                    </span>
+                  </button>
+                ) : (
+                  <div className="text-center py-2 w-full animate-in fade-in">
+                    <p className="text-[9px] text-red-500 font-mono font-black uppercase tracking-wider mb-2 animate-pulse">
+                      {getScanStatusText(scanProgress)}
+                    </p>
+                    <div className="flex gap-1 justify-center">
+                      {[...Array(12)].map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-1.5 h-3 rounded-full ${
+                            i < scanProgress / 10 ? 'bg-red-500 shadow-[0_0_5px_#330000]' : 'bg-red-950/30'
+                          } transition-colors duration-300`}
+                        />
+                      ))}
                     </div>
+                  </div>
+                )}
+              </div>
 
-                    {/* FACIAL SCANNING TROUBLESHOOTING & AUDIT LOG PANEL */}
-                    <div className="border-t border-zinc-900/60 pt-3 mt-1 text-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          playBeep(700, 'sine', 0.05);
-                          setShowFaceLogs(!showFaceLogs);
-                        }}
-                        className="text-[9px] text-zinc-500 hover:text-red-400 font-black uppercase tracking-wider transition-colors duration-150 flex items-center gap-1.5 mx-auto focus:outline-none"
-                      >
-                        <Terminal className="w-3.5 h-3.5 text-zinc-600 hover:text-red-500" />
-                        {showFaceLogs ? 'Hide Optical Trouble Logs' : 'View Face-ID Trouble Logs'}
-                      </button>
-
-                      <AnimatePresence>
-                        {showFaceLogs && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            className="overflow-hidden text-left mt-3 bg-black/60 border border-zinc-900 rounded-xl p-3 space-y-3"
-                          >
-                            <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
-                              <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1.5">
-                                <Cpu className="w-3.5 h-3.5" />
-                                Optical Diagnostics Audit
-                              </span>
-                              <div className="flex gap-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    playBeep(1100, 'triangle', 0.1);
-                                    // Manually log a simulated diagnostic failure
-                                    const mockErr = ["Lattice convergence deviation threshold exceeded.", "Pupillary distance out of calibration bounds.", "Illumination variance below standard threshold (ambient lux too dark).", "Hardware frame latency spike detected (>250ms).", "Biometric facial coordinates spoof detected."][Math.floor(Math.random() * 5)];
-                                    logFaceAuthAttempt(
-                                      targetProfileId,
-                                      targetProfileId === 'creator' ? 'resurrectionofmoses@gmail.com' : `${targetProfileId}@aetheros.local`,
-                                      'FAILURE',
-                                      mockErr,
-                                      { confidenceScore: 31.4, landmarkPoints: 18 }
-                                    );
-                                    setFaceLogs(getFaceAuthLogs());
-                                  }}
-                                  className="text-[8px] bg-red-950/40 hover:bg-red-950 text-red-400 border border-red-900/30 px-1.5 py-0.5 rounded uppercase font-bold"
-                                  title="Add simulated error log to verify logging behavior"
-                                >
-                                  Simulate Fail
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    playBeep(400, 'sawtooth', 0.1);
-                                    clearFaceAuthLogs();
-                                    setFaceLogs([]);
-                                  }}
-                                  className="text-[8px] text-zinc-500 hover:text-zinc-300 flex items-center gap-1"
-                                >
-                                  <Trash2 className="w-2.5 h-2.5" />
-                                  Clear
-                                </button>
-                              </div>
-                            </div>
-
-                            <p className="text-[8.5px] text-zinc-500 leading-normal font-sans">
-                              Persists local auth event telemetry. Failures logged here automatically map into the global system diagnostic hub.
-                            </p>
-
-                            <div className="max-h-48 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
-                              {faceLogs.length === 0 ? (
-                                <p className="text-[9px] text-zinc-600 font-mono italic text-center py-4">No optical log telemetry saved.</p>
-                              ) : (
-                                faceLogs.map((log) => {
-                                  const isSuccess = log.status === 'SUCCESS';
-                                  const isFailure = log.status === 'FAILURE' || log.status === 'CAMERA_ERROR';
-                                  const isScanning = log.status === 'SCANNING';
-                                  
-                                  return (
-                                    <div 
-                                      key={log.id} 
-                                      className={`p-2 rounded-lg border text-[9px] font-mono ${
-                                        isSuccess 
-                                          ? 'bg-emerald-950/20 border-emerald-900/20 text-emerald-300' 
-                                          : isFailure 
-                                            ? 'bg-red-950/20 border-red-900/20 text-red-300' 
-                                            : 'bg-zinc-900/40 border-zinc-900/60 text-zinc-300'
-                                      }`}
-                                    >
-                                      <div className="flex justify-between items-center mb-1">
-                                        <span className={`font-bold uppercase tracking-wider text-[8px] ${
-                                          isSuccess ? 'text-emerald-400' : isFailure ? 'text-red-400' : 'text-zinc-400'
-                                        }`}>
-                                          {log.status}
-                                        </span>
-                                        <span className="text-zinc-500 text-[8px]">{log.localTime}</span>
-                                      </div>
-
-                                      <div className="space-y-0.5">
-                                        <p className="leading-tight break-all font-mono">
-                                          <span className="text-zinc-500">Target:</span> {log.targetProfileId.toUpperCase()} ({log.targetEmail})
-                                        </p>
-                                        {log.errorMessage && (
-                                          <p className="text-red-400 bg-red-950/30 p-1 rounded border border-red-900/10 mt-1 font-mono">
-                                            <span className="font-bold font-sans">Error:</span> {log.errorMessage}
-                                          </p>
-                                        )}
-                                        <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-1.5 pt-1 border-t border-zinc-900/40 text-[8px] text-zinc-400 font-mono">
-                                          <div>Match Confidence: <span className="text-zinc-200">{log.details.confidenceScore}%</span></div>
-                                          <div>Landmarks: <span className="text-zinc-200">{log.details.landmarkPoints}</span></div>
-                                          <div>Execution Time: <span className="text-zinc-200">{log.details.executionTimeMs}ms</span></div>
-                                          <div>Viewport: <span className="text-zinc-200">{log.details.viewport}</span></div>
-                                          <div className="col-span-2 truncate">UA: <span className="text-zinc-500 text-[7px]">{log.details.browserAgent}</span></div>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  );
-                                })
-                              )}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                </motion.div>
-            ) : (
-                <motion.div 
-                    key="manual"
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    className="w-full flex flex-col gap-4"
+              {/* Secure Reset State option specifically for testing or re-seal */}
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playBeep(400, 'sawtooth', 0.2);
+                    localStorage.removeItem('aetheros_oil_canvas_consecrated');
+                    setIsCovenantUnlocked(false);
+                    setHasDrawnSomething(false);
+                    setUploadedPainting(null);
+                  }}
+                  className="text-[8px] text-zinc-650 hover:text-amber-500 font-mono uppercase tracking-widest transition-colors"
                 >
-                    {/* Sovereign Identity visual interface selection */}
-                    <div className="space-y-4">
-                        <div className="flex justify-between items-center bg-black/60 border border-zinc-900 px-4 py-2.5 rounded-xl">
-                            <span className="text-[9px] text-zinc-500 font-bold uppercase tracking-wider pl-1">Override Shell:</span>
-                            <div className="flex gap-1 p-0.5 bg-zinc-950 border border-zinc-900 rounded-lg">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        playBeep(800, 'sine', 0.05);
-                                        setShowTerminal(false);
-                                    }}
-                                    className={`px-3 py-1 text-[8.5px] uppercase font-black tracking-wider rounded-md transition-all ${!showTerminal ? 'bg-red-950 text-red-400 border border-red-900/30' : 'text-zinc-500 hover:text-zinc-300'}`}
-                                >
-                                    Sleek Card
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        playBeep(800, 'sine', 0.05);
-                                        setShowTerminal(true);
-                                    }}
-                                    className={`px-3 py-1 text-[8.5px] uppercase font-black tracking-wider rounded-md transition-all ${showTerminal ? 'bg-red-950 text-red-400 border border-red-900/30' : 'text-zinc-500 hover:text-zinc-300'}`}
-                                >
-                                    Secure Shell CLI
-                                </button>
-                            </div>
+                  🔒 Securely Re-seal System Core
+                </button>
+              </div>
+
+              {/* FACIAL SCANNING TROUBLESHOOTING & AUDIT LOG PANEL */}
+              <div className="border-t border-zinc-900/60 pt-3 mt-1 text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    playBeep(700, 'sine', 0.05);
+                    setShowFaceLogs(!showFaceLogs);
+                  }}
+                  className="text-[9px] text-zinc-500 hover:text-red-400 font-black uppercase tracking-wider transition-colors duration-150 flex items-center gap-1.5 mx-auto focus:outline-none"
+                >
+                  <Terminal className="w-3.5 h-3.5 text-zinc-600 hover:text-red-500" />
+                  {showFaceLogs ? 'Hide Optical Trouble Logs' : 'View Face-ID Trouble Logs'}
+                </button>
+
+                <AnimatePresence>
+                  {showFaceLogs && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden text-left mt-3 bg-black/60 border border-zinc-900 rounded-xl p-3 space-y-3"
+                    >
+                      <div className="flex justify-between items-center pb-2 border-b border-zinc-900">
+                        <span className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1.5">
+                          <Cpu className="w-3.5 h-3.5" />
+                          Optical Diagnostics Audit
+                        </span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              playBeep(1100, 'triangle', 0.1);
+                              const mockErr = [
+                                'Lattice convergence deviation threshold exceeded.',
+                                'Pupillary distance out of calibration bounds.',
+                                'Illumination variance below standard threshold (ambient lux too dark).',
+                                'Hardware frame latency spike detected (>250ms).',
+                                'Biometric facial coordinates spoof detected.'
+                              ][Math.floor(Math.random() * 5)];
+                              logFaceAuthAttempt(
+                                targetProfileId,
+                                targetProfileId === 'creator'
+                                  ? 'resurrectionofmoses@gmail.com'
+                                  : 'admin@aetheros.local',
+                                'FAILURE',
+                                mockErr,
+                                { confidenceScore: 31.4, landmarkPoints: 18 }
+                              );
+                              setFaceLogs(getFaceAuthLogs());
+                            }}
+                            className="text-[8px] bg-red-950/40 hover:bg-red-950 text-red-400 border border-red-900/30 px-1.5 py-0.5 rounded uppercase font-bold"
+                            title="Add simulated error log to verify logging behavior"
+                          >
+                            Simulate Fail
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              playBeep(400, 'sawtooth', 0.1);
+                              clearFaceAuthLogs();
+                              setFaceLogs([]);
+                            }}
+                            className="text-[8px] text-zinc-500 hover:text-zinc-300 flex items-center gap-1"
+                          >
+                            <Trash2 className="w-2.5 h-2.5" />
+                            Clear
+                          </button>
                         </div>
+                      </div>
 
-                        {!showTerminal ? (
-                            <form 
-                                onSubmit={handleVisualLoginSubmit}
-                                className="space-y-4 bg-black/40 border-[3px] border-zinc-900 p-6 rounded-2xl flex flex-col relative"
-                            >
-                                <div className="space-y-1.5">
-                                    <label className="text-[9px] text-zinc-500 uppercase font-bold tracking-widest pl-1">Operator Email</label>
-                                    <div className="relative">
-                                        <User className="absolute left-3.5 top-3 w-4 h-4 text-zinc-650 text-zinc-600" />
-                                        <input 
-                                            type="email"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            placeholder="operator@aetheros.local"
-                                            className="w-full bg-black/80 border border-zinc-850 focus:border-red-500/50 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white focus:outline-none transition-colors duration-150 font-mono"
-                                            required
-                                        />
-                                    </div>
-                                </div>
+                      <p className="text-[8.5px] text-zinc-500 leading-normal font-sans">
+                        Persists local auth event telemetry. Failures logged here automatically map into the global
+                        system diagnostic hub.
+                      </p>
 
-                                <div className="space-y-1.5">
-                                    <label className="text-[9px] text-zinc-500 uppercase font-bold tracking-widest pl-1">Passphrase</label>
-                                    <div className="relative">
-                                        <Lock className="absolute left-3.5 top-3 w-4 h-4 text-zinc-650 text-zinc-600" />
-                                        <input 
-                                            type={showPassword ? "text" : "password"}
-                                            value={password}
-                                            onChange={(e) => setPassword(e.target.value)}
-                                            placeholder="••••••••••••••"
-                                            className="w-full bg-black/80 border border-zinc-850 focus:border-red-500/50 rounded-xl pl-10 pr-10 py-2.5 text-xs text-white focus:outline-none transition-colors duration-150 font-mono"
-                                            required
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                playBeep(950, 'sine', 0.02);
-                                                setShowPassword(!showPassword);
-                                            }}
-                                            className="absolute right-3.5 top-3 text-zinc-600 hover:text-zinc-400"
-                                        >
-                                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    className="w-full bg-red-650 bg-red-700 hover:bg-red-650 hover:bg-red-600 text-white font-black py-3.5 rounded-xl transition-all shadow-[4px_4px_0_0_#580505] uppercase tracking-widest text-xs active:translate-y-0.5 mt-2"
-                                >
-                                    Verify Conduction keys
-                                </button>
-
-                                {/* Quick Sandbox Key injectors to bypass manual copy paste typing */}
-                                <div className="border-t border-zinc-900 mt-4 pt-4 space-y-2">
-                                    <p className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider text-center">Quick-Inject Operator Tokens</p>
-                                    <div className="grid grid-cols-3 gap-1.5 text-[8px]">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                playBeep(900, 'sine', 0.03);
-                                                setEmail('admin@aetheros.local');
-                                                setPassword('AetherSovereign2026');
-                                            }}
-                                            className="py-2 bg-zinc-950 border border-zinc-900 rounded-lg text-zinc-400 hover:bg-red-950/20 hover:text-red-400 hover:border-red-900/30 transition-all text-center uppercase font-bold font-mono"
-                                        >
-                                            Admin
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                playBeep(900, 'sine', 0.03);
-                                                setEmail('mod@aetheros.local');
-                                                setPassword('GuardianPass');
-                                            }}
-                                            className="py-2 bg-zinc-950 border border-zinc-900 rounded-lg text-zinc-400 hover:bg-red-950/20 hover:text-red-400 hover:border-red-900/30 transition-all text-center uppercase font-bold font-mono"
-                                        >
-                                            Guardian
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                playBeep(900, 'sine', 0.03);
-                                                setEmail('operator@aetheros.local');
-                                                setPassword('OperatorActive');
-                                            }}
-                                            className="py-2 bg-zinc-950 border border-zinc-900 rounded-lg text-zinc-400 hover:bg-red-950/20 hover:text-red-400 hover:border-red-900/30 transition-all text-center uppercase font-bold font-mono"
-                                        >
-                                            Operator
-                                        </button>
-                                    </div>
-                                </div>
-                            </form>
+                      <div className="max-h-48 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                        {faceLogs.length === 0 ? (
+                          <p className="text-[9px] text-zinc-600 font-mono italic text-center py-4">
+                            No optical log telemetry saved.
+                          </p>
                         ) : (
-                            <div className="w-full bg-[#030305] border-2 border-emerald-900/60 rounded-2xl overflow-hidden shadow-2xl font-mono text-[11px] text-emerald-400">
-                                {/* Terminal Window Header Bar */}
-                                <div className="bg-[#0a0c10] border-b border-emerald-900/60 px-4 py-2 flex items-center justify-between">
-                                    <div className="flex gap-1.5">
-                                        <span className="w-2.5 h-2.5 rounded-full bg-red-500/80 inline-block" />
-                                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block" />
-                                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
+                          faceLogs.map((log) => {
+                            const isSuccess = log.status === 'SUCCESS';
+                            const isFailure = log.status === 'FAILURE' || log.status === 'CAMERA_ERROR';
+
+                            return (
+                              <div
+                                key={log.id}
+                                className={`p-2 rounded-lg border text-[9px] font-mono ${
+                                  isSuccess
+                                    ? 'bg-emerald-950/20 border-emerald-900/20 text-emerald-300'
+                                    : isFailure
+                                      ? 'bg-red-950/20 border-red-900/20 text-red-300'
+                                      : 'bg-zinc-900/40 border-zinc-900/60 text-zinc-300'
+                                }`}
+                              >
+                                <div className="flex justify-between items-center mb-1">
+                                  <span
+                                    className={`font-bold uppercase tracking-wider text-[8px] ${
+                                      isSuccess ? 'text-emerald-400' : isFailure ? 'text-red-400' : 'text-zinc-400'
+                                    }`}
+                                  >
+                                    {log.status}
+                                  </span>
+                                  <span className="text-zinc-500 text-[8px]">{log.localTime}</span>
+                                </div>
+
+                                <div className="space-y-0.5">
+                                  <p className="leading-tight break-all font-mono">
+                                    <span className="text-zinc-500">Target:</span> {log.targetProfileId.toUpperCase()}{' '}
+                                    ({log.targetEmail})
+                                  </p>
+                                  {log.errorMessage && (
+                                    <p className="text-red-400 bg-red-950/30 p-1 rounded border border-red-900/10 mt-1 font-mono">
+                                      <span className="font-bold font-sans">Error:</span> {log.errorMessage}
+                                    </p>
+                                  )}
+                                  <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 mt-1.5 pt-1 border-t border-zinc-900/40 text-[8px] text-zinc-400 font-mono">
+                                    <div>
+                                      Match Confidence:{' '}
+                                      <span className="text-zinc-200">{log.details.confidenceScore}%</span>
                                     </div>
-                                    <span className="text-[9px] text-emerald-600 uppercase font-bold tracking-widest flex items-center gap-1.5">
-                                        <Terminal className="w-3.5 h-3.5 text-emerald-500 animate-pulse" />
-                                        SOVEREIGN_SHELL_UPLINK
-                                     </span>
-                                     <span className="text-[8px] text-zinc-650 text-zinc-600 bg-zinc-950 px-1.5 py-0.5 rounded border border-zinc-905 border-zinc-800">
-                                        PORT: 3000
-                                     </span>
+                                    <div>
+                                      Landmarks: <span className="text-zinc-200">{log.details.landmarkPoints}</span>
+                                    </div>
+                                    <div>
+                                      Execution Time:{' '}
+                                      <span className="text-zinc-200">{log.details.executionTimeMs}ms</span>
+                                    </div>
+                                    <div>
+                                      Viewport: <span className="text-zinc-200">{log.details.viewport}</span>
+                                    </div>
+                                    <div className="col-span-2 truncate">
+                                      UA:{' '}
+                                      <span className="text-zinc-500 text-[7px]">{log.details.browserAgent}</span>
+                                    </div>
+                                  </div>
                                 </div>
-
-                                {/* Scrolling Console Buffer Screen */}
-                                <div className="h-64 overflow-y-auto p-4 space-y-1.5 select-text scrollbar-thin scrollbar-thumb-emerald-950">
-                                    {terminalBuffer.map((line, idx) => (
-                                        <div key={idx} className="whitespace-pre-wrap leading-relaxed">
-                                            {line.startsWith('❌') ? (
-                                                <span className="text-red-400">{line}</span>
-                                            ) : line.startsWith('✅') ? (
-                                                <span className="text-emerald-300 font-bold">{line}</span>
-                                            ) : line.startsWith('==') ? (
-                                                <span className="text-emerald-850">{line}</span>
-                                            ) : line.startsWith('aetheros@auth-core') ? (
-                                                <span className="text-emerald-200">{line}</span>
-                                            ) : (
-                                                <span>{line}</span>
-                                            )}
-                                        </div>
-                                    ))}
-                                    <div ref={terminalBottomRef} />
-                                </div>
-
-                                {/* Command Line Input Bar */}
-                                <form 
-                                    onSubmit={(e) => {
-                                        e.preventDefault();
-                                        executeCommand(terminalInput);
-                                    }}
-                                    className="bg-[#06080b] border-t border-emerald-900/60 p-3 flex items-center gap-2"
-                                >
-                                    <span className="text-emerald-500 font-bold flex-shrink-0">
-                                        {terminalStep === 'COMMAND' ? 'aetheros@auth-core:~$ ' : '> '}
-                                    </span>
-                                    
-                                    <input 
-                                        type={terminalStep === 'PASSWORD' ? 'password' : 'text'}
-                                        value={terminalInput}
-                                        onChange={(e) => {
-                                          setTerminalInput(e.target.value);
-                                          playBeep(1100, 'triangle', 0.012); // subtle digital key sound
-                                        }}
-                                        placeholder={
-                                            terminalStep === 'COMMAND' ? "Type 'help', 'creds', 'login'..." : 
-                                            terminalStep === 'EMAIL' ? "Key in admin@aetheros.local..." : 
-                                            terminalStep === 'PASSWORD' ? "Key in sovereign cipher..." : "Enter 6-digit MFA numeric code..."
-                                        }
-                                        className="w-full bg-transparent text-emerald-300 placeholder-emerald-950 font-mono outline-none border-none text-[11px]"
-                                        autoFocus
-                                        required={terminalStep !== 'COMMAND'}
-                                    />
-                                    
-                                    <button 
-                                        type="submit" 
-                                        className="px-3 py-1 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-700/50 hover:border-emerald-600 rounded text-emerald-300 font-bold text-[9px] uppercase tracking-wider transition-all flex items-center gap-1.5"
-                                    >
-                                        <Zap className="w-2.5 h-2.5" />
-                                        EXEC
-                                    </button>
-                                </form>
-                            </div>
+                              </div>
+                            );
+                          })
                         )}
-                    </div>
-
-                    {/* Quick Command Injector Panel for Usability */}
-                    <div className="bg-[#050508] border border-zinc-900 p-4 rounded-2xl w-full">
-                        <div className="flex items-center justify-between mb-3">
-                            <span className="text-[9px] text-zinc-500 uppercase font-black tracking-widest pl-1">
-                                Quick Tactical Actions Panel
-                            </span>
-                            <span className="text-[8px] bg-red-950/30 text-red-400 px-1.5 py-0.5 rounded border border-red-950 font-bold">
-                                STEP: {terminalStep}
-                            </span>
-                        </div>
-
-                        {terminalStep === 'COMMAND' && (
-                            <div className="grid grid-cols-2 gap-2 text-[10px]">
-                                <button
-                                    type="button"
-                                    onClick={() => executeCommand('help')}
-                                    className="p-2.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl text-left text-zinc-400 hover:text-emerald-400 transition-all font-mono group"
-                                >
-                                    <span className="text-emerald-500 group-hover:text-emerald-400 font-black">RUN:</span> help
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        playBeep(920, 'sine', 0.05);
-                                        setTerminalBuffer(prev => [...prev, "aetheros@auth-core:~$ login"]);
-                                        setTerminalStep('EMAIL');
-                                        setTerminalBuffer(prev => [...prev, "ENTER OPERATOR IDENTITY EMAIL: "]);
-                                    }}
-                                    className="p-2.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl text-left text-zinc-400 hover:text-emerald-400 transition-all font-mono group"
-                                >
-                                    <span className="text-emerald-500 group-hover:text-emerald-400 font-black">RUN:</span> login
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => executeCommand('creds')}
-                                    className="p-2.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl text-left text-zinc-400 hover:text-emerald-400 transition-all font-mono group"
-                                >
-                                    <span className="text-emerald-500 group-hover:text-emerald-400 font-black">RUN:</span> creds
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => executeCommand('guest')}
-                                    className="p-2.5 bg-zinc-950 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl text-left text-zinc-400 hover:text-emerald-400 transition-all font-mono group"
-                                >
-                                    <span className="text-emerald-500 group-hover:text-emerald-400 font-black">RUN:</span> guest
-                                </button>
-                            </div>
-                        )}
-
-                        {terminalStep === 'EMAIL' && (
-                            <div className="space-y-2">
-                                <p className="text-[9px] text-zinc-500 italic pl-1">Select credential identity to inject:</p>
-                                <div className="grid grid-cols-3 gap-1.5 text-[9px]">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            executeCommand('admin@aetheros.local');
-                                            setEmail('admin@aetheros.local');
-                                        }}
-                                        className="py-2 bg-zinc-950 hover:bg-[#0a3525] border border-zinc-800 hover:border-emerald-700 rounded-xl text-center text-zinc-400 hover:text-emerald-200 transition-all font-mono font-bold"
-                                    >
-                                        Admin
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            executeCommand('mod@aetheros.local');
-                                            setEmail('mod@aetheros.local');
-                                        }}
-                                        className="py-2 bg-zinc-950 hover:bg-[#0a3525] border border-zinc-800 hover:border-emerald-700 rounded-xl text-center text-zinc-400 hover:text-emerald-200 transition-all font-mono font-bold"
-                                    >
-                                        Guardian
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            executeCommand('operator@aetheros.local');
-                                            setEmail('operator@aetheros.local');
-                                        }}
-                                        className="py-2 bg-zinc-950 hover:bg-[#0a3525] border border-zinc-800 hover:border-emerald-700 rounded-xl text-center text-zinc-400 hover:text-emerald-200 transition-all font-mono font-bold"
-                                    >
-                                        Operator
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {terminalStep === 'PASSWORD' && (
-                            <div className="space-y-2">
-                                <p className="text-[9px] text-zinc-500 italic pl-1">Inject password corresponding to identity choice:</p>
-                                <div className="grid grid-cols-3 gap-1.5 text-[9px]">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            executeCommand('AetherSovereign2026');
-                                            setPassword('AetherSovereign2026');
-                                        }}
-                                        className="py-2 bg-zinc-950 hover:bg-[#0a3525] border border-zinc-800 hover:border-emerald-700 rounded-xl text-center text-zinc-400 hover:text-emerald-200 transition-all font-mono font-bold"
-                                    >
-                                        Admin Pass
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            executeCommand('GuardianPass');
-                                            setPassword('GuardianPass');
-                                        }}
-                                        className="py-2 bg-zinc-950 hover:bg-[#0a3525] border border-zinc-800 hover:border-emerald-700 rounded-xl text-center text-zinc-400 hover:text-emerald-200 transition-all font-mono font-bold"
-                                    >
-                                        Guardian Pass
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            executeCommand('OperatorActive');
-                                            setPassword('OperatorActive');
-                                        }}
-                                        className="py-2 bg-zinc-950 hover:bg-[#0a3525] border border-zinc-800 hover:border-emerald-700 rounded-xl text-center text-zinc-400 hover:text-emerald-200 transition-all font-mono font-bold"
-                                    >
-                                        Operator Pass
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {terminalStep === 'TWOFA' && (
-                            <div className="space-y-2">
-                                <p className="text-[9px] text-zinc-500 italic pl-1">Inject standard 2FA verification token:</p>
-                                <button
-                                    type="button"
-                                    onClick={() => executeCommand('000000')}
-                                    className="w-full py-2 bg-zinc-950 hover:bg-emerald-950 border border-zinc-800 hover:border-emerald-700 rounded-xl text-center text-emerald-400 hover:text-emerald-200 font-bold transition-all font-mono text-[10px]"
-                                >
-                                    Inject '000000' and Connect
-                                </button>
-                            </div>
-                        )}
-
-                        {terminalStep !== 'COMMAND' && (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setTerminalStep('COMMAND');
-                                    playBeep(320, 'triangle', 0.15);
-                                    setTerminalBuffer(prev => [...prev, "❌ Authentication stream cancelled. Core standby.", ""]);
-                                }}
-                                className="mt-2.5 w-full bg-zinc-950/80 hover:bg-red-950/20 text-zinc-500 hover:text-red-400 font-bold py-1.5 rounded-lg border border-zinc-900 hover:border-red-900/30 text-[9px] uppercase tracking-widest transition-all text-center"
-                            >
-                                Cancel Logon Process
-                            </button>
-                        )}
-                    </div>
-                </motion.div>
-            )}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
 
         <div className="mt-10 pt-6 border-t border-white/5 w-full text-center">

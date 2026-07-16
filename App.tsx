@@ -557,7 +557,7 @@ const ALL_VIEWS_LIST: MainView[] = [
   'vulnerability_report', 'tactical_intelligence', 'behavioral_specs', 'cognitive_pipeline', 'data_provenance_lab', 
   'sh_crt_loop', 'user_profile', 'prompt_forge', 'sovereign_standard', 'confusion_logic', 'knowledge_forum', 
   'blockchain_history', 'main_net', 'ecosystem', 'accounts_registry', 'blacklist', 'system_integrity', 
-  'vault_manager', 'moderator_lounge', 'biometric_intelligence', 'card_recovery', 'project_showcase', 'quantum_ledger' as any, 'ai_telemetry', 'inevitable_crash', 'scraper_merchant_store', 'data_academy', 'reputation_leaderboard', 'aether_flow_orchestrator', 'packaging_suite', 'system_archives', 'system_diagnostic', 'aetheros_online_status', 'regex_editor_lab', 'agent_safeguard', 'safeguard', 'gmail', 'google_drive', 'sovereign_scanner'
+  'vault_manager', 'moderator_lounge', 'biometric_intelligence', 'card_recovery', 'project_showcase', 'quantum_ledger' as any, 'ai_telemetry', 'inevitable_crash', 'scraper_merchant_store', 'data_academy', 'reputation_leaderboard', 'aether_flow_orchestrator', 'packaging_suite', 'system_archives', 'system_diagnostic', 'aetheros_online_status', 'regex_editor_lab', 'agent_safeguard', 'safeguard', 'gmail', 'google_drive', 'sovereign_scanner', 'activity_logs'
 ];
 
 export const App: React.FC = () => {
@@ -1903,6 +1903,19 @@ export const App: React.FC = () => {
         const readableTo = String(view).toUpperCase();
         const logEntry = `[${simplifiedTime}] Switch: ${readableFrom} ➔ ${readableTo} (Armored)`;
 
+        const richLogEntry = {
+            id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            timestamp: now.toISOString(),
+            userEmail: user?.email || 'resurrectionofmoses@gmail.com',
+            role: user?.role || 'admin',
+            machineId: 'XPS-NODE-992',
+            type: 'VIEW_SWITCH',
+            fromView: readableFrom,
+            toView: readableTo,
+            message: logEntry,
+            raw: logEntry
+        };
+
         try {
             const currentLogs = localStorage.getItem('aetheros_tab_activity_logs');
             let parsedLogs = [];
@@ -1913,8 +1926,8 @@ export const App: React.FC = () => {
                     parsedLogs = [];
                 }
             }
-            parsedLogs.push(logEntry);
-            if (parsedLogs.length > 50) {
+            parsedLogs.push(richLogEntry);
+            if (parsedLogs.length > 500) {
                 parsedLogs.shift();
             }
             localStorage.setItem('aetheros_tab_activity_logs', JSON.stringify(parsedLogs));

@@ -1202,17 +1202,6 @@ export const MainNetView: React.FC = () => {
                                                     <LogIn className="w-4 h-4" />
                                                     Conduction Handshake
                                                 </button>
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => {
-                                                        guestLogin();
-                                                        setLatestNetworkLogs(l => [...l, `[SESSION] Guest Mode bypass loaded.`]);
-                                                        setLoginError(null);
-                                                    }}
-                                                    className="px-4 py-2.5 text-xs font-bold border border-zinc-800 text-zinc-300 bg-zinc-900/60 rounded-xl hover:text-white transition-all uppercase cursor-pointer"
-                                                >
-                                                    Bypass
-                                                </button>
                                             </div>
                                         </div>
                                     )}

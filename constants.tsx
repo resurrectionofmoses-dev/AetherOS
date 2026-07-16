@@ -120,6 +120,7 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
           { view: 'launch_center', text: 'LAUNCH CENTER', icon: FlagIcon },
           { view: 'eliza_terminal', text: 'ELIZA LOGIC', icon: MessageCircleIcon },
           { view: 'moderator_lounge', text: 'MODERATOR LOUNGE', icon: ShieldIcon },
+          { view: 'activity_logs' as any, text: 'SYSTEM ACTIVITY LOGS', icon: ActivityIcon },
           { view: 'pornography_studio', text: 'PORNOGRAPHY STUDIO', icon: MovieIcon },
       ]
   }

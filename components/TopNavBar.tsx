@@ -924,9 +924,9 @@ ${fallbackObj.summary}`;
                                         No tab transitions logged. Switch tabs to record.
                                     </div>
                                 ) : (
-                                    tabLogs.map((log, idx) => (
+                                    tabLogs.map((log: any, idx) => (
                                         <div key={idx} className="text-[9px] bg-zinc-900/65 p-1.5 border border-purple-950/40 rounded text-purple-300/90 leading-tight">
-                                            {log}
+                                            {typeof log === 'object' && log !== null ? (log.message || log.raw || JSON.stringify(log)) : log}
                                         </div>
                                     ))
                                 )}
