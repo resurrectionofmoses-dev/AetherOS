@@ -213,6 +213,24 @@ export const GlobalErrorHandler: React.FC = () => {
       });
     };
 
+    const handleOnline = () => {
+      toast('NETWORK SYNCHRONIZED', {
+        description: 'Connection restored. Autonomous neural bridge and cloud services re-engaged.',
+        icon: <CheckCircle2 className="text-green-500" size={20} />,
+        className: 'bg-zinc-950 border-2 border-green-500/40 text-green-200 font-mono text-xs uppercase tracking-tighter'
+      });
+    };
+
+    const handleOffline = () => {
+      toast('OFFLINE AUTONOMOUS MODE', {
+        description: 'Network link decoupled. Local secure storage and resilient offline fallbacks active.',
+        icon: <ShieldAlert className="text-amber-500" size={20} />,
+        className: 'bg-zinc-950 border-2 border-amber-500/40 text-amber-200 font-mono text-xs uppercase tracking-tighter'
+      });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
     window.addEventListener('error', handleGlobalError);
     window.addEventListener('unhandledrejection', handleUnhandledRejection);
 
@@ -220,6 +238,8 @@ export const GlobalErrorHandler: React.FC = () => {
       window.removeEventListener('aetheros_error_registered', handleRegisterError);
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('aetheros_safe_mode_change', handleSafeModeChange);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
       window.removeEventListener('error', handleGlobalError);
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };

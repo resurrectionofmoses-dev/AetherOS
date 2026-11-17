@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
     MessageCircleIcon, PlusIcon, ThumbsUpIcon, ThumbsDownIcon, TagIcon, 
     UserIcon, SearchIcon, ChevronRightIcon, BrainIcon,
@@ -7,6 +7,7 @@ import {
     ClockIcon, BotIcon, ClipboardIcon, SparklesIcon, AlertTriangleIcon, SpinnerIcon,
     XIcon, CheckIcon, EditIcon, PinIcon, TrashIcon, LockIcon, UnlockIcon, HistoryIcon
 } from './icons';
+import { Award, Trophy, Medal, Star, TrendingUp } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { safeStorage } from '../services/safeStorage';
 import { extractJSON, checkAndQuarantine } from '../utils';
@@ -485,6 +486,77 @@ export const KnowledgeForumView: React.FC = () => {
         'Aetheros_Prime': ['TypeScript', 'React', 'Compiler']
     });
     const [newExpertiseInput, setNewExpertiseInput] = useState('');
+
+    // Leaderboard Modal state
+    const [showLeaderboard, setShowLeaderboard] = useState(false);
+
+    // Dynamic Reputation System Calculation
+    const reputationMap = useMemo(() => {
+        const getRankInfo = (score: number) => {
+            if (score >= 1200) return { rank: 'Grandmaster', color: 'text-amber-400 border-amber-500/50 bg-amber-950/40 shadow-[0_0_10px_rgba(245,158,11,0.2)]' };
+            if (score >= 800) return { rank: 'Veteran', color: 'text-purple-400 border-purple-500/50 bg-purple-950/40' };
+            if (score >= 500) return { rank: 'Specialist', color: 'text-cyan-400 border-cyan-500/50 bg-cyan-950/40' };
+            if (score >= 200) return { rank: 'Contributor', color: 'text-emerald-400 border-emerald-500/50 bg-emerald-950/40' };
+            return { rank: 'Novice', color: 'text-zinc-400 border-zinc-700 bg-zinc-900' };
+        };
+
+        const map: Record<string, {
+            score: number;
+            questionsCount: number;
+            answersCount: number;
+            acceptedCount: number;
+            upvotesReceived: number;
+            rank: string;
+            color: string;
+        }> = {
+            'CHAIN-X_VERIFIER': { score: 1420, questionsCount: 5, answersCount: 18, acceptedCount: 8, upvotesReceived: 142, rank: 'Grandmaster', color: 'text-amber-400 border-amber-500/50 bg-amber-950/40 shadow-[0_0_10px_rgba(245,158,11,0.2)]' },
+            'Maestro': { score: 980, questionsCount: 3, answersCount: 12, acceptedCount: 5, upvotesReceived: 88, rank: 'Veteran', color: 'text-purple-400 border-purple-500/50 bg-purple-950/40' },
+            'Logic_Maestro': { score: 750, questionsCount: 2, answersCount: 9, acceptedCount: 4, upvotesReceived: 62, rank: 'Specialist', color: 'text-cyan-400 border-cyan-500/50 bg-cyan-950/40' },
+            'Sovereign_Admin': { score: 620, questionsCount: 4, answersCount: 7, acceptedCount: 2, upvotesReceived: 45, rank: 'Specialist', color: 'text-cyan-400 border-cyan-500/50 bg-cyan-950/40' },
+            'Aetheros_Prime': { score: 450, questionsCount: 2, answersCount: 6, acceptedCount: 2, upvotesReceived: 35, rank: 'Contributor', color: 'text-emerald-400 border-emerald-500/50 bg-emerald-950/40' }
+        };
+
+        questions.forEach(q => {
+            if (!map[q.author]) {
+                const rankInfo = getRankInfo(100);
+                map[q.author] = { score: 100, questionsCount: 0, answersCount: 0, acceptedCount: 0, upvotesReceived: 0, ...rankInfo };
+            }
+            map[q.author].questionsCount += 1;
+            map[q.author].score += 5;
+
+            if (q.upvotes > 0) {
+                map[q.author].score += q.upvotes * 10;
+                map[q.author].upvotesReceived += q.upvotes;
+            }
+
+            q.answers.forEach(ans => {
+                if (!map[ans.author]) {
+                    const rankInfo = getRankInfo(100);
+                    map[ans.author] = { score: 100, questionsCount: 0, answersCount: 0, acceptedCount: 0, upvotesReceived: 0, ...rankInfo };
+                }
+                map[ans.author].answersCount += 1;
+                map[ans.author].score += 10;
+
+                if (ans.upvotes > 0) {
+                    map[ans.author].score += ans.upvotes * 15;
+                    map[ans.author].upvotesReceived += ans.upvotes;
+                }
+
+                if (q.acceptedAnswerId === ans.id) {
+                    map[ans.author].acceptedCount += 1;
+                    map[ans.author].score += 25;
+                }
+            });
+        });
+
+        Object.keys(map).forEach(author => {
+            const rankInfo = getRankInfo(map[author].score);
+            map[author].rank = rankInfo.rank;
+            map[author].color = rankInfo.color;
+        });
+
+        return map;
+    }, [questions]);
 
     const logModAction = (actionStr: string) => {
         const timeStamp = new Date().toLocaleTimeString();
@@ -974,6 +1046,19 @@ In essence, a blockchain system designed with an infinite payload space would be
                 </div>
 
                 <div className="flex gap-4 items-center">
+                    {/* Reputation Leaderboard Toggle */}
+                    <button
+                        onClick={() => setShowLeaderboard(!showLeaderboard)}
+                        className={`px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border-2 flex items-center gap-2 ${
+                            showLeaderboard
+                                ? 'bg-amber-600 border-amber-400 text-black shadow-[0_0_20px_rgba(245,158,11,0.4)]'
+                                : 'bg-amber-950/30 border-amber-500/50 text-amber-400 hover:bg-amber-900/40 hover:border-amber-400'
+                        }`}
+                    >
+                        <Trophy className="w-4 h-4 text-amber-400" />
+                        Reputation Leaderboard
+                    </button>
+
                     {/* Admin Shield Toggle Override */}
                     <button
                         onClick={() => setIsModModeActive(!isModModeActive)}
@@ -1441,7 +1526,13 @@ In essence, a blockchain system designed with an infinite payload space would be
                                                 </span>
                                             )}
                                             <span className="text-[8px] font-black text-zinc-650 uppercase tracking-widest flex items-center gap-1.5 flex-wrap">
-                                                <span>Posted by {question.author}</span>
+                                                <span>Posted by <strong className="text-zinc-200">{question.author}</strong></span>
+                                                {reputationMap[question.author] && (
+                                                    <span className={`px-2 py-0.5 text-[7.5px] font-mono font-bold rounded border uppercase flex items-center gap-1 ${reputationMap[question.author].color}`}>
+                                                        <Award className="w-2.5 h-2.5" />
+                                                        {reputationMap[question.author].score} REP • {reputationMap[question.author].rank}
+                                                    </span>
+                                                )}
                                                 {userExpertises[question.author] && userExpertises[question.author].length > 0 && (
                                                     <span className="inline-flex gap-1 items-center">
                                                         {userExpertises[question.author].map(tag => (
@@ -1638,7 +1729,13 @@ In essence, a blockchain system designed with an infinite payload space would be
                                                                 <div className="flex items-center justify-between gap-3 flex-wrap">
                                                                     <div className="flex items-center gap-2 text-[8px] font-black text-zinc-500 uppercase flex-wrap">
                                                                         <UserIcon className="w-3 h-3 text-zinc-650" />
-                                                                        <span>{answer.author}</span>
+                                                                        <span className="text-zinc-200 font-bold">{answer.author}</span>
+                                                                        {reputationMap[answer.author] && (
+                                                                            <span className={`px-1.5 py-0.5 text-[7px] font-mono font-bold rounded border uppercase flex items-center gap-1 ${reputationMap[answer.author].color}`}>
+                                                                                <Award className="w-2.5 h-2.5" />
+                                                                                {reputationMap[answer.author].score} REP
+                                                                            </span>
+                                                                        )}
                                                                         {userExpertises[answer.author] && userExpertises[answer.author].length > 0 && (
                                                                             <span className="inline-flex gap-1 items-center">
                                                                                 {userExpertises[answer.author].map(tag => (
@@ -1839,6 +1936,126 @@ In essence, a blockchain system designed with an infinite payload space would be
                         />
                     );
                 })()}
+
+                {showLeaderboard && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto animate-in fade-in duration-200">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                            transition={{ duration: 0.25 }}
+                            className="bg-[#030303] border-4 border-amber-600 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col font-mono text-zinc-300 shadow-[0_0_60px_rgba(245,158,11,0.25)]"
+                        >
+                            {/* Modal Header */}
+                            <div className="p-6 bg-gradient-to-r from-amber-950/60 to-black border-b-2 border-amber-600/40 flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-amber-500/10 border-2 border-amber-500 rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+                                        <Trophy className="w-6 h-6 text-amber-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-black text-white uppercase italic tracking-tight">Reputation & Leaderboard</h3>
+                                        <p className="text-[9px] text-amber-400 font-bold uppercase tracking-[0.3em] mt-0.5">Top contributors in the coding network</p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setShowLeaderboard(false)}
+                                    className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-xl transition-colors"
+                                >
+                                    <XIcon className="w-6 h-6" />
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="p-6 overflow-y-auto space-y-6 custom-scrollbar flex-1">
+                                {/* Point Allocation Rules Banner */}
+                                <div className="p-4 bg-zinc-900/90 border-2 border-amber-500/30 rounded-2xl space-y-2">
+                                    <h4 className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-2">
+                                        <SparklesIcon className="w-3.5 h-3.5 text-amber-400" />
+                                        Contribution Reputation Scoring System
+                                    </h4>
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-[8px] font-mono font-bold uppercase text-zinc-300">
+                                        <div className="p-2 bg-black/60 rounded-lg border border-zinc-800 text-center">
+                                            <span className="text-emerald-400 font-black text-sm block">+5 REP</span>
+                                            <span>Question Posted</span>
+                                        </div>
+                                        <div className="p-2 bg-black/60 rounded-lg border border-zinc-800 text-center">
+                                            <span className="text-emerald-400 font-black text-sm block">+10 REP</span>
+                                            <span>Answer Posted</span>
+                                        </div>
+                                        <div className="p-2 bg-black/60 rounded-lg border border-zinc-800 text-center">
+                                            <span className="text-emerald-400 font-black text-sm block">+10 REP</span>
+                                            <span>Question Upvote</span>
+                                        </div>
+                                        <div className="p-2 bg-black/60 rounded-lg border border-zinc-800 text-center">
+                                            <span className="text-emerald-400 font-black text-sm block">+15 REP</span>
+                                            <span>Answer Upvote</span>
+                                        </div>
+                                        <div className="p-2 bg-black/60 rounded-lg border border-zinc-800 text-center col-span-2 md:col-span-1">
+                                            <span className="text-amber-400 font-black text-sm block">+25 REP</span>
+                                            <span>Accepted Answer</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Leaderboard Table */}
+                                <div className="space-y-3">
+                                    <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em]">Network Rankings</h4>
+                                    <div className="space-y-2">
+                                        {Object.entries(reputationMap)
+                                            .sort((a, b) => b[1].score - a[1].score)
+                                            .map(([author, stats], idx) => (
+                                                <div 
+                                                    key={author} 
+                                                    className={`p-4 bg-zinc-900/60 border-2 rounded-2xl flex items-center justify-between gap-4 transition-all hover:bg-zinc-850 ${
+                                                        idx === 0 
+                                                            ? 'border-amber-500/60 bg-amber-950/20 shadow-[0_0_15px_rgba(245,158,11,0.15)]' 
+                                                            : idx === 1 
+                                                            ? 'border-zinc-400/50' 
+                                                            : idx === 2 
+                                                            ? 'border-amber-700/40' 
+                                                            : 'border-zinc-800'
+                                                    }`}
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className={`w-8 h-8 rounded-xl font-black text-xs flex items-center justify-center border ${
+                                                            idx === 0 ? 'bg-amber-500 text-black border-amber-400 font-extrabold' : 'bg-zinc-800 text-zinc-300 border-zinc-700'
+                                                        }`}>
+                                                            #{idx + 1}
+                                                        </div>
+                                                        <div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-black text-white text-sm">{author}</span>
+                                                                <span className={`px-2 py-0.5 text-[8px] font-mono font-bold rounded border uppercase ${stats.color}`}>
+                                                                    {stats.rank}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex gap-3 text-[9px] text-zinc-400 mt-1 font-mono">
+                                                                <span>{stats.questionsCount} questions</span>
+                                                                <span>•</span>
+                                                                <span>{stats.answersCount} answers</span>
+                                                                <span>•</span>
+                                                                <span className="text-emerald-400 font-bold">{stats.acceptedCount} accepted</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="text-right shrink-0">
+                                                        <div className="text-xl font-black text-amber-400 flex items-center justify-end gap-1 font-mono">
+                                                            <Award className="w-5 h-5 text-amber-400" />
+                                                            {stats.score.toLocaleString()}
+                                                        </div>
+                                                        <div className="text-[8px] text-zinc-500 font-black uppercase tracking-widest mt-0.5">
+                                                            {stats.upvotesReceived} upvotes received
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
             </AnimatePresence>
         </div>
     );

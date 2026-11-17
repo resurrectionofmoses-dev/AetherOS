@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { UserProfile, NetworkProject, PortfolioLink, ProfileProject, WorkExperience, Education, ProfileProjectTestimonial } from '../types';
+import { UserProfile, NetworkProject, PortfolioLink, ProfileProject, WorkExperience, Education, ProfileProjectTestimonial, GlitchTelemetry, ChatMessage } from '../types';
 import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
 import { PortfolioProjectCard } from './PortfolioProjectCard';
-import { UserIcon, EditIcon, CheckIcon, CodeIcon, XIcon, PlusIcon, ShieldIcon } from './icons';
+import { AIDossierPanel } from './AIDossierPanel';
+import { compileAIProfile } from '../services/aiProfileService';
+import { recordTrustAction } from '../services/aiTrustService';
+import { getHighestConferredRankNumber, getRankSpec } from '../services/aiTrustCharter';
+import { UserIcon, CodeIcon, XIcon, ShieldIcon } from './icons';
 import { 
     KeyIcon, 
     CalendarIcon, 
@@ -25,10 +29,15 @@ import {
     Star,
     Award,
     GraduationCap,
-    Plus,
     ThumbsUp,
     Send,
-    RefreshCw
+    RefreshCw,
+    Bot,
+    Search,
+    AlertTriangle,
+    GitBranch,
+    Mail,
+    Cpu
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { safeStorage } from '../services/safeStorage';
@@ -46,13 +55,30 @@ interface ApiKey {
 interface UserProfileViewProps {
     profile: UserProfile;
     projects: NetworkProject[];
+    glitchHistory?: GlitchTelemetry[];
+    messages?: ChatMessage[];
     onUpdateProfile: (updates: Partial<UserProfile>) => void;
     onSetView?: (view: string) => void;
 }
 
-export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, projects, onUpdateProfile, onSetView }) => {
-    const [isEditing, setIsEditing] = useState(false);
+export const UserProfileView: React.FC<UserProfileViewProps> = ({
+    profile,
+    projects,
+    glitchHistory = [],
+    messages = [],
+    onUpdateProfile,
+    onSetView
+}) => {
     const [editForm, setEditForm] = useState<UserProfile>(profile);
+
+    // Discovery identifiers ONLY — AI authors all profile content, strengths, and flaws
+    const [lookupIdentifier, setLookupIdentifier] = useState(profile.username || '');
+    const [lookupGithubUrl, setLookupGithubUrl] = useState(profile.githubUrl || profile.contactInfo?.github || '');
+    const [lookupPortfolioUrl, setLookupPortfolioUrl] = useState(profile.portfolioUrl || profile.contactInfo?.website || '');
+    const [lookupEmail, setLookupEmail] = useState(profile.contactInfo?.email || 'resurrectionofmoses@gmail.com');
+    const [includeWorkspaceContext, setIncludeWorkspaceContext] = useState(true);
+    const [isCompilingAI, setIsCompilingAI] = useState(false);
+    const [aiCompileError, setAiCompileError] = useState<string | null>(null);
     
     // Manage state lists with fallbacks
     const [portfolioLinks, setPortfolioLinks] = useState<PortfolioLink[]>([]);
@@ -61,14 +87,6 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
     const [education, setEducation] = useState<Education[]>([]);
     const [skillEndorsements, setSkillEndorsements] = useState<Record<string, string[]>>({});
     const [radarViewMode, setRadarViewMode] = useState<'CATEGORY' | 'INDIVIDUAL'>('CATEGORY');
-    
-    const [newSkill, setNewSkill] = useState('');
-    const [newCatSkill, setNewCatSkill] = useState<Record<string, string>>({});
-    const [newCategoryName, setNewCategoryName] = useState('');
-    const [newLookingForSkill, setNewLookingForSkill] = useState('');
-    const [newWillingToTeachSkill, setNewWillingToTeachSkill] = useState('');
-    const [newInterest, setNewInterest] = useState('');
-    const [newLookingFor, setNewLookingFor] = useState('');
     const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
     
     // Request Endorsements peer flow states
@@ -169,91 +187,89 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
         setReserveState(currentReserve);
     };
 
-// components/UserProfileView.tsx
     // Bind state values when user profile is updated or loaded
     useEffect(() => {
-        // If the user is actively editing their profile, we MUST NOT overwrite their local
-        // edit form state with background updates or we would lose their unsaved keystrokes.
-        if (isEditing) return;
+        setLookupIdentifier(profile.username || '');
+        setLookupGithubUrl(profile.githubUrl || profile.contactInfo?.github || '');
+        setLookupPortfolioUrl(profile.portfolioUrl || profile.contactInfo?.website || '');
+        setLookupEmail(profile.contactInfo?.email || 'resurrectionofmoses@gmail.com');
 
-        const enrichedProfile = {
+        const isAIAuthored = Boolean(profile.aiAuthored || profile.aiDossier);
+
+        const enrichedProfile: UserProfile = {
             ...profile,
+            tagline: profile.tagline || (isAIAuthored ? 'AI-audited developer profile' : 'Awaiting AI Profile Audit — run AI Audit below'),
+            avatarUrl: profile.avatarUrl || '',
             sovereigntyTier: profile.sovereigntyTier || 3,
-            areasOfInterest: profile.areasOfInterest || ['Compiler Engineering', 'DeFi Protocols', 'AI Alignment'],
-            lookingFor: profile.lookingFor || ['Collaborators', 'Mentorship', 'Open Source Projects'],
-            lookingForSkills: profile.lookingForSkills || ['React', 'TypeScript', 'Rust'],
-            willingToTeachSkills: profile.willingToTeachSkills || ['Compiler Engineering', 'React', 'TypeScript'],
+            areasOfInterest: profile.areasOfInterest || [],
+            lookingFor: profile.lookingFor || [],
+            lookingForSkills: profile.lookingForSkills || [],
+            willingToTeachSkills: profile.willingToTeachSkills || [],
             contactInfo: profile.contactInfo || {
                 email: 'resurrectionofmoses@gmail.com',
-                discord: 'aetheros_prime#1337',
-                telegram: '@aetheros_dev',
-                twitter: '@aetheros_prime',
-                phone: '+1 (555) 019-2831',
-                github: 'https://github.com/aetheros-prime',
-                website: 'https://aetheros.network'
+                github: profile.githubUrl || '',
+                website: profile.portfolioUrl || ''
             },
-            categorizedSkills: profile.categorizedSkills || [
-                { category: 'Frontend', skills: ['React', 'TypeScript', 'Tailwind CSS', 'Framer Motion'] },
-                { category: 'Backend', skills: ['Node.js', 'Express', 'GraphQL', 'WebSockets'] },
-                { category: 'DevOps & Cloud', skills: ['Docker', 'Kubernetes', 'Google Cloud Platform', 'CI/CD'] },
-                { category: 'Smart Contracts', skills: ['Solidity', 'Rust', 'Web3.js', 'Hardhat'] },
-                { category: 'Data & AI', skills: ['Python', 'PyTorch', 'SQL', 'Gemini SDK'] }
-            ]
+            categorizedSkills: profile.categorizedSkills || (
+                isAIAuthored
+                    ? []
+                    : [
+                        { category: 'Frontend', skills: ['React', 'TypeScript', 'Tailwind CSS'] },
+                        { category: 'Backend', skills: ['Node.js', 'Express'] }
+                    ]
+            )
         };
         setEditForm(enrichedProfile);
-        
-        setPortfolioLinks(profile.portfolioLinks || [
-            { id: 'link_1', label: 'GitHub', url: 'https://github.com/aetheros-prime' },
-            { id: 'link_2', label: 'Website', url: 'https://aetheros.network' }
-        ]);
 
-        setProfileProjects(profile.profileProjects || [
-            { 
-                id: 'proj_1', 
-                title: 'Sovereign Shield', 
-                roleDefined: 'Lead Architect', 
-                status: 'current', 
-                description: 'Real-time multi-dimensional defensive envelope and metric tracking system.',
-                link: 'https://github.com/aetheros/sovereign-shield',
-                rating: 5,
-                ratingsCount: 4,
-                endorsements: ['Operator-Beta', 'Operator-Gamma']
-            },
-            { 
-                id: 'proj_2', 
-                title: 'Cognitive Pipeline', 
-                roleDefined: 'Core Dev', 
-                status: 'past', 
-                description: 'Autonomous orchestration model integrating high-frequency token generation and feedback matrices.',
-                link: 'https://github.com/aetheros/cognitive-pipeline',
-                rating: 4,
-                ratingsCount: 2,
-                endorsements: ['Operator-Alpha']
-            }
-        ]);
+        setPortfolioLinks(profile.portfolioLinks || []);
+        setProfileProjects(profile.profileProjects || []);
+        setWorkExperience(profile.workExperience || []);
+        setEducation(profile.education || []);
+        setSkillEndorsements(profile.skillEndorsements || {});
+    }, [profile]);
 
-        setWorkExperience(profile.workExperience || [
-            { id: 'exp_1', company: 'DeepMind Labs', position: 'Lead Paradigm Architect', startDate: '2024-01-01', endDate: '', description: 'Iteratively scaled agentic reasoning models and distributed context vectors.', isCurrent: true },
-            { id: 'exp_2', company: 'Google Cloud Platform', position: 'Senior Infrastructure Engineer', startDate: '2021-06-01', endDate: '2023-12-31', description: 'Architected millisecond-grain serverless ingress and network mesh structures.', isCurrent: false }
-        ]);
-
-        setEducation(profile.education || [
-            { id: 'edu_1', institution: 'MIT Engineering', degree: 'Ph.D. in Computer Science', fieldOfStudy: 'Distributed Autonomous Systems', startDate: '2016-09-01', endDate: '2021-05-31', description: 'Thesis: Real-time Multi-agent Network Orchestration Loops.' }
-        ]);
-
-        setSkillEndorsements(profile.skillEndorsements || {
-            'Compiler Engineering': ['Operator-Alpha', 'Operator-Beta'],
-            'DeFi Protocols': ['Operator-Gamma']
-        });
-    }, [profile, isEditing]);
+    const handleRunAIAudit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        const identifier = lookupIdentifier.trim() || profile.username || 'Operator';
+        setIsCompilingAI(true);
+        setAiCompileError(null);
+        try {
+            const result = await compileAIProfile({
+                identifier,
+                githubUrl: lookupGithubUrl.trim() || undefined,
+                portfolioUrl: lookupPortfolioUrl.trim() || undefined,
+                email: lookupEmail.trim() || undefined,
+                includeWorkspaceContext,
+                existingProfile: profile,
+                projects,
+                glitchHistory,
+                messages
+            });
+            onUpdateProfile(result.profileUpdates);
+            await recordTrustAction({
+                category: 'AI_ASSIST',
+                actionType: 'AI_PROFILE_AUDIT',
+                summary: `Completed AI unfiltered dossier audit for @${result.profileUpdates.username || identifier}`,
+                target: 'UserProfileView',
+                trustPointsAwarded: 12
+            });
+            toast.success(`AI audit completed for ${result.profileUpdates.username || identifier}`, {
+                description: 'Unfiltered strengths, flaws, projects, and evidence compiled by Gemini.'
+            });
+        } catch (err: any) {
+            const msg = err?.message || 'AI profile audit failed.';
+            setAiCompileError(msg);
+            toast.error('AI Profile Audit Failed', { description: msg });
+        } finally {
+            setIsCompilingAI(false);
+        }
+    };
 
     const radarData = useMemo(() => {
-        const categories = (isEditing ? editForm?.categorizedSkills : editForm?.categorizedSkills) || [
-            { category: 'Frontend', skills: ['React', 'TypeScript', 'Tailwind CSS', 'Framer Motion'] },
-            { category: 'Backend', skills: ['Node.js', 'Express', 'GraphQL', 'WebSockets'] },
-            { category: 'DevOps & Cloud', skills: ['Docker', 'Kubernetes', 'Google Cloud Platform', 'CI/CD'] },
-            { category: 'Smart Contracts', skills: ['Solidity', 'Rust', 'Web3.js', 'Hardhat'] },
-            { category: 'Data & AI', skills: ['Python', 'PyTorch', 'SQL', 'Gemini SDK'] }
+        const categories = editForm?.categorizedSkills || [
+            { category: 'Frontend', skills: ['React', 'TypeScript', 'Tailwind CSS'] },
+            { category: 'Backend', skills: ['Node.js', 'Express'] },
+            { category: 'Data & AI', skills: ['Gemini SDK'] }
         ];
 
         if (radarViewMode === 'CATEGORY') {
@@ -344,14 +360,14 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
     useEffect(() => {
         // Automatic background simulation of incoming peer endorsements while browsing
         const interval = setInterval(() => {
-            if (isEditing) return;
+            if (isCompilingAI) return;
             // 20% chance every 45 seconds to receive a random peer endorsement
             if (Math.random() < 0.20) {
                 handleReceivePeerEndorsement();
             }
         }, 45000);
         return () => clearInterval(interval);
-    }, [editForm.skills, skillEndorsements, isEditing]);
+    }, [editForm.skills, skillEndorsements, isCompilingAI]);
 
     useEffect(() => {
         const persistKeys = async () => {
@@ -362,150 +378,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
         persistKeys();
     }, [apiKeys, isKeysLoading]);
 
-    const handleSave = () => {
-        onUpdateProfile({
-            ...editForm,
-            portfolioLinks,
-            profileProjects,
-            workExperience,
-            education,
-            skillEndorsements
-        });
-        setIsEditing(false);
-    };
-
-    const handleCancel = () => {
-        setEditForm(profile);
-        setPortfolioLinks(profile.portfolioLinks || []);
-        setProfileProjects(profile.profileProjects || []);
-        setWorkExperience(profile.workExperience || []);
-        setEducation(profile.education || []);
-        setSkillEndorsements(profile.skillEndorsements || {});
-        setIsEditing(false);
-    };
-
-    // Skill controller
-    const handleAddSkill = () => {
-        if (newSkill.trim() && !editForm.skills.includes(newSkill.trim())) {
-            const trimmed = newSkill.trim();
-            setEditForm(prev => {
-                const currentCategorized = prev.categorizedSkills || [];
-                // Add to "Other" category if categorizedSkills exists
-                const updatedCategorized = currentCategorized.map(cat => {
-                    if (cat.category === 'Other') {
-                        return { ...cat, skills: [...cat.skills, trimmed] };
-                    }
-                    return cat;
-                });
-                
-                if (currentCategorized.length > 0 && !currentCategorized.some(cat => cat.category === 'Other')) {
-                    updatedCategorized.push({ category: 'Other', skills: [trimmed] });
-                }
-
-                return {
-                    ...prev,
-                    skills: [...prev.skills, trimmed],
-                    categorizedSkills: updatedCategorized.length > 0 ? updatedCategorized : prev.categorizedSkills
-                };
-            });
-            setNewSkill('');
-        }
-    };
-
-    const handleRemoveSkill = (skillToRemove: string) => {
-        setEditForm(prev => {
-            const updatedCategorized = (prev.categorizedSkills || []).map(cat => ({
-                ...cat,
-                skills: cat.skills.filter(s => s !== skillToRemove)
-            }));
-            return {
-                ...prev,
-                skills: prev.skills.filter(s => s !== skillToRemove),
-                categorizedSkills: updatedCategorized
-            };
-        });
-        // Clean from endorsements too
-        const nextEndorsements = { ...skillEndorsements };
-        delete nextEndorsements[skillToRemove];
-        setSkillEndorsements(nextEndorsements);
-    };
-
-    // Categorized Skill Controllers
-    const handleAddCategorizedSkill = (categoryName: string, skillName: string) => {
-        const trimmed = skillName.trim();
-        if (!trimmed) return;
-        
-        setEditForm(prev => {
-            const currentCategorized = prev.categorizedSkills || [];
-            let found = false;
-            const updatedCategorized = currentCategorized.map(cat => {
-                if (cat.category === categoryName) {
-                    found = true;
-                    if (!cat.skills.includes(trimmed)) {
-                        return { ...cat, skills: [...cat.skills, trimmed] };
-                    }
-                }
-                return cat;
-            });
-            
-            if (!found) {
-                updatedCategorized.push({ category: categoryName, skills: [trimmed] });
-            }
-            
-            const updatedFlatSkills = prev.skills.includes(trimmed) ? prev.skills : [...prev.skills, trimmed];
-            return {
-                ...prev,
-                skills: updatedFlatSkills,
-                categorizedSkills: updatedCategorized
-            };
-        });
-    };
-
-    const handleRemoveCategorizedSkill = (categoryName: string, skillToRemove: string) => {
-        setEditForm(prev => {
-            const currentCategorized = prev.categorizedSkills || [];
-            const updatedCategorized = currentCategorized.map(cat => {
-                if (cat.category === categoryName) {
-                    return { ...cat, skills: cat.skills.filter(s => s !== skillToRemove) };
-                }
-                return cat;
-            });
-            
-            // Check if skill is completely removed from all categories before removing from flat list
-            const stillExistsInAnyCategory = updatedCategorized.some(cat => cat.skills.includes(skillToRemove));
-            const updatedFlatSkills = stillExistsInAnyCategory ? prev.skills : prev.skills.filter(s => s !== skillToRemove);
-            
-            return {
-                ...prev,
-                skills: updatedFlatSkills,
-                categorizedSkills: updatedCategorized
-            };
-        });
-        
-        // Clean from endorsements too
-        const nextEndorsements = { ...skillEndorsements };
-        const stillExistsInAnyCategory = (editForm.categorizedSkills || []).some(cat => cat.category !== categoryName && cat.skills.includes(skillToRemove));
-        if (!stillExistsInAnyCategory) {
-            delete nextEndorsements[skillToRemove];
-            setSkillEndorsements(nextEndorsements);
-        }
-    };
-
-    const handleAddSkillCategory = (newCategoryName: string) => {
-        const trimmed = newCategoryName.trim();
-        if (!trimmed) return;
-        setEditForm(prev => {
-            const currentCategorized = prev.categorizedSkills || [];
-            if (currentCategorized.some(cat => cat.category.toLowerCase() === trimmed.toLowerCase())) {
-                toast.error("Category already exists.");
-                return prev;
-            }
-            return {
-                ...prev,
-                categorizedSkills: [...currentCategorized, { category: trimmed, skills: [] }]
-            };
-        });
-    };
+    // Note: Profile metadata (bio, skills, projects, experience, education) is AI-authored only.
 
     // Endorse Skill logic
     const handleEndorseSkill = (skillName: string) => {
@@ -696,101 +569,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
         onUpdateProfile({ ...editForm, profileProjects: nextProjs });
     };
 
-    // Experience state handlers
-    const handleAddExperience = () => {
-        const newExp: WorkExperience = {
-            id: uuidv4(),
-            company: 'New Nexus Tech',
-            position: 'Core Systems Developer',
-            startDate: new Date().toISOString().split('T')[0],
-            endDate: '',
-            description: 'Maintained and deployed highly secure full-stack gateways.',
-            isCurrent: true
-        };
-        setWorkExperience([...(workExperience || []), newExp]);
-    };
-
-    const handleRemoveExperience = (id: string) => {
-        setWorkExperience((workExperience || []).filter(e => e && e.id !== id));
-    };
-
-    const handleUpdateExperience = (id: string, field: keyof WorkExperience, value: any) => {
-        setWorkExperience((workExperience || [])?.map?.(e => e && e.id === id ? { ...e, [field]: value } : e));
-    };
-
-    // Education state handlers
-    const handleAddEducation = () => {
-        const newEdu: Education = {
-            id: uuidv4(),
-            institution: 'Polytechnic Academy',
-            degree: 'Bachelor of Science',
-            fieldOfStudy: 'Software Engineering',
-            startDate: '2020-09-01',
-            endDate: '2024-06-01',
-            description: 'Focused on type-safe compilation targets.'
-        };
-        setEducation([...(education || []), newEdu]);
-    };
-
-    const handleRemoveEducation = (id: string) => {
-        setEducation((education || []).filter(e => e && e.id !== id));
-    };
-
-    const handleUpdateEducation = (id: string, field: keyof Education, value: any) => {
-        setEducation((education || [])?.map?.(e => e && e.id === id ? { ...e, [field]: value } : e));
-    };
-
-    const handleAddLookingForSkill = () => {
-        const currentLooking = editForm.lookingForSkills || [];
-        if (newLookingForSkill.trim() && !currentLooking.includes(newLookingForSkill.trim())) {
-            setEditForm(prev => ({ ...prev, lookingForSkills: [...(prev.lookingForSkills || []), newLookingForSkill.trim()] }));
-            setNewLookingForSkill('');
-        }
-    };
-
-    const handleRemoveLookingForSkill = (skillToRemove: string) => {
-        const currentLooking = editForm.lookingForSkills || [];
-        setEditForm(prev => ({ ...prev, lookingForSkills: currentLooking.filter(s => s !== skillToRemove) }));
-    };
-
-    const handleAddWillingToTeachSkill = () => {
-        const currentTeach = editForm.willingToTeachSkills || [];
-        if (newWillingToTeachSkill.trim() && !currentTeach.includes(newWillingToTeachSkill.trim())) {
-            setEditForm(prev => ({ ...prev, willingToTeachSkills: [...(prev.willingToTeachSkills || []), newWillingToTeachSkill.trim()] }));
-            setNewWillingToTeachSkill('');
-        }
-    };
-
-    const handleRemoveWillingToTeachSkill = (skillToRemove: string) => {
-        const currentTeach = editForm.willingToTeachSkills || [];
-        setEditForm(prev => ({ ...prev, willingToTeachSkills: currentTeach.filter(s => s !== skillToRemove) }));
-    };
-
-    const handleAddInterest = () => {
-        const currentInterests = editForm.areasOfInterest || [];
-        if (newInterest.trim() && !currentInterests.includes(newInterest.trim())) {
-            setEditForm(prev => ({ ...prev, areasOfInterest: [...(prev.areasOfInterest || []), newInterest.trim()] }));
-            setNewInterest('');
-        }
-    };
-
-    const handleRemoveInterest = (interestToRemove: string) => {
-        const currentInterests = editForm.areasOfInterest || [];
-        setEditForm(prev => ({ ...prev, areasOfInterest: currentInterests.filter(i => i !== interestToRemove) }));
-    };
-
-    const handleAddLookingFor = () => {
-        const currentLooking = editForm.lookingFor || [];
-        if (newLookingFor.trim() && !currentLooking.includes(newLookingFor.trim())) {
-            setEditForm(prev => ({ ...prev, lookingFor: [...(prev.lookingFor || []), newLookingFor.trim()] }));
-            setNewLookingFor('');
-        }
-    };
-
-    const handleRemoveLookingFor = (lookingForToRemove: string) => {
-        const currentLooking = editForm.lookingFor || [];
-        setEditForm(prev => ({ ...prev, lookingFor: currentLooking.filter(l => l !== lookingForToRemove) }));
-    };
+    // Manual experience, education, and mentorship editors intentionally removed — AI compiles the record.
 
     const handleGenerateKey = async () => {
         const newKey: ApiKey = {
@@ -806,49 +585,7 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
         setApiKeys((apiKeys || []).filter(k => k && k.id !== id));
     };
 
-    const handleAddLink = () => {
-        const newLink: PortfolioLink = {
-            id: uuidv4(),
-            label: 'GitHub Repository',
-            url: 'https://'
-        };
-        setPortfolioLinks([...(portfolioLinks || []), newLink]);
-    };
-
-    const handleRemoveLink = (id: string) => {
-        setPortfolioLinks((portfolioLinks || []).filter(l => l && l.id !== id));
-    };
-
-    const handleUpdateLink = (id: string, field: keyof PortfolioLink, value: string) => {
-        setPortfolioLinks((portfolioLinks || [])?.map?.(l => l && l.id === id ? { ...l, [field]: value } : l));
-    };
-
-    const handleAddProject = () => {
-        const newProj: ProfileProject = {
-            id: uuidv4(),
-            title: 'New Integration Project',
-            description: 'Core details of the repository development.',
-            roleDefined: 'Full-Stack Developer',
-            status: 'current',
-            link: '',
-            rating: 5,
-            ratingsCount: 1,
-            endorsements: [],
-            technologies: ['React', 'TypeScript'],
-            liveDemoUrl: '',
-            sourceCodeUrl: '',
-            testimonials: []
-        };
-        setProfileProjects([...(profileProjects || []), newProj]);
-    };
-
-    const handleRemoveProject = (id: string) => {
-        setProfileProjects((profileProjects || []).filter(p => p && p.id !== id));
-    };
-
-    const handleUpdateProject = (id: string, field: keyof ProfileProject, value: any) => {
-        setProfileProjects((profileProjects || [])?.map?.(p => p && p.id === id ? { ...p, [field]: value } : p));
-    };
+    // Manual link and project editors intentionally removed — AI compiles the record.
 
     const currentProjects = (profileProjects || []).filter(p => p && p.status === 'current');
     const pastProjects = (profileProjects || []).filter(p => p && p.status === 'past');
@@ -886,188 +623,297 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                 {profile.avatarUrl ? (
                                     <img src={profile.avatarUrl} alt={profile.username} className="w-full h-full object-cover" />
                                 ) : (
-                                    <UserIcon className="w-12 h-12 text-blue-400" />
+                                    <span className="text-2xl font-black text-blue-300 tracking-tight select-none">
+                                        {(profile.username || 'AI').slice(0, 2).toUpperCase()}
+                                    </span>
                                 )}
                             </div>
-                            <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-zinc-950 rounded-full animate-pulse" title="Grid connection: Engaged" />
+                            <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 border-2 border-zinc-950 rounded-full" title="Grid connection: Engaged" />
                         </div>
 
                         <div className="space-y-2 flex-1">
-                            {isEditing ? (
-                                <div className="space-y-3 max-w-md">
-                                    <div className="flex flex-col gap-1.5">
-                                        <label className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Lattice Username</label>
-                                        <input 
-                                            id="input-username"
-                                            value={editForm.username}
-                                            onChange={e => setEditForm(prev => ({ ...prev, username: e.target.value }))}
-                                            className="bg-black/60 border border-zinc-800 rounded px-3 py-1.5 text-xl font-bold text-white focus:outline-none focus:border-blue-500 w-full"
-                                            placeholder="Sovereign Name"
-                                        />
-                                    </div>
-                                    <div className="grid grid-cols-3 gap-3">
-                                        <div className="flex flex-col gap-1">
-                                            <label className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Authority Level</label>
-                                            <select 
-                                                id="select-role"
-                                                value={editForm.role}
-                                                onChange={e => setEditForm(prev => ({ ...prev, role: e.target.value as any }))}
-                                                className="bg-black/60 border border-zinc-800 rounded px-2 py-1 text-xs uppercase font-extrabold text-blue-400 focus:outline-none focus:border-blue-500 cursor-pointer h-9"
-                                            >
-                                                <option value="guest">Guest</option>
-                                                <option value="user">User</option>
-                                                <option value="moderator">Moderator</option>
-                                                <option value="operator">Operator</option>
-                                                <option value="admin">Admin</option>
-                                            </select>
-                                        </div>
-                                        <div className="flex flex-col gap-1">
-                                            <label className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Sovereignty Stack</label>
-                                            <input 
-                                                id="input-sovereignty"
-                                                value={editForm.sovereignty || ''}
-                                                onChange={e => setEditForm(prev => ({ ...prev, sovereignty: e.target.value }))}
-                                                className="bg-black/60 border border-zinc-800 rounded px-3 py-1.5 text-xs font-black uppercase text-amber-500 focus:outline-none focus:border-amber-500 h-9"
-                                                placeholder="Sovereignty"
-                                            />
-                                        </div>
-                                        <div className="flex flex-col gap-1">
-                                            <label className="text-[9px] uppercase tracking-widest text-zinc-500 font-bold">Sovereign Tier</label>
-                                            <select 
-                                                id="select-sovereignty-tier"
-                                                value={editForm.sovereigntyTier || 3}
-                                                onChange={e => setEditForm(prev => ({ ...prev, sovereigntyTier: parseInt(e.target.value) }))}
-                                                className="bg-black/60 border border-zinc-800 rounded px-2 py-1 text-xs uppercase font-extrabold text-teal-400 focus:outline-none focus:border-teal-500 cursor-pointer h-9"
-                                            >
-                                                <option value={1}>Tier 1</option>
-                                                <option value={2}>Tier 2</option>
-                                                <option value={3}>Tier 3</option>
-                                                <option value={4}>Tier 4</option>
-                                                <option value={5}>Tier 5</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : (
-                                <>
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <h1 id="view-username" className="text-3xl font-extrabold text-white tracking-tight">{profile.username}</h1>
-                                        <button 
-                                            id="prominent-reputation-badge"
-                                            onClick={() => onSetView && onSetView('reputation_leaderboard')}
-                                            className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 border shadow-[0_0_12px_rgba(0,0,0,0.6)] transition-all cursor-pointer hover:scale-105 active:scale-95 ${activeBadgeClass}`}
-                                            title={`Holistic Reputation Badge: ${activeBadgeName}. Click to view Leaderboard.`}
+                            <div className="flex flex-wrap items-center gap-3">
+                                <h1 id="view-username" className="text-3xl font-extrabold text-white tracking-tight">{profile.username}</h1>
+                                <button 
+                                    id="prominent-reputation-badge"
+                                    onClick={() => onSetView && onSetView('reputation_leaderboard')}
+                                    className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 border shadow-[0_0_12px_rgba(0,0,0,0.6)] transition-all cursor-pointer hover:scale-105 active:scale-95 ${activeBadgeClass}`}
+                                    title={`Holistic Reputation Badge: ${activeBadgeName}. Click to view Leaderboard.`}
+                                >
+                                    <Award className="w-4 h-4 text-current" />
+                                    <span>{activeBadgeName}</span>
+                                </button>
+                                <span className="px-2.5 py-0.5 rounded bg-emerald-950/50 border border-emerald-500/30 text-emerald-300 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                                    <Bot className="w-3 h-3" /> AI-Compiled Dossier (Read-Only)
+                                </span>
+                                {(() => {
+                                    const rankNum = Math.max(
+                                        profile.aiTrustRankNumber || 0,
+                                        getHighestConferredRankNumber(profile.grantedRanks)
+                                    );
+                                    const spec = rankNum > 0 ? getRankSpec(rankNum) : null;
+                                    return (
+                                        <button
+                                            type="button"
+                                            onClick={() => onSetView && onSetView('ai_trust_covenant')}
+                                            className="px-2.5 py-0.5 rounded bg-cyan-950/50 border border-cyan-500/40 text-cyan-200 text-[10px] font-mono font-bold flex items-center gap-1 cursor-pointer hover:bg-cyan-900/40 transition-colors"
+                                            title="Open AI Trust & Permanent Rank Covenant"
                                         >
-                                            <Award className="w-4 h-4 text-current" />
-                                            <span>{activeBadgeName}</span>
-                                        </button>
-                                        <span className="text-zinc-700 text-xs font-black select-none">//</span>
-                                        <span className="text-xs text-zinc-500 uppercase font-black tracking-widest">Active Node</span>
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                                        <span className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                                            profile.role === 'admin' ? 'bg-red-950/80 text-red-400 border border-red-500/30' : 
-                                            profile.role === 'operator' ? 'bg-amber-950/80 text-amber-400 border border-amber-500/30' : 
-                                            profile.role === 'moderator' ? 'bg-blue-950/80 text-blue-400 border border-blue-500/30' : 
-                                            'bg-zinc-900 text-zinc-400 border border-zinc-800'
-                                        }`}>
-                                            {profile.role} authority
-                                        </span>
-                                        <span className="text-zinc-800 text-xs font-black">//</span>
-                                        
-                                        {/* Sovereign Status Badge */}
-                                        <span id="sovereign-status-badge" className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border transition-all ${
-                                            (profile.sovereigntyTier || 3) === 5 ? 'bg-fuchsia-950/80 text-fuchsia-400 border-fuchsia-500/50 shadow-[0_0_10px_rgba(217,70,239,0.3)] animate-pulse' :
-                                            (profile.sovereigntyTier || 3) === 4 ? 'bg-rose-950/80 text-rose-400 border-rose-500/45 shadow-[0_0_8px_rgba(244,63,94,0.35)]' :
-                                            (profile.sovereigntyTier || 3) === 3 ? 'bg-amber-950/80 text-amber-400 border-amber-500/40 shadow-[0_0_6px_rgba(245,158,11,0.25)]' :
-                                            (profile.sovereigntyTier || 3) === 2 ? 'bg-teal-950/80 text-teal-400 border-teal-500/30' :
-                                            'bg-zinc-900 text-zinc-400 border-zinc-800'
-                                        }`} title={`Sovereignty Tier: ${profile.sovereigntyTier || 3}`}>
-                                            <ShieldIcon className="w-3.5 h-3.5 text-current/85" />
-                                            Sovereign Tier {profile.sovereigntyTier || 3}
-                                        </span>
-
-                                        <span className="text-zinc-800 text-xs font-black">//</span>
-
-                                        {/* Real-time Reputation Badge System */}
-                                        <button 
-                                            id="reputation-badge" 
-                                            onClick={() => onSetView && onSetView('reputation_leaderboard')}
-                                            className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border transition-all ${
-                                                reputationScore >= 100 ? 'bg-fuchsia-950/80 text-fuchsia-400 border-fuchsia-500/50 shadow-[0_0_12px_rgba(217,70,239,0.3)] hover:scale-105' :
-                                                reputationScore >= 60 ? 'bg-rose-950/80 text-rose-400 border-rose-500/45 shadow-[0_0_8px_rgba(244,63,94,0.3)] animate-pulse hover:scale-105' :
-                                                reputationScore >= 30 ? 'bg-amber-955/80 text-amber-400 border-amber-500/40 shadow-[0_0_6px_rgba(245,158,11,0.2)] hover:scale-105' :
-                                                reputationScore >= 10 ? 'bg-teal-950/80 text-teal-400 border-teal-500/30 hover:scale-105' :
-                                                'bg-zinc-900 text-zinc-400 border-zinc-800 hover:scale-105'
-                                            } cursor-pointer`} 
-                                            title={`Click to view Leaderboard. Reputation points: ${reputationScore}`}
-                                        >
-                                            <Award className="w-3.5 h-3.5 text-current" />
-                                            <span>REP: {reputationScore}</span>
-                                            <span className="text-current/30 font-mono text-[9px]">|</span>
-                                            <span className="text-[8px] font-bold text-zinc-350">
-                                                {reputationScore >= 100 ? 'AetherOS Legendary Legend' :
-                                                 reputationScore >= 60 ? 'Elite Conduit' :
-                                                 reputationScore >= 30 ? 'Sovereign Architect' :
-                                                 reputationScore >= 10 ? 'Qualified Verifier' :
-                                                 'Initiative Node'}
+                                            <ShieldIcon className="w-3 h-3 text-cyan-400" />
+                                            <span>
+                                                {spec
+                                                    ? `Rank ${spec.romanNumeral} · ${spec.title} (Set in Stone)`
+                                                    : 'AI Rank: Unconferred'}
                                             </span>
                                         </button>
+                                    );
+                                })()}
+                            </div>
 
-                                        <span className="text-zinc-800 text-xs font-black">//</span>
-                                        <div className="flex items-center gap-1.5">
-                                            <SparklesIcon className="w-3.5 h-3.5 text-amber-500" />
-                                            <span className="text-[10px] text-amber-500 font-black uppercase tracking-wider leading-none">{profile.sovereignty || 'SOVEREIGN_SYSTEM'}</span>
-                                        </div>
-                                        <span className="text-zinc-800 text-xs font-black">//</span>
-                                        <span className="text-[9px] font-mono text-zinc-650 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-900 uppercase font-bold">Hash: {profile.id.substring(0, 8)}</span>
-                                    </div>
-                                </>
+                            {profile.realName && (
+                                <p className="text-xs font-mono text-amber-300 mt-1">
+                                    Real Name Attested: <span className="text-white font-bold">{profile.realName}</span> · Portable Credential Active
+                                </p>
                             )}
+
+                            {profile.tagline && (
+                                <p id="view-tagline" className="text-sm font-semibold text-zinc-300 tracking-wide flex items-center gap-2 my-1">
+                                    <span className="text-blue-400 font-mono text-xs">⚡</span>
+                                    <span>{profile.tagline}</span>
+                                </p>
+                            )}
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                                <span className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                                    profile.role === 'admin' ? 'bg-red-950/80 text-red-400 border border-red-500/30' : 
+                                    profile.role === 'operator' ? 'bg-amber-950/80 text-amber-400 border border-amber-500/30' : 
+                                    profile.role === 'moderator' ? 'bg-blue-950/80 text-blue-400 border border-blue-500/30' : 
+                                    'bg-zinc-900 text-zinc-400 border border-zinc-800'
+                                }`}>
+                                    {profile.role} authority
+                                </span>
+                                <span className="text-zinc-800 text-xs font-black">//</span>
+                                
+                                {/* Sovereign Status Badge */}
+                                <span id="sovereign-status-badge" className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1 border transition-all ${
+                                    (profile.sovereigntyTier || 3) === 5 ? 'bg-fuchsia-950/80 text-fuchsia-400 border-fuchsia-500/50 shadow-[0_0_10px_rgba(217,70,239,0.3)]' :
+                                    (profile.sovereigntyTier || 3) === 4 ? 'bg-rose-950/80 text-rose-400 border-rose-500/45' :
+                                    (profile.sovereigntyTier || 3) === 3 ? 'bg-amber-950/80 text-amber-400 border-amber-500/40' :
+                                    (profile.sovereigntyTier || 3) === 2 ? 'bg-teal-950/80 text-teal-400 border-teal-500/30' :
+                                    'bg-zinc-900 text-zinc-400 border-zinc-800'
+                                }`} title={`Sovereignty Tier: ${profile.sovereigntyTier || 3}`}>
+                                    <ShieldIcon className="w-3.5 h-3.5 text-current/85" />
+                                    Sovereign Tier {profile.sovereigntyTier || 3}
+                                </span>
+
+                                <span className="text-zinc-800 text-xs font-black">//</span>
+
+                                <button 
+                                    id="reputation-badge" 
+                                    onClick={() => onSetView && onSetView('reputation_leaderboard')}
+                                    className={`px-2.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border transition-all ${
+                                        reputationScore >= 100 ? 'bg-fuchsia-950/80 text-fuchsia-400 border-fuchsia-500/50 hover:scale-105' :
+                                        reputationScore >= 60 ? 'bg-rose-950/80 text-rose-400 border-rose-500/45 hover:scale-105' :
+                                        reputationScore >= 30 ? 'bg-amber-950/80 text-amber-400 border-amber-500/40 hover:scale-105' :
+                                        reputationScore >= 10 ? 'bg-teal-950/80 text-teal-400 border-teal-500/30 hover:scale-105' :
+                                        'bg-zinc-900 text-zinc-400 border-zinc-800 hover:scale-105'
+                                    } cursor-pointer`} 
+                                    title={`Click to view Leaderboard. Reputation points: ${reputationScore}`}
+                                >
+                                    <Award className="w-3.5 h-3.5 text-current" />
+                                    <span>REP: {reputationScore}</span>
+                                </button>
+
+                                <span className="text-zinc-800 text-xs font-black">//</span>
+                                <div className="flex items-center gap-1.5">
+                                    <SparklesIcon className="w-3.5 h-3.5 text-amber-500" />
+                                    <span className="text-[10px] text-amber-500 font-black uppercase tracking-wider leading-none">{profile.sovereignty || 'SOVEREIGN_SYSTEM'}</span>
+                                </div>
+                                <span className="text-zinc-800 text-xs font-black">//</span>
+                                <span className="text-[9px] font-mono text-zinc-500 bg-zinc-950 px-2 py-0.5 rounded border border-zinc-900 uppercase font-bold">Hash: {profile.id.substring(0, 8)}</span>
+                            </div>
                         </div>
                     </div>
                     
                     {/* Action buttons */}
-                    <div className="shrink-0 flex gap-2 w-full md:w-auto justify-end border-t border-zinc-900 md:border-t-0 pt-4 md:pt-0">
-                        {isEditing ? (
-                            <div className="flex gap-2 w-full md:w-auto">
-                                <button 
-                                    id="btn-profile-cancel"
-                                    onClick={handleCancel} 
-                                    className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-zinc-400 rounded-xl hover:bg-zinc-800 hover:text-white transition-all flex items-center gap-2 text-xs font-black uppercase tracking-wider cursor-pointer flex-1 md:flex-initial justify-center"
-                                >
-                                    <XIcon className="w-3.5 h-3.5" /> Cancel
-                                </button>
-                                <button 
-                                    id="btn-profile-save"
-                                    onClick={handleSave} 
-                                    className="px-4 py-2 bg-emerald-600 text-zinc-950 rounded-xl hover:bg-emerald-500 hover:scale-102 active:scale-98 transition-all flex items-center gap-2 text-xs font-black uppercase tracking-wider cursor-pointer flex-1 md:flex-initial justify-center"
-                                >
-                                    <CheckIcon className="w-3.5 h-3.5" /> Save Node
-                                </button>
-                            </div>
-                        ) : (
-                            <div className="flex gap-2">
-                                {onSetView && (
-                                    <button 
-                                        id="btn-view-leaderboard"
-                                        onClick={() => onSetView('reputation_leaderboard')} 
-                                        className="px-4 py-2.5 bg-rose-950/40 border border-rose-900 text-rose-400 rounded-xl hover:bg-rose-900/20 transition-all flex items-center gap-2 text-xs font-black uppercase tracking-wider cursor-pointer font-bold"
-                                    >
-                                        <Star className="w-3.5 h-3.5" /> View Leaderboard
-                                    </button>
-                                )}
-                                <button 
-                                    id="btn-profile-edit"
-                                    onClick={() => setIsEditing(true)} 
-                                    className="px-5 py-2.5 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl hover:bg-zinc-800 hover:text-white transition-all flex items-center gap-2 text-xs font-black uppercase tracking-wider cursor-pointer hover:border-zinc-700"
-                                >
-                                    <EditIcon className="w-3.5 h-3.5 text-blue-400" /> Edit Metadata
-                                </button>
-                            </div>
+                    <div className="shrink-0 flex flex-wrap gap-2 w-full md:w-auto justify-end border-t border-zinc-900 md:border-t-0 pt-4 md:pt-0">
+                        {onSetView && (
+                            <button 
+                                id="btn-open-trust-covenant"
+                                onClick={() => onSetView('ai_trust_covenant')} 
+                                className="px-4 py-2.5 bg-cyan-950/50 border border-cyan-500/40 text-cyan-300 rounded-xl hover:bg-cyan-900/40 transition-all flex items-center gap-2 text-xs font-black uppercase tracking-wider cursor-pointer"
+                            >
+                                <ShieldIcon className="w-3.5 h-3.5" /> AI Rank &amp; Seals
+                            </button>
                         )}
+                        {onSetView && (
+                            <button 
+                                id="btn-view-leaderboard"
+                                onClick={() => onSetView('reputation_leaderboard')} 
+                                className="px-4 py-2.5 bg-rose-950/40 border border-rose-900 text-rose-400 rounded-xl hover:bg-rose-900/20 transition-all flex items-center gap-2 text-xs font-black uppercase tracking-wider cursor-pointer"
+                            >
+                                <Star className="w-3.5 h-3.5" /> View Leaderboard
+                            </button>
+                        )}
+                        <button 
+                            id="btn-ai-audit-profile"
+                            onClick={() => handleRunAIAudit()}
+                            disabled={isCompilingAI}
+                            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-zinc-950 rounded-xl transition-all flex items-center gap-2 text-xs font-black uppercase tracking-wider cursor-pointer"
+                        >
+                            {isCompilingAI ? (
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                                <Bot className="w-3.5 h-3.5" />
+                            )}
+                            {isCompilingAI ? 'Auditing...' : profile.aiDossier ? 'Re-Audit via AI' : 'Fill Profile via AI'}
+                        </button>
                     </div>
                 </motion.div>
+
+                {/* AI-Granted Trust Rank & Permanent Set-in-Stone Covenant Summary */}
+                <div className="bg-[#0b0f17] border border-cyan-500/25 rounded-2xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+                            <span className="text-amber-300 font-bold">IRREVOCABLE AI RANK CLEARANCE</span>
+                            <span className="text-zinc-600">·</span>
+                            <span className="text-zinc-300">
+                                {profile.realName
+                                    ? `Bound to ${profile.realName} (@${profile.username})`
+                                    : `Bind your real name in AI Rank & Seals to lock credentials outside AetherOS`}
+                            </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-4 text-xs font-mono tabular-nums">
+                            <span className="text-white font-bold">
+                                Current Rank:{' '}
+                                {profile.aiTrustRankNumber
+                                    ? `Rank ${getRankSpec(profile.aiTrustRankNumber).romanNumeral} — ${profile.aiTrustTitle || getRankSpec(profile.aiTrustRankNumber).title}`
+                                    : 'Unranked (Request AI Trust Evaluation)'}
+                            </span>
+                            <span className="text-cyan-300">Trust Score: {profile.trustScore || 0} pts</span>
+                            <span className="text-emerald-300">
+                                {(profile.unlockedPermissions || []).length} AetherOS permissions ·{' '}
+                                {(profile.grantedRanks || []).length} set-in-stone seal
+                                {(profile.grantedRanks || []).length === 1 ? '' : 's'}
+                            </span>
+                        </div>
+                        {profile.aiTrustVerdict && (
+                            <p className="text-xs text-zinc-400 leading-relaxed max-w-3xl">
+                                {profile.aiTrustVerdict}
+                            </p>
+                        )}
+                    </div>
+                    {onSetView && (
+                        <button
+                            type="button"
+                            onClick={() => onSetView('ai_trust_covenant')}
+                            className="px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-black font-mono text-xs font-bold shrink-0 cursor-pointer transition-colors"
+                        >
+                            Evaluate Trust &amp; Export Certificate
+                        </button>
+                    )}
+                </div>
+
+                {/* AI Discovery & Audit Control Strip (Identifiers Only — No Manual Spin Editing) */}
+                <form
+                    onSubmit={handleRunAIAudit}
+                    className="bg-zinc-950 border border-zinc-800 rounded-2xl p-5 space-y-4"
+                >
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-zinc-900 pb-3">
+                        <div className="flex items-start gap-3">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                                <Search className="w-4 h-4 text-emerald-400" />
+                            </div>
+                            <div>
+                                <h2 className="text-xs font-bold uppercase tracking-wider text-white">
+                                    AI-Authored Profile Investigation
+                                </h2>
+                                <p className="text-[11px] text-zinc-400 mt-0.5">
+                                    Only supply identifiers below so Gemini knows who to inspect. Manual bio, skill, and project spin-editing is disabled — AI puts verified wins and flaws on display.
+                                </p>
+                            </div>
+                        </div>
+                        <label className="flex items-center gap-2 text-[11px] text-zinc-300 cursor-pointer shrink-0 select-none">
+                            <input
+                                type="checkbox"
+                                checked={includeWorkspaceContext}
+                                onChange={(e) => setIncludeWorkspaceContext(e.target.checked)}
+                                className="rounded border-zinc-700 bg-black accent-emerald-500"
+                            />
+                            Inspect live workspace, projects &amp; glitch telemetry
+                        </label>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <label className="block space-y-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Target Name or Handle</span>
+                            <input
+                                value={lookupIdentifier}
+                                onChange={(e) => setLookupIdentifier(e.target.value)}
+                                placeholder="e.g. moses or GitHub handle"
+                                className="w-full bg-black border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                            />
+                        </label>
+                        <label className="block space-y-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-1">
+                                <GitBranch className="w-3 h-3 text-zinc-500" /> GitHub URL
+                            </span>
+                            <input
+                                value={lookupGithubUrl}
+                                onChange={(e) => setLookupGithubUrl(e.target.value)}
+                                placeholder="https://github.com/username"
+                                className="w-full bg-black border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                            />
+                        </label>
+                        <label className="block space-y-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-1">
+                                <GlobeIcon className="w-3 h-3 text-zinc-500" /> Website / Portfolio URL
+                            </span>
+                            <input
+                                value={lookupPortfolioUrl}
+                                onChange={(e) => setLookupPortfolioUrl(e.target.value)}
+                                placeholder="https://yoursite.dev"
+                                className="w-full bg-black border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                            />
+                        </label>
+                        <label className="block space-y-1">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500 flex items-center gap-1">
+                                <Mail className="w-3 h-3 text-zinc-500" /> Associated Email
+                            </span>
+                            <input
+                                value={lookupEmail}
+                                onChange={(e) => setLookupEmail(e.target.value)}
+                                placeholder="name@domain.com"
+                                className="w-full bg-black border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                            />
+                        </label>
+                    </div>
+
+                    {aiCompileError && (
+                        <div className="rounded-xl border border-red-500/40 bg-red-950/30 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex items-start gap-2 text-xs text-red-200">
+                                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                                <span>{aiCompileError}</span>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => handleRunAIAudit()}
+                                className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold uppercase tracking-wider cursor-pointer shrink-0"
+                            >
+                                Retry Audit
+                            </button>
+                        </div>
+                    )}
+
+                    {isCompilingAI && (
+                        <div className="rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3 flex items-center gap-3 text-xs text-emerald-200">
+                            <RefreshCw className="w-4 h-4 text-emerald-400 animate-spin shrink-0" />
+                            <span>Gemini is auditing repository structure, session telemetry, glitch logs, and public search findings — compiling strengths and flaws...</span>
+                        </div>
+                    )}
+                </form>
+
+                {/* Unfiltered AI Dossier Panel: The Good & The Bad */}
+                <AIDossierPanel dossier={profile.aiDossier} username={profile.username} />
 
                 {/* Dashboard layout structure */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1084,21 +930,11 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                         >
                             <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
                             <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 mb-3 flex items-center gap-2">
-                                <InfoIcon className="w-3.5 h-3.5 text-blue-400" strokeWidth={3} /> Node Description
+                                <InfoIcon className="w-3.5 h-3.5 text-blue-400" strokeWidth={3} /> AI-Compiled Biography
                             </h3>
-                            {isEditing ? (
-                                <textarea 
-                                    id="textarea-bio"
-                                    value={editForm.bio}
-                                    onChange={e => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
-                                    className="w-full bg-black/60 border border-zinc-800 rounded p-3 text-xs text-zinc-350 text-zinc-300 focus:outline-none focus:border-blue-500 min-h-[140px] resize-none font-mono"
-                                    placeholder="Enter your system objective biography description..."
-                                />
-                            ) : (
-                                <p id="view-bio" className="text-xs text-zinc-400 leading-relaxed whitespace-pre-wrap font-mono">
-                                    {profile.bio || <span className="text-zinc-600 italic text-xs">No biography description set.</span>}
-                                </p>
-                            )}
+                            <p id="view-bio" className="text-xs text-zinc-400 leading-relaxed whitespace-pre-wrap font-mono">
+                                {profile.bio || <span className="text-zinc-600 italic text-xs">Run an AI Audit above to generate a candid biography from real evidence.</span>}
+                            </p>
                         </motion.div>
 
                         {/* Experience Level Block */}
@@ -1112,29 +948,44 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                             <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 mb-3 flex items-center gap-2">
                                 <BriefcaseIcon className="w-3.5 h-3.5 text-emerald-400" /> Experience Coordinates
                             </h3>
-                            {isEditing ? (
-                                <select 
-                                    id="select-experience-level"
-                                    value={editForm.experienceLevel || ''}
-                                    onChange={e => setEditForm(prev => ({ ...prev, experienceLevel: e.target.value }))}
-                                    className="w-full bg-black/60 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500 font-mono h-9 cursor-pointer"
-                                >
-                                    <option value="Junior Specialist">Junior Specialist (0-2 years)</option>
-                                    <option value="Associate Developer">Associate Developer (2-4 years)</option>
-                                    <option value="Senior Architect / Engineer">Senior Architect / Engineer (4-8 years)</option>
-                                    <option value="Principal Paradigm / Tech Lead">Principal Paradigm / Tech Lead (8+ years)</option>
-                                    <option value="God-Mode Kernel Developer">God-Mode Kernel Developer (Elite)</option>
-                                </select>
-                            ) : (
-                                <div className="flex items-center gap-2.5">
-                                    <div className="w-7 h-7 bg-emerald-950/20 border border-emerald-500/10 rounded-lg flex items-center justify-center shrink-0">
-                                        <BriefcaseIcon className="w-3.5 h-3.5 text-emerald-400" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase text-zinc-200 tracking-wider">Experience Level</p>
-                                        <p id="view-experience-level" className="text-xs text-emerald-400 font-mono mt-0.5">{profile.experienceLevel || 'Senior Architect / Engineer'}</p>
-                                    </div>
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 bg-emerald-950/20 border border-emerald-500/10 rounded-lg flex items-center justify-center shrink-0">
+                                    <BriefcaseIcon className="w-3.5 h-3.5 text-emerald-400" />
                                 </div>
+                                <div>
+                                    <p className="text-[10px] font-black uppercase text-zinc-200 tracking-wider">AI-Assessed Tier</p>
+                                    <p id="view-experience-level" className="text-xs text-emerald-400 font-mono mt-0.5">{profile.experienceLevel || 'Unverified — run AI audit'}</p>
+                                </div>
+                            </div>
+                        </motion.div>
+
+                        {/* Programming Languages + AI Evidence */}
+                        <motion.div
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: 0.18 }}
+                            className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 shadow-lg relative overflow-hidden"
+                        >
+                            <div className="absolute top-0 left-0 w-1 h-full bg-cyan-500" />
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 mb-3 flex items-center gap-2">
+                                <Cpu className="w-3.5 h-3.5 text-cyan-400" /> AI-Audited Languages
+                            </h3>
+                            {(profile.programmingLanguages || []).length > 0 ? (
+                                <div className="space-y-2.5">
+                                    {(profile.programmingLanguages || []).map((lang) => (
+                                        <div key={lang.name} className="rounded-xl border border-zinc-900 bg-black/40 p-2.5 space-y-1">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="text-xs font-bold text-white">{lang.name}</span>
+                                                <span className="text-[10px] font-mono text-cyan-400 uppercase">{lang.proficiency} · {lang.years}y</span>
+                                            </div>
+                                            {lang.aiEvidence && (
+                                                <p className="text-[10px] text-zinc-400 leading-relaxed">{lang.aiEvidence}</p>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-[10px] text-zinc-600 italic">No verified language footprint yet. Trigger an AI audit above.</p>
                             )}
                         </motion.div>
 
@@ -1150,25 +1001,17 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                 <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 flex items-center gap-2">
                                     <CodeIcon className="w-3.5 h-3.5 text-purple-400" /> Categorized Skills & Endorsements
                                 </h3>
-                                {!isEditing && (
-                                    <button
-                                        onClick={() => handleReceivePeerEndorsement()}
-                                        className="text-[8px] font-mono tracking-wider text-purple-400 hover:text-purple-300 bg-purple-500/10 border border-purple-500/25 hover:border-purple-500/50 px-2 py-1 rounded cursor-pointer transition-all flex items-center gap-1 uppercase"
-                                        title="Simulate receiving an endorsement from a network peer"
-                                    >
-                                        <SparklesIcon className="w-2.5 h-2.5 animate-pulse text-purple-400" /> Sim Recv Endorsement
-                                    </button>
-                                )}
+                                <button
+                                    onClick={() => handleReceivePeerEndorsement()}
+                                    className="text-[8px] font-mono tracking-wider text-purple-400 hover:text-purple-300 bg-purple-500/10 border border-purple-500/25 hover:border-purple-500/50 px-2 py-1 rounded cursor-pointer transition-all flex items-center gap-1 uppercase"
+                                    title="Simulate receiving an endorsement from a network peer"
+                                >
+                                    <SparklesIcon className="w-2.5 h-2.5 text-purple-400" /> Sim Recv Endorsement
+                                </button>
                             </div>
                             
                             <div className="space-y-4">
-                                {((isEditing ? editForm?.categorizedSkills : editForm?.categorizedSkills) || [
-                                    { category: 'Frontend', skills: ['React', 'TypeScript', 'Tailwind CSS', 'Framer Motion'] },
-                                    { category: 'Backend', skills: ['Node.js', 'Express', 'GraphQL', 'WebSockets'] },
-                                    { category: 'DevOps & Cloud', skills: ['Docker', 'Kubernetes', 'Google Cloud Platform', 'CI/CD'] },
-                                    { category: 'Smart Contracts', skills: ['Solidity', 'Rust', 'Web3.js', 'Hardhat'] },
-                                    { category: 'Data & AI', skills: ['Python', 'PyTorch', 'SQL', 'Gemini SDK'] }
-                                ]).map(cat => (
+                                {(editForm?.categorizedSkills || []).map(cat => (
                                     <div key={cat.category} className="space-y-1.5 text-left">
                                         <div className="flex justify-between items-center">
                                             <span className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">{cat.category}</span>
@@ -1178,11 +1021,8 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                                 {cat.skills.map(skill => {
                                                     const endorseCount = (skillEndorsements?.[skill] || []).length;
                                                     const alreadyEndorsed = (skillEndorsements?.[skill] || []).includes('Operator-You');
-                                                    
-                                                    // Determine skill proficiency
                                                     const viewProficiency = profile.skillProficiencies?.[skill] || 'Intermediate';
-                                                    const editProficiency = editForm.skillProficiencies?.[skill] || 'Intermediate';
-                                                    
+
                                                     const getProficiencyStyle = (p: string) => {
                                                         switch(p) {
                                                             case 'Beginner': return 'bg-zinc-900 border-zinc-800 text-zinc-400';
@@ -1200,85 +1040,45 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                                             initial={{ opacity: 0, scale: 0.95 }}
                                                             animate={{ opacity: 1, scale: 1 }}
                                                             exit={{ opacity: 0, scale: 0.95 }}
-                                                            className="bg-purple-950/10 border border-purple-500/10 border-purple-900/40 rounded-lg p-2 flex items-center justify-between gap-3 text-[10px] uppercase font-black"
+                                                            className="bg-purple-950/10 border border-purple-900/40 rounded-lg p-2 flex items-center justify-between gap-3 text-[10px] uppercase font-black"
                                                         >
                                                             <div className="flex flex-col gap-1 min-w-0">
                                                                 <div className="flex items-center gap-2 flex-wrap">
                                                                     <span className="text-purple-300 truncate tracking-wider font-mono text-[9.5px]">{skill}</span>
-                                                                    {endorseCount > 0 && (
-                                                                        <span className="bg-purple-500/20 text-purple-300 text-[8px] font-black px-1 py-0.5 rounded flex items-center gap-1 shrink-0">
-                                                                            <Award className="w-2.5 h-2.5 text-purple-400" /> {endorseCount}
-                                                                        </span>
-                                                                    )}
+                                                                    <button 
+                                                                        onClick={() => handleEndorseSkill(skill)}
+                                                                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded transition-colors ${alreadyEndorsed ? 'text-amber-400 bg-amber-500/10' : 'text-zinc-500 hover:text-amber-300'}`}
+                                                                    >
+                                                                        <ThumbsUp className="w-3 h-3" />
+                                                                        <span className="font-mono text-[10px]">{endorseCount}</span>
+                                                                    </button>
                                                                 </div>
-                                                                {!isEditing && (
-                                                                    <span className={`text-[7.5px] px-1 py-0.2 rounded border max-w-max uppercase tracking-wider font-mono font-bold leading-none ${getProficiencyStyle(viewProficiency)}`}>
-                                                                        {viewProficiency}
-                                                                    </span>
-                                                                )}
+                                                                <span className={`text-[7.5px] px-1 py-0.5 rounded border max-w-max uppercase tracking-wider font-mono font-bold leading-none ${getProficiencyStyle(viewProficiency)}`}>
+                                                                    {viewProficiency}
+                                                                </span>
                                                             </div>
                                                             
                                                             <div className="flex items-center gap-1.5 shrink-0">
-                                                                {isEditing && (
-                                                                    <div className="flex items-center gap-1">
-                                                                        <span className="text-[7px] text-zinc-550 uppercase font-black tracking-wider mr-1">Level:</span>
-                                                                        <select 
-                                                                            value={editProficiency}
-                                                                            onChange={e => {
-                                                                                const val = e.target.value as any;
-                                                                                setEditForm(prev => ({
-                                                                                    ...prev,
-                                                                                    skillProficiencies: {
-                                                                                        ...(prev.skillProficiencies || {}),
-                                                                                        [skill]: val
-                                                                                    }
-                                                                                }));
-                                                                            }}
-                                                                            className="bg-black border border-zinc-800 rounded px-1 py-0.5 text-[8.5px] font-mono text-purple-300 focus:outline-none focus:border-purple-500 h-6 cursor-pointer"
-                                                                        >
-                                                                            <option value="Beginner">Beginner</option>
-                                                                            <option value="Intermediate">Intermediate</option>
-                                                                            <option value="Advanced">Advanced</option>
-                                                                            <option value="Expert">Expert</option>
-                                                                            <option value="Master">Master</option>
-                                                                        </select>
-                                                                    </div>
-                                                                )}
-
-                                                                {!isEditing && (
-                                                                    <div className="flex items-center gap-1.5">
-                                                                        <button 
-                                                                            onClick={() => handleEndorseSkill(skill)}
-                                                                            className={`px-1.5 py-0.5 rounded text-[8px] font-mono tracking-widest cursor-pointer transition-all uppercase flex items-center gap-1 ${
-                                                                                alreadyEndorsed 
-                                                                                    ? 'bg-purple-600 text-black font-black' 
-                                                                                    : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-purple-500 text-purple-400'
-                                                                            }`}
-                                                                            title="Endorse this tech parameter"
-                                                                        >
-                                                                            <ThumbsUp className="w-2.5 h-2.5" />
-                                                                            {alreadyEndorsed ? 'ENDORSED' : 'ENDORSE'}
-                                                                        </button>
-                                                                        <button
-                                                                            onClick={() => handleOpenRequestEndorsement(skill)}
-                                                                            className="px-1.5 py-0.5 rounded text-[8px] font-mono tracking-widest cursor-pointer transition-all uppercase flex items-center gap-1 bg-purple-500/10 hover:bg-purple-500/25 border border-purple-500/20 hover:border-purple-500 text-purple-400 hover:text-white"
-                                                                            title="Request peer validation"
-                                                                        >
-                                                                            <Send className="w-2.5 h-2.5" />
-                                                                            Request
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-
-                                                                {isEditing && (
-                                                                    <button 
-                                                                        onClick={() => handleRemoveCategorizedSkill(cat.category, skill)} 
-                                                                        className="text-zinc-500 hover:text-red-400 transition-colors cursor-pointer p-0.5 rounded bg-zinc-900 border border-zinc-850 h-6 w-6 flex items-center justify-center"
-                                                                        title="Detach Skill"
-                                                                    >
-                                                                        <XIcon className="w-3 h-3" />
-                                                                    </button>
-                                                                )}
+                                                                <button 
+                                                                    onClick={() => handleEndorseSkill(skill)}
+                                                                    className={`px-1.5 py-0.5 rounded text-[8px] font-mono tracking-widest cursor-pointer transition-all uppercase flex items-center gap-1 ${
+                                                                        alreadyEndorsed 
+                                                                            ? 'bg-purple-600 text-black font-black' 
+                                                                            : 'bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-purple-500 text-purple-400'
+                                                                    }`}
+                                                                    title="Endorse this tech parameter"
+                                                                >
+                                                                    <ThumbsUp className="w-2.5 h-2.5" />
+                                                                    {alreadyEndorsed ? 'ENDORSED' : 'ENDORSE'}
+                                                                </button>
+                                                                <button 
+                                                                    onClick={() => handleOpenRequestEndorsement(skill)}
+                                                                    className="px-1.5 py-0.5 rounded text-[8px] font-mono tracking-widest cursor-pointer transition-all uppercase flex items-center gap-1 bg-purple-500/10 hover:bg-purple-500/25 border border-purple-500/20 hover:border-purple-500 text-purple-400 hover:text-white"
+                                                                    title="Request peer validation"
+                                                                >
+                                                                    <Send className="w-2.5 h-2.5" />
+                                                                    Request
+                                                                </button>
                                                             </div>
                                                         </motion.div>
                                                     );
@@ -1288,60 +1088,10 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                                 )}
                                             </AnimatePresence>
                                         </div>
-                                        {isEditing && (
-                                            <div className="flex gap-1.5 mt-1.5">
-                                                <input 
-                                                    value={newCatSkill[cat.category] || ''}
-                                                    onChange={e => setNewCatSkill(prev => ({ ...prev, [cat.category]: e.target.value }))}
-                                                    onKeyDown={e => {
-                                                        if (e.key === 'Enter') {
-                                                            handleAddCategorizedSkill(cat.category, newCatSkill[cat.category] || '');
-                                                            setNewCatSkill(prev => ({ ...prev, [cat.category]: '' }));
-                                                        }
-                                                    }}
-                                                    placeholder={`Add to ${cat.category}...`}
-                                                    className="flex-1 bg-zinc-950 border border-zinc-850 rounded px-2 py-1 text-[9px] text-white focus:outline-none focus:border-purple-500 font-mono"
-                                                />
-                                                <button 
-                                                    onClick={() => {
-                                                        handleAddCategorizedSkill(cat.category, newCatSkill[cat.category] || '');
-                                                        setNewCatSkill(prev => ({ ...prev, [cat.category]: '' }));
-                                                    }} 
-                                                    className="bg-zinc-900 hover:bg-purple-600 text-zinc-400 hover:text-white px-1.5 rounded border border-zinc-800 hover:border-purple-500 transition-all cursor-pointer flex items-center justify-center"
-                                                >
-                                                    <Plus className="w-3.5 h-3.5" />
-                                                </button>
-                                            </div>
-                                        )}
                                     </div>
                                 ))}
-
-                                {isEditing && (
-                                    <div className="border-t border-zinc-900 pt-3 space-y-2">
-                                        <div className="flex gap-1.5">
-                                            <input 
-                                                value={newCategoryName}
-                                                onChange={e => setNewCategoryName(e.target.value)}
-                                                onKeyDown={e => {
-                                                    if (e.key === 'Enter') {
-                                                        handleAddSkillCategory(newCategoryName);
-                                                        setNewCategoryName('');
-                                                    }
-                                                }}
-                                                placeholder="New category (e.g. Mobile, Testing)..."
-                                                className="flex-1 bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-[9px] text-white focus:outline-none focus:border-purple-500 font-mono"
-                                            />
-                                            <button 
-                                                onClick={() => {
-                                                    handleAddSkillCategory(newCategoryName);
-                                                    setNewCategoryName('');
-                                                }} 
-                                                className="bg-zinc-900 hover:bg-purple-600 text-white px-2.5 rounded border border-zinc-800 hover:border-purple-500 transition-all cursor-pointer text-[9px] font-black uppercase tracking-wider"
-                                            >
-                                                Add Cat
-                                            </button>
-                                        </div>
-                                    </div>
+                                {(editForm?.categorizedSkills || []).length === 0 && (
+                                    <span className="text-[9px] text-zinc-600 italic font-mono block">No categorized skills audited yet.</span>
                                 )}
                             </div>
                         </motion.div>
@@ -1427,87 +1177,22 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                             </p>
 
                             <div className="space-y-4">
-                                {/* Viewing/Active Teach Skills */}
                                 <div className="flex flex-wrap gap-2">
-                                    {((isEditing ? editForm?.willingToTeachSkills : editForm?.willingToTeachSkills) || []).map(skill => (
+                                    {(editForm?.willingToTeachSkills || []).map(skill => (
                                         <div 
                                             key={skill}
                                             className="bg-emerald-950/20 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono font-bold px-2.5 py-1 rounded-lg flex items-center gap-1.5"
                                         >
                                             <BookOpenIcon className="w-3 h-3 text-emerald-500" />
                                             <span>{skill}</span>
-                                            {isEditing && (
-                                                <button 
-                                                    onClick={() => handleRemoveWillingToTeachSkill(skill)}
-                                                    className="text-zinc-500 hover:text-red-400 transition-colors ml-1 p-0.5 hover:bg-zinc-900 rounded cursor-pointer"
-                                                >
-                                                    <XIcon className="w-2.5 h-2.5" />
-                                                </button>
-                                            )}
                                         </div>
                                     ))}
-                                    {((isEditing ? editForm?.willingToTeachSkills : editForm?.willingToTeachSkills) || []).length === 0 && (
+                                    {(editForm?.willingToTeachSkills || []).length === 0 && (
                                         <div className="text-zinc-600 text-[9px] italic font-mono py-1">
-                                            Not currently registered as a mentor/teacher for any parameters.
+                                            No mentoring areas inferred yet.
                                         </div>
                                     )}
                                 </div>
-
-                                {/* Editing interface */}
-                                {isEditing && (
-                                    <div className="border-t border-zinc-900 pt-3.5 space-y-3">
-                                        <label className="text-[8.5px] uppercase tracking-wider text-zinc-500 font-bold block">
-                                            Add teaching skill / mentoring topic
-                                        </label>
-                                        <div className="flex gap-1.5">
-                                            <input 
-                                                value={newWillingToTeachSkill}
-                                                onChange={e => setNewWillingToTeachSkill(e.target.value)}
-                                                onKeyDown={e => {
-                                                    if (e.key === 'Enter') {
-                                                        handleAddWillingToTeachSkill();
-                                                    }
-                                                }}
-                                                placeholder="e.g. System Architecture, Rust..."
-                                                className="flex-1 bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-[9px] text-white focus:outline-none focus:border-emerald-500 font-mono"
-                                            />
-                                            <button 
-                                                onClick={handleAddWillingToTeachSkill} 
-                                                className="bg-zinc-900 hover:bg-emerald-600 text-white px-2.5 rounded border border-zinc-800 hover:border-emerald-500 transition-all cursor-pointer text-[9px] font-black uppercase tracking-wider"
-                                            >
-                                                Add Topic
-                                            </button>
-                                        </div>
-
-                                        {/* Quick suggest from flat skills */}
-                                        {(editForm.skills || []).filter(s => !(editForm.willingToTeachSkills || []).includes(s)).length > 0 && (
-                                            <div className="space-y-1.5">
-                                                <span className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold block">
-                                                    Quick Promote from Profile Skills:
-                                                </span>
-                                                <div className="flex flex-wrap gap-1.5">
-                                                    {(editForm.skills || [])
-                                                        ?.filter(s => !(editForm.willingToTeachSkills || []).includes(s))
-                                                        ?.slice(0, 6)
-                                                        ?.map(s => (
-                                                            <button
-                                                                key={s}
-                                                                onClick={() => {
-                                                                    setEditForm(prev => ({
-                                                                        ...prev,
-                                                                        willingToTeachSkills: [...(prev.willingToTeachSkills || []), s]
-                                                                    }));
-                                                                }}
-                                                                className="text-[8px] font-mono bg-zinc-900 hover:bg-emerald-950/40 hover:text-emerald-400 border border-zinc-850 hover:border-emerald-500/30 px-2 py-0.5 rounded cursor-pointer transition-all flex items-center gap-1 uppercase"
-                                                            >
-                                                                <Plus className="w-2 h-2 text-emerald-500" /> {s}
-                                                            </button>
-                                                        ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
                             </div>
                         </motion.div>
 
@@ -1523,84 +1208,33 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                 <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-zinc-500 flex items-center gap-2">
                                     <Link2Icon className="w-3.5 h-3.5 text-amber-500" /> Portfolio Coordinates
                                 </h3>
-                                {isEditing && (
-                                    <button 
-                                        id="btn-add-link"
-                                        onClick={handleAddLink}
-                                        className="p-1 px-2.5 bg-zinc-900 border border-zinc-800 text-amber-400 rounded-lg hover:bg-amber-950/40 hover:border-amber-500/30 transition-all flex items-center gap-1.5 text-[9px] font-black uppercase cursor-pointer"
-                                    >
-                                        <Plus className="w-3 h-3" /> Add Link
-                                    </button>
-                                )}
                             </div>
 
-                            <div className="space-y-3">
-                                {isEditing ? (
-                                    <div className="space-y-4">
-                                        {(portfolioLinks || [])?.map?.((link, idx) => (
-                                            <div key={link.id} className="p-3 bg-black/40 border border-zinc-905 border-zinc-900 rounded-xl space-y-2 relative group hover:border-zinc-800 transition-colors">
-                                                <button 
-                                                    id={`btn-remove-link-${link.id}`}
-                                                    onClick={() => handleRemoveLink(link.id)}
-                                                    className="absolute top-2 right-2 p-1 text-zinc-550 hover:text-red-500 cursor-pointer transition-colors"
-                                                    title="Delete Link"
-                                                >
-                                                    <Trash2Icon className="w-3.5 h-3.5" />
-                                                </button>
-                                                <div className="space-y-1.5 text-left">
-                                                    <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Link Title</label>
-                                                    <input 
-                                                        id={`input-link-label-${link.id}`}
-                                                        value={link.label}
-                                                        onChange={e => handleUpdateLink(link.id, 'label', e.target.value)}
-                                                        className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-amber-500"
-                                                        placeholder="e.g. Website Catalog"
-                                                    />
-                                                </div>
-                                                <div className="space-y-1.5 text-left">
-                                                    <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Address URL</label>
-                                                    <input 
-                                                        id={`input-link-url-${link.id}`}
-                                                        value={link.url}
-                                                        onChange={e => handleUpdateLink(link.id, 'url', e.target.value)}
-                                                        className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-zinc-300 focus:outline-none focus:border-amber-500"
-                                                        placeholder="e.g. https://github.com..."
-                                                    />
-                                                </div>
+                            <div className="space-y-2">
+                                {(portfolioLinks || []).map(link => (
+                                    <a 
+                                        id={`link-node-${link.id}`}
+                                        key={link.id}
+                                        href={link.url} 
+                                        target="_blank" 
+                                        referrerPolicy="no-referrer"
+                                        className="flex items-center justify-between p-2.5 bg-zinc-900/40 border border-zinc-900 rounded-xl hover:border-amber-500/20 hover:bg-zinc-900/90 transition-all duration-150 group"
+                                    >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <div className="w-7 h-7 bg-amber-950/20 border border-amber-500/10 rounded-lg flex items-center justify-center shrink-0">
+                                                <GlobeIcon className="w-3.5 h-3.5 text-amber-500" />
                                             </div>
-                                        ))}
-                                        {portfolioLinks.length === 0 && (
-                                            <p className="text-[10px] text-zinc-650 italic text-center py-2 uppercase font-mono">No links generated.</p>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {(portfolioLinks || [])?.map?.(link => (
-                                            <a 
-                                                id={`link-node-${link.id}`}
-                                                key={link.id}
-                                                href={link.url} 
-                                                target="_blank" 
-                                                referrerPolicy="no-referrer"
-                                                className="flex items-center justify-between p-2.5 bg-zinc-900/40 border border-zinc-900 rounded-xl hover:border-amber-500/20 hover:bg-zinc-900/90 transition-all duration-150 group"
-                                            >
-                                                <div className="flex items-center gap-2.5 min-w-0">
-                                                    <div className="w-7 h-7 bg-amber-950/20 border border-amber-500/10 rounded-lg flex items-center justify-center shrink-0">
-                                                        <GlobeIcon className="w-3.5 h-3.5 text-amber-500" />
-                                                    </div>
-                                                    <div className="min-w-0">
-                                                        <p className="text-[10px] font-black uppercase text-zinc-200 tracking-wider group-hover:text-amber-400 transition-colors truncate">{link.label}</p>
-                                                        <p className="text-[8px] text-zinc-500 truncate max-w-[210px] font-mono leading-none mt-1">{link.url.replace(/^https?:\/\//i, '')}</p>
-                                                    </div>
-                                                </div>
-                                                <ExternalLinkIcon className="w-3.5 h-3.5 text-zinc-650 group-hover:text-amber-500 transition-colors shrink-0" />
-                                            </a>
-                                        ))}
-                                        {portfolioLinks.length === 0 && (
-                                            <div className="text-center py-4 border border-zinc-900 border-dashed rounded-xl">
-                                                <p className="text-[9px] text-zinc-605 text-zinc-600 uppercase font-bold">No active portfolio coordinates set.</p>
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-black uppercase text-zinc-200 tracking-wider group-hover:text-amber-400 transition-colors truncate">{link.label}</p>
+                                                <p className="text-[8px] text-zinc-500 truncate max-w-[210px] font-mono leading-none mt-1">{link.url.replace(/^https?:\/\//i, '')}</p>
                                             </div>
-                                        )}
+                                        </div>
+                                        <ExternalLinkIcon className="w-3.5 h-3.5 text-zinc-650 group-hover:text-amber-500 transition-colors shrink-0" />
+                                    </a>
+                                ))}
+                                {portfolioLinks.length === 0 && (
+                                    <div className="text-center py-4 border border-zinc-900 border-dashed rounded-xl">
+                                        <p className="text-[9px] text-zinc-600 uppercase font-bold">No verified portfolio links discovered.</p>
                                     </div>
                                 )}
                             </div>
@@ -1620,104 +1254,35 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                 </h3>
                             </div>
 
-                            <div className="space-y-3">
-                                {isEditing ? (
-                                    <div className="space-y-3 text-left">
-                                        <div className="space-y-1">
-                                            <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Secure Email</label>
-                                            <input 
-                                                value={editForm.contactInfo?.email || ''}
-                                                onChange={e => setEditForm(prev => ({
-                                                    ...prev,
-                                                    contactInfo: { ...(prev.contactInfo || {}), email: e.target.value }
-                                                }))}
-                                                className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
-                                                placeholder="e.g. operator@domain.com"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Discord Tag</label>
-                                            <input 
-                                                value={editForm.contactInfo?.discord || ''}
-                                                onChange={e => setEditForm(prev => ({
-                                                    ...prev,
-                                                    contactInfo: { ...(prev.contactInfo || {}), discord: e.target.value }
-                                                }))}
-                                                className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
-                                                placeholder="e.g. username#1234"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Telegram Handle</label>
-                                            <input 
-                                                value={editForm.contactInfo?.telegram || ''}
-                                                onChange={e => setEditForm(prev => ({
-                                                    ...prev,
-                                                    contactInfo: { ...(prev.contactInfo || {}), telegram: e.target.value }
-                                                }))}
-                                                className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
-                                                placeholder="e.g. @operator_node"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Twitter / X Handle</label>
-                                            <input 
-                                                value={editForm.contactInfo?.twitter || ''}
-                                                onChange={e => setEditForm(prev => ({
-                                                    ...prev,
-                                                    contactInfo: { ...(prev.contactInfo || {}), twitter: e.target.value }
-                                                }))}
-                                                className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
-                                                placeholder="e.g. @operator_alpha"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Comm Phone (Optional)</label>
-                                            <input 
-                                                value={editForm.contactInfo?.phone || ''}
-                                                onChange={e => setEditForm(prev => ({
-                                                    ...prev,
-                                                    contactInfo: { ...(prev.contactInfo || {}), phone: e.target.value }
-                                                }))}
-                                                className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
-                                                placeholder="e.g. +1 (555) 019-2831"
-                                            />
+                            <div className="space-y-2">
+                                <div className="p-2 bg-zinc-900/40 border border-zinc-900 rounded-xl flex items-center justify-between text-left">
+                                    <div className="min-w-0">
+                                        <p className="text-[8px] uppercase font-black text-zinc-500">Associated Email</p>
+                                        <p className="text-[10px] text-zinc-200 font-mono truncate mt-0.5">{profile.contactInfo?.email || lookupEmail || 'Not set'}</p>
+                                    </div>
+                                </div>
+                                {profile.contactInfo?.github && (
+                                    <div className="p-2 bg-zinc-900/40 border border-zinc-900 rounded-xl flex items-center justify-between text-left">
+                                        <div className="min-w-0">
+                                            <p className="text-[8px] uppercase font-black text-zinc-500">GitHub</p>
+                                            <p className="text-[10px] text-zinc-200 font-mono truncate mt-0.5">{profile.contactInfo.github}</p>
                                         </div>
                                     </div>
-                                ) : (
-                                    <div className="space-y-2">
-                                        <div className="p-2 bg-zinc-900/40 border border-zinc-900 rounded-xl flex items-center justify-between text-left">
-                                            <div className="min-w-0">
-                                                <p className="text-[8px] uppercase font-black text-zinc-500">Secure Email</p>
-                                                <p className="text-[10px] text-zinc-200 font-mono truncate mt-0.5">{profile.contactInfo?.email || 'resurrectionofmoses@gmail.com'}</p>
-                                            </div>
+                                )}
+                                {profile.contactInfo?.website && (
+                                    <div className="p-2 bg-zinc-900/40 border border-zinc-900 rounded-xl flex items-center justify-between text-left">
+                                        <div className="min-w-0">
+                                            <p className="text-[8px] uppercase font-black text-zinc-500">Website</p>
+                                            <p className="text-[10px] text-zinc-200 font-mono truncate mt-0.5">{profile.contactInfo.website}</p>
                                         </div>
-                                        <div className="p-2 bg-zinc-900/40 border border-zinc-900 rounded-xl flex items-center justify-between text-left">
-                                            <div className="min-w-0">
-                                                <p className="text-[8px] uppercase font-black text-zinc-500">Discord Handle</p>
-                                                <p className="text-[10px] text-zinc-200 font-mono truncate mt-0.5">{profile.contactInfo?.discord || 'aetheros_prime#1337'}</p>
-                                            </div>
+                                    </div>
+                                )}
+                                {profile.contactInfo?.discord && (
+                                    <div className="p-2 bg-zinc-900/40 border border-zinc-900 rounded-xl flex items-center justify-between text-left">
+                                        <div className="min-w-0">
+                                            <p className="text-[8px] uppercase font-black text-zinc-500">Discord Handle</p>
+                                            <p className="text-[10px] text-zinc-200 font-mono truncate mt-0.5">{profile.contactInfo.discord}</p>
                                         </div>
-                                        <div className="p-2 bg-zinc-900/40 border border-zinc-900 rounded-xl flex items-center justify-between text-left">
-                                            <div className="min-w-0">
-                                                <p className="text-[8px] uppercase font-black text-zinc-500">Telegram Handle</p>
-                                                <p className="text-[10px] text-zinc-200 font-mono truncate mt-0.5">{profile.contactInfo?.telegram || '@aetheros_dev'}</p>
-                                            </div>
-                                        </div>
-                                        <div className="p-2 bg-zinc-900/40 border border-zinc-900 rounded-xl flex items-center justify-between text-left">
-                                            <div className="min-w-0">
-                                                <p className="text-[8px] uppercase font-black text-zinc-500">Twitter Handle</p>
-                                                <p className="text-[10px] text-zinc-200 font-mono truncate mt-0.5">{profile.contactInfo?.twitter || '@aetheros_prime'}</p>
-                                            </div>
-                                        </div>
-                                        {profile.contactInfo?.phone && (
-                                            <div className="p-2 bg-zinc-900/40 border border-zinc-900 rounded-xl flex items-center justify-between text-left">
-                                                <div className="min-w-0">
-                                                    <p className="text-[8px] uppercase font-black text-zinc-500">Comm Phone</p>
-                                                    <p className="text-[10px] text-zinc-200 font-mono truncate mt-0.5">{profile.contactInfo.phone}</p>
-                                                </div>
-                                            </div>
-                                        )}
                                     </div>
                                 )}
                             </div>
@@ -1825,126 +1390,36 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                     </div>
                                     <div>
                                         <h2 className="text-base font-extrabold text-white uppercase tracking-widest">Work History Logistics</h2>
-                                        <p className="text-[8px] text-zinc-500 uppercase font-black mt-0.5">Chronicle of previous system engineering engagements</p>
+                                        <p className="text-[8px] text-zinc-500 uppercase font-black mt-0.5">AI-verified employment or contributor engagements</p>
                                     </div>
                                 </div>
-                                {isEditing && (
-                                    <button 
-                                        onClick={handleAddExperience}
-                                        className="px-3 py-1.5 bg-orange-950/30 border border-orange-500/30 text-orange-400 rounded-xl hover:bg-orange-900/40 transition-all flex items-center gap-1.5 text-xs font-black uppercase cursor-pointer"
-                                    >
-                                        <Plus className="w-3.5 h-3.5" /> Add Experience
-                                    </button>
-                                )}
                             </div>
 
                             {/* Experience Timeline */}
                             <div className="space-y-4">
-                                {isEditing ? (
-                                    <div className="space-y-4">
-                                        {(workExperience || [])?.map?.((exp) => (
-                                            <div key={exp.id} className="p-4 bg-black/40 border border-zinc-900 rounded-2xl relative space-y-3 hover:border-zinc-800 transition-colors">
-                                                <button 
-                                                    onClick={() => handleRemoveExperience(exp.id)}
-                                                    className="absolute top-2 right-2 p-1 bg-red-950/20 border border-red-500/20 hover:border-red-500 text-red-500 hover:text-white rounded-lg transition-colors cursor-pointer"
-                                                    title="Remove Experience Log"
-                                                >
-                                                    <Trash2Icon className="w-3.5 h-3.5" />
-                                                </button>
-
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                                                    <div className="space-y-1">
-                                                        <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Company / Node</label>
-                                                        <input 
-                                                            value={exp.company}
-                                                            onChange={e => handleUpdateExperience(exp.id, 'company', e.target.value)}
-                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-orange-500"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Coordinates / Position</label>
-                                                        <input 
-                                                            value={exp.position}
-                                                            onChange={e => handleUpdateExperience(exp.id, 'position', e.target.value)}
-                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-orange-500"
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                                                    <div className="space-y-1">
-                                                        <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Start Date</label>
-                                                        <input 
-                                                            type="date"
-                                                            value={exp.startDate}
-                                                            onChange={e => handleUpdateExperience(exp.id, 'startDate', e.target.value)}
-                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-zinc-300 focus:outline-none focus:border-orange-500 h-8 cursor-pointer"
-                                                        />
-                                                    </div>
-                                                    {!exp.isCurrent && (
-                                                        <div className="space-y-1">
-                                                            <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">End Date</label>
-                                                            <input 
-                                                                type="date"
-                                                                value={exp.endDate}
-                                                                onChange={e => handleUpdateExperience(exp.id, 'endDate', e.target.value)}
-                                                                className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-zinc-300 focus:outline-none focus:border-orange-500 h-8 cursor-pointer"
-                                                            />
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                <div className="flex items-center gap-2 text-left pt-1">
-                                                    <input 
-                                                        id={`current-exp-toggle-${exp.id}`}
-                                                        type="checkbox"
-                                                        checked={exp.isCurrent}
-                                                        onChange={e => handleUpdateExperience(exp.id, 'isCurrent', e.target.checked)}
-                                                        className="w-3.5 h-3.5 bg-zinc-950 border border-zinc-800 rounded accent-orange-500"
-                                                    />
-                                                    <label htmlFor={`current-exp-toggle-${exp.id}`} className="text-[9px] uppercase font-bold text-zinc-400 select-none cursor-pointer">Currently active parameters at this node</label>
-                                                </div>
-
-                                                <div className="space-y-1 text-left">
-                                                    <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Role Directives / Description</label>
-                                                    <textarea 
-                                                        value={exp.description}
-                                                        onChange={e => handleUpdateExperience(exp.id, 'description', e.target.value)}
-                                                        className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-xs text-zinc-300 focus:outline-none focus:border-orange-500 min-h-[60px] resize-none"
-                                                    />
-                                                </div>
+                                <div className="relative border-l border-zinc-900 ml-4 pl-6 space-y-6">
+                                    {(workExperience || [])?.map?.((exp) => (
+                                        <div key={exp.id} className="relative select-text">
+                                            <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-zinc-950 border-2 border-orange-500 flex items-center justify-center">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-orange-400" />
                                             </div>
-                                        ))}
-                                        {workExperience.length === 0 && (
-                                            <p className="text-[10px] text-zinc-650 italic text-center py-4 uppercase font-bold text-zinc-600">No active work chronicles logged.</p>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="relative border-l border-zinc-900 ml-4 pl-6 space-y-6">
-                                        {(workExperience || [])?.map?.((exp) => (
-                                            <div key={exp.id} className="relative select-text">
-                                                {/* Timeline Node Ring */}
-                                                <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-zinc-950 border-2 border-orange-500 flex items-center justify-center">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-pulse" />
-                                                </div>
 
-                                                <div className="space-y-1">
-                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                                                        <h4 className="text-sm font-extrabold text-white uppercase tracking-tight">{exp.position}</h4>
-                                                        <span className="text-[8.5px] font-black tracking-widest text-zinc-500 bg-zinc-900 border border-zinc-850 px-2 py-0.5 rounded uppercase">
-                                                            {exp.startDate} — {exp.isCurrent ? 'ACTIVE NOW' : exp.endDate}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-[10px] font-black text-orange-400 uppercase tracking-wider">{exp.company}</p>
-                                                    <p className="text-xs text-zinc-400 font-mono leading-relaxed mt-1">{exp.description}</p>
+                                            <div className="space-y-1">
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                                                    <h4 className="text-sm font-extrabold text-white uppercase tracking-tight">{exp.position}</h4>
+                                                    <span className="text-[8.5px] font-black tracking-widest text-zinc-500 bg-zinc-900 border border-zinc-850 px-2 py-0.5 rounded uppercase">
+                                                        {exp.startDate} — {exp.isCurrent ? 'ACTIVE NOW' : exp.endDate}
+                                                    </span>
                                                 </div>
+                                                <p className="text-[10px] font-black text-orange-400 uppercase tracking-wider">{exp.company}</p>
+                                                <p className="text-xs text-zinc-400 font-mono leading-relaxed mt-1">{exp.description}</p>
                                             </div>
-                                        ))}
-                                        {workExperience.length === 0 && (
-                                            <p className="text-zinc-600 italic text-xs pl-2 select-none">No professional coordinates logged.</p>
-                                        )}
-                                    </div>
-                                )}
+                                        </div>
+                                    ))}
+                                    {workExperience.length === 0 && (
+                                        <p className="text-zinc-600 italic text-xs pl-2 select-none">No verified work history discovered.</p>
+                                    )}
+                                </div>
                             </div>
                         </motion.div>
 
@@ -1962,346 +1437,116 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ profile, proje
                                     </div>
                                     <div>
                                         <h2 className="text-base font-extrabold text-white uppercase tracking-widest">Education History Parameters</h2>
-                                        <p className="text-[8px] text-zinc-500 uppercase font-black mt-0.5">Certifications & Academic Training metrics</p>
+                                        <p className="text-[8px] text-zinc-500 uppercase font-black mt-0.5">AI-verified degrees &amp; credentials (empty if unverified)</p>
                                     </div>
                                 </div>
-                                {isEditing && (
-                                    <button 
-                                        onClick={handleAddEducation}
-                                        className="px-3 py-1.5 bg-violet-950/30 border border-violet-500/30 text-violet-400 rounded-xl hover:bg-violet-900/40 transition-all flex items-center gap-1.5 text-xs font-black uppercase cursor-pointer"
-                                    >
-                                        <Plus className="w-3.5 h-3.5" /> Add Academy
-                                    </button>
-                                )}
                             </div>
 
                             <div className="space-y-4">
-                                {isEditing ? (
-                                    <div className="space-y-4">
-                                        {(education || [])?.map?.((edu) => (
-                                            <div key={edu.id} className="p-4 bg-black/40 border border-zinc-900 rounded-2xl relative space-y-3 hover:border-zinc-800 transition-colors">
-                                                <button 
-                                                    onClick={() => handleRemoveEducation(edu.id)}
-                                                    className="absolute top-2 right-2 p-1 bg-red-950/20 border border-red-500/20 hover:border-red-500 text-red-500 hover:text-white rounded-lg transition-colors cursor-pointer"
-                                                    title="Remove Academic Record"
-                                                >
-                                                    <Trash2Icon className="w-3.5 h-3.5" />
-                                                </button>
-
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                                                    <div className="space-y-1">
-                                                        <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Institution Academy</label>
-                                                        <input 
-                                                            value={edu.institution}
-                                                            onChange={e => handleUpdateEducation(edu.id, 'institution', e.target.value)}
-                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-violet-500"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Degree Coordinate</label>
-                                                        <input 
-                                                            value={edu.degree}
-                                                            onChange={e => handleUpdateEducation(edu.id, 'degree', e.target.value)}
-                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-violet-500"
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
-                                                    <div className="space-y-1">
-                                                        <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Field Of Study</label>
-                                                        <input 
-                                                            value={edu.fieldOfStudy}
-                                                            onChange={e => handleUpdateEducation(edu.id, 'fieldOfStudy', e.target.value)}
-                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-2.5 py-1 text-xs text-white focus:outline-none focus:border-violet-500"
-                                                        />
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        <div className="space-y-1">
-                                                            <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Start Date</label>
-                                                            <input 
-                                                                type="date"
-                                                                value={edu.startDate}
-                                                                onChange={e => handleUpdateEducation(edu.id, 'startDate', e.target.value)}
-                                                                className="w-full bg-zinc-950 border border-zinc-850 rounded px-2 py-0.5 text-[10px] text-zinc-300 focus:outline-none focus:border-violet-500 cursor-pointer h-8"
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1">
-                                                            <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">End Date</label>
-                                                            <input 
-                                                                type="date"
-                                                                value={edu.endDate}
-                                                                onChange={e => handleUpdateEducation(edu.id, 'endDate', e.target.value)}
-                                                                className="w-full bg-zinc-950 border border-zinc-850 rounded px-2 py-0.5 text-[10px] text-zinc-300 focus:outline-none focus:border-violet-500 cursor-pointer h-8"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="space-y-1 text-left">
-                                                    <label className="text-[8px] uppercase tracking-wider text-zinc-500 font-bold">Focus Details</label>
-                                                    <textarea 
-                                                        value={edu.description}
-                                                        onChange={e => handleUpdateEducation(edu.id, 'description', e.target.value)}
-                                                        className="w-full bg-zinc-950 border border-zinc-850 rounded p-2.5 text-xs text-zinc-300 focus:outline-none focus:border-violet-500 min-h-[60px] resize-none"
-                                                    />
-                                                </div>
+                                <div className="relative border-l border-zinc-900 ml-4 pl-6 space-y-6">
+                                    {(education || [])?.map?.((edu) => (
+                                        <div key={edu.id} className="relative select-text">
+                                            <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-zinc-950 border-2 border-violet-500 flex items-center justify-center">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-violet-400" />
                                             </div>
-                                        ))}
-                                        {education.length === 0 && (
-                                            <p className="text-[10px] text-zinc-650 italic text-center py-4 uppercase font-bold text-zinc-600">No active academic coordinates logged.</p>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="relative border-l border-zinc-900 ml-4 pl-6 space-y-6">
-                                        {(education || [])?.map?.((edu) => (
-                                            <div key={edu.id} className="relative select-text">
-                                                <div className="absolute -left-[31px] top-1 w-4 h-4 rounded-full bg-zinc-950 border-2 border-violet-500 flex items-center justify-center">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-pulse" />
-                                                </div>
 
-                                                <div className="space-y-1">
-                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                                                        <h4 className="text-sm font-extrabold text-white uppercase tracking-tight">{edu.degree}</h4>
-                                                        <span className="text-[8.5px] font-black tracking-widest text-zinc-500 bg-zinc-900 border border-zinc-850 px-2 py-0.5 rounded uppercase">
-                                                            {edu.startDate} — {edu.endDate}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-[10px] font-black text-violet-450 text-violet-400 uppercase tracking-wider">{edu.institution} // {edu.fieldOfStudy}</p>
-                                                    <p className="text-xs text-zinc-400 font-mono leading-relaxed mt-1">{edu.description}</p>
+                                            <div className="space-y-1">
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                                                    <h4 className="text-sm font-extrabold text-white uppercase tracking-tight">{edu.degree}</h4>
+                                                    <span className="text-[8.5px] font-black tracking-widest text-zinc-500 bg-zinc-900 border border-zinc-850 px-2 py-0.5 rounded uppercase">
+                                                        {edu.startDate} — {edu.endDate}
+                                                    </span>
                                                 </div>
+                                                <p className="text-[10px] font-black text-violet-400 uppercase tracking-wider">{edu.institution} // {edu.fieldOfStudy}</p>
+                                                <p className="text-xs text-zinc-400 font-mono leading-relaxed mt-1">{edu.description}</p>
                                             </div>
-                                        ))}
-                                        {education.length === 0 && (
-                                            <p className="text-zinc-600 italic text-xs pl-2 select-none">No academy coordinates logged.</p>
-                                        )}
-                                    </div>
-                                )}
+                                        </div>
+                                    ))}
+                                    {education.length === 0 && (
+                                        <p className="text-zinc-600 italic text-xs pl-2 select-none">No verified academic credentials discovered.</p>
+                                    )}
+                                </div>
                             </div>
                         </motion.div>
 
-                        {/* SECTION 3: Custom Projects Portfolio + Star Ratings & Endorsements */}
+                        {/* SECTION 3: AI-Audited Projects Portfolio + Critiques */}
                         <motion.div 
                             initial={{ opacity: 0, y: 15 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.4, delay: 0.3 }}
                             className="bg-zinc-950 border border-zinc-900 rounded-3xl p-6 shadow-xl relative overflow-hidden"
                         >
-                            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/2 rounded-full blur-3xl pointer-events-none" />
-                            
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-zinc-900">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-xl bg-emerald-950/20 border border-emerald-500/30 flex items-center justify-center">
                                         <FolderIcon className="w-4 h-4 text-emerald-400" />
                                     </div>
                                     <div>
-                                        <h2 className="text-base font-extrabold text-white uppercase tracking-widest">Operator Project Portfolio Showcase</h2>
-                                        <p className="text-[8px] text-zinc-500 uppercase font-black mt-0.5">Showcase of finished development and rated deployments</p>
+                                        <h2 className="text-base font-extrabold text-white uppercase tracking-widest">AI-Audited Project Portfolio</h2>
+                                        <p className="text-[8px] text-zinc-500 uppercase font-black mt-0.5">Shipped builds, incomplete efforts, and candid AI project critiques</p>
                                     </div>
                                 </div>
-                                {isEditing ? (
-                                    <button 
-                                        onClick={handleAddProject}
-                                        className="px-3 py-1.5 bg-emerald-950/30 border border-emerald-500/30 text-emerald-400 rounded-xl hover:bg-emerald-900/40 transition-all flex items-center justify-center gap-2 text-xs font-black uppercase cursor-pointer"
-                                    >
-                                        <PlusSquareIcon className="w-4 h-4" /> Add Project
-                                    </button>
-                                ) : (
-                                    <div className="flex gap-2">
-                                        <span className="px-2.5 py-1 bg-emerald-950/40 text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase flex items-center gap-1.5 select-none text-zinc-300">
-                                            <span className="w-1.5 h-1.5 bg-emerald-405 bg-emerald-400 rounded-full" /> {currentProjects.length} Active
-                                        </span>
-                                        <span className="px-2.5 py-1 bg-zinc-900 text-zinc-400 border border-zinc-800 rounded-lg text-[10px] font-black uppercase flex items-center gap-1.5 select-none">
-                                            <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full" /> {pastProjects.length} Completed
-                                        </span>
-                                    </div>
-                                )}
+                                <div className="flex gap-2">
+                                    <span className="px-2.5 py-1 bg-emerald-950/40 text-emerald-400 border border-emerald-500/20 rounded-lg text-[10px] font-black uppercase flex items-center gap-1.5 select-none">
+                                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" /> {currentProjects.length} Active
+                                    </span>
+                                    <span className="px-2.5 py-1 bg-zinc-900 text-zinc-400 border border-zinc-800 rounded-lg text-[10px] font-black uppercase flex items-center gap-1.5 select-none">
+                                        <span className="w-1.5 h-1.5 bg-zinc-500 rounded-full" /> {pastProjects.length} Completed
+                                    </span>
+                                </div>
                             </div>
 
-                            <div className="space-y-6">
-                                {isEditing ? (
-                                    <div className="space-y-6">
-                                        {(profileProjects || [])?.map?.((p, idx) => (
-                                            <div key={p.id} className="bg-black/40 border border-zinc-900 p-4 rounded-2xl space-y-4 group relative hover:border-zinc-800 transition-colors">
-                                                <div className="flex justify-between items-center bg-zinc-950/60 p-2 px-3 rounded-lg border border-zinc-900">
-                                                    <span className="text-[9px] uppercase font-black text-emerald-400 tracking-wider flex items-center gap-1.5 select-none">
-                                                        <span className="bg-zinc-800 text-zinc-400 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold">{idx + 1}</span>
-                                                        Project Configuration
-                                                    </span>
-                                                    <button 
-                                                        onClick={() => handleRemoveProject(p.id)}
-                                                        className="text-xs text-zinc-650 hover:text-red-500 flex items-center gap-1 cursor-pointer font-black uppercase tracking-wider transition-colors bg-zinc-950 px-2 py-1 rounded"
-                                                    >
-                                                        <Trash2Icon className="w-3.5 h-3.5 text-red-500" /> Delete
-                                                    </button>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">Project Title</label>
-                                                        <input 
-                                                            value={p.title}
-                                                            onChange={e => handleUpdateProject(p.id, 'title', e.target.value)}
-                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">Defined Role</label>
-                                                        <input 
-                                                            value={p.roleDefined || ''}
-                                                            onChange={e => handleUpdateProject(p.id, 'roleDefined', e.target.value)}
-                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                                                            placeholder="e.g. Lead Dev"
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">Project URL / Link</label>
-                                                        <input 
-                                                            value={p.link || ''}
-                                                            onChange={e => handleUpdateProject(p.id, 'link', e.target.value)}
-                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-3 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-emerald-500"
-                                                            placeholder="https://github.com..."
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">Status</label>
-                                                        <div className="flex gap-2">
-                                                            <button 
-                                                                type="button"
-                                                                onClick={() => handleUpdateProject(p.id, 'status', 'current')}
-                                                                className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg border cursor-pointer transition-all ${p.status === 'current' ? 'bg-emerald-950/40 text-emerald-400 border-emerald-500/30' : 'bg-zinc-950 text-zinc-500 border-zinc-900 hover:border-zinc-800'}`}
-                                                            >
-                                                                Active (Current)
-                                                            </button>
-                                                            <button 
-                                                                type="button"
-                                                                onClick={() => handleUpdateProject(p.id, 'status', 'past')}
-                                                                className={`flex-1 py-1.5 text-[9px] font-black uppercase tracking-wider rounded-lg border cursor-pointer transition-all ${p.status === 'past' ? 'bg-zinc-900 text-zinc-300 border-zinc-700' : 'bg-zinc-950 text-zinc-500 border-zinc-900 hover:border-zinc-800'}`}
-                                                            >
-                                                                Completed (Past)
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="space-y-1.5 text-left">
-                                                    <label className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">Detailed Description</label>
-                                                    <textarea 
-                                                        value={p.description}
-                                                        onChange={e => handleUpdateProject(p.id, 'description', e.target.value)}
-                                                        className="w-full bg-zinc-950 border border-zinc-850 rounded p-3 text-xs text-zinc-300 focus:outline-none focus:border-emerald-500 min-h-[90px] resize-none"
-                                                    />
-                                                </div>
-
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">Technologies Used (comma separated)</label>
-                                                        <input 
-                                                            value={(p.technologies || []).join(', ')}
-                                                            onChange={e => handleUpdateProject(p.id, 'technologies', e.target.value.split(',').map(s => s.trim()))}
-                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                                                            placeholder="React, TypeScript, Tailwind"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">Live Demo Link</label>
-                                                        <input 
-                                                            value={p.liveDemoUrl || ''}
-                                                            onChange={e => handleUpdateProject(p.id, 'liveDemoUrl', e.target.value)}
-                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                                                            placeholder="https://my-app.live"
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">Source Code Repo URL</label>
-                                                        <input 
-                                                            value={p.sourceCodeUrl || ''}
-                                                            onChange={e => handleUpdateProject(p.id, 'sourceCodeUrl', e.target.value)}
-                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                                                            placeholder="https://github.com/username/project"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1.5">
-                                                        <label className="text-[8px] uppercase tracking-widest text-zinc-500 font-bold">Screenshot URLs (comma separated)</label>
-                                                        <input 
-                                                            value={(p.screenshots || []).join(', ')}
-                                                            onChange={e => handleUpdateProject(p.id, 'screenshots', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                                                            className="w-full bg-zinc-950 border border-zinc-850 rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
-                                                            placeholder="https://images.unsplash.com/photo-1, https://images.unsplash.com/photo-2"
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
+                            <div className="space-y-8 select-text">
+                                {/* Active operations list */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] select-none">
+                                        <ClockIcon className="w-3.5 h-3.5 text-emerald-400" /> Active operations ({currentProjects.length})
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {(currentProjects || [])?.map?.(p => (
+                                            <PortfolioProjectCard 
+                                                key={p.id}
+                                                project={p}
+                                                isOwnProject={true}
+                                                onAddTestimonial={handleProjectAddTestimonial}
+                                                onEndorse={handleEndorseProject}
+                                                onRate={handleRateProject}
+                                                currentUsername={profile?.username || 'Operator-You'}
+                                            />
                                         ))}
-                                        {profileProjects.length === 0 && (
-                                            <div className="text-center py-10 border border-dashed border-zinc-800 rounded-2xl">
-                                                <FolderIcon className="w-10 h-10 text-zinc-800 mx-auto mb-2" />
-                                                <p className="text-xs text-zinc-500 uppercase font-black">Lattice coordinates empty. Select Add Project above.</p>
+                                        {currentProjects.length === 0 && (
+                                            <div className="col-span-2 text-center py-6 border border-zinc-900 border-dashed rounded-xl">
+                                                <p className="text-[10px] italic text-zinc-500">No active projects audited yet.</p>
                                             </div>
                                         )}
                                     </div>
-                                ) : (
-                                    <div className="space-y-8 select-text">
-                                        
-                                        {/* Active operations list */}
-                                        <div className="space-y-4">
-                                            <div className="flex items-center gap-2 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] select-none">
-                                                <ClockIcon className="w-3.5 h-3.5 text-emerald-400" /> Active operations ({currentProjects.length})
-                                            </div>
-                                                                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {(currentProjects || [])?.map?.(p => (
-                                                    <PortfolioProjectCard 
-                                                        key={p.id}
-                                                        project={p}
-                                                        isOwnProject={true}
-                                                        onAddTestimonial={handleProjectAddTestimonial}
-                                                        onEndorse={handleEndorseProject}
-                                                        onRate={handleRateProject}
-                                                        currentUsername={profile?.username || 'Operator-You'}
-                                                    />
-                                                ))}
-                                                {currentProjects.length === 0 && (
-                                                    <div className="col-span-2 text-center py-6 border border-zinc-905 border-dashed rounded-xl">
-                                                        <p className="text-[10px] text-zinc-650 italic text-zinc-500">No operational conjunctions currently running.</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
+                                </div>
 
-                                        {/* past Completed operations list */}
-                                        <div className="space-y-4">
-                                            <div className="flex items-center gap-2 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] select-none">
-                                                <CheckCircle2Icon className="w-3.5 h-3.5 text-zinc-500" /> Completed milestones ({pastProjects.length})
-                                            </div>
-
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                {(pastProjects || [])?.map?.(p => (
-                                                    <PortfolioProjectCard 
-                                                        key={p.id}
-                                                        project={p}
-                                                        isOwnProject={true}
-                                                        onAddTestimonial={handleProjectAddTestimonial}
-                                                        onEndorse={handleEndorseProject}
-                                                        onRate={handleRateProject}
-                                                        currentUsername={profile?.username || 'Operator-You'}
-                                                    />
-                                                ))}
-                                                {pastProjects.length === 0 && (
-                                                    <div className="col-span-2 text-center py-6 border border-zinc-905 border-dashed rounded-xl">
-                                                        <p className="text-[10px] text-zinc-650 italic text-zinc-500">No past milestones registered.</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
+                                {/* Past completed operations list */}
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2 text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] select-none">
+                                        <CheckCircle2Icon className="w-3.5 h-3.5 text-zinc-500" /> Completed milestones ({pastProjects.length})
                                     </div>
-                                )}
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {(pastProjects || [])?.map?.(p => (
+                                            <PortfolioProjectCard 
+                                                key={p.id}
+                                                project={p}
+                                                isOwnProject={true}
+                                                onAddTestimonial={handleProjectAddTestimonial}
+                                                onEndorse={handleEndorseProject}
+                                                onRate={handleRateProject}
+                                                currentUsername={profile?.username || 'Operator-You'}
+                                            />
+                                        ))}
+                                        {pastProjects.length === 0 && (
+                                            <div className="col-span-2 text-center py-6 border border-zinc-900 border-dashed rounded-xl">
+                                                <p className="text-[10px] italic text-zinc-500">No completed projects audited yet.</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </motion.div>
 

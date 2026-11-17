@@ -89,6 +89,7 @@ import { DataProvenanceLab } from './components/DataProvenanceLab';
 import { BoundObserverView } from './components/BoundObserverView';
 import { SelfHealingCRTView } from './components/SelfHealingCRTView';
 import { UserProfileView } from './components/UserProfileView';
+import { AITrustClearanceView } from './components/AITrustClearanceView';
 import { CollaborativeEditorView } from './components/CollaborativeEditorView';
 import { PromptForge } from './components/PromptForge';
 import { VoiceAuthorityView } from './components/VoiceAuthorityView';
@@ -105,6 +106,7 @@ import { BlacklistView } from './components/BlacklistView';
 import { AccountManagerView } from './components/AccountManagerView';
 import { VaultManagerView } from './components/VaultManagerView';
 import { SystemIntegrityView } from './components/SystemIntegrityView';
+import { FileIntegrityMonitorView } from './components/FileIntegrityMonitorView';
 import { LivePatchObservationView } from './components/LivePatchObservationView';
 import { ModeratorLoungeView } from './components/ModeratorLoungeView';
 import { EurodemuxView } from './eurodemux';
@@ -133,9 +135,25 @@ import { ProgramFrameVisualizer } from './components/ProgramFrameVisualizer';
 import { GoogleChatView } from './components/GoogleChatView';
 import { SovereignScrollConsole } from './components/SovereignScrollConsole';
 import { RescueCompanionView } from './components/RescueCompanionView';
+import { AntiTheftProtectionView } from './components/AntiTheftProtectionView';
+import { SecureByDesignView } from './components/SecureByDesignView';
+import { WeatherAssetHolderView } from './components/WeatherAssetHolderView';
+import { LifelineCalculatorView } from './components/LifelineCalculatorView';
 import { v4 as uuidv4 } from 'uuid';
 
 export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
+    'lifeline_calculator': (props) => (
+        <LifelineCalculatorView 
+            onNavigateToView={props.onSetView} 
+            onSendMessage={props.onSendMessage}
+            messages={props.messages}
+            activeSeat={props.activeSeat}
+        />
+    ),
+    'weather_asset_holder': (props) => <WeatherAssetHolderView onNavigateToView={props.onSetView} />,
+    'secure_by_design': (props) => <SecureByDesignView onNavigateToView={props.onSetView} />,
+    'anti_theft_protection': () => <AntiTheftProtectionView />,
+    'anti_theft': () => <AntiTheftProtectionView />,
     'rescue_companion': () => <RescueCompanionView />,
     'sovereign_scanner': (props) => (
         <SovereignScannerView 
@@ -172,6 +190,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'accounts_registry': () => <AccountManagerView />,
     'vault_manager': () => <VaultManagerView />,
     'system_integrity': () => <SystemIntegrityView />,
+    'file_integrity_monitor': () => <FileIntegrityMonitorView />,
     'blacklist': (props) => <BlacklistView profile={props.profile} />,
     'chat': (props) => (
         <div className="flex flex-col h-full bg-[#020205] relative flex-hinge">
@@ -203,6 +222,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
                 currentChannel={props.currentChannel}
                 userRole={props.profile.role}
                 isRecordingVoice={props.isRecording}
+                onNavigateToView={props.onSetView}
             />
             <InputBar 
                 inputText={props.chatInput} 
@@ -234,6 +254,8 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
               onNavigateToAgent={() => props.onSetView('chat')} 
               onSetDirective={() => {}} 
               progress={props.progress}
+              glitchHistory={props.glitchHistory}
+              messages={props.messages}
           />
         </div>
     ),
@@ -262,6 +284,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
             setProjects={props.setProjects}
             isSystemFractured={props.isSystemFractured}
             onToggleFracture={props.onToggleFracture}
+            onNavigateToView={props.onSetView}
         />
     ),
     'project_network': (props) => (
@@ -322,7 +345,7 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'requindor_scroll': () => <FineRScroll />,
     'omni_builder': (props) => <OmniBuilderUI shards={props.shards} />,
     'singularity_engine': (props) => <SingularityEngineView knowledgeBaseSize={1000000} onConsumeKnowledge={() => {}} onProjectize={() => {}} onGoToNetwork={() => props.onSetView('coding_network')} />,
-    'diagnostics': (props) => <DiagnosticsCenter onSetView={props.onSetView} systemStatus={props.systemStatus} onUpdateSystemStatus={props.onUpdateSystemStatus} />,
+    'diagnostics': (props) => <DiagnosticsCenter onSetView={props.onSetView} systemStatus={props.systemStatus} onUpdateSystemStatus={props.onUpdateSystemStatus} glitchHistory={props.glitchHistory} onClearGlitchHistory={props.onClearGlitchHistory} />,
     'system_diagnostic': (props) => <SystemDiagnosticView onSetView={props.onSetView} systemStatus={props.systemStatus} bootLogs={props.bootLogs} onUpdateSystemStatus={props.onUpdateSystemStatus} searchQuery={props.diagnosticSearchQuery} onSearchQueryChange={props.onSetDiagnosticSearchQuery} onClearBootLogs={props.onClearBootLogs} />,
     'communications': (props) => <CommunicationsView injectedCommand={null} onCommandInjected={() => {}} onNewBroadcast={props.onNewBroadcast} broadcasts={props.broadcasts} onCancelBroadcast={props.onCancelBroadcast} />,
     'up_north': (props) => <UpNorthProtocol onSetView={props.onSetView} />,
@@ -399,7 +422,19 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'data_provenance_lab': () => <DataProvenanceLab />,
     'bound_observer': () => <BoundObserverView />,
     'sh_crt_loop': () => <SelfHealingCRTView />,
-    'user_profile': (props) => <UserProfileView profile={props.profile} projects={props.projects} onUpdateProfile={(updates) => props.onUpdateProfile(updates)} onSetView={props.onSetView} />,
+    'user_profile': (props) => <UserProfileView profile={props.profile} projects={props.projects} onUpdateProfile={(updates) => props.onUpdateProfile(updates)} onSetView={props.onSetView} glitchHistory={props.glitchHistory} messages={props.messages} />,
+    'ai_trust_covenant': (props) => (
+        <AITrustClearanceView
+            profile={props.profile}
+            projects={props.projects}
+            glitchHistory={props.glitchHistory || []}
+            messages={props.messages || []}
+            savedModulesCount={props.savedModulesCount || 0}
+            onUpdateProfile={(updates) => props.onUpdateProfile(updates)}
+            onSetView={props.onSetView}
+            onStrictEnforcementChange={props.onStrictEnforcementChange}
+        />
+    ),
     'prompt_forge': () => <PromptForge />,
     'voice_authority': () => <VoiceAuthorityView />,
     'cellular_grid': () => <CellularGrid />,

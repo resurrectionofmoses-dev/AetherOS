@@ -16,6 +16,8 @@ import { GoogleMeetWarRoom } from './GoogleMeetWarRoom';
 import { FloatingThreatHeatmap } from './FloatingThreatHeatmap';
 import { ThreatNeutralizationLog } from './ThreatNeutralizationLog';
 import { QuantumCoin3D } from './QuantumCoin3D';
+import { ProjectProgressRingChart } from './ProjectProgressRingChart';
+import { SecureByDesignView } from './SecureByDesignView';
 import { generate1028BitKeyPair, encryptSovereignMessage, decryptSovereignMessage } from '../services/quantumCryptoService';
 
 /**
@@ -184,7 +186,7 @@ interface SovereignShieldViewProps {
 }
 
 export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavigateToReport, projects, setProjects }) => {
-    const [activeVisualMode, setActiveVisualMode] = useState<'shader' | 'radar' | 'quantum' | 'reconciliation' | 'anomaly'>('reconciliation');
+    const [activeVisualMode, setActiveVisualMode] = useState<'shader' | 'radar' | 'quantum' | 'reconciliation' | 'anomaly' | 'project_ring' | 'sbd'>('reconciliation');
     const [shieldStrength, setShieldStrength] = useState(100);
     const [telemetry, setTelemetry] = useState<ShieldTelemetry>({
         integrity: 98.4,
@@ -744,7 +746,17 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
                             </div>
 
                             {/* Interactive Visual Mode Selector */}
-                            <div className="absolute top-4 right-4 z-40 flex gap-2">
+                            <div className="absolute top-4 right-4 z-40 flex gap-2 flex-wrap justify-end">
+                                <button
+                                    onClick={() => setActiveVisualMode('sbd')}
+                                    className={`px-2.5 py-1 text-[8px] font-black uppercase rounded cursor-pointer border transition-all ${
+                                        activeVisualMode === 'sbd'
+                                            ? 'bg-emerald-600/35 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.4)]'
+                                            : 'bg-[#0f0f15]/85 border-zinc-800 text-zinc-400 hover:text-zinc-200'
+                                    }`}
+                                >
+                                    🛡️ SECURE BY DESIGN (SbD)
+                                </button>
                                 <button
                                     onClick={() => setActiveVisualMode('anomaly')}
                                     className={`px-2.5 py-1 text-[8px] font-black uppercase rounded cursor-pointer border transition-all ${
@@ -754,6 +766,16 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
                                     }`}
                                 >
                                     🛡️ ANOMALY ENGINE & ESCALATION
+                                </button>
+                                <button
+                                    onClick={() => setActiveVisualMode('project_ring')}
+                                    className={`px-2.5 py-1 text-[8px] font-black uppercase rounded cursor-pointer border transition-all ${
+                                        activeVisualMode === 'project_ring'
+                                            ? 'bg-cyan-600/30 border-cyan-500 text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)]'
+                                            : 'bg-black/90 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+                                    }`}
+                                >
+                                    📊 PROJECT COMPLETION RINGS
                                 </button>
                                 <button
                                     onClick={() => setActiveVisualMode('reconciliation')}
@@ -1175,6 +1197,14 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
                                         onNeutralize={(id) => handleNeutralize(id)}
                                     />
                                 </div>
+                            ) : activeVisualMode === 'project_ring' ? (
+                                <div className="flex-1 flex flex-col min-h-0 bg-zinc-950 p-6 pt-14 text-zinc-200 overflow-y-auto custom-scrollbar animate-in fade-in duration-300">
+                                    <ProjectProgressRingChart projects={projects} />
+                                </div>
+                            ) : activeVisualMode === 'sbd' ? (
+                                <div className="flex-1 flex flex-col min-h-0 bg-[#050508] p-4 pt-14 text-zinc-200 overflow-y-auto custom-scrollbar animate-in fade-in duration-300">
+                                    <SecureByDesignView onNavigateToView={onNavigateToReport} compact />
+                                </div>
                             ) : (
                                 <div className="flex-1 flex flex-col min-h-0 bg-zinc-950 p-6 pt-14 text-zinc-200 overflow-y-auto custom-scrollbar animate-in fade-in duration-300">
                                     <div className="flex justify-between items-center mb-6">
@@ -1199,6 +1229,9 @@ export const SovereignShieldView: React.FC<SovereignShieldViewProps> = ({ onNavi
                                             </button>
                                         </div>
                                     </div>
+
+                                    {/* Project Progress D3 Ring Chart Widget */}
+                                    <ProjectProgressRingChart projects={projects} className="mb-6" />
 
                                     {/* Dashboard Cards Row */}
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

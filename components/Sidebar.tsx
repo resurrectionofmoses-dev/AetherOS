@@ -8,7 +8,7 @@ import {
 } from './icons';
 import { NAVIGATION_SECTIONS } from '../constants';
 import { useAuth } from '../contexts/AuthContext';
-import aetherosLogo from '../src/assets/images/aetheros_logo_1780191892733.png';
+import aetherosLogo from '../src/assets/images/aetheros_shield_512.png';
 
 const GridIcon: React.FC<{className?: string}> = ({className}) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -293,7 +293,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     .map(({ view, text, icon: Icon }) => {
                                     const isActive = currentView === view;
                                     const isLocked = !unlockedViews.includes(view);
-                                    const isCritical = ['chat', 'system_diagnostic', 'diagnostics', 'sovereign_shield', 'user_profile'].includes(view);
+                                    const isCritical = ['chat', 'system_diagnostic', 'diagnostics', 'sovereign_shield', 'user_profile', 'ai_trust_covenant'].includes(view);
                                     const isBypassedInSafeMode = safeModeActive && !isCritical;
                                     
                                     if (!Icon) return null;

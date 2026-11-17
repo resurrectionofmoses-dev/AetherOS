@@ -4,8 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>AetherOS | The Maestro's Sovereign Network</title>
+    <meta name="description" content="A state-of-the-art sovereign operating system featuring global ecosystem infrastructure mapping, API key sovereign management, and a persistent neural project network. Designed for flawless conduction and absolute orchestration." />
+    <meta property="og:title" content="AetherOS" />
+    <meta property="og:description" content="A state-of-the-art sovereign operating system featuring global ecosystem infrastructure mapping, API key sovereign management, and a persistent neural project network." />
+    <meta property="og:image" content="/assets/aetheros-banner.jpg" />
+    <link rel="icon" type="image/png" href="/assets/favicon.png" />
+    <link rel="apple-touch-icon" href="/assets/icon-192.png" />
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0ea5e9">
+    <meta name="theme-color" content="#06b6d4">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -365,9 +371,9 @@
               box-shadow: none;
           }
           0.8% {
-              filter: hue-rotate(180deg) saturate(3) contrast(2) brightness(1.4);
-              transform: translate(-10px, 4px) skewX(-12deg);
-              box-shadow: inset 0 0 80px rgba(244, 63, 94, 0.7);
+              filter: hue-rotate(calc(180deg * var(--glitch-intensity, 1))) saturate(calc(1 + var(--glitch-intensity, 1) * 2)) contrast(calc(1 + var(--glitch-intensity, 1) * 1.5)) brightness(calc(1 + var(--glitch-intensity, 1) * 0.4));
+              transform: translate(calc(-10px * var(--glitch-intensity, 1)), calc(4px * var(--glitch-intensity, 1))) skewX(calc(-12deg * var(--glitch-intensity, 1)));
+              box-shadow: inset 0 0 calc(80px * var(--glitch-intensity, 1)) rgba(244, 63, 94, 0.85);
           }
           2.1% {
               filter: hue-rotate(0deg) saturate(1) contrast(1) brightness(1);
@@ -375,9 +381,9 @@
               box-shadow: none;
           }
           9.4% {
-              filter: hue-rotate(-90deg) saturate(2.5) contrast(1.8) brightness(1.2);
-              transform: translate(8px, -6px) skewY(5deg);
-              box-shadow: inset 0 0 100px rgba(244, 63, 94, 0.6);
+              filter: hue-rotate(calc(-90deg * var(--glitch-intensity, 1))) saturate(calc(1 + var(--glitch-intensity, 1) * 1.5)) contrast(calc(1 + var(--glitch-intensity, 1) * 0.8)) brightness(calc(1 + var(--glitch-intensity, 1) * 0.2));
+              transform: translate(calc(8px * var(--glitch-intensity, 1)), calc(-6px * var(--glitch-intensity, 1))) skewY(calc(5deg * var(--glitch-intensity, 1)));
+              box-shadow: inset 0 0 calc(100px * var(--glitch-intensity, 1)) rgba(244, 63, 94, 0.75);
           }
           11.2% {
               filter: hue-rotate(0deg) saturate(1) contrast(1) brightness(1);
@@ -389,8 +395,8 @@
               filter: none;
           }
           36.1% {
-              transform: scaleY(1.12) translate(-8px, -3px) skewX(8deg);
-              filter: invert(0.12) contrast(2) brightness(1.3);
+              transform: scaleY(calc(1 + 0.12 * var(--glitch-intensity, 1))) translate(calc(-8px * var(--glitch-intensity, 1)), calc(-3px * var(--glitch-intensity, 1))) skewX(calc(8deg * var(--glitch-intensity, 1)));
+              filter: invert(calc(0.12 * var(--glitch-intensity, 1))) contrast(2) brightness(1.3);
           }
           37.9% {
               transform: scaleY(1) translate(0, 0) skewX(0deg);
@@ -401,9 +407,9 @@
               transform: translate(0, 0) skewX(0deg);
           }
           53.8% {
-              filter: hue-rotate(240deg) saturate(4) contrast(2.5) brightness(1.8);
-              transform: translate(-12px, 8px) skewX(-10deg);
-              box-shadow: inset 0 0 130px rgba(244, 63, 94, 0.8);
+              filter: hue-rotate(calc(240deg * var(--glitch-intensity, 1))) saturate(calc(1 + var(--glitch-intensity, 1) * 3)) contrast(calc(1 + var(--glitch-intensity, 1) * 1.8)) brightness(calc(1 + var(--glitch-intensity, 1) * 0.8));
+              transform: translate(calc(-12px * var(--glitch-intensity, 1)), calc(8px * var(--glitch-intensity, 1))) skewX(calc(-10deg * var(--glitch-intensity, 1)));
+              box-shadow: inset 0 0 calc(130px * var(--glitch-intensity, 1)) rgba(244, 63, 94, 0.9);
           }
           55.2% {
               filter: hue-rotate(0deg) saturate(1) contrast(1) brightness(1);
@@ -415,16 +421,16 @@
               filter: none;
           }
           80.4% {
-              transform: translate(10px, -4px) skewX(12deg);
-              filter: contrast(2.2) brightness(1.5) invert(0.05);
+              transform: translate(calc(10px * var(--glitch-intensity, 1)), calc(-4px * var(--glitch-intensity, 1))) skewX(calc(12deg * var(--glitch-intensity, 1)));
+              filter: contrast(2.2) brightness(1.5) invert(calc(0.05 * var(--glitch-intensity, 1)));
           }
           81.9% {
               transform: translate(0, 0) skewX(0deg);
               filter: none;
           }
           94.3% {
-              filter: hue-rotate(300deg) saturate(3) contrast(1.9) brightness(1.3);
-              transform: translate(-6px, 6px) skewY(-4deg);
+              filter: hue-rotate(calc(300deg * var(--glitch-intensity, 1))) saturate(calc(1 + var(--glitch-intensity, 1) * 2)) contrast(calc(1 + var(--glitch-intensity, 1) * 0.9)) brightness(calc(1 + var(--glitch-intensity, 1) * 0.3));
+              transform: translate(calc(-6px * var(--glitch-intensity, 1)), calc(6px * var(--glitch-intensity, 1))) skewY(calc(-4deg * var(--glitch-intensity, 1)));
           }
           96.1% {
               filter: none;
@@ -442,8 +448,8 @@
               transform: translateX(0);
           }
           1.1% {
-              text-shadow: 4px 0 0.5px rgba(244,63,94,0.95), -4px 0 0.5px rgba(59,130,246,0.95);
-              transform: translateX(4.5px) skewX(-2deg);
+              text-shadow: calc(4px * var(--glitch-intensity, 1)) 0 0.5px rgba(244,63,94,0.95), calc(-4px * var(--glitch-intensity, 1)) 0 0.5px rgba(59,130,246,0.95);
+              transform: translateX(calc(4.5px * var(--glitch-intensity, 1))) skewX(calc(-2deg * var(--glitch-intensity, 1)));
           }
           1.8% {
               text-shadow: none;
@@ -454,8 +460,8 @@
               transform: translateX(0);
           }
           13.9% {
-              text-shadow: -5px 0 1px rgba(244,63,94,1), 5px 0 1px rgba(34,197,94,1);
-              transform: translateX(-6px) skewX(4deg);
+              text-shadow: calc(-5px * var(--glitch-intensity, 1)) 0 1px rgba(244,63,94,1), calc(5px * var(--glitch-intensity, 1)) 0 1px rgba(34,197,94,1);
+              transform: translateX(calc(-6px * var(--glitch-intensity, 1))) skewX(calc(4deg * var(--glitch-intensity, 1)));
           }
           15.2% {
               text-shadow: none;
@@ -466,8 +472,8 @@
               transform: translateX(0);
           }
           45.8% {
-              text-shadow: 4.5px 0 0.8px rgba(59,130,246,0.95), -4.5px 0 0.8px rgba(244,63,94,0.95);
-              transform: translateX(5px) skewX(-5deg);
+              text-shadow: calc(4.5px * var(--glitch-intensity, 1)) 0 0.8px rgba(59,130,246,0.95), calc(-4.5px * var(--glitch-intensity, 1)) 0 0.8px rgba(244,63,94,0.95);
+              transform: translateX(calc(5px * var(--glitch-intensity, 1))) skewX(calc(-5deg * var(--glitch-intensity, 1)));
           }
           47.2% {
               text-shadow: none;
@@ -478,8 +484,8 @@
               transform: translateX(0);
           }
           69.5% {
-              text-shadow: -4px 0 0.5px rgba(34,197,94,1), 4px 0 0.5px rgba(244,63,94,1);
-              transform: translateX(-4.5px) skewX(3deg);
+              text-shadow: calc(-4px * var(--glitch-intensity, 1)) 0 0.5px rgba(34,197,94,1), calc(4px * var(--glitch-intensity, 1)) 0 0.5px rgba(244,63,94,1);
+              transform: translateX(calc(-4.5px * var(--glitch-intensity, 1))) skewX(calc(3deg * var(--glitch-intensity, 1)));
           }
           71.1% {
               text-shadow: none;
@@ -490,8 +496,8 @@
               transform: translateX(0);
           }
           90.5% {
-              text-shadow: 6px 0 1px rgba(244,63,94,1), -6px 0 1px rgba(59,130,246,1);
-              transform: translateX(7px) skewX(-4deg);
+              text-shadow: calc(6px * var(--glitch-intensity, 1)) 0 1px rgba(244,63,94,1), calc(-6px * var(--glitch-intensity, 1)) 0 1px rgba(59,130,246,1);
+              transform: translateX(calc(7px * var(--glitch-intensity, 1))) skewX(calc(-4deg * var(--glitch-intensity, 1)));
           }
           92.2% {
               text-shadow: none;
@@ -518,11 +524,34 @@
       }
 
       #aetheros-view-wrapper.matrix-glitch-active {
-          animation: matrix-digital-glitch 4.5s ease-in-out infinite steps(1) !important;
+          --acoustic-val: var(--acoustic-pressure, 45);
+          --glitch-intensity: max(0.4, calc(var(--acoustic-val) / 45));
+          /* Duration inversely proportional to acoustic pressure */
+          --glitch-duration: max(0.1s, calc(2s / (1 + (var(--acoustic-val) / 45))));
+          --glitch-speed: max(0.5s, calc(4.5s / (1 + (var(--acoustic-val) / 35))));
+          --text-shift-speed: max(0.35s, calc(3.3s / (1 + (var(--acoustic-val) / 30))));
+
+          animation: matrix-digital-glitch var(--glitch-duration) ease-in-out infinite steps(1) !important;
           position: relative;
-          border: 2px solid rgba(244, 63, 94, 0.5) !important;
-          box-shadow: 0 0 30px rgba(244, 63, 94, 0.25), inset 0 0 40px rgba(244, 63, 94, 0.15) !important;
+          border: calc(1.5px + var(--acoustic-val) * 0.025px) solid rgba(244, 63, 94, calc(0.4 + var(--acoustic-val) * 0.005)) !important;
+          box-shadow: 0 0 calc(20px + var(--acoustic-val) * 0.8px) rgba(244, 63, 94, calc(0.25 + var(--acoustic-val) * 0.005)),
+                      inset 0 0 calc(30px + var(--acoustic-val) * 1px) rgba(244, 63, 94, calc(0.15 + var(--acoustic-val) * 0.005)) !important;
           background-color: rgba(9, 9, 11, 0.95) !important;
+      }
+
+      @keyframes force-glitch-border-pulse {
+          0%, 100% {
+              border-color: rgba(244, 63, 94, 1);
+              box-shadow: 0 0 20px rgba(244, 63, 94, 0.85), inset 0 0 8px rgba(244, 63, 94, 0.4);
+          }
+          50% {
+              border-color: rgba(244, 63, 94, 0.15);
+              box-shadow: 0 0 4px rgba(244, 63, 94, 0.1), inset 0 0 1px rgba(244, 63, 94, 0.05);
+          }
+      }
+
+      #aetheros-view-wrapper.matrix-glitch-active #force-glitch-trigger-btn {
+          animation: force-glitch-border-pulse var(--heartbeat-duration, 1.6s) infinite cubic-bezier(0.215, 0.61, 0.355, 1) !important;
       }
 
       #aetheros-view-wrapper.matrix-glitch-active p,
@@ -533,7 +562,10 @@
       #aetheros-view-wrapper.matrix-glitch-active h4,
       #aetheros-view-wrapper.matrix-glitch-active li,
       #aetheros-view-wrapper.matrix-glitch-active code {
-          animation: matrix-text-shift 3.3s steps(1) infinite !important;
+          --acoustic-val: var(--acoustic-pressure, 45);
+          --glitch-intensity: max(0.4, calc(var(--acoustic-val) / 45));
+          --text-shift-speed: max(0.35s, calc(3.3s / (1 + (var(--acoustic-val) / 30))));
+          animation: matrix-text-shift var(--text-shift-speed) steps(1) infinite !important;
           position: relative;
       }
 
@@ -542,13 +574,13 @@
           display: block;
           position: absolute;
           top: 0; left: 0; bottom: 0; right: 0;
-          background: linear-gradient(rgba(16, 185, 129, 0) 50%, rgba(16, 185, 129, 0.12) 50%), 
-                      linear-gradient(90deg, rgba(239, 68, 68, 0.04), rgba(16, 185, 129, 0.02), rgba(59, 130, 246, 0.04));
+          background: linear-gradient(rgba(16, 185, 129, 0) 50%, rgba(16, 185, 129, calc(0.08 + var(--acoustic-pressure, 30) * 0.001)) 50%), 
+                      linear-gradient(90deg, rgba(239, 68, 68, calc(0.02 + var(--acoustic-pressure, 30) * 0.0008)), rgba(16, 185, 129, 0.02), rgba(59, 130, 246, calc(0.02 + var(--acoustic-pressure, 30) * 0.0008)));
           z-index: 9999;
-          background-size: 100% 4px, 6px 100%;
+          background-size: 100% calc(4px / max(0.5, var(--acoustic-pressure, 30) / 60)), 6px 100%;
           pointer-events: none;
-          opacity: 0.9;
-          animation: matrix-scanline 8s linear infinite, matrix-vertical-flicker 0.15s ease-in-out infinite;
+          opacity: calc(0.7 + (var(--acoustic-pressure, 30) / 200));
+          animation: matrix-scanline calc(8s / (1 + (var(--acoustic-pressure, 30) / 40))) linear infinite, matrix-vertical-flicker calc(0.15s / (1 + (var(--acoustic-pressure, 30) / 50))) ease-in-out infinite;
       }
 
       #aetheros-view-wrapper.matrix-glitch-active::after {
@@ -567,8 +599,8 @@
           border-radius: 4px;
           z-index: 9999;
           pointer-events: none;
-          text-shadow: 0 0 5px #10b981;
-          animation: matrix-vertical-flicker 0.4s step-end infinite;
+          text-shadow: 0 0 calc(5px + var(--acoustic-pressure, 30) * 0.05px) #10b981;
+          animation: matrix-vertical-flicker calc(0.4s / (1 + (var(--acoustic-pressure, 30) / 40))) step-end infinite;
       }
 
       /* CRT scanline, Chromatic Aberration and Jitter Delirium styles */

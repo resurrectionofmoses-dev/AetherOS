@@ -24,6 +24,8 @@ dist-ssr
 # Database / Local backups / Evolution State
 backups/
 evo.json
+.aetheros-trust-ledger.json
+.aetheros-trust-ledger.json.tmp
 firebase-applet-config.json
 firebase-applet-config*.json
 firebase_applet_config*.xml

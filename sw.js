@@ -1,10 +1,13 @@
-
-const CACHE_NAME = 'aetheros-cache-v1';
+const CACHE_NAME = 'aetheros-cache-v2';
 const ASSETS = [
   './',
   './index.html',
-  './index.tsx',
-  './manifest.json'
+  './manifest.json',
+  './assets/favicon.png',
+  './assets/icon-192.png',
+  './assets/icon-512.png',
+  './assets/feature-graphic.png',
+  './assets/aetheros-banner.jpg'
 ];
 
 self.addEventListener('install', (event) => {

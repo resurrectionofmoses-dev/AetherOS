@@ -1,13 +1,13 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
 import { FINTECH_AUTHORITIES } from '../constants';
 import { 
     CodeIcon, ActivityIcon, ZapIcon, ShieldIcon, FireIcon, StarIcon, PlusIcon, XIcon, TerminalIcon, UserIcon, BrainIcon, LogicIcon, CheckCircleIcon, SpinnerIcon, GaugeIcon, SearchIcon, GavelIcon
 } from './icons';
-import type { NetworkProject, ProjectTask, UserProfile, ProfileProject, ProfileProjectTestimonial } from '../types';
-import { PortfolioProjectCard } from './PortfolioProjectCard';
+import type { NetworkProject, ProjectTask, UserProfile, ProfileProject, ProfileProjectTestimonial, GlitchTelemetry, ChatMessage } from '../types';
+import { CodingNetworkProfileSystem } from './CodingNetworkProfileSystem';
 import type { HireableAgent } from '../agentTypes';
 import { AgentFactory } from '../services/AgentFactory';
 import { safeStorage } from '../services/safeStorage';
@@ -82,9 +82,11 @@ interface CodingNetworkViewProps {
   onNavigateToAgent: () => void;
   onSetDirective: (directive: any) => void;
   progress?: any;
+  glitchHistory?: GlitchTelemetry[];
+  messages?: ChatMessage[];
 }
 
-export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, setProjects, agents, setAgents, profile, onUpdateProfile, progress }) => {
+export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, setProjects, agents, setAgents, profile, onUpdateProfile, progress, glitchHistory, messages }) => {
     const safeProjects = Array.isArray(projects) ? projects : [];
     const [title, setTitle] = useState('');
     const [desc, setDesc] = useState('');
@@ -168,52 +170,9 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
 
     // --- NETWORK PROFILES & SKILL MATCHING STATES ---
     const [networkProfiles, setNetworkProfiles] = useState<any[]>([]);
-    const [searchProfileQuery, setSearchProfileQuery] = useState('');
-    const [skillFilterMode, setSkillFilterMode] = useState<'all' | 'possess' | 'mentor'>('all');
     const [selectedProfileNode, setSelectedProfileNode] = useState<any | null>(null);
     const [offeringInput, setOfferingInput] = useState('');
     const [lookingInput, setLookingInput] = useState('');
-    const [endorsementConfirmation, setEndorsementConfirmation] = useState<{ profileId: string; profileUsername: string; skillName: string; isRemoving: boolean } | null>(null);
-
-    const radarDataForSelectedNode = useMemo(() => {
-        if (!selectedProfileNode) return [];
-        const skillsList = selectedProfileNode.skills || [];
-        const skillScores = skillsList.map((s: string) => {
-            const endorsers = selectedProfileNode.skillEndorsements?.[s] || [];
-            const score = Math.min(100, 50 + endorsers.length * 15);
-            return { subject: s, value: score };
-        });
-        
-        // Take up to 7 skills
-        const topSkills = [...skillScores]
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 7);
-
-        while (topSkills.length < 3) {
-            topSkills.push({ subject: 'Lattice Core', value: 50 });
-        }
-        return topSkills;
-    }, [selectedProfileNode, selectedProfileNode?.skillEndorsements]);
-
-    const radarDataForOwnNode = useMemo(() => {
-        if (!profile) return [];
-        const skillsList = profile.skills || [];
-        const skillScores = skillsList.map((s: string) => {
-            const endorsers = profile.skillEndorsements?.[s] || [];
-            const score = Math.min(100, 50 + endorsers.length * 15);
-            return { subject: s, value: score };
-        });
-        
-        // Take up to 7 skills
-        const topSkills = [...skillScores]
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 7);
-
-        while (topSkills.length < 3) {
-            topSkills.push({ subject: 'Lattice Core', value: 50 });
-        }
-        return topSkills;
-    }, [profile, profile?.skillEndorsements, profile?.skills]);
 
     // --- PREDICTIVE TIMELINE / FORECAST STATES ---
     const [projectBoosts, setProjectBoosts] = useState<Record<string, number>>({});
@@ -368,20 +327,49 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                 {
                     id: 'mock_1',
                     username: 'CyberWeaver_X',
+                    tagline: 'Low-level Runtime & WASM Consensus Architect',
                     bio: 'Systems generalist bridging low-level conduction runtimes with cryptographically secure consensus architectures. Building custom WASM and Rust execution vectors.',
                     skills: ['Rust', 'Go', 'WebAssembly', 'Solidity', 'System Architecture'],
+                    programmingLanguages: [
+                        { name: 'Rust', proficiency: 'Master', years: 6 },
+                        { name: 'Go', proficiency: 'Expert', years: 5 },
+                        { name: 'Solidity', proficiency: 'Advanced', years: 3 },
+                        { name: 'C++', proficiency: 'Advanced', years: 4 }
+                    ],
                     lookingForSkills: ['TypeScript', 'React', 'Tailwind CSS', 'Framer Motion'],
                     willingToTeachSkills: ['Rust', 'WebAssembly', 'System Architecture'],
                     experienceLevel: 'Staff Engineer',
                     avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80',
                     role: 'user',
+                    contactInfo: {
+                        github: 'https://github.com/cyberweaver',
+                        website: 'https://crates.io/users/cyberweaver'
+                    },
                     portfolioLinks: [
-                        { id: 'mpl_1', label: 'GitHub Node', url: 'https://github.com/cyberweaver' },
+                        { id: 'mpl_1', label: 'GitHub', url: 'https://github.com/cyberweaver' },
                         { id: 'mpl_2', label: 'Crates Hub', url: 'https://crates.io/users/cyberweaver' }
                     ],
                     profileProjects: [
-                        { id: 'mpp_1', title: 'AetherOS WASM Sandbox', roleDefined: 'Lead Architect', status: 'past', description: 'Fault-tolerant isolated execution enclaves built within Rust/WASM frameworks.' },
-                        { id: 'mpp_2', title: 'Eurodemux Layer-3 Multiplexer', roleDefined: 'Core Dev', status: 'current', description: 'Network packet conduction matrices running sub-millisecond route calculations.' }
+                        {
+                            id: 'mpp_1',
+                            title: 'AetherOS WASM Sandbox',
+                            roleDefined: 'Lead Architect',
+                            status: 'past',
+                            contributionType: 'completed',
+                            technologies: ['Rust', 'WebAssembly', 'WASI'],
+                            sourceCodeUrl: 'https://github.com/cyberweaver/aether-wasm-sandbox',
+                            description: 'Fault-tolerant isolated execution enclaves built within Rust/WASM frameworks.'
+                        },
+                        {
+                            id: 'mpp_2',
+                            title: 'Eurodemux Layer-3 Multiplexer',
+                            roleDefined: 'Core Contributor',
+                            status: 'current',
+                            contributionType: 'contributed',
+                            technologies: ['Go', 'Rust', 'gRPC'],
+                            sourceCodeUrl: 'https://github.com/cyberweaver/eurodemux-l3',
+                            description: 'Network packet conduction matrices running sub-millisecond route calculations.'
+                        }
                     ],
                     skillEndorsements: {
                         'Rust': ['Validator_Solo', 'AcousticWeaver'],
@@ -394,20 +382,49 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                 {
                     id: 'mock_2',
                     username: 'AcousticWeaver',
+                    tagline: 'Speech Synthesis & Real-Time DSP Researcher',
                     bio: 'Research scientist focusing on speech synthesis pipelines, deep signal analytics, and custom neural networks (PyTorch/Transformers) compiled for real-time DSP.',
                     skills: ['Python', 'PyTorch', 'Next.js', 'React', 'Audio Engineering', 'TensorFlow'],
+                    programmingLanguages: [
+                        { name: 'Python', proficiency: 'Master', years: 7 },
+                        { name: 'TypeScript', proficiency: 'Expert', years: 5 },
+                        { name: 'C++', proficiency: 'Advanced', years: 4 },
+                        { name: 'SQL', proficiency: 'Intermediate', years: 3 }
+                    ],
                     lookingForSkills: ['Rust', 'WebAssembly', 'Go', 'SubtleCrypto'],
                     willingToTeachSkills: ['Python', 'PyTorch', 'Audio Engineering'],
                     experienceLevel: 'Senior NLP Architect',
                     avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?auto=format&fit=crop&w=150&q=80',
                     role: 'user',
+                    contactInfo: {
+                        github: 'https://github.com/acoustic-weaver',
+                        website: 'https://soundweaver.net/papers'
+                    },
                     portfolioLinks: [
-                        { id: 'mpl_3', label: 'Research Gate', url: 'https://soundweaver.net/papers' },
-                        { id: 'mpl_4', label: 'GitHub sound-dsp', url: 'https://github.com/acoustic-weaver' }
+                        { id: 'mpl_3', label: 'Portfolio & Papers', url: 'https://soundweaver.net/papers' },
+                        { id: 'mpl_4', label: 'GitHub', url: 'https://github.com/acoustic-weaver' }
                     ],
                     profileProjects: [
-                        { id: 'mpp_3', title: 'SaberSpeech AI v3', roleDefined: 'AI Lead', status: 'past', description: 'Zero-latency multi-speaker vocal model replicating biofrequency arrays.' },
-                        { id: 'mpp_4', title: 'Sonic Matrix Conduction', roleDefined: 'Core Designer', status: 'current', description: 'WebAudio DSP canvas modeling structural resonance frequencies.' }
+                        {
+                            id: 'mpp_3',
+                            title: 'SaberSpeech AI v3',
+                            roleDefined: 'AI Lead',
+                            status: 'past',
+                            contributionType: 'completed',
+                            technologies: ['Python', 'PyTorch', 'CUDA'],
+                            sourceCodeUrl: 'https://github.com/acoustic-weaver/saberspeech',
+                            description: 'Zero-latency multi-speaker vocal model replicating biofrequency arrays.'
+                        },
+                        {
+                            id: 'mpp_4',
+                            title: 'Sonic Matrix Conduction',
+                            roleDefined: 'Core Designer',
+                            status: 'current',
+                            contributionType: 'contributed',
+                            technologies: ['TypeScript', 'React', 'WebAudio'],
+                            liveDemoUrl: 'https://soundweaver.net/sonic-matrix',
+                            description: 'WebAudio DSP canvas modeling structural resonance frequencies.'
+                        }
                     ],
                     skillEndorsements: {
                         'Python': ['Validator_Solo', 'CyberWeaver_X'],
@@ -421,18 +438,39 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                 {
                     id: 'mock_3',
                     username: 'Validator_Solo',
+                    tagline: 'Smart Contract Security & Zero-Knowledge Lead',
                     bio: 'Smart contract audit specialist, defensive system designer, and cryptography lead. Securing client-authenticated vault platforms and zero-knowledge circuits.',
                     skills: ['Solidity', 'SubtleCrypto', 'React', 'AWS', 'Node.js', 'Security Audits'],
+                    programmingLanguages: [
+                        { name: 'Solidity', proficiency: 'Master', years: 5 },
+                        { name: 'TypeScript', proficiency: 'Expert', years: 6 },
+                        { name: 'Rust', proficiency: 'Advanced', years: 3 },
+                        { name: 'Python', proficiency: 'Intermediate', years: 3 }
+                    ],
                     lookingForSkills: ['Python', 'PyTorch', 'AI & ML', 'Audio Engineering'],
                     willingToTeachSkills: ['Solidity', 'SubtleCrypto', 'Security Audits'],
                     experienceLevel: 'Principal Auditor',
                     avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&q=80',
                     role: 'user',
+                    contactInfo: {
+                        github: 'https://github.com/validator-solo',
+                        website: 'https://validator-solo.eth'
+                    },
                     portfolioLinks: [
-                        { id: 'mpl_5', label: 'Audit Log Desk', url: 'https://validator-solo.eth' }
+                        { id: 'mpl_5', label: 'GitHub Audits', url: 'https://github.com/validator-solo' },
+                        { id: 'mpl_5b', label: 'Portfolio', url: 'https://validator-solo.eth' }
                     ],
                     profileProjects: [
-                        { id: 'mpp_5', title: 'Aetheric threshold Vault', roleDefined: 'Cryptographic Lead', status: 'current', description: 'ZKP threshold enclave storage for enterprise-scale seed management.' }
+                        {
+                            id: 'mpp_5',
+                            title: 'Aetheric Threshold Vault',
+                            roleDefined: 'Cryptographic Lead',
+                            status: 'past',
+                            contributionType: 'completed',
+                            technologies: ['Solidity', 'Rust', 'TypeScript'],
+                            sourceCodeUrl: 'https://github.com/validator-solo/threshold-vault',
+                            description: 'ZKP threshold enclave storage for enterprise-scale seed management.'
+                        }
                     ],
                     skillEndorsements: {
                         'Solidity': ['CyberWeaver_X', 'AcousticWeaver'],
@@ -445,19 +483,39 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                 {
                     id: 'mock_4',
                     username: 'DesignSage',
+                    tagline: 'Kinetic UI Systems & Spatial Front-End Lead',
                     bio: 'Obsessed with kinetic layout structures, spatial responsive fluidity, and Swiss-modern display typography. Crafting minimalist but highly functional UI templates.',
                     skills: ['Tailwind CSS', 'React', 'Framer Motion', 'Figma', 'UI/UX', 'SVG Animation'],
+                    programmingLanguages: [
+                        { name: 'TypeScript', proficiency: 'Expert', years: 6 },
+                        { name: 'JavaScript', proficiency: 'Master', years: 8 },
+                        { name: 'HTML/CSS', proficiency: 'Master', years: 8 },
+                        { name: 'Python', proficiency: 'Beginner', years: 1 }
+                    ],
                     lookingForSkills: ['Node.js', 'Go', 'PostgreSQL', 'System Architecture'],
                     willingToTeachSkills: ['Tailwind CSS', 'Framer Motion', 'UI/UX'],
                     experienceLevel: 'Creative Director',
                     avatarUrl: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=150&q=80',
                     role: 'user',
+                    contactInfo: {
+                        github: 'https://github.com/designsage',
+                        website: 'https://dribbble.com/designsage'
+                    },
                     portfolioLinks: [
-                        { id: 'mpl_6', label: 'Dribbble Node', url: 'https://dribbble.com/designsage' },
-                        { id: 'mpl_7', label: 'Figma Community', url: 'https://figma.com/@designsage' }
+                        { id: 'mpl_6', label: 'GitHub', url: 'https://github.com/designsage' },
+                        { id: 'mpl_7', label: 'Portfolio (Dribbble)', url: 'https://dribbble.com/designsage' }
                     ],
                     profileProjects: [
-                        { id: 'mpp_6', title: 'Cosmic Kinetic Kit', roleDefined: 'Solo Developer', status: 'past', description: 'Hardware acceleration CSS keyframes for multi-axis responsive boards.' }
+                        {
+                            id: 'mpp_6',
+                            title: 'Cosmic Kinetic Kit',
+                            roleDefined: 'Solo Developer',
+                            status: 'past',
+                            contributionType: 'completed',
+                            technologies: ['TypeScript', 'React', 'Tailwind CSS'],
+                            sourceCodeUrl: 'https://github.com/designsage/cosmic-kinetic-kit',
+                            description: 'Hardware acceleration CSS keyframes for multi-axis responsive boards.'
+                        }
                     ],
                     skillEndorsements: {
                         'Tailwind CSS': ['Validator_Solo', 'CyberWeaver_X'],
@@ -468,12 +526,88 @@ export const CodingNetworkView: React.FC<CodingNetworkViewProps> = ({ projects, 
                         'SVG Animation': ['CyberWeaver_X']
                     }
                 }
-            ];
+            ].map((peer: any) => ({
+                ...peer,
+                aiAuthored: true,
+                aiDossier: peer.aiDossier || {
+                    generatedAt: Date.now() - 86400000,
+                    modelUsed: 'gemini-4-hydrogen',
+                    subjectIdentifier: peer.username,
+                    verdictSummary:
+                        peer.id === 'mock_1'
+                            ? 'Strong low-level Rust/WASM execution depth paired with terse documentation and sparse frontend accessibility habits.'
+                            : peer.id === 'mock_2'
+                            ? 'High-throughput DSP & PyTorch modeling output, though model inference pipelines suffer from heavy memory footprints and brittle audio fallbacks.'
+                            : peer.id === 'mock_3'
+                            ? 'Sharp Solidity invariant auditing rigor offset by slow PR turnaround and minimal interest in maintainable UI tooling.'
+                            : 'Polished kinetic layout execution and CSS motion precision offset by frequent bundle bloat and shallow backend persistence experience.',
+                    candorNotice: 'Compiled autonomously from repository history, peer reviews, and technical output without author censorship.',
+                    theGood: [
+                        {
+                            title: `Demonstrated command of ${peer.programmingLanguages?.[0]?.name || peer.skills?.[0]}`,
+                            detail: `Consistent delivery across ${peer.profileProjects?.length || 1} audited repositories with peer-verified technical artifacts.`,
+                            source: 'Repository Audit',
+                            sentiment: 'good' as const
+                        },
+                        {
+                            title: 'Active domain specialization',
+                            detail: peer.bio,
+                            source: 'Project History',
+                            sentiment: 'good' as const
+                        }
+                    ],
+                    theBad: [
+                        {
+                            title:
+                                peer.id === 'mock_1'
+                                    ? 'Minimal unit test coverage on edge IPC paths'
+                                    : peer.id === 'mock_2'
+                                    ? 'Unbounded tensor buffer growth under concurrent streams'
+                                    : peer.id === 'mock_3'
+                                    ? 'Overly rigid review gates stall downstream merges'
+                                    : 'Animation-heavy bundles hurt low-end frame budgets',
+                            detail:
+                                peer.id === 'mock_1'
+                                    ? 'Prioritizes raw throughput optimizations ahead of readable error recovery and contributor onboarding docs.'
+                                    : peer.id === 'mock_2'
+                                    ? 'Prior prototype repos still carry unpinned dependencies and dead experimental branches.'
+                                    : peer.id === 'mock_3'
+                                    ? 'Prefers rewriting modules from scratch over incrementally patching existing backend services.'
+                                    : 'Several showcase kits rely on complex CSS keyframes without reduced-motion fallbacks.',
+                            source: 'Critical Code Audit',
+                            sentiment: 'bad' as const
+                        }
+                    ],
+                    evidenceSources: [
+                        { title: `${peer.username} Network Repository History`, kind: 'workspace' as const }
+                    ]
+                }
+            }));
 
             try {
                 const stored = await safeStorage.getItem('aetheros_network_profiles');
                 if (stored) {
-                    setNetworkProfiles(JSON.parse(stored));
+                    const parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed)) {
+                        const hydrated = parsed.map((p: any) => {
+                            const seedMatch = MOCK_PROFILES_PRESEEDED.find(m => m.id === p.id);
+                            if (seedMatch && (!p.programmingLanguages || p.programmingLanguages.length === 0 || !p.aiDossier)) {
+                                return {
+                                    ...seedMatch,
+                                    ...p,
+                                    tagline: p.tagline || seedMatch.tagline,
+                                    programmingLanguages: (p.programmingLanguages && p.programmingLanguages.length > 0) ? p.programmingLanguages : seedMatch.programmingLanguages,
+                                    contactInfo: p.contactInfo || seedMatch.contactInfo,
+                                    aiAuthored: p.aiAuthored ?? seedMatch.aiAuthored,
+                                    aiDossier: p.aiDossier || seedMatch.aiDossier
+                                };
+                            }
+                            return p;
+                        });
+                        setNetworkProfiles(hydrated);
+                    } else {
+                        setNetworkProfiles(MOCK_PROFILES_PRESEEDED);
+                    }
                 } else {
                     setNetworkProfiles(MOCK_PROFILES_PRESEEDED);
                     await safeStorage.setItem('aetheros_network_profiles', JSON.stringify(MOCK_PROFILES_PRESEEDED));
@@ -1131,46 +1265,7 @@ contract ComplianceLedger {
     const [taskSearchAssignee, setTaskSearchAssignee] = useState('');
     const [taskSearchStatus, setTaskSearchStatus] = useState<'all' | 'completed' | 'active'>('all');
 
-    // User Profile edit states
-    const [profilesSubMode, setProfilesSubMode] = useState<'directory' | 'my_profile'>('directory');
-    const [editUsername, setEditUsername] = useState('');
-    const [editBio, setEditBio] = useState('');
-    const [editExperience, setEditExperience] = useState('');
-    const [editContactEmail, setEditContactEmail] = useState('');
-    const [editContactDiscord, setEditContactDiscord] = useState('');
-    const [editContactTelegram, setEditContactTelegram] = useState('');
-    const [editContactTwitter, setEditContactTwitter] = useState('');
-    const [editContactPhone, setEditContactPhone] = useState('');
-    const [editContactGithub, setEditContactGithub] = useState('');
-    const [editContactWebsite, setEditContactWebsite] = useState('');
-    
-    // Skill matrix inputs
-    const [editMentorSkillInput, setEditMentorSkillInput] = useState('');
-    
-    // Portfolio lists states
-    const [newPortfolioLabel, setNewPortfolioLabel] = useState('');
-    const [newPortfolioUrl, setNewPortfolioUrl] = useState('');
-    
-    // Showcase projects states
-    const [newProjectTitle, setNewProjectTitle] = useState('');
-    const [newProjectRole, setNewProjectRole] = useState('');
-    const [newProjectStatus, setNewProjectStatus] = useState<'current' | 'past'>('past');
-    const [newProjectDesc, setNewProjectDesc] = useState('');
 
-    useEffect(() => {
-        if (profile) {
-            setEditUsername(profile.username || '');
-            setEditBio(profile.bio || '');
-            setEditExperience(profile.experienceLevel || '');
-            setEditContactEmail(profile.contactInfo?.email || '');
-            setEditContactDiscord(profile.contactInfo?.discord || '');
-            setEditContactTelegram(profile.contactInfo?.telegram || '');
-            setEditContactTwitter(profile.contactInfo?.twitter || '');
-            setEditContactPhone(profile.contactInfo?.phone || '');
-            setEditContactGithub(profile.contactInfo?.github || '');
-            setEditContactWebsite(profile.contactInfo?.website || '');
-        }
-    }, [profile]);
 
     // C4S arbitration states
     const [c4sDisputes, setC4sDisputes] = useState<C4SDispute[]>([]);
@@ -2274,7 +2369,7 @@ contract ComplianceLedger {
         setAgents(prev => (prev || [])?.map?.(a => {
             if (a.id === id) {
                 const newStatus = a.status === 'resting' ? 'available' as const : 'resting' as const;
-                toast.info(`${a.name} is now ${newStatus === 'resting' ? 'on Standby (2% idle cost)' : 'Active (100% compute allocation)'}`);
+                toast.info(`${a.name} is now ${newStatus === 'resting' ? 'on Standby (2% idle cost)' : 'Active (100% command capacity allocation)'}`);
                 return { ...a, status: newStatus };
             }
             return a;
@@ -2597,16 +2692,16 @@ contract ComplianceLedger {
                     /* SQUAD VIEW (WORKFORCE) */
                     <div className="space-y-12 max-w-7xl mx-auto">
                         
-                        {/* CPH COMPUTE CAPACITY & TIME-BASED BUDGET CONTROLS CODESPACE */}
+                        {/* CPH COMMANDS PER HOUR & TIME-BASED BUDGET CONTROLS CODESPACE */}
                         <div className="aero-panel bg-black border-4 border-violet-900/50 p-6 rounded-[2rem] relative overflow-hidden shadow-[8px_8px_0_0_rgba(124,58,237,0.2)]">
                             <div className="absolute top-0 right-0 w-64 h-64 bg-[radial-gradient(circle_at_100%_0%,_rgba(124,58,237,0.15)_0%,_transparent_70%)] pointer-events-none" />
                             
                             <div className="flex flex-col lg:flex-row justify-between gap-6 pb-6 border-b border-zinc-800">
                                 <div>
-                                    <h4 className="font-mono text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Compute Capacity Ledger</h4>
-                                    <h3 className="font-comic-header text-4xl text-white uppercase italic">CPH Resource Engine</h3>
+                                    <h4 className="font-mono text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Commands Per Hour (CPH) Ledger</h4>
+                                    <h3 className="font-comic-header text-4xl text-white uppercase italic">CPH Command Engine</h3>
                                     <p className="text-[11px] text-zinc-400 mt-2 max-w-xl">
-                                        Instead of abstract credits, CPH represents real compute capacity of your squad. Pause idle agents to stand them down to a 20% CPH baseline, or fire them to reclaim capacity.
+                                        Instead of abstract credits, CPH represents real <strong className="text-violet-400">Commands Per Hour</strong> throughput of your squad. Every physical action, movement, and operational command consumes discrete commands per hour. Pause idle agents to stand them down to a 20% CPH baseline, or fire them to reclaim command throughput.
                                     </p>
                                 </div>
                                 <div className="flex flex-col md:flex-row gap-4 items-start lg:items-center">
@@ -2625,7 +2720,7 @@ contract ComplianceLedger {
                                 {/* Utilization Circular/Bar Progress */}
                                 <div className="md:col-span-2 space-y-4">
                                     <div className="flex justify-between items-center text-xs font-mono font-bold">
-                                        <span className="text-zinc-400 uppercase">Compute Utilization Rate</span>
+                                        <span className="text-zinc-400 uppercase">Commands Per Hour Utilization Rate</span>
                                         <span className={CPHDisplay.getUtilizationColor(currentBudget.utilizationRate)}>
                                             {currentBudget.utilizationRate}% ({CPHDisplay.getUtilizationLabel(currentBudget.utilizationRate)})
                                         </span>
@@ -2652,16 +2747,16 @@ contract ComplianceLedger {
                                         <div className="bg-red-950/20 border border-red-900 p-3 rounded-xl flex items-center gap-3">
                                             <FireIcon className="w-5 h-5 text-red-500 animate-bounce" />
                                             <p className="text-[10px] text-red-400 uppercase font-black">
-                                                Burst Capacity Activated! Operating above 1000 CPH limit incurs a 2x burst multiplier billing penalty.
+                                                Burst Capacity Activated! Operating above 1000 CPH (Commands Per Hour) limit incurs a 2x burst multiplier billing penalty.
                                             </p>
                                         </div>
                                     )}
                                 </div>
                                 
-                                {/* Compute stats */}
+                                {/* Command stats */}
                                 <div className="bg-zinc-900/40 p-4 border border-zinc-800/80 rounded-2xl flex flex-col justify-between font-mono">
                                     <div>
-                                        <div className="text-[9px] text-zinc-500 uppercase mb-2">Capacity Allocation ledger</div>
+                                        <div className="text-[9px] text-zinc-500 uppercase mb-2">Command Capacity Allocation Ledger</div>
                                         <ul className="space-y-1.5 text-[10px] text-zinc-300">
                                             <li className="flex justify-between">
                                                 <span>• Maximum Budget:</span>
@@ -3055,7 +3150,7 @@ contract ComplianceLedger {
                                                      {/* CPH Metrics Section */}
                                                      <div className="flex justify-between items-center mb-3 text-[9px] font-mono text-zinc-400 bg-zinc-900/50 p-2.5 rounded-xl border border-white/5">
                                                          <div className="flex flex-col">
-                                                             <span>Compute Cost:</span>
+                                                             <span>Command Rate (CPH):</span>
                                                              <span className="text-white font-bold">{agent.currentSalary} CPH</span>
                                                          </div>
                                                          <div className="flex flex-col items-end">
@@ -4542,1013 +4637,25 @@ contract ComplianceLedger {
                         </div>
                     </div>
                 ) : viewMode === 'PROFILES' ? (
-                    /* PROFILES VIEW */
-                    <div className="space-y-8 max-w-7xl mx-auto pb-12 animate-in fade-in duration-300">
-                        {/* Sub Header */}
-                        <div className="aero-panel bg-black border-4 border-purple-950 p-6 rounded-[2rem] relative overflow-hidden shadow-[8px_8px_0_0_rgba(147,51,234,0.1)]">
-                            <div className="absolute top-0 right-0 w-64 h-64 bg-[radial-gradient(circle_at_100%_0%,_rgba(147,51,234,0.15)_0%,_transparent_70%)] pointer-events-none" />
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                <div>
-                                    <h4 className="font-mono text-zinc-550 text-[10px] uppercase tracking-widest mb-1 font-bold">Public Node Registers</h4>
-                                    <h3 className="font-comic-header text-4xl text-white uppercase italic">Network Node Portfolio Directories</h3>
-                                    <p className="text-[11px] text-zinc-400 mt-1 max-w-xl">
-                                        Explore public profile nodes within the Aetheros coding network. Suggest matches and query individual technologies instantly.
-                                    </p>
-                                </div>
-                                <div className="w-full sm:w-auto flex flex-col gap-2">
-                                    <input
-                                        type="text"
-                                        placeholder="Query username or technology skill..."
-                                        value={searchProfileQuery}
-                                        onChange={(e) => setSearchProfileQuery(e.target.value)}
-                                        className="w-full sm:w-72 bg-zinc-950 border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white focus:outline-none focus:border-purple-500 font-mono placeholder:text-zinc-650"
-                                    />
-                                    {/* Segmented Filter */}
-                                    <div className="flex bg-zinc-950 border border-zinc-900 p-1 rounded-xl w-full sm:w-72">
-                                        <button
-                                            onClick={() => setSkillFilterMode('all')}
-                                            className={`flex-1 text-[9px] font-mono tracking-wider font-bold py-1.5 rounded-lg transition-all ${
-                                                skillFilterMode === 'all'
-                                                    ? 'bg-purple-650 text-white font-black shadow-md shadow-purple-900/30'
-                                                    : 'text-zinc-500 hover:text-zinc-350'
-                                            }`}
-                                        >
-                                            ALL INFO
-                                        </button>
-                                        <button
-                                            onClick={() => setSkillFilterMode('possess')}
-                                            className={`flex-1 text-[9px] font-mono tracking-wider font-bold py-1.5 rounded-lg transition-all ${
-                                                skillFilterMode === 'possess'
-                                                    ? 'bg-purple-650 text-white font-black shadow-md shadow-purple-900/30'
-                                                    : 'text-zinc-500 hover:text-zinc-350'
-                                            }`}
-                                        >
-                                            POSSESS
-                                        </button>
-                                        <button
-                                            onClick={() => setSkillFilterMode('mentor')}
-                                            className={`flex-1 text-[9px] font-mono tracking-wider font-bold py-1.5 rounded-lg transition-all ${
-                                                skillFilterMode === 'mentor'
-                                                    ? 'bg-purple-650 text-white font-black shadow-md shadow-purple-900/30'
-                                                    : 'text-zinc-500 hover:text-zinc-350'
-                                            }`}
-                                        >
-                                            MENTORS
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Sub Navigation Tabs for Directory vs My Profile */}
-                        <div className="flex bg-zinc-950 p-1.5 rounded-2xl border-2 border-purple-950 max-w-md mx-auto">
-                            <button
-                                onClick={() => setProfilesSubMode('directory')}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-mono font-black uppercase tracking-wider transition-all ${
-                                    profilesSubMode === 'directory'
-                                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-950/40'
-                                        : 'text-zinc-400 hover:text-white hover:bg-zinc-900/40'
-                                }`}
-                            >
-                                🌐 Nodes Directory
-                            </button>
-                            <button
-                                onClick={() => setProfilesSubMode('my_profile')}
-                                className={`flex-1 flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-xs font-mono font-black uppercase tracking-wider transition-all ${
-                                    profilesSubMode === 'my_profile'
-                                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-950/40'
-                                        : 'text-zinc-400 hover:text-white hover:bg-zinc-900/40'
-                                }`}
-                            >
-                                👤 My Profile Hub
-                            </button>
-                        </div>
-
-                        {profilesSubMode === 'directory' ? (
-                            <>
-                                {/* Profiles Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Render active profiles */}
-                            {(networkProfiles || [])
-                                ?.filter?.(p => {
-                                    const q = searchProfileQuery.trim().toLowerCase();
-                                    const teachSkills = p.willingToTeachSkills || [];
-                                    const hasTeach = teachSkills.length > 0;
-                                    
-                                    if (skillFilterMode === 'possess') {
-                                        if (!q) return true;
-                                        return (p.skills || []).some((s: string) => s.toLowerCase().includes(q));
-                                    }
-                                    
-                                    if (skillFilterMode === 'mentor') {
-                                        if (!hasTeach) return false;
-                                        if (!q) return true;
-                                        return p.username.toLowerCase().includes(q) || 
-                                               teachSkills.some((s: string) => s.toLowerCase().includes(q));
-                                    }
-                                    
-                                    if (!q) return true;
-                                    const projInterests = p.lookingForSkills || [];
-                                    const pastProjects = p.profileProjects || [];
-                                    return p.username.toLowerCase().includes(q) ||
-                                        (p.skills || []).some((s: string) => s.toLowerCase().includes(q)) ||
-                                        projInterests.some((s: string) => s.toLowerCase().includes(q)) ||
-                                        teachSkills.some((s: string) => s.toLowerCase().includes(q)) ||
-                                        (p.bio || '').toLowerCase().includes(q) ||
-                                        pastProjects.some((pr: any) => 
-                                            (pr.title || '').toLowerCase().includes(q) || 
-                                            (pr.description || '').toLowerCase().includes(q) ||
-                                            (pr.technologies || []).some((t: string) => t.toLowerCase().includes(q))
-                                        );
-                                })
-                                ?.map?.(p => {
-                                    // Calculate match percentage against current user's profile
-                                    const matchInfo = calculateCompatibility(profile, p);
-                                    return (
-                                        <div 
-                                            key={p.id}
-                                            onClick={() => setSelectedProfileNode(p)}
-                                            className="bg-[#0b0b18]/70 border-2 border-zinc-900 rounded-3xl p-6 hover:border-purple-500/50 transition-all cursor-pointer relative group overflow-hidden flex flex-col justify-between hover:translate-y-[-2px] shadow-lg"
-                                        >
-                                            <div className="absolute top-0 right-0 w-24 h-24 bg-[radial-gradient(circle_at_100%_0%,_rgba(147,51,234,0.1)_0%,_transparent_70%)] pointer-events-none" />
-                                            <div>
-                                                {/* Header Node Info */}
-                                                <div className="flex items-center gap-4 mb-4">
-                                                    <img 
-                                                        src={p.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'} 
-                                                        alt={p.username} 
-                                                        className="w-12 h-12 rounded-full border border-purple-500/30 object-cover"
-                                                        referrerPolicy="no-referrer"
-                                                    />
-                                                    <div>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="font-mono text-sm font-black text-white hover:text-purple-400">@{p.username}</span>
-                                                            <span className="text-[9px] font-mono bg-purple-500/10 text-purple-400 px-2 py-0.5 rounded uppercase font-black">{p.experienceLevel || 'Node Expert'}</span>
-                                                        </div>
-                                                        <span className="text-[10px] uppercase font-mono text-gray-500 tracking-wider">AetherOS Routing Authority</span>
-                                                    </div>
- 
-                                                    {/* Telemetry Compatibility Match Badge */}
-                                                    <div className="ml-auto text-right">
-                                                        <div className="text-xs font-mono font-black text-rose-450 flex items-center gap-1 bg-rose-500/5 border border-rose-500/15 py-1 px-2.5 rounded-xl">
-                                                            <svg className="w-2.5 h-2.5 fill-current text-rose-500" viewBox="0 0 24 24">
-                                                                <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                                                            </svg>
-                                                            <span>{matchInfo.score}% MATCH</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
- 
-                                                {/* Bio */}
-                                                 <p className="text-xs text-zinc-400 leading-relaxed mb-4 line-clamp-2">{p.bio}</p>
-
-                                                 {/* Skills Badges */}
-                                                <div className="space-y-2 mb-4">
-                                                    <h5 className="text-[9px] font-mono uppercase text-zinc-550 tracking-wider font-bold">Stack Indices</h5>
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {(p.skills || []).slice(0, 4)?.map?.((s: string) => {
-                                                            const endorsers = p.skillEndorsements?.[s] || [];
-                                                            return (
-                                                                <span key={s} className="px-2 py-0.5 bg-[#101026] text-[9px] font-mono text-zinc-305 border border-white/5 rounded-md flex items-center gap-1">
-                                                                    <span>{s}</span>
-                                                                    <span className={`px-1 py-0.5 rounded-sm text-[8px] font-mono leading-none ${
-                                                                        endorsers.includes(profile?.username || 'Aetheros_Prime') 
-                                                                            ? 'bg-purple-500/20 text-purple-400 font-extrabold border border-purple-500/30' 
-                                                                            : 'bg-zinc-850 text-zinc-500'
-                                                                    }`}>
-                                                                        {endorsers.length}
-                                                                    </span>
-                                                                </span>
-                                                            );
-                                                        })}
-                                                         {(p.skills || []).length > 4 && (
-                                                            <span className="px-2 py-0.5 bg-purple-950/20 text-[9px] font-mono text-purple-400 border border-purple-500/10 rounded-md">
-                                                                +{(p.skills || []).length - 4}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
- 
-                                                {/* Seeking Skills Indices */}
-                                                {(p.lookingForSkills || []).length > 0 && (
-                                                    <div className="space-y-2 mb-2">
-                                                        <h5 className="text-[9px] font-mono uppercase text-zinc-550 tracking-wider font-bold">Seeking Collaborators</h5>
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {(p.lookingForSkills || []).slice(0, 4)?.map?.((s: string) => (
-                                                                <span key={s} className="px-2 py-0.5 bg-rose-950/20 text-[9px] font-mono text-rose-400 border border-rose-500/10 rounded-md">
-                                                                    {s}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Mentoring Badges */}
-                                                {(p.willingToTeachSkills || []).length > 0 && (
-                                                    <div className="space-y-2 mb-2">
-                                                        <h5 className="text-[9px] font-mono uppercase text-emerald-500 tracking-wider font-bold">🎓 Willing to Mentor</h5>
-                                                        <div className="flex flex-wrap gap-1">
-                                                            {(p.willingToTeachSkills || []).slice(0, 4).map((s: string) => (
-                                                                <span key={s} className="px-2 py-0.5 bg-emerald-950/20 text-[9px] font-mono text-emerald-400 border border-emerald-500/10 rounded-md">
-                                                                    {s}
-                                                                </span>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
- 
-                                            {/* Action footer */}
-                                            <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-zinc-550 gap-2">
-                                                <span>{(p.portfolioLinks || []).length} Portfolios Connected</span>
-                                                <div className="flex items-center gap-2">
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setInvitationTargetProfile(p);
-                                                        }}
-                                                        className="px-2 py-1 bg-emerald-950/40 hover:bg-emerald-600 border border-emerald-500/20 text-emerald-400 hover:text-black rounded text-[9px] font-black uppercase tracking-wider transition-all"
-                                                    >
-                                                        🤝 Invite
-                                                    </button>
-                                                    <span className="text-purple-400 uppercase font-black tracking-wider group-hover:translate-x-1 transition-transform">Inspect Node Detail &rarr;</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                                {networkProfiles.length === 0 && (
-                                    <div className="md:col-span-2 text-center py-12 border border-dashed border-zinc-800 rounded-3xl">
-                                        <span className="text-zinc-600 block uppercase font-mono text-xs font-black">No profile nodes available in net config.</span>
-                                    </div>
-                                )}
-                            </>
-                        ) : (
-                            /* Render MY PROFILE HUB with full editing and radar chart */
-                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 text-left">
-                                {/* Left Column: Visual Analytics & Skills Config */}
-                                <div className="lg:col-span-5 space-y-6">
-                                    {/* Radar Chart Panel */}
-                                    <div className="bg-zinc-950 border-2 border-purple-950/40 rounded-3xl p-6 relative overflow-hidden shadow-xl">
-                                        <div className="absolute top-0 left-0 w-1.5 h-full bg-purple-500" />
-                                        <h4 className="text-[10px] font-mono text-purple-400 uppercase tracking-widest font-black flex items-center gap-1.5 mb-1">
-                                            <span>⚖️ Verified Skill Signature Matrix</span>
-                                        </h4>
-                                        <p className="text-[9px] text-zinc-500 font-mono mb-4">
-                                            Dynamically compiled distribution of your active skills.
-                                        </p>
-
-                                        <div className="h-[220px] w-full flex items-center justify-center relative">
-                                            <ResponsiveContainer width="100%" height="100%">
-                                                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarDataForOwnNode}>
-                                                    <PolarGrid stroke="#27272a" />
-                                                    <PolarAngleAxis 
-                                                        dataKey="subject" 
-                                                        tick={{ fill: '#a1a1aa', fontSize: 8.5, fontFamily: 'monospace' }}
-                                                    />
-                                                    <PolarRadiusAxis 
-                                                        angle={30} 
-                                                        domain={[0, 100]} 
-                                                        tick={{ fill: '#52525b', fontSize: 7.5 }}
-                                                    />
-                                                    <Radar
-                                                        name="Proficiency"
-                                                        dataKey="value"
-                                                        stroke="#a855f7"
-                                                        fill="#a855f7"
-                                                        fillOpacity={0.25}
-                                                    />
-                                                </RadarChart>
-                                            </ResponsiveContainer>
-                                        </div>
-                                    </div>
-
-                                    {/* Skills Management Panel */}
-                                    <div className="bg-zinc-950 border border-zinc-900 rounded-3xl p-6 space-y-6">
-                                        {/* Skills offered */}
-                                        <div className="space-y-3">
-                                            <h5 className="text-[10px] font-mono text-purple-400 uppercase tracking-wider font-bold">// 1. Skills You Offer</h5>
-                                            <div className="flex flex-wrap gap-1.5 min-h-[30px] items-center">
-                                                {(profile?.skills || []).map((s: string) => (
-                                                    <span key={s} className="px-2 py-0.5 bg-purple-950/20 text-[10px] font-mono text-purple-300 rounded-md border border-purple-500/10 flex items-center gap-1.5">
-                                                        <span>{s}</span>
-                                                        <button 
-                                                            onClick={() => {
-                                                                if (onUpdateProfile && profile) {
-                                                                    const next = (profile.skills || []).filter(item => item !== s);
-                                                                    onUpdateProfile({ skills: next });
-                                                                    toast.success(`Removed skill: ${s}`);
-                                                                }
-                                                            }}
-                                                            className="text-red-400 hover:text-red-300 cursor-pointer text-xs font-black"
-                                                        >
-                                                            ×
-                                                        </button>
-                                                    </span>
-                                                ))}
-                                                {(profile?.skills || []).length === 0 && (
-                                                    <span className="text-[9px] text-zinc-650 italic">No skills configured.</span>
-                                                )}
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <input 
-                                                    type="text"
-                                                    placeholder="Add skill (e.g. Go, Rust)..."
-                                                    value={offeringInput}
-                                                    onChange={e => setOfferingInput(e.target.value)}
-                                                    onKeyDown={e => {
-                                                        if (e.key === 'Enter') {
-                                                            const val = offeringInput.trim();
-                                                            if (val && profile && onUpdateProfile) {
-                                                                const current = profile.skills || [];
-                                                                if (!current.includes(val)) {
-                                                                    onUpdateProfile({ skills: [...current, val] });
-                                                                    setOfferingInput('');
-                                                                    toast.success(`Added skill: ${val}`);
-                                                                }
-                                                            }
-                                                        }
-                                                    }}
-                                                    className="flex-1 bg-black border border-zinc-800 rounded-xl px-3 py-1 text-xs text-white placeholder-zinc-700 font-mono"
-                                                />
-                                                <button 
-                                                    onClick={() => {
-                                                        const val = offeringInput.trim();
-                                                        if (val && profile && onUpdateProfile) {
-                                                            const current = profile.skills || [];
-                                                            if (!current.includes(val)) {
-                                                                    onUpdateProfile({ skills: [...current, val] });
-                                                                    setOfferingInput('');
-                                                                    toast.success(`Added skill: ${val}`);
-                                                            }
-                                                        }
-                                                    }}
-                                                    className="px-3 py-1 bg-purple-650 hover:bg-purple-500 text-white font-mono text-[9px] font-black uppercase rounded-lg"
-                                                >
-                                                    Add
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Looking For skills */}
-                                        <div className="space-y-3 pt-2 border-t border-zinc-900">
-                                            <h5 className="text-[10px] font-mono text-rose-400 uppercase tracking-wider font-bold">// 2. Skills You Seek</h5>
-                                            <div className="flex flex-wrap gap-1.5 min-h-[30px] items-center">
-                                                {(profile?.lookingForSkills || []).map((s: string) => (
-                                                    <span key={s} className="px-2 py-0.5 bg-rose-950/20 text-[10px] font-mono text-rose-300 rounded-md border border-rose-500/10 flex items-center gap-1.5">
-                                                        <span>{s}</span>
-                                                        <button 
-                                                            onClick={() => {
-                                                                if (onUpdateProfile && profile) {
-                                                                    const next = (profile.lookingForSkills || []).filter(item => item !== s);
-                                                                    onUpdateProfile({ lookingForSkills: next });
-                                                                    toast.success(`Removed seeking skill: ${s}`);
-                                                                }
-                                                            }}
-                                                            className="text-red-400 hover:text-red-300 cursor-pointer text-xs font-black"
-                                                        >
-                                                            ×
-                                                        </button>
-                                                    </span>
-                                                ))}
-                                                {(profile?.lookingForSkills || []).length === 0 && (
-                                                    <span className="text-[9px] text-zinc-650 italic">No seeking terms configured.</span>
-                                                )}
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <input 
-                                                    type="text"
-                                                    placeholder="Add seeking skill (e.g. Solidity, Python)..."
-                                                    value={lookingInput}
-                                                    onChange={e => setLookingInput(e.target.value)}
-                                                    onKeyDown={e => {
-                                                        if (e.key === 'Enter') {
-                                                            const val = lookingInput.trim();
-                                                            if (val && profile && onUpdateProfile) {
-                                                                const current = profile.lookingForSkills || [];
-                                                                if (!current.includes(val)) {
-                                                                    onUpdateProfile({ lookingForSkills: [...current, val] });
-                                                                    setLookingInput('');
-                                                                    toast.success(`Added seeking skill: ${val}`);
-                                                                }
-                                                            }
-                                                        }
-                                                    }}
-                                                    className="flex-1 bg-black border border-zinc-800 rounded-xl px-3 py-1 text-xs text-white placeholder-zinc-700 font-mono"
-                                                />
-                                                <button 
-                                                    onClick={() => {
-                                                        const val = lookingInput.trim();
-                                                        if (val && profile && onUpdateProfile) {
-                                                            const current = profile.lookingForSkills || [];
-                                                            if (!current.includes(val)) {
-                                                                    onUpdateProfile({ lookingForSkills: [...current, val] });
-                                                                    setLookingInput('');
-                                                                    toast.success(`Added seeking skill: ${val}`);
-                                                            }
-                                                        }
-                                                    }}
-                                                    className="px-3 py-1 bg-rose-650 hover:bg-rose-500 text-white font-mono text-[9px] font-black uppercase rounded-lg"
-                                                >
-                                                    Add
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {/* Mentorship skills */}
-                                        <div className="space-y-3 pt-2 border-t border-zinc-900">
-                                            <h5 className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider font-bold">// 3. Skills You Can Mentor</h5>
-                                            <div className="flex flex-wrap gap-1.5 min-h-[30px] items-center">
-                                                {(profile?.willingToTeachSkills || []).map((s: string) => (
-                                                    <span key={s} className="px-2 py-0.5 bg-emerald-950/20 text-[10px] font-mono text-emerald-300 rounded-md border border-emerald-500/10 flex items-center gap-1.5">
-                                                        <span>{s}</span>
-                                                        <button 
-                                                            onClick={() => {
-                                                                if (onUpdateProfile && profile) {
-                                                                    const next = (profile.willingToTeachSkills || []).filter(item => item !== s);
-                                                                    onUpdateProfile({ willingToTeachSkills: next });
-                                                                    toast.success(`Removed mentoring skill: ${s}`);
-                                                                }
-                                                            }}
-                                                            className="text-red-400 hover:text-red-300 cursor-pointer text-xs font-black"
-                                                        >
-                                                            ×
-                                                        </button>
-                                                    </span>
-                                                ))}
-                                                {(profile?.willingToTeachSkills || []).length === 0 && (
-                                                    <span className="text-[9px] text-zinc-650 italic">No mentoring skills configured.</span>
-                                                )}
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <input 
-                                                    type="text"
-                                                    placeholder="Add mentoring skill (e.g. AWS, Node.js)..."
-                                                    value={editMentorSkillInput}
-                                                    onChange={e => setEditMentorSkillInput(e.target.value)}
-                                                    onKeyDown={e => {
-                                                        if (e.key === 'Enter') {
-                                                            const val = editMentorSkillInput.trim();
-                                                            if (val && profile && onUpdateProfile) {
-                                                                const current = profile.willingToTeachSkills || [];
-                                                                if (!current.includes(val)) {
-                                                                    onUpdateProfile({ willingToTeachSkills: [...current, val] });
-                                                                    setEditMentorSkillInput('');
-                                                                    toast.success(`Added mentoring skill: ${val}`);
-                                                                }
-                                                            }
-                                                        }
-                                                    }}
-                                                    className="flex-1 bg-black border border-zinc-800 rounded-xl px-3 py-1 text-xs text-white placeholder-zinc-700 font-mono"
-                                                />
-                                                <button 
-                                                    onClick={() => {
-                                                        const val = editMentorSkillInput.trim();
-                                                        if (val && profile && onUpdateProfile) {
-                                                            const current = profile.willingToTeachSkills || [];
-                                                            if (!current.includes(val)) {
-                                                                    onUpdateProfile({ willingToTeachSkills: [...current, val] });
-                                                                    setEditMentorSkillInput('');
-                                                                    toast.success(`Added mentoring skill: ${val}`);
-                                                            }
-                                                        }
-                                                    }}
-                                                    className="px-3 py-1 bg-emerald-650 hover:bg-emerald-500 text-white font-mono text-[9px] font-black uppercase rounded-lg"
-                                                >
-                                                    Add
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Contact Info Config Panel */}
-                                    <div className="bg-zinc-950 border border-zinc-900 rounded-3xl p-6 space-y-4">
-                                        <h5 className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider font-bold">// 4. External Portals & Contacts</h5>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] font-mono">
-                                            <div className="space-y-1">
-                                                <span className="text-zinc-550 block text-[9px] uppercase font-bold">Email</span>
-                                                <input 
-                                                    type="text"
-                                                    value={editContactEmail}
-                                                    onChange={e => {
-                                                        setEditContactEmail(e.target.value);
-                                                        onUpdateProfile?.({ contactInfo: { ...profile?.contactInfo, email: e.target.value } });
-                                                    }}
-                                                    className="w-full bg-black border border-zinc-900 rounded-lg p-2 text-white focus:border-purple-500/50 outline-none"
-                                                />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <span className="text-zinc-550 block text-[9px] uppercase font-bold">Discord</span>
-                                                <input 
-                                                    type="text"
-                                                    value={editContactDiscord}
-                                                    onChange={e => {
-                                                        setEditContactDiscord(e.target.value);
-                                                        onUpdateProfile?.({ contactInfo: { ...profile?.contactInfo, discord: e.target.value } });
-                                                    }}
-                                                    className="w-full bg-black border border-zinc-900 rounded-lg p-2 text-white focus:border-purple-500/50 outline-none"
-                                                />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <span className="text-zinc-550 block text-[9px] uppercase font-bold">Telegram</span>
-                                                <input 
-                                                    type="text"
-                                                    value={editContactTelegram}
-                                                    onChange={e => {
-                                                        setEditContactTelegram(e.target.value);
-                                                        onUpdateProfile?.({ contactInfo: { ...profile?.contactInfo, telegram: e.target.value } });
-                                                    }}
-                                                    className="w-full bg-black border border-zinc-900 rounded-lg p-2 text-white focus:border-purple-500/50 outline-none"
-                                                />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <span className="text-zinc-550 block text-[9px] uppercase font-bold">GitHub Portal</span>
-                                                <input 
-                                                    type="text"
-                                                    value={editContactGithub}
-                                                    onChange={e => {
-                                                        setEditContactGithub(e.target.value);
-                                                        onUpdateProfile?.({ contactInfo: { ...profile?.contactInfo, github: e.target.value } });
-                                                    }}
-                                                    className="w-full bg-black border border-zinc-900 rounded-lg p-2 text-white focus:border-purple-500/50 outline-none"
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Right Column: Core Bio, Portfolios, Showcase Projects */}
-                                <div className="lg:col-span-7 space-y-6">
-                                    {/* Core Profile Parameters */}
-                                    <div className="bg-[#0b0b18]/80 border-2 border-zinc-900 rounded-3xl p-6 space-y-4">
-                                        <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-black">CORE NODE PARAMETERS</h4>
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Operator Username</label>
-                                                <input 
-                                                    type="text"
-                                                    value={editUsername}
-                                                    onChange={e => {
-                                                        setEditUsername(e.target.value);
-                                                        onUpdateProfile?.({ username: e.target.value });
-                                                    }}
-                                                    className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white font-mono"
-                                                />
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase">Experience Index</label>
-                                                <input 
-                                                    type="text"
-                                                    value={editExperience}
-                                                    onChange={e => {
-                                                        setEditExperience(e.target.value);
-                                                        onUpdateProfile?.({ experienceLevel: e.target.value });
-                                                    }}
-                                                    className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white font-mono"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] font-mono font-bold text-zinc-400 uppercase block">Brief Professional Biography</label>
-                                            <textarea 
-                                                value={editBio}
-                                                onChange={e => {
-                                                    setEditBio(e.target.value);
-                                                    onUpdateProfile?.({ bio: e.target.value });
-                                                }}
-                                                rows={3}
-                                                className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-2.5 text-xs text-zinc-300 leading-relaxed outline-none focus:border-purple-500 transition-all"
-                                                placeholder="Describe your primary specialties, focus, and system architectures..."
-                                            />
-                                        </div>
-                                    </div>
-
-                                    {/* Links and Portfolios connected */}
-                                    <div className="bg-zinc-950 border border-zinc-900 rounded-3xl p-6 space-y-4">
-                                        <div className="flex justify-between items-center">
-                                            <h4 className="text-[10px] font-mono text-purple-400 uppercase tracking-widest font-bold">EXTERNAL PORTFOLIO PORTALS</h4>
-                                            <span className="text-[9px] text-zinc-600 font-mono">{(profile?.portfolioLinks || []).length} connected</span>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                            {(profile?.portfolioLinks || []).map((lnk) => (
-                                                <div key={lnk.id} className="flex items-center justify-between p-3 bg-black border border-zinc-900 rounded-xl">
-                                                    <div className="truncate max-w-[80%]">
-                                                        <div className="text-[11px] font-bold text-gray-200 uppercase font-mono">{lnk.label}</div>
-                                                        <a href={lnk.url} target="_blank" rel="noreferrer" className="text-[8px] font-mono text-zinc-500 hover:text-purple-400 truncate block">
-                                                            {lnk.url}
-                                                        </a>
-                                                    </div>
-                                                    <button 
-                                                        onClick={() => {
-                                                            const current = profile?.portfolioLinks || [];
-                                                            onUpdateProfile?.({ portfolioLinks: current.filter(item => item.id !== lnk.id) });
-                                                            toast.success("Removed portfolio Portal.");
-                                                        }}
-                                                        className="p-1 text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded-lg text-xs"
-                                                    >
-                                                        Remove
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            {(profile?.portfolioLinks || []).length === 0 && (
-                                                <p className="text-[10px] text-zinc-600 italic sm:col-span-2">No portfolio portals connected yet.</p>
-                                            )}
-                                        </div>
-
-                                        {/* Add portfolio form */}
-                                        <div className="pt-2 border-t border-zinc-900 space-y-2">
-                                            <span className="text-[9px] font-mono uppercase text-zinc-500 font-bold block">Connect New Portfolio Portal</span>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                <input 
-                                                    type="text"
-                                                    placeholder="Portal Label (e.g. GitHub Node)"
-                                                    value={newPortfolioLabel}
-                                                    onChange={e => setNewPortfolioLabel(e.target.value)}
-                                                    className="bg-black border border-zinc-900 rounded-lg p-2 text-[10px] text-white font-mono"
-                                                />
-                                                <input 
-                                                    type="text"
-                                                    placeholder="https://..."
-                                                    value={newPortfolioUrl}
-                                                    onChange={e => setNewPortfolioUrl(e.target.value)}
-                                                    className="bg-black border border-zinc-900 rounded-lg p-2 text-[10px] text-white font-mono"
-                                                />
-                                            </div>
-                                            <button 
-                                                onClick={() => {
-                                                    if (!newPortfolioLabel.trim() || !newPortfolioUrl.trim()) {
-                                                        toast.error("Please fill in both fields.");
-                                                        return;
-                                                    }
-                                                    const current = profile?.portfolioLinks || [];
-                                                    const newLnk = { id: `link_${Date.now()}`, label: newPortfolioLabel.trim(), url: newPortfolioUrl.trim() };
-                                                    onUpdateProfile?.({ portfolioLinks: [...current, newLnk] });
-                                                    setNewPortfolioLabel('');
-                                                    setNewPortfolioUrl('');
-                                                    toast.success("Added portfolio portal successfully.");
-                                                }}
-                                                className="w-full py-1.5 bg-purple-950/40 hover:bg-purple-600 border border-purple-500/20 hover:text-black text-purple-400 font-mono text-[9px] font-black uppercase rounded-lg transition-all"
-                                            >
-                                                + CONNECT PORTFOLIO PORTAL
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Showcase completed projects */}
-                                    <div className="bg-zinc-950 border border-zinc-900 rounded-3xl p-6 space-y-4">
-                                        <div className="flex justify-between items-center">
-                                            <h4 className="text-[10px] font-mono text-purple-400 uppercase tracking-widest font-bold">PROJECT SHOWCASE TIMELINE</h4>
-                                            <span className="text-[9px] text-zinc-600 font-mono">{(profile?.profileProjects || []).length} active showcases</span>
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            {(profile?.profileProjects || []).map((pro) => (
-                                                <div key={pro.id} className="p-4 bg-black/60 border border-zinc-900 rounded-2xl space-y-2 relative group text-left">
-                                                    <div className="flex justify-between items-start">
-                                                        <div>
-                                                            <h5 className="text-xs font-black text-white font-sans uppercase">{pro.title}</h5>
-                                                            <div className="flex items-center gap-2 mt-1">
-                                                                <span className="text-[9px] font-mono bg-purple-500/10 text-purple-400 px-1.5 py-0.5 rounded font-bold">{pro.roleDefined}</span>
-                                                                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded font-bold ${pro.status === 'current' ? 'bg-emerald-500/15 text-emerald-400' : 'bg-zinc-800 text-zinc-500'}`}>
-                                                                    {pro.status === 'current' ? 'CURRENT BUILD' : 'PAST SHOWCASE'}
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                        <button 
-                                                            onClick={() => {
-                                                                const current = profile?.profileProjects || [];
-                                                                onUpdateProfile?.({ profileProjects: current.filter(item => item.id !== pro.id) });
-                                                                toast.success("Removed showcase project.");
-                                                            }}
-                                                            className="p-1 px-2 text-xs font-mono font-bold text-red-500 hover:bg-red-500/10 rounded-md transition-all"
-                                                        >
-                                                            Remove
-                                                        </button>
-                                                    </div>
-                                                    <p className="text-[11px] text-zinc-400 leading-relaxed">{pro.description}</p>
-                                                </div>
-                                            ))}
-                                            {(profile?.profileProjects || []).length === 0 && (
-                                                <p className="text-[10px] text-zinc-650 italic">No showcase projects registered yet.</p>
-                                            )}
-                                        </div>
-
-                                        {/* Add showcase project form */}
-                                        <div className="pt-2 border-t border-zinc-900 space-y-3">
-                                            <span className="text-[9px] font-mono uppercase text-zinc-500 font-bold block">Deploy New Showcase Project Node</span>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                <input 
-                                                    type="text"
-                                                    placeholder="Project Title (e.g. Cognitive Pipeline)"
-                                                    value={newProjectTitle}
-                                                    onChange={e => setNewProjectTitle(e.target.value)}
-                                                    className="bg-black border border-zinc-900 rounded-lg p-2 text-[10px] text-white font-mono"
-                                                />
-                                                <input 
-                                                    type="text"
-                                                    placeholder="Role (e.g. Core Developer / Lead)"
-                                                    value={newProjectRole}
-                                                    onChange={e => setNewProjectRole(e.target.value)}
-                                                    className="bg-black border border-zinc-900 rounded-lg p-2 text-[10px] text-white font-mono"
-                                                />
-                                            </div>
-                                            <div className="flex items-center gap-3 bg-black/60 p-2 border border-zinc-900 rounded-lg">
-                                                <span className="text-[9px] font-mono uppercase text-zinc-505 font-bold">Build Status:</span>
-                                                <button 
-                                                    onClick={() => setNewProjectStatus('current')}
-                                                    className={`px-3 py-1 text-[9px] font-mono uppercase font-black rounded-md transition-all ${newProjectStatus === 'current' ? 'bg-emerald-600 text-black' : 'bg-zinc-900 text-zinc-500'}`}
-                                                >
-                                                    CURRENT BUILD
-                                                </button>
-                                                <button 
-                                                    onClick={() => setNewProjectStatus('past')}
-                                                    className={`px-3 py-1 text-[9px] font-mono uppercase font-black rounded-md transition-all ${newProjectStatus === 'past' ? 'bg-zinc-800 text-white' : 'bg-zinc-900 text-zinc-500'}`}
-                                                >
-                                                    PAST SHOWCASE
-                                                </button>
-                                            </div>
-                                            <textarea 
-                                                placeholder="Showcase Description (brief specification summary details)..."
-                                                value={newProjectDesc}
-                                                onChange={e => setNewProjectDesc(e.target.value)}
-                                                rows={2}
-                                                className="w-full bg-black border border-zinc-900 rounded-lg p-2.5 text-[10px] text-zinc-300 outline-none focus:border-purple-500 font-sans"
-                                            />
-                                            <button 
-                                                onClick={() => {
-                                                    if (!newProjectTitle.trim() || !newProjectRole.trim() || !newProjectDesc.trim()) {
-                                                        toast.error("Please fill in all project showcase details.");
-                                                        return;
-                                                    }
-                                                    const current = profile?.profileProjects || [];
-                                                    const newPro = { id: `proj_${Date.now()}`, title: newProjectTitle.trim(), roleDefined: newProjectRole.trim(), status: newProjectStatus, description: newProjectDesc.trim() };
-                                                    onUpdateProfile?.({ profileProjects: [...current, newPro] });
-                                                    setNewProjectTitle('');
-                                                    setNewProjectRole('');
-                                                    setNewProjectDesc('');
-                                                    toast.success("Showcase project deployed successfully.");
-                                                }}
-                                                className="w-full py-1.5 bg-purple-950/40 hover:bg-purple-600 border border-purple-500/20 hover:text-black text-purple-400 font-mono text-[9px] font-black uppercase rounded-lg transition-all"
-                                            >
-                                                + DEPLOY PROJECT SHOWCASE NODE
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Selected profile node detail modal */}
-                        <AnimatePresence>
-                            {selectedProfileNode && (
-                                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md overflow-y-auto">
-                                    <motion.div
-                                        initial={{ scale: 0.95, opacity: 0 }}
-                                        animate={{ scale: 1, opacity: 1 }}
-                                        exit={{ scale: 0.95, opacity: 0 }}
-                                        className="w-full max-w-2xl bg-[#090915] border-2 border-white/10 rounded-3xl overflow-hidden shadow-2xl relative block"
-                                    >
-                                        <div className="p-6 bg-black/40 border-b border-white/5 flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <img 
-                                                    src={selectedProfileNode.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&w=150&q=80'} 
-                                                    alt={selectedProfileNode.username} 
-                                                    className="w-12 h-12 rounded-full border border-purple-500/35 object-cover"
-                                                    referrerPolicy="no-referrer"
-                                                />
-                                                <div>
-                                                    <h3 className="font-comic-header text-xl text-white uppercase italic leading-none">@{selectedProfileNode.username}</h3>
-                                                    <span className="text-[10px] font-mono uppercase bg-purple-500/10 text-purple-400 py-0.5 px-2 rounded mt-1 inline-block font-black">
-                                                        {selectedProfileNode.experienceLevel || 'Node Expert'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <button 
-                                                onClick={() => setSelectedProfileNode(null)}
-                                                className="p-1 px-2.5 bg-zinc-900 border border-zinc-800 text-gray-400 hover:text-white rounded-lg transition-colors text-xs font-mono font-black"
-                                            >
-                                                CLOSE
-                                            </button>
-                                        </div>
-
-                                        <div className="p-6 md:p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-                                            {/* About Bio */}
-                                            <div className="space-y-2">
-                                                <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-black">Bio Profile Parameter</h4>
-                                                <p className="text-xs text-zinc-300 leading-relaxed font-sans">{selectedProfileNode.bio}</p>
-                                            </div>
-
-                                            {/* Compatibility Breakdown in Detail Modal */}
-                                            {(() => {
-                                                const matchInfo = calculateCompatibility(profile, selectedProfileNode);
-                                                return (
-                                                    <div className="space-y-2 p-4 bg-rose-950/5 border border-rose-500/10 rounded-2xl relative overflow-hidden">
-                                                        <div className="flex justify-between items-center">
-                                                            <h4 className="text-[10px] font-mono text-rose-400 uppercase tracking-widest font-black">Lattice Proximity Compatibility</h4>
-                                                            <span className="text-xs font-mono font-black text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded">{matchInfo.score}% MATCH</span>
-                                                        </div>
-                                                        <div className="space-y-1 pt-1">
-                                                            {(matchInfo?.reasons || [])?.map?.((r, i) => (
-                                                                <p key={i} className="text-[11px] text-zinc-300 font-mono leading-normal flex items-start gap-1.5">
-                                                                    <span className="text-rose-500/60 font-bold">&gt;&gt;</span>
-                                                                    {r}
-                                                                </p>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })()}
-
-                                            {/* Verified Skill Signature Matrix (Radar Chart Visualizer) */}
-                                            <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-5 shadow-lg relative overflow-hidden flex flex-col justify-between">
-                                                <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
-                                                <div className="flex justify-between items-start mb-2">
-                                                    <div>
-                                                        <h4 className="text-[10px] font-mono text-purple-400 uppercase tracking-widest font-black flex items-center gap-2">
-                                                            ⚖️ Verified Skill Signature Matrix
-                                                        </h4>
-                                                        <p className="text-[9px] text-zinc-400 mt-1 font-mono">
-                                                            Self-declared Base: 50%, Peer validation: +15% per endorsement (max 100%).
-                                                        </p>
-                                                    </div>
-                                                </div>
-
-                                                <div className="h-[230px] w-full flex items-center justify-center relative mt-2">
-                                                    <ResponsiveContainer width="100%" height="100%">
-                                                        <RadarChart cx="50%" cy="50%" outerRadius="75%" data={radarDataForSelectedNode}>
-                                                            <PolarGrid stroke="#27272a" />
-                                                            <PolarAngleAxis 
-                                                                dataKey="subject" 
-                                                                tick={{ fill: '#a1a1aa', fontSize: 8.5, fontFamily: 'monospace' }}
-                                                            />
-                                                            <PolarRadiusAxis 
-                                                                angle={30} 
-                                                                domain={[0, 100]} 
-                                                                tick={{ fill: '#52525b', fontSize: 7.5 }}
-                                                            />
-                                                            <Radar
-                                                                name="Proficiency"
-                                                                dataKey="value"
-                                                                stroke="#a855f7"
-                                                                fill="#a855f7"
-                                                                fillOpacity={0.25}
-                                                            />
-                                                        </RadarChart>
-                                                    </ResponsiveContainer>
-                                                </div>
-                                            </div>
-
-                                            {/* Skills Grid */}
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                <div className="space-y-2 p-4 bg-zinc-950/60 border border-zinc-900 rounded-2xl relative overflow-hidden">
-                                                    <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
-                                                    <h5 className="text-[10px] font-mono text-purple-400 uppercase tracking-wider font-bold">Primary Programming Stack (Click to Endorse)</h5>
-                                                    <div className="flex flex-wrap gap-1.5 pt-1">
-                                                        {(selectedProfileNode.skills || [])?.map?.((s: string) => {
-                                                            const endorsers = selectedProfileNode.skillEndorsements?.[s] || [];
-                                                            const hasEndorsed = endorsers.includes(profile?.username || 'Aetheros_Prime');
-                                                            return (
-                                                                <button 
-                                                                    key={s} 
-                                                                    onClick={() => setEndorsementConfirmation({
-                                                                         profileId: selectedProfileNode.id,
-                                                                         profileUsername: selectedProfileNode.username,
-                                                                         skillName: s,
-                                                                         isRemoving: hasEndorsed
-                                                                     })}
-                                                                    className={`px-2.5 py-1.5 rounded-lg border text-xs font-mono font-black uppercase flex items-center gap-2 cursor-pointer transition-all duration-150 ${
-                                                                        hasEndorsed
-                                                                        ? 'bg-purple-950/45 border-purple-500 text-purple-400 font-extrabold shadow-[0_0_8px_rgba(147,51,234,0.15)] hover:bg-purple-950/60'
-                                                                        : 'bg-[#101026] hover:bg-purple-950/20 text-gray-300 hover:text-purple-400 border border-white/5 hover:border-purple-500/30'
-                                                                    }`}
-                                                                    title={endorsers.length > 0 ? `Endorsed by: ${endorsers.join(', ')}` : 'Click to endorse this skill'}
-                                                                >
-                                                                    <span>{s}</span>
-                                                                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono leading-none ${
-                                                                        hasEndorsed ? 'bg-purple-500 text-black font-extrabold' : 'bg-zinc-800 text-zinc-400 font-bold'
-                                                                    }`}>
-                                                                        {endorsers.length}
-                                                                    </span>
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-
-                                                <div className="space-y-2 p-4 bg-zinc-950/60 border border-zinc-900 rounded-2xl relative overflow-hidden">
-                                                    <div className="absolute top-0 left-0 w-1 h-full bg-rose-500" />
-                                                    <h5 className="text-[10px] font-mono text-rose-400 uppercase tracking-wider font-bold">Looking For Stack Matrix</h5>
-                                                    <div className="flex flex-wrap gap-1.5 pt-1">
-                                                        {(selectedProfileNode.lookingForSkills || [])?.map?.((s: string) => (
-                                                            <span key={s} className="px-2.5 py-1 bg-rose-955 bg-rose-950/20 text-xs font-mono text-rose-300 rounded-lg border border-rose-500/10 font-black uppercase">
-                                                                {s}
-                                                            </span>
-                                                        ))}
-                                                        {(selectedProfileNode.lookingForSkills || []).length === 0 && (
-                                                            <span className="text-[10px] text-zinc-650 italic">No seeking items configured.</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Mentorship & Teaching list in Modal */}
-                                            {(selectedProfileNode.willingToTeachSkills || []).length > 0 && (
-                                                <div className="space-y-2 p-4 bg-[#0a2012]/30 border border-emerald-500/20 rounded-2xl relative overflow-hidden text-left">
-                                                    <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
-                                                    <h5 className="text-[10px] font-mono text-emerald-400 uppercase tracking-wider font-bold flex items-center gap-1.5">
-                                                        <span>🎓 WILLING TO TEACH / MENTOR SKILLS</span>
-                                                    </h5>
-                                                    <div className="flex flex-wrap gap-1.5 pt-1">
-                                                        {(selectedProfileNode.willingToTeachSkills || []).map((s: string) => (
-                                                            <span key={s} className="px-2.5 py-1 bg-emerald-950/40 text-xs font-mono text-emerald-300 rounded-lg border border-emerald-500/20 font-black uppercase flex items-center gap-1">
-                                                                <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.168.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                                                </svg>
-                                                                {s}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Portfolio links */}
-                                            {(selectedProfileNode.portfolioLinks || []).length > 0 && (
-                                                <div className="space-y-3">
-                                                    <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-black">Verified Network Portals</h4>
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                        {(selectedProfileNode.portfolioLinks || [])?.map?.((lnk: any) => (
-                                                            <a 
-                                                                key={lnk.id} 
-                                                                href={lnk.url} 
-                                                                target="_blank" 
-                                                                rel="noreferrer"
-                                                                className="flex items-center gap-2 p-3 bg-[#0a0a14] hover:bg-zinc-900/60 border border-zinc-800 rounded-xl transition-all cursor-pointer group"
-                                                            >
-                                                                <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
-                                                                <div className="text-left">
-                                                                    <div className="text-xs font-bold text-gray-200 group-hover:text-purple-400 transition-colors uppercase font-mono">{lnk.label}</div>
-                                                                    <div className="text-[8px] font-mono text-zinc-600 truncate max-w-[180px]">{lnk.url}</div>
-                                                                </div>
-                                                            </a>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Portfolio completed projects */}
-                                            {(selectedProfileNode.profileProjects || []).length > 0 && (
-                                                <div className="space-y-3">
-                                                    <h4 className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest font-black">Completed Past showcasing Projects</h4>
-                                                    <div className="space-y-2.5">
-                                                        {(selectedProfileNode.profileProjects || [])?.map?.((pro: any) => (
-                                                            <PortfolioProjectCard 
-                                                                key={pro.id}
-                                                                project={pro}
-                                                                isOwnProject={false}
-                                                                onAddTestimonial={handlePeerProjectAddTestimonial}
-                                                                onEndorse={handlePeerEndorseProject}
-                                                                onRate={handlePeerRateProject}
-                                                                currentUsername={profile?.username || 'Operator-You'}
-                                                                ownerSkills={selectedProfileNode.skills || []}
-                                                                ownerSkillEndorsements={selectedProfileNode.skillEndorsements || {}}
-                                                                onQuickEndorse={(skillName) => handleToggleEndorseSkill(selectedProfileNode.id, skillName)}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="p-4 bg-black/40 border-t border-white/5 flex items-center justify-between gap-3 flex-wrap">
-                                            <span className="text-[9px] font-mono text-zinc-650">ID SOURCE NODE SHARED INDEX: {selectedProfileNode.id}</span>
-                                            <div className="flex gap-2">
-                                                <button
-                                                    onClick={() => {
-                                                        setInvitationTargetProfile(selectedProfileNode);
-                                                        setSelectedProfileNode(null);
-                                                    }}
-                                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-black rounded-xl text-xs font-black uppercase font-mono transition-all flex items-center gap-1.5"
-                                                >
-                                                    🤝 Invite to Collaborate
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedProfileNode(null);
-                                                        setViewMode('MATCHES');
-                                                    }}
-                                                    className="px-4 py-2 bg-purple-650 hover:bg-purple-500 text-white rounded-xl text-xs font-black uppercase font-mono transition-all"
-                                                >
-                                                    Calculate MATCH MATRIX &rarr;
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                </div>
-                            )}
-                        </AnimatePresence>
+                    <div className="relative">
+                        <CodingNetworkProfileSystem
+                            profile={profile}
+                            onUpdateProfile={onUpdateProfile}
+                            projects={safeProjects}
+                            glitchHistory={glitchHistory}
+                            messages={messages}
+                            networkProfiles={networkProfiles}
+                            setNetworkProfiles={setNetworkProfiles}
+                            selectedProfileNode={selectedProfileNode}
+                            setSelectedProfileNode={setSelectedProfileNode}
+                            calculateCompatibility={calculateCompatibility}
+                            onInviteProfile={(targetProfile) => setInvitationTargetProfile(targetProfile)}
+                            onSwitchToMatches={() => setViewMode('MATCHES')}
+                            onToggleEndorseSkill={handleToggleEndorseSkill}
+                            onPeerProjectAddTestimonial={handlePeerProjectAddTestimonial}
+                            onPeerEndorseProject={handlePeerEndorseProject}
+                            onPeerRateProject={handlePeerRateProject}
+                        />
 
                          {/* Direct Collaboration Invitation Modal */}
                         <AnimatePresence>
@@ -5676,78 +4783,6 @@ contract ComplianceLedger {
                                 </div>
                             )}
                         </AnimatePresence>
-
-                        {/* Endorsement Confirmation Modal */}
-                        <AnimatePresence>
-                            {endorsementConfirmation && (
-                                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
-                                    <motion.div
-                                        initial={{ scale: 0.95, opacity: 0, y: 10 }}
-                                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                                        exit={{ scale: 0.95, opacity: 0, y: 10 }}
-                                        className="w-full max-w-md bg-[#0c0c1e] border-2 border-purple-500/30 rounded-3xl overflow-hidden shadow-2xl relative block p-6 space-y-6 text-center"
-                                    >
-                                        <div className="mx-auto w-16 h-16 bg-purple-500/10 border border-purple-500/30 rounded-full flex items-center justify-center text-purple-400">
-                                            {endorsementConfirmation.isRemoving ? (
-                                                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                </svg>
-                                            ) : (
-                                                <svg className="w-8 h-8 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 00.806 1.946 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                                                </svg>
-                                            )}
-                                        </div>
-
-                                        <div className="space-y-2">
-                                            <h3 className="font-comic-header text-xl text-white uppercase italic leading-none">
-                                                {endorsementConfirmation.isRemoving ? 'RETRACT ENDORSEMENT' : 'CONFIRM ENDORSEMENT'}
-                                             </h3>
-                                             <p className="text-xs text-zinc-400 font-mono">
-                                                 {endorsementConfirmation.isRemoving 
-                                                     ? `Lattice validation: retraction request`
-                                                     : `Lattice validation: skill verification request`
-                                                 }
-                                             </p>
-                                         </div>
-
-                                         <p className="text-sm text-zinc-300 leading-relaxed font-sans">
-                                             {endorsementConfirmation.isRemoving ? (
-                                                 <span>
-                                                     Are you sure you want to retract your endorsement for <strong>@{endorsementConfirmation.profileUsername}</strong>'s proficiency in <strong className="text-purple-400">{endorsementConfirmation.skillName}</strong>?
-                                                 </span>
-                                             ) : (
-                                                 <span>
-                                                     Are you sure you want to endorse <strong>@{endorsementConfirmation.profileUsername}</strong> for their proficiency in <strong className="text-purple-400">{endorsementConfirmation.skillName}</strong>? This verifies their capabilities in the AetherOS Routing lattice.
-                                                 </span>
-                                             )}
-                                         </p>
-
-                                         <div className="flex gap-3 justify-center pt-2">
-                                             <button
-                                                 onClick={() => setEndorsementConfirmation(null)}
-                                                 className="px-5 py-2 bg-zinc-900 border border-zinc-800 text-gray-400 hover:text-white rounded-xl transition-colors text-xs font-mono font-black uppercase cursor-pointer"
-                                             >
-                                                 Abort / Cancel
-                                             </button>
-                                             <button
-                                                 onClick={() => {
-                                                     handleToggleEndorseSkill(endorsementConfirmation.profileId, endorsementConfirmation.skillName);
-                                                     setEndorsementConfirmation(null);
-                                                 }}
-                                                 className={`px-5 py-2 text-white rounded-xl text-xs font-black uppercase font-mono cursor-pointer transition-all ${
-                                                     endorsementConfirmation.isRemoving 
-                                                         ? 'bg-red-650 hover:bg-red-550 border border-red-500/30' 
-                                                         : 'bg-purple-650 hover:bg-purple-550 border border-purple-500/30 shadow-[0_0_12px_rgba(147,51,234,0.3)]'
-                                                 }`}
-                                             >
-                                                 {endorsementConfirmation.isRemoving ? 'Retract' : 'Verify & Endorse'}
-                                             </button>
-                                         </div>
-                                     </motion.div>
-                                 </div>
-                             )}
-                         </AnimatePresence>
                     </div>
                 ) : viewMode === 'MATCHES' ? (
                     /* MATCHES (SKILL-BASED MATCHMAKING) VIEW */

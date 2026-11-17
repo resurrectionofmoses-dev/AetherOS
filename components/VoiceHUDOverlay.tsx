@@ -95,6 +95,7 @@ export const NAVIGATION_MAPPINGS = [
   { keywords: ['accounts registry', 'open accounts registry', 'go to accounts registry', 'switch to accounts registry', 'accounts'], view: 'accounts_registry', label: 'Accounts Registry' },
   { keywords: ['vault manager', 'open vault manager', 'go to vault manager', 'switch to vault manager'], view: 'vault_manager', label: 'Vault Manager' },
   { keywords: ['system integrity', 'open system integrity', 'go to system integrity', 'switch to system integrity'], view: 'system_integrity', label: 'System Integrity' },
+  { keywords: ['file integrity monitor', 'open file integrity', 'file monitor', 'file integrity', 'open file monitor'], view: 'file_integrity_monitor', label: 'File Integrity Monitor' },
   { keywords: ['blacklist', 'open blacklist', 'go to blacklist', 'switch to blacklist'], view: 'blacklist', label: 'Blacklist' },
   { keywords: ['absolute reliability network', 'open absolute reliability', 'go to absolute reliability', 'switch to absolute reliability'], view: 'absolute_reliability_network', label: 'Absolute Reliability' },
   { keywords: ['coding network', 'open coding network', 'go to coding network', 'switch to coding network'], view: 'coding_network', label: 'Coding Network' },

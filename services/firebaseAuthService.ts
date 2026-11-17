@@ -9,9 +9,23 @@ import {
 } from 'firebase/auth';
 import firebaseConfig from '../firebase-applet-config.json';
 
-// Initialize the Firebase app instance
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
+// Initialize the Firebase app instance safely
+let app: any = null;
+let auth: any = null;
+
+const configObj = firebaseConfig as Record<string, any>;
+const hasValidConfig = configObj && typeof configObj.apiKey === 'string' && configObj.apiKey.trim() !== "";
+
+if (hasValidConfig) {
+  try {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+  } catch (error) {
+    console.warn('[Firebase Auth] Failed to initialize Firebase Auth with provided config:', error);
+  }
+} else {
+  console.warn('[Firebase Auth] No valid Firebase configuration found (API Key is missing or empty). Web Auth features are disabled.');
+}
 
 // Google Auth Provider setup with Google Meet, Google Sheets and Gmail scopes as requested
 const provider = new GoogleAuthProvider();
@@ -64,6 +78,10 @@ export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
   onAuthFailure?: () => void
 ) => {
+  if (!auth) {
+    if (onAuthFailure) onAuthFailure();
+    return () => {};
+  }
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
       if (cachedAccessToken) {
@@ -84,6 +102,10 @@ export const initAuth = (
  * capturing the accessToken securely.
  */
 export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
+  if (!auth) {
+    console.error('[Firebase OAuth] Cannot sign in: Firebase Authentication has not been initialized (invalid or missing API Key).');
+    throw new Error('Firebase Authentication is not configured or initialized. Please configure a valid Firebase API Key in your applet settings.');
+  }
   try {
     isSigningIn = true;
     const result = await signInWithPopup(auth, provider);
@@ -113,6 +135,10 @@ export const getAccessToken = async (): Promise<string | null> => {
  * Signs the active observer out of Firebase Google Auth and voids token.
  */
 export const googleSignOut = async (): Promise<void> => {
+  if (!auth) {
+    cachedAccessToken = null;
+    return;
+  }
   try {
     await signOut(auth);
     cachedAccessToken = null;

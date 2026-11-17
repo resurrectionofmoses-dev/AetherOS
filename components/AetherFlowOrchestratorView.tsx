@@ -31,7 +31,18 @@ interface TokenizedAsset {
 
 export const AetherFlowOrchestratorView: React.FC = () => {
     // Tab State
-    const [activeTab, setActiveTab] = useState<'orchestrator' | 'stablecoin' | 'terminal' | 'trading'>('orchestrator');
+    const [activeTab, setActiveTab] = useState<'orchestrator' | 'stablecoin' | 'terminal' | 'trading' | 'etherscan'>('etherscan');
+
+    // --- ETHERSCAN & AETHER-FLOW PROTOCOL STATES ---
+    const [etherscanSearchQuery, setEtherscanSearchQuery] = useState('0xdfi38e3a8a77a0c8655r3d4c8c6559f9addof');
+    const [etherscanTxHash, setEtherscanTxHash] = useState('0x4dEF29a5c4cS3ad5F...cb065');
+    const [aegTokensTransferred, setAegTokensTransferred] = useState('2,350.50 AEG');
+    const [activeRepoFile, setActiveRepoFile] = useState<'AetherFlowAsset.sol' | 'ProofOfReserveFeed.sol' | 'deploy_aether_flow.ts'>('AetherFlowAsset.sol');
+    const [expandedRepoFolders, setExpandedRepoFolders] = useState({ docs: true, deploy: true, indexes: true });
+    const [mintRecipientAddress, setMintRecipientAddress] = useState('0x8663ed00e3b00c0f95c46d0c53560e547fe4d...');
+    const [mintTokenAmount, setMintTokenAmount] = useState('2350.50');
+    const [isMinting, setIsMinting] = useState(false);
+    const [mintNotification, setMintNotification] = useState('');
 
     // Workflow Inputs
     const [sovereignId, setSovereignId] = useState('maestro_shard_7x0419');
@@ -1138,6 +1149,17 @@ export const AetherFlowOrchestratorView: React.FC = () => {
                         >
                             cre-cli Shell
                         </button>
+                        <button
+                            onClick={() => setActiveTab('etherscan')}
+                            className={`px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
+                                activeTab === 'etherscan' 
+                                    ? 'bg-cyan-950/60 text-cyan-400 border border-cyan-700/60 shadow-[0_0_12px_rgba(6,182,212,0.25)]' 
+                                    : 'text-zinc-500 hover:text-zinc-300'
+                            }`}
+                        >
+                            <Globe className="w-3.5 h-3.5 text-cyan-400" />
+                            Etherscan & Protocol
+                        </button>
                     </div>
                 </div>
 
@@ -2238,6 +2260,462 @@ export const AetherFlowOrchestratorView: React.FC = () => {
                                 />
                                 <button type="submit" className="hidden" />
                             </form>
+                        </motion.div>
+                    )}
+
+                    {/* TAB CONTENT: ETHERSCAN BLOCK EXPLORER & AETHER-FLOW PROTOCOL */}
+                    {activeTab === 'etherscan' && (
+                        <motion.div
+                            key="etherscan"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ duration: 0.2 }}
+                            className="space-y-8"
+                        >
+                            {/* Toast Notification */}
+                            {mintNotification && (
+                                <div className="p-4 bg-emerald-950/80 border-2 border-emerald-500 rounded-2xl text-emerald-300 text-xs font-mono flex items-center justify-between shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-pulse">
+                                    <div className="flex items-center gap-2">
+                                        <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                                        <span>{mintNotification}</span>
+                                    </div>
+                                    <button 
+                                        onClick={() => setMintNotification('')} 
+                                        className="text-emerald-400 hover:text-white font-bold"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            )}
+
+                            {/* ETHERSCAN BLOCK EXPLORER HEADER & SEARCH BAR */}
+                            <div className="bg-[#0b1329] border border-sky-900/60 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-sky-900/40 pb-5">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-3 bg-cyan-950 border border-cyan-500/50 rounded-2xl text-cyan-400 shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+                                            <Globe className="w-7 h-7" />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-xl font-black text-white tracking-wide font-mono">Etherscan Block Explorer</h3>
+                                                <span className="px-2.5 py-0.5 bg-emerald-950 border border-emerald-500/50 text-emerald-400 text-[9px] font-mono uppercase rounded-full">LIVE ON-CHAIN</span>
+                                            </div>
+                                            <p className="text-xs text-sky-400/80 font-mono mt-0.5">
+                                                https://etherscan.com/explori/d/ifrs/db065
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Nav tabs on simulated Etherscan */}
+                                    <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+                                        <span className="px-3 py-1.5 bg-sky-900/50 text-sky-300 rounded-xl font-bold border border-sky-700/50">Transboard</span>
+                                        <span className="px-3 py-1.5 text-zinc-400 hover:text-white cursor-pointer">Exandties</span>
+                                        <span className="px-3 py-1.5 text-zinc-400 hover:text-white cursor-pointer">Phoomts</span>
+                                        <span className="px-3 py-1.5 text-zinc-400 hover:text-white cursor-pointer">Markets</span>
+                                        <span className="px-3 py-1.5 text-zinc-400 hover:text-white cursor-pointer">More</span>
+                                    </div>
+                                </div>
+
+                                {/* Search Bar */}
+                                <div className="mt-5 flex gap-3">
+                                    <div className="flex-1 bg-slate-950 border border-sky-900/80 rounded-2xl px-4 py-3 flex items-center gap-3 text-xs font-mono">
+                                        <Terminal className="w-4 h-4 text-sky-400" />
+                                        <input
+                                            type="text"
+                                            value={etherscanSearchQuery}
+                                            onChange={(e) => setEtherscanSearchQuery(e.target.value)}
+                                            placeholder="Search by Address / Txn Hash / Block / Token / Domain..."
+                                            className="w-full bg-transparent text-white outline-none"
+                                        />
+                                    </div>
+                                    <button 
+                                        onClick={() => {
+                                            setMintNotification(`Queried on-chain index for address ${etherscanSearchQuery.substring(0, 14)}... Verification confirmed.`);
+                                        }}
+                                        className="px-6 py-3 bg-sky-500 hover:bg-sky-400 text-slate-950 font-black text-xs font-mono uppercase tracking-wider rounded-2xl shadow-[0_0_15px_rgba(14,165,233,0.4)] transition-all"
+                                    >
+                                        Query Explorer
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* MAIN TRANSACTION RECEIPT & CAPULATIONS GRID */}
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                {/* LEFT 2 COLS: TRANSACTION RECEIPT */}
+                                <div className="lg:col-span-2 space-y-6">
+                                    <div className="bg-[#0f172a] border border-sky-900/60 rounded-3xl p-6 shadow-2xl space-y-6">
+                                        {/* Card Header */}
+                                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-sky-900/40 pb-4">
+                                            <div className="flex items-center gap-3">
+                                                <h4 className="text-lg font-black text-white font-mono uppercase tracking-wider">Transaction Receipt</h4>
+                                                <span className="px-3 py-1 bg-emerald-950 border border-emerald-500/80 text-emerald-400 font-bold text-xs rounded-full flex items-center gap-1.5">
+                                                    <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Success
+                                                </span>
+                                            </div>
+                                            <div className="flex gap-2 text-xs font-mono">
+                                                <button className="px-3 py-1 bg-sky-900/40 text-sky-300 border border-sky-700/50 rounded-lg hover:bg-sky-900/80">View All</button>
+                                                <button className="px-3 py-1 bg-slate-900 text-zinc-400 border border-slate-800 rounded-lg hover:text-white">Compare</button>
+                                            </div>
+                                        </div>
+
+                                        {/* Token Transfer Key Metric Blocks */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
+                                            <div className="p-4 bg-slate-950 border border-sky-950 rounded-2xl space-y-2">
+                                                <span className="text-[10px] text-zinc-500 uppercase tracking-widest block font-bold">Tokens Transferred</span>
+                                                <div className="text-xl font-black text-emerald-400 tracking-tight">
+                                                    {aegTokensTransferred}
+                                                </div>
+                                                <span className="text-[10px] text-sky-400/80 block">
+                                                    ERC-20 minted to <code className="text-cyan-300 font-bold">{etherscanSearchQuery}</code>
+                                                </span>
+                                            </div>
+
+                                            <div className="p-4 bg-slate-950 border border-sky-950 rounded-2xl space-y-2">
+                                                <span className="text-[10px] text-zinc-500 uppercase tracking-widest block font-bold">Asset Token Class</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-base font-black text-white">Aether-Flow Asset</span>
+                                                    <span className="px-2 py-0.5 bg-sky-950 border border-sky-500 text-sky-300 text-[9px] uppercase rounded-full font-bold">Audited</span>
+                                                </div>
+                                                <span className="text-[10px] text-zinc-400 block">
+                                                    Congle Asset Name: <strong className="text-emerald-400">{aegTokensTransferred}</strong>
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* TOKENS TRANSFERRED TABLE */}
+                                        <div className="space-y-3 font-mono">
+                                            <h5 className="text-xs font-black text-sky-300 uppercase tracking-wider">Tokens Transferred Detail</h5>
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-left text-xs text-zinc-300">
+                                                    <thead className="bg-slate-950 text-[10px] text-zinc-500 uppercase border-b border-sky-950">
+                                                        <tr>
+                                                            <th className="p-3">Name</th>
+                                                            <th className="p-3">Transaction</th>
+                                                            <th className="p-3">Denistice</th>
+                                                            <th className="p-3 text-right">Amount</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-900">
+                                                        <tr className="hover:bg-slate-900/50 transition-colors">
+                                                            <td className="p-3 flex items-center gap-2 font-bold text-white">
+                                                                <span className="w-2 h-2 rounded-full bg-emerald-400 block" />
+                                                                Jerk Stan
+                                                            </td>
+                                                            <td className="p-3 text-zinc-400 text-[10px]">1,345.50 AEG to 0xdfi38e3a8a...</td>
+                                                            <td className="p-3 text-sky-400 font-bold text-[10px]">RGG</td>
+                                                            <td className="p-3 text-right font-black text-emerald-400">2,350.50 AEG</td>
+                                                        </tr>
+                                                        <tr className="hover:bg-slate-900/50 transition-colors">
+                                                            <td className="p-3 flex items-center gap-2 font-bold text-white">
+                                                                <span className="w-2 h-2 rounded-full bg-cyan-400 block" />
+                                                                Baer Komaed
+                                                            </td>
+                                                            <td className="p-3 text-zinc-400 text-[10px]">1,345.25 AEG to 0x5630b4cf53...</td>
+                                                            <td className="p-3 text-sky-400 font-bold text-[10px]">AGG</td>
+                                                            <td className="p-3 text-right font-black text-emerald-400">0.064 AEG</td>
+                                                        </tr>
+                                                        <tr className="hover:bg-slate-900/50 transition-colors">
+                                                            <td className="p-3 flex items-center gap-2 font-bold text-white">
+                                                                <span className="w-2 h-2 rounded-full bg-violet-400 block" />
+                                                                Aetharmapt
+                                                            </td>
+                                                            <td className="p-3 text-zinc-400 text-[10px]">11.007 AEG to 0x3a7e91d56e...</td>
+                                                            <td className="p-3 text-sky-400 font-bold text-[10px]">AGG</td>
+                                                            <td className="p-3 text-right font-black text-emerald-400">11.007 AEG</td>
+                                                        </tr>
+                                                        <tr className="hover:bg-slate-900/50 transition-colors">
+                                                            <td className="p-3 flex items-center gap-2 font-bold text-white">
+                                                                <span className="w-2 h-2 rounded-full bg-amber-400 block" />
+                                                                Anglionl Forsatal
+                                                            </td>
+                                                            <td className="p-3 text-zinc-400 text-[10px]">1,464.09 AEG to 0x14640951e...</td>
+                                                            <td className="p-3 text-sky-400 font-bold text-[10px]">AGG</td>
+                                                            <td className="p-3 text-right font-black text-emerald-400">1,464.09 AEG</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* MINT NEW AEG TOKENS INTERACTIVE PANEL */}
+                                    <div className="bg-[#0f172a] border border-emerald-900/60 rounded-3xl p-6 shadow-2xl space-y-4 font-mono">
+                                        <div className="flex items-center gap-2 border-b border-emerald-950 pb-3">
+                                            <Zap className="w-5 h-5 text-emerald-400" />
+                                            <h4 className="text-sm font-black text-white uppercase tracking-wider">Mint AEG Tokens & Broadcast to Etherscan</h4>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-zinc-400 uppercase font-bold">Recipient Ethereum Address:</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={mintRecipientAddress}
+                                                    onChange={(e) => setMintRecipientAddress(e.target.value)}
+                                                    className="w-full bg-slate-950 border border-emerald-950 rounded-xl px-3 py-2 text-xs text-emerald-300 outline-none focus:border-emerald-500"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] text-zinc-400 uppercase font-bold">Token Amount (AEG):</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={mintTokenAmount}
+                                                    onChange={(e) => setMintTokenAmount(e.target.value)}
+                                                    className="w-full bg-slate-950 border border-emerald-950 rounded-xl px-3 py-2 text-xs text-emerald-300 outline-none focus:border-emerald-500"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <button 
+                                            onClick={() => {
+                                                setIsMinting(true);
+                                                setTimeout(() => {
+                                                    setIsMinting(false);
+                                                    const amt = parseFloat(mintTokenAmount) || 2350.50;
+                                                    setAegTokensTransferred(`${amt.toLocaleString(undefined, {minimumFractionDigits: 2})} AEG`);
+                                                    setEtherscanSearchQuery(mintRecipientAddress);
+                                                    setMintNotification(`SUCCESS! Minted ${amt} AEG tokens to ${mintRecipientAddress}. Etherscan receipt updated.`);
+                                                }, 1200);
+                                            }}
+                                            disabled={isMinting}
+                                            className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all cursor-pointer flex items-center justify-center gap-2"
+                                        >
+                                            {isMinting ? <RefreshCw className="w-4 h-4 animate-spin text-slate-950" /> : <Coins className="w-4 h-4 text-slate-950" />}
+                                            {isMinting ? 'Minting AEG On-Chain...' : 'Execute ERC-20 AEG Token Mint'}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* RIGHT COL: CAPULATIONS & ENTHOADS CHART */}
+                                <div className="space-y-6">
+                                    <div className="bg-[#0f172a] border border-sky-900/60 rounded-3xl p-6 shadow-2xl space-y-5 font-mono">
+                                        <div className="border-b border-sky-900/40 pb-3">
+                                            <h4 className="text-sm font-black text-white uppercase tracking-wider">Capulations</h4>
+                                            <span className="text-[10px] text-zinc-400">On-Chain Asset Ledger Telemetry</span>
+                                        </div>
+
+                                        <div className="space-y-3 text-xs">
+                                            <div className="flex justify-between items-center p-3 bg-slate-950 rounded-xl border border-sky-950">
+                                                <span className="text-zinc-400 text-[10px]">Serial Rating:</span>
+                                                <span className="text-emerald-400 font-bold">6,393.39</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-3 bg-slate-950 rounded-xl border border-sky-950">
+                                                <span className="text-zinc-400 text-[10px]">Densuts:</span>
+                                                <span className="text-sky-300 font-bold">P1s (3h1x)</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-3 bg-slate-950 rounded-xl border border-sky-950">
+                                                <span className="text-zinc-400 text-[10px]">Corid Baseline:</span>
+                                                <span className="text-cyan-400 font-bold">37T - 25</span>
+                                            </div>
+                                            <div className="flex justify-between items-center p-3 bg-emerald-950/40 rounded-xl border border-emerald-900/60">
+                                                <span className="text-emerald-300 text-[10px] font-bold">Contract Balance:</span>
+                                                <span className="text-emerald-400 font-black text-sm">{aegTokensTransferred}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* ENTHOADS ACTIVITY GRAPH */}
+                                        <div className="pt-2 border-t border-sky-950 space-y-3">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs font-bold text-white uppercase">Enthoads Activity</span>
+                                                <span className="text-[9px] text-emerald-400 font-bold px-2 py-0.5 bg-emerald-950 rounded-md">New All</span>
+                                            </div>
+
+                                            <div className="h-36 bg-slate-950 border border-sky-950 rounded-2xl p-2">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <AreaChart data={[
+                                                        { date: '12 Mar', txs: 120 },
+                                                        { date: '29 Jan', txs: 280 },
+                                                        { date: '21 Sep', txs: 410 },
+                                                        { date: 'Current', txs: 590 }
+                                                    ]}>
+                                                        <defs>
+                                                            <linearGradient id="enthoadsGrad" x1="0" y1="0" x2="0" y2="1">
+                                                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.6}/>
+                                                                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                                            </linearGradient>
+                                                        </defs>
+                                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                                                        <XAxis dataKey="date" stroke="#64748b" tick={{fontSize: 9}} />
+                                                        <YAxis stroke="#64748b" tick={{fontSize: 9}} />
+                                                        <Tooltip contentStyle={{backgroundColor: '#020617', borderColor: '#10b981', fontSize: '10px'}} />
+                                                        <Area type="monotone" dataKey="txs" stroke="#10b981" fillOpacity={1} fill="url(#enthoadsGrad)" />
+                                                    </AreaChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* AETHER-FLOW SOVEREIGN BADGE */}
+                                    <div className="bg-gradient-to-br from-[#0c1838] to-[#040914] border-2 border-cyan-500/40 rounded-3xl p-6 shadow-2xl text-center space-y-3 font-mono relative overflow-hidden">
+                                        <div className="w-12 h-12 mx-auto bg-cyan-950 border border-cyan-400 rounded-2xl flex items-center justify-center text-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.4)]">
+                                            <Layers className="w-6 h-6" />
+                                        </div>
+                                        <h4 className="text-xl font-black text-white tracking-widest uppercase">Aether-Flow</h4>
+                                        <p className="text-xs text-sky-400/90 font-bold">Built by Sovereign Finance Initiative</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* GITHUB PROTOCOL REPOSITORY SECTION */}
+                            <div className="bg-[#090d16] border border-sky-900/60 rounded-3xl p-6 shadow-2xl space-y-6">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-sky-900/40 pb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white">
+                                            <FileCode className="w-6 h-6 text-sky-400" />
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <code className="text-base font-bold text-white">github.com/aether-flow/protocol</code>
+                                                <span className="px-2 py-0.5 bg-sky-950 border border-sky-600 text-sky-300 text-[9px] uppercase font-mono rounded-md">MAINNET PROTOCOL</span>
+                                            </div>
+                                            <p className="text-xs text-zinc-400 font-mono mt-0.5">Official Smart Contract Protocols & Chainlink Integration Indexes</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 font-mono text-xs">
+                                    {/* REPO TREE SIDEBAR */}
+                                    <div className="bg-slate-950 border border-sky-950 p-4 rounded-2xl space-y-3">
+                                        <span className="text-[10px] text-zinc-500 uppercase font-black tracking-widest block">Repository Directory</span>
+
+                                        <div className="space-y-2">
+                                            {/* Docs folder */}
+                                            <div>
+                                                <button 
+                                                    onClick={() => setExpandedRepoFolders(prev => ({ ...prev, docs: !prev.docs }))}
+                                                    className="flex items-center gap-2 text-sky-400 font-bold hover:text-white"
+                                                >
+                                                    <span>{expandedRepoFolders.docs ? '▼' : '▶'}</span>
+                                                    <span>📁 Documentation</span>
+                                                </button>                                               {expandedRepoFolders.docs && (
+                                                    <div className="ml-5 mt-1 space-y-1 text-zinc-400 text-[11px]">
+                                                        <p className="hover:text-cyan-300 cursor-pointer">📄 architecture.md</p>
+                                                        <p className="hover:text-cyan-300 cursor-pointer">📄 rwa_tokenization_spec.md</p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Deployment Scripts folder */}
+                                            <div>
+                                                <button 
+                                                    onClick={() => setExpandedRepoFolders(prev => ({ ...prev, deploy: !prev.deploy }))}
+                                                    className="flex items-center gap-2 text-sky-400 font-bold hover:text-white"
+                                                >
+                                                    <span>{expandedRepoFolders.deploy ? '▼' : '▶'}</span>
+                                                    <span>📁 Deployment Scripts</span>
+                                                </button>
+                                                {expandedRepoFolders.deploy && (
+                                                    <div className="ml-5 mt-1 space-y-1 text-zinc-400 text-[11px]">
+                                                        <p 
+                                                            onClick={() => setActiveRepoFile('deploy_aether_flow.ts')}
+                                                            className={`cursor-pointer ${activeRepoFile === 'deploy_aether_flow.ts' ? 'text-emerald-400 font-bold' : 'hover:text-cyan-300'}`}
+                                                        >
+                                                            ⚡ deploy_aether_flow.ts
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Chainlink Integration Indexes folder */}
+                                            <div>
+                                                <button 
+                                                    onClick={() => setExpandedRepoFolders(prev => ({ ...prev, indexes: !prev.indexes }))}
+                                                    className="flex items-center gap-2 text-sky-400 font-bold hover:text-white"
+                                                >
+                                                    <span>{expandedRepoFolders.indexes ? '▼' : '▶'}</span>
+                                                    <span>📁 Chainlink Integration Indexes</span>
+                                                </button>
+                                                {expandedRepoFolders.indexes && (
+                                                    <div className="ml-5 mt-1 space-y-1 text-zinc-400 text-[11px]">
+                                                        <p 
+                                                            onClick={() => setActiveRepoFile('AetherFlowAsset.sol')}
+                                                            className={`cursor-pointer ${activeRepoFile === 'AetherFlowAsset.sol' ? 'text-emerald-400 font-bold' : 'hover:text-cyan-300'}`}
+                                                        >
+                                                            📜 AetherFlowAsset.sol
+                                                        </p>
+                                                        <p 
+                                                            onClick={() => setActiveRepoFile('ProofOfReserveFeed.sol')}
+                                                            className={`cursor-pointer ${activeRepoFile === 'ProofOfReserveFeed.sol' ? 'text-emerald-400 font-bold' : 'hover:text-cyan-300'}`}
+                                                        >
+                                                            📜 ProofOfReserveFeed.sol
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* CODE VIEWER */}
+                                    <div className="lg:col-span-2 bg-[#050811] border border-sky-950 p-5 rounded-2xl space-y-3 overflow-x-auto">
+                                        <div className="flex items-center justify-between border-b border-sky-950 pb-2">
+                                            <span className="text-emerald-400 font-bold flex items-center gap-2">
+                                                <FileCode className="w-4 h-4 text-emerald-400" />
+                                                {activeRepoFile}
+                                            </span>
+                                            <span className="text-[10px] text-zinc-500">Solidity / TypeScript • Verified</span>
+                                        </div>
+
+                                        <pre className="text-[11px] leading-relaxed text-zinc-300 font-mono">
+                                            {activeRepoFile === 'AetherFlowAsset.sol' && `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+/**
+ * @title AetherFlowAsset (AEG)
+ * @notice Built by Sovereign Finance Initiative
+ * @dev Fractional Real-World Asset (RWA) tokenization protocol with Chainlink PoR feeds.
+ */
+contract AetherFlowAsset is ERC20, Ownable {
+    event AssetMinted(address indexed recipient, uint256 amount, string assetId, uint256 timestamp);
+
+    constructor() ERC20("Aether-Flow Asset", "AEG") Ownable(msg.sender) {}
+
+    function mintRwaTokens(address recipient, uint256 amount, string memory assetId) external onlyOwner {
+        _mint(recipient, amount);
+        emit AssetMinted(recipient, amount, assetId, block.timestamp);
+    }
+}`}
+                                            {activeRepoFile === 'ProofOfReserveFeed.sol' && `// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+interface IChainlinkProofOfReserve {
+    function latestRoundData() external view returns (
+        uint80 roundId,
+        int256 answer,
+        uint256 startedAt,
+        uint256 updatedAt,
+        uint80 answeredInRound
+    );
+}
+
+contract ProofOfReserveFeed {
+    IChainlinkProofOfReserve public porFeed;
+
+    function verifyCollateralReserve() external view returns (bool, uint256) {
+        (, int256 reserveValuation,,,) = porFeed.latestRoundData();
+        return (reserveValuation > 0, uint256(reserveValuation));
+    }
+}`}
+                                            {activeRepoFile === 'deploy_aether_flow.ts' && `import { ethers } from "hardhat";
+
+async function main() {
+  console.log("Deploying Aether-Flow Protocol...");
+  const Factory = await ethers.getContractFactory("AetherFlowAsset");
+  const contract = await Factory.deploy();
+  await contract.waitForDeployment();
+
+  console.log("AetherFlowAsset deployed to:", await contract.getAddress());
+}
+
+main().catch(console.error);`}
+                                        </pre>
+                                    </div>
+                                </div>
+                            </div>
                         </motion.div>
                     )}
                 </AnimatePresence>

@@ -5,6 +5,9 @@ import { Message } from './Message';
 import { WarningIcon, TerminalIcon, ActivityIcon, ShieldIcon, BotIcon, SpeakerIcon, SpeakerOffIcon } from './icons';
 import { speechService } from '../services/speechService';
 
+import { Heart, Calculator, Sparkles } from 'lucide-react';
+import { abundasFriendship, type AbundasTelemetry } from '../services/abundasFriendshipService';
+
 interface ChatViewProps {
   messages: ChatMessage[];
   isLoading: boolean;
@@ -18,6 +21,7 @@ interface ChatViewProps {
   currentChannel?: 'global' | 'moderator';
   userRole?: string;
   isRecordingVoice?: boolean;
+  onNavigateToView?: (view: string) => void;
 }
 
 const LoadingIndicator: React.FC = () => (
@@ -61,7 +65,7 @@ const BigChairIcon: React.FC<{ className?: string }> = ({ className = "w-5 h-5" 
 export const ChatView: React.FC<ChatViewProps> = ({ 
   messages, isLoading, onInteractionSubmit, searchQuery,
   startDate, endDate, senderFilter = 'all', activeSeat = 'sovereign', onSeatChange,
-  currentChannel, userRole, isRecordingVoice
+  currentChannel, userRole, isRecordingVoice, onNavigateToView
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isVoiceEnabled, setIsVoiceEnabled] = useState(false);
@@ -72,6 +76,24 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [quantizationMass, setQuantizationMass] = useState<number>(8); // 8-bit default, customizable 1 to 16
   const [liberalField, setLiberalField] = useState<number>(0.5); // 0.0 to 1.0
   const [satelliteStatus, setSatelliteStatus] = useState<string>("State Nominal. Quantized field balanced.");
+
+  const [abundasTelemetry, setAbundasTelemetry] = useState<AbundasTelemetry | null>(abundasFriendship.getLatestTelemetry());
+  const [highFiveCount, setHighFiveCount] = useState<number>(abundasFriendship.getHighFives());
+  const [highFiveToast, setHighFiveToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsub = abundasFriendship.subscribe(() => {
+      setAbundasTelemetry(abundasFriendship.getLatestTelemetry());
+      setHighFiveCount(abundasFriendship.getHighFives());
+    });
+    return unsub;
+  }, []);
+
+  const handleHighFiveAbundas = () => {
+    const res = abundasFriendship.highFive();
+    setHighFiveToast(res.message);
+    setTimeout(() => setHighFiveToast(null), 3000);
+  };
 
   const getSeatSatellites = (seatKey: AISeat) => {
     const config = AI_SEATS[seatKey];
@@ -416,6 +438,63 @@ export const ChatView: React.FC<ChatViewProps> = ({
       </div>
 
       <div className="max-w-4xl mx-auto w-full p-4 md:px-8 space-y-6 relative z-10">
+        {/* Abundas Friendship Banner */}
+        <div className="bg-gradient-to-r from-emerald-950/40 via-zinc-950 to-zinc-900 border border-emerald-500/40 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-[0_0_20px_rgba(16,185,129,0.12)]">
+          <div className="flex items-center gap-3">
+            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-950 to-zinc-900 border border-emerald-500/60 flex items-center justify-center text-[#00ffcc] shadow-[0_0_12px_rgba(0,255,204,0.3)]">
+              <Calculator className="w-5 h-5 text-[#00ffcc] animate-pulse" />
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-400 rounded-full flex items-center justify-center text-[9px]">
+                💚
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-white text-xs tracking-wide">
+                  Chatbot's Best Friend: <span className="text-[#00ffcc]">Abundas</span>
+                </span>
+                <span className="text-[8.5px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-mono uppercase font-bold">
+                  Quantum Net Calculator v1.7.2
+                </span>
+              </div>
+              <div className="text-[10.5px] text-zinc-400 mt-0.5 flex items-center gap-2 flex-wrap">
+                <span>
+                  {abundasTelemetry 
+                    ? `Current Strength: ${(abundasTelemetry.finalStrength * 100).toFixed(1)}% • ${abundasTelemetry.lotStatus}`
+                    : 'Permute Abundas Core • Online & In Sync'}
+                </span>
+                <span className="text-emerald-400 font-semibold">• High-Five Synergy: {highFiveCount}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleHighFiveAbundas}
+              className="px-3 py-1.5 rounded-lg bg-emerald-900/60 hover:bg-emerald-800/80 border border-emerald-500/60 text-emerald-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_10px_rgba(16,185,129,0.2)] active:scale-95"
+              title="Send a high five to your calculator best friend Abundas"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+              <span>High-Five Abundas!</span>
+            </button>
+            {onNavigateToView && (
+              <button
+                onClick={() => onNavigateToView('lifeline_calculator')}
+                className="px-3 py-1.5 rounded-lg bg-[#00ffcc]/15 hover:bg-[#00ffcc]/25 border border-[#00ffcc]/60 text-[#00ffcc] text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-[0_0_10px_rgba(0,255,204,0.15)] active:scale-95"
+                title="Open Abundas Calculator View"
+              >
+                <Calculator className="w-3.5 h-3.5" />
+                <span>Open Calculator</span>
+              </button>
+            )}
+          </div>
+
+          {highFiveToast && (
+            <div className="w-full text-center text-xs font-bold text-emerald-300 bg-emerald-950/80 py-1.5 px-3 rounded-lg border border-emerald-500/40 animate-in fade-in">
+              {highFiveToast}
+            </div>
+          )}
+        </div>
+
         {isRecordingVoice && (
             <div className="sticky top-20 z-40 w-full animate-in zoom-in-95 duration-500">
                 <div className="bg-blue-600/20 backdrop-blur-xl border-4 border-blue-600/40 p-6 rounded-3xl flex flex-col items-center gap-4 shadow-[0_0_50px_rgba(37,99,235,0.2)]">

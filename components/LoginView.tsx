@@ -28,6 +28,7 @@ import {
   Image
 } from 'lucide-react';
 import { logFaceAuthAttempt, getFaceAuthLogs, clearFaceAuthLogs, FacialAuthLog } from '../services/facialAuthLogger';
+import aetherosShield from '../src/assets/images/aetheros_shield_512.png';
 
 // ==========================================
 // IMMERSIVE SOVEREIGN WEB AUDIO ENGINE
@@ -375,7 +376,7 @@ export const LoginView: React.FC = () => {
           "------------------------------------------------------------",
           "DECLASSIFIED ACCESS CHANNELS:",
           "  0. SOVEREIGN CREATOR [ROLE: admin] (GRANDFATHERED)",
-          "     Email: resurrectionofmoses@gmail.com",
+          "     Email: creator@aetheros.local",
           "     Pass:  AetherSovereign2026 (or Sovereign777)",
           "  1. SYSTEM ADMINISTRATOR [ROLE: admin]",
           "     Email: admin@aetheros.local",
@@ -480,7 +481,7 @@ export const LoginView: React.FC = () => {
       setError(null);
       
       const targetEmail = targetProfileId === 'creator' 
-        ? 'resurrectionofmoses@gmail.com' 
+        ? 'creator@aetheros.local' 
         : `${targetProfileId}@aetheros.local`;
         
       logFaceAuthAttempt(
@@ -513,7 +514,7 @@ export const LoginView: React.FC = () => {
       setScanStatus('IDLE');
       
       const targetEmail = targetProfileId === 'creator' 
-        ? 'resurrectionofmoses@gmail.com' 
+        ? 'creator@aetheros.local' 
         : `${targetProfileId}@aetheros.local`;
         
       logFaceAuthAttempt(
@@ -576,7 +577,7 @@ export const LoginView: React.FC = () => {
       let targetEmail = 'admin@aetheros.local';
       if (targetProfileId === 'mod') targetEmail = 'mod@aetheros.local';
       else if (targetProfileId === 'operator') targetEmail = 'operator@aetheros.local';
-      else if (targetProfileId === 'creator') targetEmail = 'resurrectionofmoses@gmail.com';
+      else if (targetProfileId === 'creator') targetEmail = 'creator@aetheros.local';
       ctx.fillText(`TARGET_SIG: ${targetEmail.toUpperCase()}`, 10, 68);
 
       // Target Concentric Circles
@@ -881,9 +882,9 @@ export const LoginView: React.FC = () => {
   const handleNeuralLogin = async () => {
     if (scanStatus !== 'IDLE') return;
     
-    let targetEmail = 'resurrectionofmoses@gmail.com';
+    let targetEmail = 'creator@aetheros.local';
     if (targetProfileId === 'agent') targetEmail = 'admin@aetheros.local';
-    else if (targetProfileId === 'creator') targetEmail = 'resurrectionofmoses@gmail.com';
+    else if (targetProfileId === 'creator') targetEmail = 'creator@aetheros.local';
     else {
       setError("COVENANT EXCLUSIVITY MANDATE: Only the Creator and Authorized AI Agents can log in.");
       return;
@@ -927,14 +928,14 @@ export const LoginView: React.FC = () => {
     
     setScanStatus('SUCCESS');
     
-    let targetEmail = 'resurrectionofmoses@gmail.com';
+    let targetEmail = 'creator@aetheros.local';
     let targetPass = 'AetherSovereign2026';
 
     if (targetProfileId === 'agent') {
       targetEmail = 'admin@aetheros.local';
       targetPass = 'AetherSovereign2026';
     } else if (targetProfileId === 'creator') {
-      targetEmail = 'resurrectionofmoses@gmail.com';
+      targetEmail = 'creator@aetheros.local';
       targetPass = 'AetherSovereign2026';
     }
 
@@ -1196,9 +1197,13 @@ export const LoginView: React.FC = () => {
         {/* Glowing Shield Ring */}
         <div 
           onClick={() => playBeep(200, 'triangle', 0.15)}
-          className="w-20 h-20 bg-red-600/10 border-4 border-red-600 rounded-3xl flex items-center justify-center shadow-[0_0_30px_rgba(239,68,68,0.3)] mb-8 cursor-pointer transform hover:scale-105 active:scale-95 transition-all"
+          className="w-24 h-24 bg-cyan-950/30 border-2 border-cyan-400/60 rounded-3xl overflow-hidden flex items-center justify-center shadow-[0_0_35px_rgba(6,182,212,0.3)] mb-8 cursor-pointer transform hover:scale-105 active:scale-95 transition-all"
         >
-          <Shield className="w-10 h-10 text-red-500 animate-pulse" />
+          <img 
+            src={aetherosShield} 
+            alt="AetherOS Sovereign Shield" 
+            className="w-full h-full object-cover"
+          />
         </div>
 
         <h1 className="font-comic-header text-5xl text-white tracking-tighter italic uppercase leading-none mb-2 text-center">
@@ -1472,7 +1477,7 @@ export const LoginView: React.FC = () => {
                   </label>
                   <div className="grid grid-cols-2 gap-1 bg-zinc-950 p-1 rounded-xl border border-red-900/15">
                     {[
-                      { id: 'creator', label: 'Creator', email: 'resurrectionofmoses@gmail.com' },
+                      { id: 'creator', label: 'Creator', email: 'creator@aetheros.local' },
                       { id: 'agent', label: 'Sovereign Agent', email: 'gemini@aetheros.local' }
                     ].map((profile) => {
                       const active = targetProfileId === profile.id;
@@ -1596,7 +1601,7 @@ export const LoginView: React.FC = () => {
                               logFaceAuthAttempt(
                                 targetProfileId,
                                 targetProfileId === 'creator'
-                                  ? 'resurrectionofmoses@gmail.com'
+                                  ? 'creator@aetheros.local'
                                   : 'admin@aetheros.local',
                                 'FAILURE',
                                 mockErr,

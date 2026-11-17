@@ -91,8 +91,24 @@ const CRYPTO_ENGINE = {
   },
 
   decrypt: async (jsonPkg: string): Promise<string | null> => {
+    if (!jsonPkg) return null;
     try {
-      const pkg: CryptoPackage = JSON.parse(jsonPkg);
+      let isCryptoPackage = false;
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(jsonPkg);
+        if (parsed && typeof parsed === 'object' && typeof parsed.iv === 'string' && typeof parsed.ciphertext === 'string') {
+          isCryptoPackage = true;
+        }
+      } catch {
+        return jsonPkg;
+      }
+
+      if (!isCryptoPackage) {
+        return jsonPkg;
+      }
+
+      const pkg: CryptoPackage = parsed;
       const key = await CRYPTO_ENGINE.getDerivedKey(SESSION_PASSPHRASE || 'AetherSovereign2026');
       
       const iv = new Uint8Array(atob(pkg.iv).split('').map(c => c.charCodeAt(0)));
@@ -106,7 +122,7 @@ const CRYPTO_ENGINE = {
 
       return new TextDecoder().decode(decryptedArr);
     } catch (e) {
-      return null;
+      return jsonPkg;
     }
   }
 };
@@ -195,7 +211,7 @@ export const safeStorage = {
         verse: getRandomVerse(type)
       };
       
-      const updatedLogs = [...logs, newEntry];
+      const updatedLogs = [...logs, newEntry].slice(-150);
       await safeStorage.setItem('aetheros_audit_log', JSON.stringify(updatedLogs));
     } catch (e) {
       console.error("[AetherOS] Failed to append audit log:", e);

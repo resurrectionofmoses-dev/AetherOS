@@ -17,6 +17,7 @@ import { PredictiveBanner } from './components/PredictiveBanner';
 import { SonicMetric } from './components/SonicMetric';
 import { ConjunctionThroughputMeter } from './components/ConjunctionThroughputMeter';
 import { LockdownOverlay } from './components/LockdownOverlay';
+import { GlitchTelemetryOverlay } from './components/GlitchTelemetryOverlay';
 import { MatrixCodeRain } from './components/MatrixCodeRain';
 import { SovereignAccessGuard } from './components/SovereignAccessGuard';
 import { TopNavBar } from './components/TopNavBar';
@@ -31,6 +32,7 @@ import { cellularEngine } from './services/cellularEngine';
 import { startChatSession, sendMessageSovereign, generateSoftwareModule, checkConnectivity, scanBinaryFile } from './services/geminiService';
 import { getMimeType, checkAndQuarantine } from './utils';
 import { EmergencyKillSwitch } from './services/emergencyKillSwitch';
+import { guardedEmergencyKillSwitch, RuntimeSecurityGuard } from './services/runtimeSecurityGuard';
 import { safeStorage } from './services/safeStorage';
 import { PredictionEngine } from './services/predictionEngine';
 import { useAuth } from './contexts/AuthContext';
@@ -40,8 +42,24 @@ import { speechService } from './services/speechService';
 import { milestoneService } from './services/milestoneService';
 import { sttService } from './services/sttService';
 import { reputationService } from './services/reputationService';
-import { DownloadIcon } from './components/icons';
+import {
+  fetchTrustLedger,
+  getLocalImmutableLedger,
+  getStrictEnforcementPreference,
+  mergeIrrevocableAwards,
+  recordTrustAction
+} from './services/aiTrustService';
+import {
+  getCumulativePermissionsForRank,
+  getHighestConferredRankNumber,
+  getRankSpec,
+  getRequiredRankForView,
+  hasRankPermission,
+  isRankViewUnlocked
+} from './services/aiTrustCharter';
+import { DownloadIcon, ZapIcon } from './components/icons';
 import { VoiceHUDOverlay } from './components/VoiceHUDOverlay';
+import { Camera, Trash2, X } from 'lucide-react';
 
 import type { 
   MainView, SystemStatus, SystemState, ChatMessage, ProjectBlueprint, 
@@ -49,7 +67,8 @@ import type {
   PinnedItem, EvoLibrary, AttachedFile, SystemGovernance,
   SoundscapeType, LibraryItem, ConjunctionProgress, SistersState,
   DominanceStats, DeviceLinkStatus, LinkedDevice, BroadcastMessage,
-  PinType, ProjectTask, PredictiveAlert, Vehicle, AISeat, UserProfile
+  PinType, ProjectTask, PredictiveAlert, Vehicle, AISeat, UserProfile,
+  GlitchTelemetry
 } from './types';
 import { AI_SEATS } from './types';
 import { TEACHER_PROFILES } from './constants';
@@ -555,7 +574,7 @@ const ALL_VIEWS_LIST: MainView[] = [
   'library_view', 'timeline', 'amoeba_heritage', 'system_exhaustion', 'recon_vault', 
   'constraints_audit', 'remix_scope_lab', 'vehicle_management', 'unknown_physics_lab', 'logic_pattern_lab', 
   'vulnerability_report', 'tactical_intelligence', 'behavioral_specs', 'cognitive_pipeline', 'data_provenance_lab', 
-  'sh_crt_loop', 'user_profile', 'prompt_forge', 'sovereign_standard', 'confusion_logic', 'knowledge_forum', 
+  'sh_crt_loop', 'user_profile', 'ai_trust_covenant', 'prompt_forge', 'sovereign_standard', 'confusion_logic', 'knowledge_forum', 
   'blockchain_history', 'main_net', 'ecosystem', 'accounts_registry', 'blacklist', 'system_integrity', 
   'vault_manager', 'moderator_lounge', 'biometric_intelligence', 'card_recovery', 'project_showcase', 'quantum_ledger' as any, 'ai_telemetry', 'inevitable_crash', 'scraper_merchant_store', 'data_academy', 'reputation_leaderboard', 'aether_flow_orchestrator', 'packaging_suite', 'system_archives', 'system_diagnostic', 'aetheros_online_status', 'regex_editor_lab', 'agent_safeguard', 'safeguard', 'gmail', 'google_drive', 'sovereign_scanner', 'activity_logs', 'bound_observer'
 ];
@@ -597,6 +616,7 @@ export const App: React.FC = () => {
 
     const [isDeepStasisDebugOpen, setIsDeepStasisDebugOpen] = useState(false);
     const [stasisRemainingTime, setStasisRemainingTime] = useState(8);
+    const [glitchHistory, setGlitchHistory] = useState<GlitchTelemetry[]>([]);
     const konamiCodeRef = useRef<string[]>([]);
 
     const acousticThresholdRef = useRef(80.0);
@@ -613,20 +633,52 @@ export const App: React.FC = () => {
     const [userProfile, setUserProfile] = useState<UserProfile>({
         id: 'OP-7734-X',
         username: 'Aetheros_Prime',
+        tagline: 'Principal Systems Architect & Distributed Network Specialist',
         bio: 'Lead architect of the Sovereign Shield. Specializing in recursive self-improvement and high-frequency cognitive pipelines.',
         skills: ['TypeScript', 'React', 'Node.js', 'Quantum Logic', 'System Architecture'],
+        programmingLanguages: [
+            { name: 'TypeScript', proficiency: 'Expert', years: 6 },
+            { name: 'JavaScript', proficiency: 'Expert', years: 7 },
+            { name: 'Python', proficiency: 'Advanced', years: 4 },
+            { name: 'Rust', proficiency: 'Intermediate', years: 2 },
+            { name: 'Solidity', proficiency: 'Intermediate', years: 2 }
+        ],
         lookingForSkills: ['Python', 'AWS', 'Go', 'Rust', 'Solidity'],
+        willingToTeachSkills: ['TypeScript', 'React', 'System Architecture'],
         experienceLevel: 'Senior / Lead Architect',
         role: 'operator',
         sovereignty: 'SOVEREIGN_SYSTEM',
         sovereigntyTier: 3,
+        contactInfo: {
+            github: 'https://github.com/aetheros-prime',
+            website: 'https://aetheros.network'
+        },
         portfolioLinks: [
             { id: 'link_1', label: 'GitHub', url: 'https://github.com/aetheros-prime' },
             { id: 'link_2', label: 'Website', url: 'https://aetheros.network' }
         ],
         profileProjects: [
-            { id: 'proj_1', title: 'Sovereign Shield', roleDefined: 'Lead Architect', status: 'current', description: 'Real-time multi-dimensional defensive envelope and metric tracking system.' },
-            { id: 'proj_2', title: 'Cognitive Pipeline', roleDefined: 'Core Dev', status: 'past', description: 'Autonomous orchestration model integrating high-frequency token generation and feedback matrices.' }
+            {
+                id: 'proj_1',
+                title: 'Sovereign Shield',
+                roleDefined: 'Lead Architect',
+                status: 'current',
+                contributionType: 'in_progress',
+                technologies: ['TypeScript', 'React', 'WebSockets'],
+                sourceCodeUrl: 'https://github.com/aetheros-prime/sovereign-shield',
+                description: 'Real-time multi-dimensional defensive envelope and metric tracking system.'
+            },
+            {
+                id: 'proj_2',
+                title: 'Cognitive Pipeline',
+                roleDefined: 'Core Dev',
+                status: 'past',
+                contributionType: 'completed',
+                technologies: ['TypeScript', 'Node.js', 'Python'],
+                sourceCodeUrl: 'https://github.com/aetheros-prime/cognitive-pipeline',
+                liveDemoUrl: 'https://aetheros.network/pipeline',
+                description: 'Autonomous orchestration model integrating high-frequency token generation and feedback matrices.'
+            }
         ]
     });
 
@@ -696,28 +748,64 @@ export const App: React.FC = () => {
                 const haltActive = await EmergencyKillSwitch.checkStatus();
                 setIsHalted(haltActive);
 
-                // Restore User Profile
+                // Restore User Profile + Monotonically Sync Set-in-Stone AI Ranks
                 const savedProfile = await safeStorage.getItem('aetheros_user_profile');
+                let baseProfileForTrust: UserProfile | null = null;
                 if (savedProfile) {
                     try {
                         const parsedProfile = JSON.parse(savedProfile);
                         const res = checkAndQuarantine(parsedProfile, 'profile');
                         if (res.isSafe) {
+                            baseProfileForTrust = parsedProfile;
                             setUserProfile(parsedProfile);
                         } else {
                             setUserProfile({
                                 id: 'OP-7734-X',
                                 username: 'Aetheros_Prime',
+                                tagline: 'Principal Systems Architect & Distributed Network Specialist',
                                 bio: 'Lead architect of the Sovereign Shield. Specializing in recursive self-improvement and high-frequency cognitive pipelines.',
                                 skills: ['TypeScript', 'React', 'Node.js', 'Quantum Logic', 'System Architecture'],
+                                programmingLanguages: [
+                                    { name: 'TypeScript', proficiency: 'Expert', years: 6 },
+                                    { name: 'JavaScript', proficiency: 'Expert', years: 7 },
+                                    { name: 'Python', proficiency: 'Advanced', years: 4 },
+                                    { name: 'Rust', proficiency: 'Intermediate', years: 2 }
+                                ],
                                 lookingForSkills: ['Python', 'AWS', 'Go', 'Rust', 'Solidity'],
+                                willingToTeachSkills: ['TypeScript', 'React', 'System Architecture'],
                                 experienceLevel: 'Senior / Lead Architect',
                                 role: 'operator',
                                 sovereignty: 'SOVEREIGN_SYSTEM',
                                 sovereigntyTier: 3,
+                                contactInfo: {
+                                    github: 'https://github.com/aetheros-prime',
+                                    website: 'https://aetheros.network'
+                                },
                                 portfolioLinks: [
                                     { id: 'link_1', label: 'GitHub', url: 'https://github.com/aetheros-prime' },
                                     { id: 'link_2', label: 'Website', url: 'https://aetheros.network' }
+                                ],
+                                profileProjects: [
+                                    {
+                                        id: 'proj_1',
+                                        title: 'Sovereign Shield',
+                                        roleDefined: 'Lead Architect',
+                                        status: 'current',
+                                        contributionType: 'in_progress',
+                                        technologies: ['TypeScript', 'React', 'WebSockets'],
+                                        sourceCodeUrl: 'https://github.com/aetheros-prime/sovereign-shield',
+                                        description: 'Real-time multi-dimensional defensive envelope and metric tracking system.'
+                                    },
+                                    {
+                                        id: 'proj_2',
+                                        title: 'Cognitive Pipeline',
+                                        roleDefined: 'Core Dev',
+                                        status: 'past',
+                                        contributionType: 'completed',
+                                        technologies: ['TypeScript', 'Node.js', 'Python'],
+                                        sourceCodeUrl: 'https://github.com/aetheros-prime/cognitive-pipeline',
+                                        description: 'Autonomous orchestration model integrating high-frequency token generation and feedback matrices.'
+                                    }
                                 ]
                             });
                         }
@@ -726,43 +814,112 @@ export const App: React.FC = () => {
                     }
                 }
 
+                try {
+                    const localAwards = await getLocalImmutableLedger();
+                    const syncTargetId = baseProfileForTrust?.id || 'OP-7734-X';
+                    const syncRealName = baseProfileForTrust?.realName;
+                    const syncUsername = baseProfileForTrust?.username || 'Aetheros_Prime';
+                    let remoteAwards = localAwards;
+                    let remoteScore = baseProfileForTrust?.trustScore || 0;
+                    let remoteVerdict = baseProfileForTrust?.aiTrustVerdict || '';
+                    let remoteSeal = baseProfileForTrust?.portableCredentialSeal;
+                    try {
+                        const serverLedger = await fetchTrustLedger({
+                            profileId: syncTargetId,
+                            realName: syncRealName,
+                            onlineUsername: syncUsername
+                        });
+                        remoteAwards = mergeIrrevocableAwards(localAwards, serverLedger.awards);
+                        remoteScore = Math.max(remoteScore, serverLedger.trustScore);
+                        if (serverLedger.lastVerdict) remoteVerdict = serverLedger.lastVerdict;
+                        if (serverLedger.portableCredential?.masterSealSignature) {
+                            remoteSeal = serverLedger.portableCredential.masterSealSignature;
+                        }
+                    } catch {
+                        // Offline fallback uses encrypted local ledger monotonically
+                    }
+                    if (remoteAwards.length > 0) {
+                        const highestRank = getHighestConferredRankNumber(remoteAwards);
+                        const highestSpec = getRankSpec(highestRank);
+                        setUserProfile(prev => {
+                            const merged = mergeIrrevocableAwards(prev.grantedRanks || [], remoteAwards);
+                            const topRank = getHighestConferredRankNumber(merged);
+                            const topSpec = topRank > 0 ? getRankSpec(topRank) : null;
+                            return {
+                                ...prev,
+                                realName: prev.realName || merged[0]?.realName,
+                                grantedRanks: merged,
+                                aiTrustRankNumber: Math.max(prev.aiTrustRankNumber || 0, topRank),
+                                aiTrustTitle: topSpec ? topSpec.title : prev.aiTrustTitle,
+                                unlockedPermissions: getCumulativePermissionsForRank(Math.max(prev.aiTrustRankNumber || 0, topRank)),
+                                trustScore: Math.max(prev.trustScore || 0, remoteScore),
+                                aiTrustVerdict: remoteVerdict || prev.aiTrustVerdict,
+                                portableCredentialSeal: remoteSeal || prev.portableCredentialSeal
+                            };
+                        });
+                    }
+                } catch (e) {
+                    console.warn("[AetherOS] Non-fatal trust ledger restore warning:", e);
+                }
+
                 // Restore Chat History
-                const savedChat = await safeStorage.getItem('aetheros_chat_history');
-                if (savedChat) {
-                    const parsed = JSON.parse(savedChat);
-                    const cleanChat = parsed.filter((m: any) => {
-                        const res = checkAndQuarantine(m, 'message');
-                        return res.isSafe;
-                    });
-                    setMessages(cleanChat.map((m: any) => ({
-                        ...m,
-                        timestamp: new Date(m.timestamp)
-                    })));
-                } else {
+                try {
+                    const savedChat = await safeStorage.getItem('aetheros_chat_history');
+                    if (savedChat) {
+                        const parsed = JSON.parse(savedChat);
+                        if (Array.isArray(parsed)) {
+                            const cleanChat = parsed.filter((m: any) => {
+                                const res = checkAndQuarantine(m, 'message');
+                                return res.isSafe;
+                            });
+                            setMessages(cleanChat.map((m: any) => ({
+                                ...m,
+                                timestamp: new Date(m.timestamp || Date.now())
+                            })));
+                        }
+                    } else {
+                        setMessages([{
+                            sender: 'model', content: "Quantized Conductor active. State machine established.", timestamp: new Date(), seat: 'sovereign'
+                        }]);
+                    }
+                } catch (e) {
+                    console.error("[AetherOS] Failed to restore chat history:", e);
                     setMessages([{
                         sender: 'model', content: "Quantized Conductor active. State machine established.", timestamp: new Date(), seat: 'sovereign'
                     }]);
                 }
 
                 // Restore Blueprints
-                const savedBlueprints = await safeStorage.getItem('aetheros_blueprints');
-                if (savedBlueprints) {
-                    const parsedBlueprints = JSON.parse(savedBlueprints);
-                    setBlueprints(parsedBlueprints.map((b: any) => ({
-                        ...b,
-                        timestamp: new Date(b.timestamp)
-                    })));
+                try {
+                    const savedBlueprints = await safeStorage.getItem('aetheros_blueprints');
+                    if (savedBlueprints) {
+                        const parsedBlueprints = JSON.parse(savedBlueprints);
+                        if (Array.isArray(parsedBlueprints)) {
+                            setBlueprints(parsedBlueprints.map((b: any) => ({
+                                ...b,
+                                timestamp: new Date(b.timestamp || Date.now())
+                            })));
+                        }
+                    }
+                } catch (e) {
+                    console.error("[AetherOS] Failed to restore blueprints:", e);
                 }
 
                 // Restore Projects
-                const savedProjects = await safeStorage.getItem('aetheros_projects');
                 let initialProjects: NetworkProject[] = [];
-                if (savedProjects) {
-                    const parsedProjects = JSON.parse(savedProjects);
-                    initialProjects = parsedProjects.map((p: any) => ({
-                        ...p,
-                        timestamp: new Date(p.timestamp)
-                    }));
+                try {
+                    const savedProjects = await safeStorage.getItem('aetheros_projects');
+                    if (savedProjects) {
+                        const parsedProjects = JSON.parse(savedProjects);
+                        if (Array.isArray(parsedProjects)) {
+                            initialProjects = parsedProjects.map((p: any) => ({
+                                ...p,
+                                timestamp: new Date(p.timestamp || Date.now())
+                            }));
+                        }
+                    }
+                } catch (e) {
+                    console.error("[AetherOS] Failed to restore projects:", e);
                 }
 
                 // Inject task into Maestro_Solo project check
@@ -789,33 +946,99 @@ export const App: React.FC = () => {
                 if (!hasMaestroSolo) {
                     updatedProjects.push({
                         id: uuidv4(),
-                        title: 'Maestro_Solo',
-                        description: 'Solo project for Maestro',
+                        title: 'Maestro Core System',
+                        description: 'Autonomous execution engine and operator escalation fail-safes',
                         crazyLevel: 50,
                         fightVector: 50,
-                        tasks: [{
-                            id: uuidv4(),
-                            text: "Lock down operator escalation flows, logging, and fail-safe behaviors before any field trial.",
-                            completed: false,
-                            createdAt: Date.now()
-                        }],
-                        status: 'IDEATING',
+                        tasks: [
+                            {
+                                id: uuidv4(),
+                                text: "Lock down operator escalation flows, logging, and fail-safe behaviors before any field trial.",
+                                completed: true,
+                                status: 'DONE',
+                                dueDate: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0],
+                                completedAt: Date.now() - 86400000,
+                                priority: 'CRITICAL',
+                                createdAt: Date.now() - 86400000 * 3
+                            },
+                            {
+                                id: uuidv4(),
+                                text: "Validate quantum entropy threshold monitors",
+                                completed: false,
+                                status: 'TODO',
+                                dueDate: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
+                                priority: 'HIGH',
+                                createdAt: Date.now()
+                            }
+                        ],
+                        status: 'BUILDING',
                         priority: 'Critical',
+                        deadline: new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0],
+                        tags: ['Core', 'Security'],
                         isWisdomHarmonized: false,
                         timestamp: new Date()
                     });
                 }
+
+                if (updatedProjects.length <= 1) {
+                    updatedProjects.push(
+                        {
+                            id: uuidv4(),
+                            title: 'Quantum Gateway Infrastructure',
+                            description: 'Deploy distributed gateway clusters with zero-trust key rotation and telemetry pipelines.',
+                            status: 'BUILDING',
+                            priority: 'High',
+                            fightVector: 60,
+                            crazyLevel: 40,
+                            isWisdomHarmonized: true,
+                            deadline: new Date(Date.now() + 86400000 * 5).toISOString().split('T')[0],
+                            tasks: [
+                                { id: uuidv4(), text: 'Configure secure RPC ingress proxies', completed: true, status: 'DONE', dueDate: new Date(Date.now() - 86400000).toISOString().split('T')[0], completedAt: Date.now() - 86400000, createdAt: Date.now() - 172800000, priority: 'HIGH' },
+                                { id: uuidv4(), text: 'Run cryptographic handshake benchmark', completed: false, status: 'TODO', dueDate: new Date().toISOString().split('T')[0], createdAt: Date.now() - 86400000, priority: 'CRITICAL' },
+                                { id: uuidv4(), text: 'Deploy failover replication nodes', completed: false, status: 'TODO', dueDate: new Date(Date.now() + 86400000 * 4).toISOString().split('T')[0], createdAt: Date.now() - 86400000, priority: 'MEDIUM' }
+                            ],
+                            tags: ['Infrastructure', 'Security'],
+                            collaborators: ['DevOps_Lead', 'SecOps_Agent'],
+                            timestamp: new Date()
+                        },
+                        {
+                            id: uuidv4(),
+                            title: 'Aether Mobile Companion v2',
+                            description: 'Responsive mobile interface with offline storage sync and biometrics.',
+                            status: 'STABLE',
+                            priority: 'Medium',
+                            fightVector: 30,
+                            crazyLevel: 25,
+                            isWisdomHarmonized: true,
+                            deadline: new Date(Date.now() + 86400000 * 12).toISOString().split('T')[0],
+                            tasks: [
+                                { id: uuidv4(), text: 'Audit touch gesture responsiveness', completed: true, status: 'DONE', dueDate: new Date(Date.now() - 86400000 * 4).toISOString().split('T')[0], completedAt: Date.now() - 120000000, createdAt: Date.now() - 200000000, priority: 'LOW' },
+                                { id: uuidv4(), text: 'Integrate offline persistence cache', completed: true, status: 'DONE', dueDate: new Date(Date.now() - 86400000 * 2).toISOString().split('T')[0], completedAt: Date.now() - 40000000, createdAt: Date.now() - 200000000, priority: 'HIGH' },
+                                { id: uuidv4(), text: 'Conduct cross-browser layout verification', completed: false, status: 'TODO', dueDate: new Date(Date.now() + 86400000 * 3).toISOString().split('T')[0], createdAt: Date.now() - 86400000, priority: 'MEDIUM' }
+                            ],
+                            tags: ['Frontend', 'Mobile'],
+                            collaborators: ['UI_Designer', 'QA_Auditor'],
+                            timestamp: new Date()
+                        }
+                    );
+                }
                 setProjects(updatedProjects);
 
                 // Restore Agents
-                const savedAgents = await safeStorage.getItem('aetheros_agents');
-                if (savedAgents) {
-                    const parsedAgents = JSON.parse(savedAgents);
-                    setAgents(parsedAgents.map((a: any) => ({
-                        ...a,
-                        hireDate: a.hireDate ? new Date(a.hireDate) : undefined,
-                        quitDate: a.quitDate ? new Date(a.quitDate) : undefined
-                    })));
+                try {
+                    const savedAgents = await safeStorage.getItem('aetheros_agents');
+                    if (savedAgents) {
+                        const parsedAgents = JSON.parse(savedAgents);
+                        if (Array.isArray(parsedAgents)) {
+                            setAgents(parsedAgents.map((a: any) => ({
+                                ...a,
+                                hireDate: a.hireDate ? new Date(a.hireDate) : undefined,
+                                quitDate: a.quitDate ? new Date(a.quitDate) : undefined
+                            })));
+                        }
+                    }
+                } catch (e) {
+                    console.error("[AetherOS] Failed to restore agents:", e);
                 }
 
                 // Restore Conjunction Progress
@@ -1166,6 +1389,7 @@ export const App: React.FC = () => {
     const [soundscape, setSoundscape] = useState<SoundscapeType>('VOID');
     const [governance, setGovernance] = useState<SystemGovernance>({ lawLevel: 0.42, symphonicFreedom: true, activeAccord: 'MAESTRO_SOLO_v5' });
     const [unlockedViews, setUnlockedViews] = useState<MainView[]>(ALL_VIEWS_LIST);
+    const [strictRankEnforcement, setStrictRankEnforcement] = useState<boolean>(() => getStrictEnforcementPreference());
     const [conjunctionProgress, setConjunctionProgress] = useState<ConjunctionProgress>({ level: 5, shards: 99999, unlockedViews: ALL_VIEWS_LIST, globalAdrenaline: 100 });
     const [sisters, setSisters] = useState<SistersState>({ aethera: { active: false }, logica: { active: false }, sophia: { active: false } });
     const [purchasedItems, setPurchasedItems] = useState<string[]>([]);
@@ -1379,6 +1603,16 @@ export const App: React.FC = () => {
         projectsRef.current = projects;
     }, [projects]);
 
+    // Subscribe to Runtime Security Guard for automatic integrity halt engagement
+    useEffect(() => {
+        const unsubscribe = RuntimeSecurityGuard.subscribe(status => {
+            if (status.isHalted) {
+                setIsHalted(true);
+            }
+        });
+        return () => unsubscribe();
+    }, []);
+
     useEffect(() => {
         const states = Object.values(systemStatus);
         if (states.includes('Error')) {
@@ -1586,6 +1820,118 @@ export const App: React.FC = () => {
     }, []);
 
     const [isSystemFractured, setIsSystemFractured] = useState(false);
+    const [isForcedGlitch, setIsForcedGlitch] = useState(false);
+    const forcedGlitchTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const glitchStartTimeRef = useRef<number | null>(null);
+
+    useEffect(() => {
+        if (isSystemFractured && glitchStartTimeRef.current === null) {
+            glitchStartTimeRef.current = Date.now();
+        } else if (!isSystemFractured && !isForcedGlitch) {
+            glitchStartTimeRef.current = null;
+        }
+    }, [isSystemFractured, isForcedGlitch]);
+
+    const handleForceGlitch = useCallback(() => {
+        if (forcedGlitchTimerRef.current) {
+            clearTimeout(forcedGlitchTimerRef.current);
+        }
+        setIsForcedGlitch(true);
+        const startTime = Date.now();
+        glitchStartTimeRef.current = startTime;
+        forcedGlitchTimerRef.current = setTimeout(() => {
+            setIsForcedGlitch(false);
+            if (!isSystemFractured) {
+                glitchStartTimeRef.current = null;
+            }
+            const duration = Date.now() - startTime;
+            setGlitchHistory(prev => [...prev, { id: uuidv4(), timestamp: startTime, duration }]);
+        }, 2000);
+    }, [isSystemFractured]);
+
+    const [pendingSnapshot, setPendingSnapshot] = useState<GlitchTelemetry | null>(null);
+    const [snapshotLabelInput, setSnapshotLabelInput] = useState('');
+    const snapshotInputRef = useRef<HTMLInputElement | null>(null);
+
+    useEffect(() => {
+        if (pendingSnapshot) {
+            const focusTimer = setTimeout(() => {
+                snapshotInputRef.current?.focus();
+            }, 20);
+            return () => clearTimeout(focusTimer);
+        }
+    }, [pendingSnapshot]);
+
+    const handleSnapshotGlitchState = useCallback(() => {
+        const now = Date.now();
+        const isGlitching = isForcedGlitch || isSystemFractured;
+        const duration = isGlitching && glitchStartTimeRef.current
+            ? Math.max(1, now - glitchStartTimeRef.current)
+            : 0;
+
+        const draftSnapshot: GlitchTelemetry = {
+            id: uuidv4(),
+            timestamp: now,
+            duration,
+            isSnapshot: true,
+            activeGlitch: isGlitching,
+            systemStatus: { ...systemStatus },
+            activityDensity,
+            acousticPressure,
+            currentView,
+        };
+
+        setPendingSnapshot(draftSnapshot);
+        setSnapshotLabelInput('');
+    }, [isForcedGlitch, isSystemFractured, systemStatus, activityDensity, acousticPressure, currentView]);
+
+    const handleConfirmSnapshot = useCallback((e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!pendingSnapshot) return;
+
+        const trimmedLabel = snapshotLabelInput.trim();
+        const finalEntry: GlitchTelemetry = {
+            ...pendingSnapshot,
+            ...(trimmedLabel ? { label: trimmedLabel } : {}),
+        };
+
+        setGlitchHistory(prev => [...prev, finalEntry]);
+
+        const degradedCount = finalEntry.systemStatus
+            ? (Object.values(finalEntry.systemStatus) as string[]).filter(s => s !== 'OK').length
+            : 0;
+        const densityStr = typeof finalEntry.activityDensity === 'number'
+            ? finalEntry.activityDensity.toFixed(1)
+            : '0.0';
+
+        toast.success(finalEntry.activeGlitch ? 'Glitch State Snapshot Saved' : 'System State Snapshot Saved', {
+            description: `${trimmedLabel ? `"${trimmedLabel}" • ` : ''}Density: ${densityStr} | Subsystems: ${degradedCount === 0 ? 'All OK' : `${degradedCount} Alert`}`
+        });
+
+        recordTrustAction({
+            category: 'STABILITY',
+            actionType: 'GLITCH_SNAPSHOT',
+            summary: `Captured ${finalEntry.activeGlitch ? 'glitch' : 'system'} snapshot${trimmedLabel ? `: "${trimmedLabel}"` : ''}`,
+            target: String(currentView),
+            trustPointsAwarded: 10
+        }).catch(() => {});
+
+        setPendingSnapshot(null);
+        setSnapshotLabelInput('');
+    }, [pendingSnapshot, snapshotLabelInput, currentView]);
+
+    const handleCancelSnapshot = useCallback(() => {
+        setPendingSnapshot(null);
+        setSnapshotLabelInput('');
+    }, []);
+
+    useEffect(() => {
+        return () => {
+            if (forcedGlitchTimerRef.current) {
+                clearTimeout(forcedGlitchTimerRef.current);
+            }
+        };
+    }, []);
 
     // Automatic dynamic subsystem status algorithms
     useEffect(() => {
@@ -1770,7 +2116,7 @@ export const App: React.FC = () => {
             return;
         }
 
-        // Sovereign Command Security Check
+        // Sovereign Command Security & AI Rank Permission Gate
         if (text.startsWith('/') && !user?.sovereignty) {
              setCurrentAlert({
                 id: uuidv4(),
@@ -1782,9 +2128,25 @@ export const App: React.FC = () => {
             });
             return;
         }
+        if (text.startsWith('/') && !hasRankPermission(userProfile.grantedRanks, 'ai:sovereign_commands')) {
+            const heldRank = Math.max(userProfile.aiTrustRankNumber || 0, getHighestConferredRankNumber(userProfile.grantedRanks));
+            reportError({
+                title: 'AI_RANK_CLEARANCE_REQUIRED',
+                message: `Privileged /slash AI directives require Rank V (Matrix Archon). Your current Rank: ${heldRank > 0 ? `Rank ${heldRank}` : 'Unranked'}. Earn trust actions and evaluate in AI Trust Covenant.`,
+                severity: ErrorSeverity.MEDIUM
+            });
+            return;
+        }
 
         if (!text.trim() && attachedFiles.length === 0) return;
         sonicLedger.record('COMMAND', `QUANTIZED_INTENT_${text.length}`, text.length);
+        recordTrustAction({
+            category: 'AI_ASSIST',
+            actionType: 'AI_CONVERSE',
+            summary: `Collaborated with AI (${activeSeat}): "${text.trim().slice(0, 72)}"`,
+            target: 'chat',
+            trustPointsAwarded: 8
+        }).catch(() => {});
         
         const newMessage: ChatMessage = { 
             sender: 'user', 
@@ -1881,6 +2243,13 @@ export const App: React.FC = () => {
         try {
             const result = await scanBinaryFile(file.name, file.content);
             setAttachedFiles(prev => prev.map(f => f.name === fileName ? { ...f, scanStatus: 'complete', scanResult: result } : f));
+            recordTrustAction({
+                category: 'SECURITY',
+                actionType: 'BINARY_SECURITY_SCAN',
+                summary: `Scanned attached file for anomalies: ${file.name}`,
+                target: file.name,
+                trustPointsAwarded: 12
+            }).catch(() => {});
         } catch (e) {
             setAttachedFiles(prev => prev.map(f => f.name === fileName ? { ...f, scanStatus: 'error' } : f));
         }
@@ -1896,6 +2265,18 @@ export const App: React.FC = () => {
             return;
         }
 
+        const currentRankNum = Math.max(userProfile.aiTrustRankNumber || 0, getHighestConferredRankNumber(userProfile.grantedRanks));
+        if (strictRankEnforcement && !isRankViewUnlocked(String(view), currentRankNum, true)) {
+            const reqSpec = getRequiredRankForView(String(view));
+            reportError({
+                title: 'AI_RANK_CLEARANCE_REQUIRED',
+                message: `View "${String(view)}" requires Rank ${reqSpec.romanNumeral} (${reqSpec.title}). Current rank: ${currentRankNum > 0 ? `Rank ${getRankSpec(currentRankNum).romanNumeral}` : 'Unranked'}. Build trust actions in AI Trust Covenant.`,
+                severity: ErrorSeverity.MEDIUM
+            });
+            setCurrentView('ai_trust_covenant');
+            return;
+        }
+
         // Log tab-switching activity with localized ISO time
         const now = new Date();
         const simplifiedTime = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
@@ -1906,7 +2287,7 @@ export const App: React.FC = () => {
         const richLogEntry = {
             id: `log_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             timestamp: now.toISOString(),
-            userEmail: user?.email || 'resurrectionofmoses@gmail.com',
+            userEmail: user?.email || 'admin@aetheros.local',
             role: user?.role || 'admin',
             machineId: 'XPS-NODE-992',
             type: 'VIEW_SWITCH',
@@ -1945,7 +2326,7 @@ export const App: React.FC = () => {
     useEffect(() => {
         const handleSafeModeCheck = () => {
             const safeModeActive = localStorage.getItem('aetheros_safe_mode') === 'true';
-            const criticalViews = ['chat', 'system_diagnostic', 'diagnostics', 'sovereign_shield', 'user_profile'];
+            const criticalViews = ['chat', 'system_diagnostic', 'diagnostics', 'sovereign_shield', 'user_profile', 'ai_trust_covenant'];
             if (safeModeActive && !criticalViews.includes(currentView)) {
                 // Redirect to a safe view (e.g., diagnostics)
                 handleSetView('diagnostics' as any);
@@ -1987,6 +2368,8 @@ export const App: React.FC = () => {
                 setChatSearchQuery,
                 chatStartDate,
                 chatEndDate,
+                glitchHistory,
+                onClearGlitchHistory: () => setGlitchHistory([]),
                 chatSenderFilter,
                 setChatSenderFilter,
                 onDateChange: (s: string, e: string) => { setChatStartDate(s); setChatEndDate(e); },
@@ -2055,14 +2438,44 @@ export const App: React.FC = () => {
                 onConnect: () => setDeviceLinkStatus('connected'),
                 onDisconnect: () => setDeviceLinkStatus('disconnected'),
                 lastModule: savedModules[0],
-                onGenerate: generateSoftwareModule,
+                onGenerate: async (logicText: string) => {
+                    const mod = await generateSoftwareModule(logicText);
+                    if (mod) {
+                        recordTrustAction({
+                            category: 'ENGINEERING',
+                            actionType: 'MODULE_SYNTHESIS',
+                            summary: `Generated engineering module from prompt: "${logicText.slice(0, 64)}"`,
+                            target: 'Forge',
+                            trustPointsAwarded: 14
+                        }).catch(() => {});
+                    }
+                    return mod;
+                },
                 teachers,
                 onSelectTeacher: () => {},
                 libraryItems,
                 vehicles,
                 setVehicles,
                 profile: userProfile,
-                onUpdateProfile: (updates: any) => setUserProfile(prev => ({ ...prev, ...updates })),
+                onUpdateProfile: (updates: any) => setUserProfile(prev => {
+                    const existingRanks = prev.grantedRanks || [];
+                    const incomingRanks = updates?.grantedRanks || [];
+                    const mergedRanks = incomingRanks.length > 0 ? mergeIrrevocableAwards(existingRanks, incomingRanks) : existingRanks;
+                    const highestRank = Math.max(prev.aiTrustRankNumber || 0, updates?.aiTrustRankNumber || 0, getHighestConferredRankNumber(mergedRanks));
+                    const highestSpec = highestRank > 0 ? getRankSpec(highestRank) : null;
+                    return {
+                        ...prev,
+                        ...updates,
+                        ...(mergedRanks.length > 0 ? { grantedRanks: mergedRanks } : {}),
+                        ...(highestRank > 0 ? {
+                            aiTrustRankNumber: highestRank,
+                            aiTrustTitle: highestSpec ? highestSpec.title : updates?.aiTrustTitle || prev.aiTrustTitle,
+                            unlockedPermissions: getCumulativePermissionsForRank(highestRank)
+                        } : {}),
+                        trustScore: Math.max(prev.trustScore || 0, updates?.trustScore || 0)
+                    };
+                }),
+                onStrictEnforcementChange: (enabled: boolean) => setStrictRankEnforcement(enabled),
                 currentChannel,
                 onSetChannel: (channel: any) => {
                     if (channel === 'moderator' && !['moderator', 'operator', 'admin'].includes(user?.role || '')) {
@@ -2412,12 +2825,13 @@ export const App: React.FC = () => {
 
     const handleTriggerHalt = async () => {
         setIsHalted(true);
-        await EmergencyKillSwitch.trigger();
+        await guardedEmergencyKillSwitch.trigger();
     };
 
-    const handleResetHalt = () => {
+    const handleResetHalt = async () => {
         setIsHalted(false);
-        EmergencyKillSwitch.reset();
+        await RuntimeSecurityGuard.resetIntegrityHalt();
+        await EmergencyKillSwitch.reset();
     };
 
     return (
@@ -2498,7 +2912,7 @@ export const App: React.FC = () => {
                 <Sidebar 
                     systemStatus={systemStatus} systemDetails={{}} currentView={currentView as MainView} onSetView={(v) => handleSetView(v as any)} 
                     currentDateTime={currentTime} timeFormat={timeFormat} onToggleTimeFormat={() => setTimeFormat(prev => prev === '12hr' ? '24hr' : '12hr')} 
-                    unlockedViews={[...unlockedViews, 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any, 'ai_telemetry' as any, 'cascade_investigator' as any, 'inevitable_crash' as any, 'mission_items' as any, 'gmail' as any, 'sovereign_scroll_console' as any]} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
+                    unlockedViews={[...unlockedViews, 'ai_trust_covenant', 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any, 'ai_telemetry' as any, 'cascade_investigator' as any, 'inevitable_crash' as any, 'mission_items' as any, 'gmail' as any, 'sovereign_scroll_console' as any].filter(v => isRankViewUnlocked(String(v), Math.max(userProfile.aiTrustRankNumber || 0, getHighestConferredRankNumber(userProfile.grantedRanks)), strictRankEnforcement))} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
                     onSelectSystemIndicator={(sysName) => {
                         setDiagnosticSearchQuery(sysName);
                         handleSetView('system_diagnostic');
@@ -2539,7 +2953,7 @@ export const App: React.FC = () => {
                             <Sidebar 
                                 systemStatus={systemStatus} systemDetails={{}} currentView={currentView as MainView} onSetView={(v) => { handleSetView(v as any); setIsSidebarOpen(false); }} 
                                 currentDateTime={currentTime} timeFormat={timeFormat} onToggleTimeFormat={() => setTimeFormat(prev => prev === '12hr' ? '24hr' : '12hr')} 
-                                unlockedViews={[...unlockedViews, 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any, 'ai_telemetry' as any, 'cascade_investigator' as any, 'inevitable_crash' as any, 'mission_items' as any, 'gmail' as any, 'sovereign_scroll_console' as any]} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
+                                unlockedViews={[...unlockedViews, 'ai_trust_covenant', 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any, 'ai_telemetry' as any, 'cascade_investigator' as any, 'inevitable_crash' as any, 'mission_items' as any, 'gmail' as any, 'sovereign_scroll_console' as any].filter(v => isRankViewUnlocked(String(v), Math.max(userProfile.aiTrustRankNumber || 0, getHighestConferredRankNumber(userProfile.grantedRanks)), strictRankEnforcement))} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
                                 onSelectSystemIndicator={(sysName) => {
                                     setDiagnosticSearchQuery(sysName);
                                     handleSetView('system_diagnostic');
@@ -2585,18 +2999,209 @@ export const App: React.FC = () => {
                             />
                         </div>
                     </div>
-                    <div id="aetheros-view-wrapper" className={`flex-1 min-h-0 flex flex-col relative ${currentView} ${isSystemFractured ? 'matrix-glitch-active' : ''}`}>
-                        {isSystemFractured && (
+                    <div 
+                        id="aetheros-view-wrapper" 
+                        className={`flex-1 min-h-0 flex flex-col relative ${currentView} ${isSystemFractured || isForcedGlitch ? 'matrix-glitch-active' : ''}`}
+                        style={{ 
+                            '--acoustic-pressure': isForcedGlitch ? Math.max(120, acousticPressure * 1.8) : acousticPressure,
+                            '--heartbeat-duration': `${heartbeatDuration}s`
+                        } as React.CSSProperties}
+                    >
+                        {/* Glitch Telemetry & Snapshot Control Toolbar */}
+                        <div className="absolute top-3 right-3 z-[180] flex flex-wrap items-center justify-end gap-2">
+                            {/* Clear Glitch Telemetry Button */}
+                            <button
+                                id="clear-glitch-telemetry-btn"
+                                onClick={() => {
+                                    setGlitchHistory([]);
+                                    toast.success('Glitch telemetry cleared', {
+                                        description: 'Diagnostic glitch history has been reset.'
+                                    });
+                                }}
+                                className="font-mono px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer bg-zinc-950/80 hover:bg-zinc-900 text-zinc-400 hover:text-rose-300 border-zinc-800 hover:border-rose-500/50 shadow-lg active:scale-95"
+                                title="Reset glitch history diagnostic data"
+                            >
+                                <Trash2 className="w-3.5 h-3.5 text-zinc-400" />
+                                <span>Clear Glitch Telemetry</span>
+                                {glitchHistory.length > 0 && (
+                                    <span className="ml-1 px-1.5 py-0.2 rounded-full bg-rose-950 text-rose-300 border border-rose-500/40 text-[8px] font-mono">
+                                        {glitchHistory.length}
+                                    </span>
+                                )}
+                            </button>
+
+                            {/* Snapshot Glitch State Button */}
+                            <button
+                                id="snapshot-glitch-state-btn"
+                                onClick={handleSnapshotGlitchState}
+                                className={`font-mono px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer shadow-lg active:scale-95 ${
+                                    isForcedGlitch || isSystemFractured
+                                        ? 'bg-cyan-950/90 hover:bg-cyan-900 border-cyan-400 text-cyan-200 shadow-[0_0_20px_rgba(34,211,238,0.65)] animate-pulse'
+                                        : 'bg-zinc-950/80 hover:bg-cyan-950/50 text-zinc-300 hover:text-cyan-300 border-zinc-800 hover:border-cyan-500/60 hover:shadow-[0_0_15px_rgba(34,211,238,0.3)]'
+                                }`}
+                                title="Snapshot current systemStatus and activityDensity into glitchHistory"
+                            >
+                                <Camera className={`w-3.5 h-3.5 ${isForcedGlitch || isSystemFractured ? 'text-cyan-300' : 'text-zinc-400'}`} />
+                                <span>{isForcedGlitch || isSystemFractured ? 'Snapshot Glitch' : 'Snapshot State'}</span>
+                            </button>
+
+                            {/* Force Glitch Control Button */}
+                            <button
+                                id="force-glitch-trigger-btn"
+                                onClick={handleForceGlitch}
+                                disabled={isForcedGlitch}
+                                className={`font-mono px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer ${
+                                    isForcedGlitch
+                                        ? 'bg-rose-950/90 border-rose-500 text-rose-300 shadow-[0_0_25px_rgba(244,63,94,0.8)] scale-105'
+                                        : 'bg-zinc-950/80 hover:bg-rose-950/50 text-zinc-300 hover:text-rose-400 border-zinc-800 hover:border-rose-500/60 shadow-lg hover:shadow-[0_0_15px_rgba(244,63,94,0.35)] active:scale-95'
+                                }`}
+                                title="Trigger high-intensity 2s Matrix Digital Glitch sequence"
+                            >
+                                <ZapIcon className={`w-3.5 h-3.5 ${isForcedGlitch ? 'text-rose-400 animate-bounce' : 'text-zinc-400'}`} />
+                                <span>{isForcedGlitch ? 'GLITCHING (2S)' : 'FORCE GLITCH'}</span>
+                            </button>
+                        </div>
+
+                        {/* Snapshot Label Prompt Modal */}
+                        {pendingSnapshot && (
+                            <div
+                                id="snapshot-label-prompt"
+                                className="absolute inset-0 z-[220] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Escape') {
+                                        handleCancelSnapshot();
+                                    }
+                                }}
+                            >
+                                <form
+                                    onSubmit={handleConfirmSnapshot}
+                                    className="w-full max-w-md bg-zinc-950 border border-cyan-500/50 rounded-2xl p-5 shadow-[0_0_35px_rgba(34,211,238,0.22)] font-mono space-y-4"
+                                >
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="p-2 rounded-lg bg-cyan-950/80 border border-cyan-500/40">
+                                                <Camera className="w-4 h-4 text-cyan-300" />
+                                            </div>
+                                            <div>
+                                                <h3 className="text-xs font-black uppercase tracking-widest text-cyan-200">
+                                                    Label Glitch Snapshot
+                                                </h3>
+                                                <p className="text-[10px] text-zinc-400 mt-0.5">
+                                                    Captured at {new Date(pendingSnapshot.timestamp).toLocaleTimeString()} • {pendingSnapshot.activeGlitch ? 'Active Glitch' : 'Baseline State'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleCancelSnapshot}
+                                            className="p-1 rounded-lg text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900 transition-colors cursor-pointer"
+                                            aria-label="Cancel snapshot"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+
+                                    {/* Captured Telemetry Preview */}
+                                    <div className="p-2.5 rounded-xl bg-zinc-900/90 border border-zinc-800 space-y-2 text-[10px]">
+                                        <div className="flex flex-wrap items-center justify-between gap-2 text-zinc-300">
+                                            <span>
+                                                Density: <strong className="text-cyan-300">{pendingSnapshot.activityDensity?.toFixed(1) ?? '0.0'}</strong>
+                                            </span>
+                                            <span>
+                                                Duration: <strong className="text-rose-300">{pendingSnapshot.duration}ms</strong>
+                                            </span>
+                                            <span>
+                                                View: <strong className="text-zinc-200">{pendingSnapshot.currentView}</strong>
+                                            </span>
+                                        </div>
+                                        {pendingSnapshot.systemStatus && (
+                                            <div className="flex flex-wrap gap-1">
+                                                {(Object.entries(pendingSnapshot.systemStatus) as [string, string][]).map(([k, v]) => (
+                                                    <span
+                                                        key={k}
+                                                        className={`px-1.5 py-0.5 rounded text-[9px] border ${
+                                                            v === 'Error'
+                                                                ? 'border-rose-500/40 bg-rose-950/50 text-rose-300'
+                                                                : v === 'Warning'
+                                                                    ? 'border-amber-500/40 bg-amber-950/50 text-amber-300'
+                                                                    : 'border-emerald-500/30 bg-emerald-950/40 text-emerald-300'
+                                                        }`}
+                                                    >
+                                                        {k}: {v}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label
+                                            htmlFor="snapshot-label-input"
+                                            className="block text-[10px] font-bold uppercase tracking-wider text-zinc-300"
+                                        >
+                                            Diagnostic Label / Note
+                                        </label>
+                                        <input
+                                            id="snapshot-label-input"
+                                            ref={snapshotInputRef}
+                                            type="text"
+                                            value={snapshotLabelInput}
+                                            onChange={(e) => setSnapshotLabelInput(e.target.value)}
+                                            placeholder="e.g., Acoustic spike during view transition..."
+                                            maxLength={120}
+                                            className="w-full px-3 py-2 rounded-xl bg-black border border-zinc-700 focus:border-cyan-400 focus:outline-none text-xs text-zinc-100 placeholder:text-zinc-600"
+                                        />
+                                        <div className="flex flex-wrap gap-1.5 pt-1">
+                                            {['Acoustic Spike', 'Subsystem Warning', 'Manual Audit', 'Post-Glitch Check'].map((preset) => (
+                                                <button
+                                                    key={preset}
+                                                    type="button"
+                                                    onClick={() => setSnapshotLabelInput(preset)}
+                                                    className="px-2 py-0.5 rounded bg-zinc-900 hover:bg-cyan-950/60 border border-zinc-800 hover:border-cyan-500/40 text-[9px] text-zinc-400 hover:text-cyan-300 transition-colors cursor-pointer"
+                                                >
+                                                    {preset}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center justify-end gap-2 pt-1">
+                                        <button
+                                            type="button"
+                                            onClick={handleCancelSnapshot}
+                                            className="px-3 py-1.5 rounded-lg border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                                        >
+                                            Cancel
+                                        </button>
+                                        <button
+                                            id="confirm-snapshot-save-btn"
+                                            type="submit"
+                                            className="px-3.5 py-1.5 rounded-lg border border-cyan-400/70 bg-cyan-950 hover:bg-cyan-900 text-cyan-200 text-[10px] font-black uppercase tracking-wider shadow-[0_0_15px_rgba(34,211,238,0.25)] transition-all cursor-pointer active:scale-95"
+                                        >
+                                            Save Snapshot
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        )}
+
+                        {(isSystemFractured || isForcedGlitch) && (
                             <MatrixCodeRain 
                                 color="rgba(244, 63, 94, 0.28)" 
                                 fontSize={10} 
-                                speed={30} 
+                                speed={isForcedGlitch ? 60 : 30} 
                             />
                         )}
                         <AnimatePresence mode="wait">
                             <AndroidTransition key={currentView} type="abc_fade_in" className="flex-1 min-h-0 flex flex-col">
                                 <SovereignAccessGuard currentView={currentView}>
-                                    {renderContent()}
+                                    <ErrorBoundary 
+                                        key={currentView}
+                                        contextName={`View: ${currentView}`}
+                                        onReset={() => handleSetView('chat')}
+                                    >
+                                        {renderContent()}
+                                    </ErrorBoundary>
                                 </SovereignAccessGuard>
                             </AndroidTransition>
                         </AnimatePresence>
@@ -2614,6 +3219,7 @@ export const App: React.FC = () => {
                                 onRemediate={handleRemediateSequence}
                             />
                         )}
+                        <GlitchTelemetryOverlay glitchHistory={glitchHistory} />
                         {isSystemFractured && (
                             <button
                                 onClick={handleExportBreachData}

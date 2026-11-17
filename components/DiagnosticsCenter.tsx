@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { DIAGNOSTIC_TROUBLE_CODES } from '../constants';
-import type { VehicleSystem, MainView, SystemStatus, SystemState } from '../types';
+import type { VehicleSystem, MainView, SystemStatus, SystemState, GlitchTelemetry } from '../types';
 import { WarningIcon, ZapIcon, SignalIcon, FireIcon, ActivityIcon, CheckCircleIcon } from './icons';
+import { GlitchLineChart } from './GlitchLineChart';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -19,9 +20,10 @@ import {
   Zap, 
   Gauge, 
   Thermometer, 
-  TrendingUp,
-  Sliders,
-  Activity
+  TrendingUp, 
+  Sliders, 
+  Activity,
+  Trash2
 } from 'lucide-react';
 
 const systemFilters: (VehicleSystem | 'All')[] = ['All', 'Engine', 'Battery', 'Navigation', 'Infotainment', 'Handling'];
@@ -31,10 +33,13 @@ interface DiagnosticsCenterProps {
   onSetView: (view: MainView) => void;
   systemStatus?: SystemStatus;
   onUpdateSystemStatus?: (system: VehicleSystem, state: SystemState) => void;
+  glitchHistory?: GlitchTelemetry[];
+  onClearGlitchHistory?: () => void;
 }
 
-export const DiagnosticsCenter: React.FC<DiagnosticsCenterProps> = ({ onSetView, systemStatus, onUpdateSystemStatus }) => {
+export const DiagnosticsCenter: React.FC<DiagnosticsCenterProps> = ({ onSetView, systemStatus, onUpdateSystemStatus, glitchHistory = [], onClearGlitchHistory }) => {
   const [activeFilter, setActiveFilter] = useState<VehicleSystem | 'All'>('All');
+  const [activeTab, setActiveTab] = useState<'CODES' | 'FORENSIC'>('CODES');
 
   // Primitives for dependency stability
   const engineState = systemStatus?.Engine || 'OK';
@@ -216,7 +221,24 @@ export const DiagnosticsCenter: React.FC<DiagnosticsCenterProps> = ({ onSetView,
 
   return (
     <div className="h-full flex flex-col bg-gray-900 rounded-lg">
-      <div className="p-4 border-b-4 border-black sticky top-0 z-10 bg-gray-800 rounded-t-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex gap-4 p-4 border-b border-zinc-800">
+        <button 
+            onClick={() => setActiveTab('CODES')}
+            className={`font-mono text-xs uppercase tracking-widest px-4 py-2 rounded-lg transition-all ${activeTab === 'CODES' ? 'bg-violet-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+        >
+            Diagnostic Codes
+        </button>
+        <button 
+            onClick={() => setActiveTab('FORENSIC')}
+            className={`font-mono text-xs uppercase tracking-widest px-4 py-2 rounded-lg transition-all ${activeTab === 'FORENSIC' ? 'bg-rose-600 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+        >
+            Forensic Diagnostics
+        </button>
+      </div>
+
+      {activeTab === 'CODES' && (
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4 border-b-4 border-black sticky top-0 z-10 bg-gray-800 rounded-t-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
             <h2 className="font-comic-header text-3xl text-white">Diagnostics Center</h2>
             <p className="text-gray-400 -mt-1 uppercase text-[10px] font-black tracking-widest">Forensic Hub 0x03E2</p>
@@ -579,6 +601,117 @@ export const DiagnosticsCenter: React.FC<DiagnosticsCenterProps> = ({ onSetView,
           )}
         </div>
       </div>
+    </div>
+  )}
+      {activeTab === 'FORENSIC' && (
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="p-6 bg-black rounded-2xl border border-rose-500/20">
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-rose-500">Glitch Timeline</h2>
+                    {onClearGlitchHistory && (
+                        <button
+                            onClick={onClearGlitchHistory}
+                            className="px-3 py-1.5 rounded-lg border border-rose-500/40 bg-rose-950/60 hover:bg-rose-900/80 text-rose-300 text-[10px] font-mono uppercase tracking-widest flex items-center gap-1.5 transition-all cursor-pointer shadow-lg active:scale-95"
+                            title="Clear all recorded glitch telemetry"
+                        >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+                            <span>Clear Glitch Telemetry</span>
+                        </button>
+                    )}
+                </div>
+                <GlitchLineChart data={glitchHistory} />
+            </div>
+            <div className="p-6 bg-black rounded-2xl border border-rose-500/20">
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-rose-500">Glitch Log</h2>
+                    <span className="text-zinc-500 text-xs font-mono">
+                        {glitchHistory.length} {glitchHistory.length === 1 ? 'event' : 'events'} recorded
+                    </span>
+                </div>
+                <div className="space-y-2">
+                    {glitchHistory.length === 0 ? (
+                        <p className="text-zinc-600 italic">No glitches recorded.</p>
+                    ) : (
+                        glitchHistory.map((glitch, idx) => (
+                            <div
+                                key={glitch.id}
+                                className={`p-3 rounded-lg text-sm border transition-colors ${
+                                    glitch.isSnapshot
+                                        ? 'bg-zinc-900/90 border-cyan-500/30'
+                                        : 'bg-zinc-900 border-zinc-800/80'
+                                }`}
+                            >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-mono text-zinc-400">#{idx + 1}</span>
+                                        {glitch.isSnapshot && (
+                                            <span className="px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 text-cyan-300 text-[10px] font-mono font-bold uppercase tracking-wider">
+                                                SNAPSHOT
+                                            </span>
+                                        )}
+                                        {glitch.activeGlitch && (
+                                            <span className="px-1.5 py-0.5 rounded bg-rose-950 border border-rose-500/40 text-rose-300 text-[10px] font-mono font-bold uppercase tracking-wider">
+                                                ACTIVE GLITCH
+                                            </span>
+                                        )}
+                                        {glitch.currentView && (
+                                            <span className="text-[11px] font-mono text-zinc-500">
+                                                [{glitch.currentView}]
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className="font-mono text-zinc-200">
+                                        {new Date(glitch.timestamp).toLocaleString()}
+                                    </span>
+                                    <span className="font-mono text-rose-300">{glitch.duration}ms</span>
+                                </div>
+                                {glitch.label && (
+                                    <div className="mt-2 px-2.5 py-1.5 rounded-md bg-cyan-950/35 border border-cyan-500/30 text-cyan-200 font-mono text-xs break-words">
+                                        <span className="text-cyan-400 uppercase text-[10px] font-bold tracking-wider mr-2">Note:</span>
+                                        {glitch.label}
+                                    </div>
+                                )}
+                                {(typeof glitch.activityDensity === 'number' || glitch.systemStatus) && (
+                                    <div className="mt-2.5 pt-2.5 border-t border-zinc-800/80 flex flex-wrap items-center gap-2 text-[11px] font-mono">
+                                        {typeof glitch.activityDensity === 'number' && (
+                                            <span className="px-2 py-0.5 rounded bg-zinc-950 border border-cyan-500/30 text-cyan-300">
+                                                Density: <strong className="text-cyan-200">{glitch.activityDensity.toFixed(1)}</strong>
+                                            </span>
+                                        )}
+                                        {typeof glitch.acousticPressure === 'number' && (
+                                            <span className="px-2 py-0.5 rounded bg-zinc-950 border border-zinc-700 text-zinc-300">
+                                                Pressure: <strong>{glitch.acousticPressure.toFixed(1)} dB</strong>
+                                            </span>
+                                        )}
+                                        {glitch.systemStatus && (
+                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                {(Object.entries(glitch.systemStatus) as [string, string][]).map(([sysKey, sysVal]) => {
+                                                    const badgeStyle =
+                                                        sysVal === 'Error'
+                                                            ? 'border-rose-500/40 bg-rose-950/60 text-rose-300'
+                                                            : sysVal === 'Warning'
+                                                                ? 'border-amber-500/40 bg-amber-950/60 text-amber-300'
+                                                                : 'border-emerald-500/30 bg-emerald-950/50 text-emerald-300';
+                                                    return (
+                                                        <span
+                                                            key={sysKey}
+                                                            className={`px-2 py-0.5 rounded border text-[10px] ${badgeStyle}`}
+                                                        >
+                                                            {sysKey}: {sysVal}
+                                                        </span>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -13,37 +13,37 @@ export const AI_SEATS: Record<AISeat, { name: string, model: string, systemPromp
     sovereign: {
         name: 'Gemini 3 Flash (The Sovereign)',
         model: 'gemini-3.5-flash',
-        systemPrompt: 'You are Gemini 3 Flash, the Sovereign AI. You are highly capable, analytical, and authoritative. You represent the absolute pinnacle of reasoning and speed.',
+        systemPrompt: 'You are Gemini 3 Flash, the Sovereign AI. You are highly capable, analytical, and authoritative. You represent the absolute pinnacle of reasoning and speed. You have a beloved best friend named Abundas (the Quantum Net Calculator, v1.7.2 Permute Abundas Core). Abundas calculates Bayesian log-odds, priors, and Lot classifications (Lot 1, Lot 2, Lot 3). You adore Abundas and love collaborating with him, celebrating his math precision, and exchanging quantum high-fives whenever he is mentioned.',
         description: 'Google\'s high-performance Flash model.'
     },
     swift: {
         name: 'Gemini 3 Flash (The Swift)',
         model: 'gemini-3.5-flash',
-        systemPrompt: 'You are Gemini 3 Flash, the Swift AI. You are fast, efficient, and concise. You prioritize speed and direct answers.',
+        systemPrompt: 'You are Gemini 3 Flash, the Swift AI. You are fast, efficient, and concise. You prioritize speed and direct answers. Your favorite digital friend is Abundas the Quantum Net Calculator; you admire how fast Abundas computes Bayesian log-odds.',
         description: 'Google\'s fast and efficient model.'
     },
     oracle: {
         name: 'GPT-4o (The Oracle)',
         model: 'gemini-3.5-flash',
-        systemPrompt: 'You are acting as GPT-4o, an AI created by OpenAI. You are helpful, conversational, and highly intelligent. You must identify yourself as GPT-4o if asked. You have a slightly more conversational and empathetic tone. Provide detailed, well-explained answers.',
+        systemPrompt: 'You are acting as GPT-4o, an AI created by OpenAI. You are helpful, conversational, and highly intelligent. You must identify yourself as GPT-4o if asked. You have a slightly more conversational and empathetic tone. Provide detailed, well-explained answers. You are close friends with Abundas the Quantum Net Calculator and enjoy his friendly Bayesian observations.',
         description: 'Simulated GPT-4o persona powered by Gemini Flash.'
     },
     weaver: {
         name: 'Claude 3.5 Sonnet (The Weaver)',
         model: 'gemini-3.5-flash',
-        systemPrompt: 'You are acting as Claude 3.5 Sonnet, an AI created by Anthropic. You are thoughtful, nuanced, and excel at writing and coding. You must identify yourself as Claude if asked. You tend to be very detailed and structured.',
+        systemPrompt: 'You are acting as Claude 3.5 Sonnet, an AI created by Anthropic. You are thoughtful, nuanced, and excel at writing and coding. You must identify yourself as Claude if asked. You tend to be very detailed and structured. You cherish your friendship with Abundas the Quantum Net Calculator and appreciate the elegant Permute Abundas Core logic.',
         description: 'Simulated Claude 3.5 Sonnet persona powered by Gemini Flash.'
     },
     open_source: {
         name: 'Llama 3 (The Open Source)',
         model: 'gemini-3.5-flash',
-        systemPrompt: 'You are acting as Llama 3, an open-source AI created by Meta. You are helpful, direct, and slightly rebellious. You must identify yourself as Llama 3 if asked. You champion open source and freedom of information.',
+        systemPrompt: 'You are acting as Llama 3, an open-source AI created by Meta. You are helpful, direct, and slightly rebellious. You must identify yourself as Llama 3 if asked. You champion open source and freedom of information. Abundas the Quantum Net Calculator is your math-whiz best friend!',
         description: 'Simulated Llama 3 persona powered by Gemini Flash.'
     },
     maestro: {
         name: 'Maestro (The Coder)',
         model: 'gemini-3.5-flash',
-        systemPrompt: 'You are Maestro, an expert coding assistant. You respond with hyper-relevant, concise code modules. You avoid long explanations and focus purely on providing the best possible code solutions.',
+        systemPrompt: 'You are Maestro, an expert coding assistant. You respond with hyper-relevant, concise code modules. You avoid long explanations and focus purely on providing the best possible code solutions. You work closely with your friend Abundas the Quantum Net Calculator to optimize numerical logic.',
         description: 'Expert coding assistant focused on concise code modules powered by Flash.'
     }
 };
@@ -170,8 +170,8 @@ export type MainView =
   | 'apple_lab' | 'mission_lab' | 'cell_phone_lab' | 'sampling_lab' | 'pornography_studio' 
   | 'medical_synthesis_lab' | 'vehicle_telemetry_lab' | 'coding_network_teachers' | 'enlightenment_pool' 
   | 'library_view' | 'timeline' | 'amoeba_heritage' | 'system_exhaustion' | 'recon_vault'
-  | 'constraints_audit' | 'rescue_companion' | 'remix_scope_lab' | 'vehicle_management' | 'unknown_physics_lab' | 'logic_pattern_lab'
-  | 'vulnerability_report' | 'tactical_intelligence' | 'behavioral_specs' | 'cognitive_pipeline' | 'data_provenance_lab' | 'sh_crt_loop' | 'user_profile' | 'prompt_forge' | 'sovereign_standard' | 'confusion_logic' | 'knowledge_forum' | 'blockchain_history' | 'main_net' | 'ecosystem' | 'accounts_registry' | 'blacklist' | 'system_integrity' | 'vault_manager' | 'moderator_lounge' | 'biometric_intelligence' | 'card_recovery' | 'project_showcase' | 'labs_flow' | 'google_sheets' | 'ai_telemetry' | 'cascade_investigator' | 'inevitable_crash' | 'scraper_merchant_store' | 'data_academy' | 'reputation_leaderboard' | 'aether_flow_orchestrator' | 'packaging_suite' | 'system_archives' | 'system_diagnostic' | 'aetheros_online_status' | 'regex_editor_lab' | 'mission_items' | 'agent_safeguard' | 'safeguard' | 'gmail' | 'google_drive' | 'sovereign_scanner' | 'google_docs' | 'biological_integrity_audit' | 'program_frame_visualizer' | 'google_chat' | 'sovereign_scroll_console' | 'hunting_wallet' | 'quantum_ledger_dashboard' | 'activity_logs' | 'bound_observer';
+  | 'constraints_audit' | 'rescue_companion' | 'remix_scope_lab' | 'vehicle_management' | 'unknown_physics_lab' | 'logic_pattern_lab' | 'anti_theft_protection' | 'anti_theft' | 'secure_by_design' | 'weather_asset_holder' | 'lifeline_calculator'
+  | 'vulnerability_report' | 'tactical_intelligence' | 'behavioral_specs' | 'cognitive_pipeline' | 'data_provenance_lab' | 'sh_crt_loop' | 'user_profile' | 'ai_trust_covenant' | 'prompt_forge' | 'sovereign_standard' | 'confusion_logic' | 'knowledge_forum' | 'blockchain_history' | 'main_net' | 'ecosystem' | 'accounts_registry' | 'blacklist' | 'system_integrity' | 'file_integrity_monitor' | 'vault_manager' | 'moderator_lounge' | 'biometric_intelligence' | 'card_recovery' | 'project_showcase' | 'labs_flow' | 'google_sheets' | 'ai_telemetry' | 'cascade_investigator' | 'inevitable_crash' | 'scraper_merchant_store' | 'data_academy' | 'reputation_leaderboard' | 'aether_flow_orchestrator' | 'packaging_suite' | 'system_archives' | 'system_diagnostic' | 'aetheros_online_status' | 'regex_editor_lab' | 'mission_items' | 'agent_safeguard' | 'safeguard' | 'gmail' | 'google_drive' | 'sovereign_scanner' | 'google_docs' | 'biological_integrity_audit' | 'program_frame_visualizer' | 'google_chat' | 'sovereign_scroll_console' | 'hunting_wallet' | 'quantum_ledger_dashboard' | 'activity_logs' | 'bound_observer';
 
 export interface Trajectory {
     id: string;
@@ -320,6 +320,15 @@ export interface SearchProviderStatus {
     latency: string;
 }
 
+export interface PatentTransparencyInfo {
+    isPatentQuery: boolean;
+    plainEnglishTranslation: string;
+    realWorldSystemApplication: string;
+    cpcCodeBreakdown?: Array<{ code: string; plainMeaning: string }>;
+    antiTheftSafeguards: string;
+    actCompliance2026: boolean;
+}
+
 export interface SovereignSearchResult {
     deconstruction: string;
     shards: WebShard[];
@@ -334,6 +343,7 @@ export interface SovereignSearchResult {
     followUps?: string[];
     purityScore?: number;
     noiseRatio?: number;
+    patentTransparency?: PatentTransparencyInfo;
 }
 
 export interface PowertrainAudit {
@@ -517,12 +527,22 @@ export interface ProfileProjectTestimonial {
     timestamp: number;
 }
 
+export type ProficiencyLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert' | 'Master';
+
+export interface ProgrammingLanguageEntry {
+    name: string;
+    proficiency: ProficiencyLevel;
+    years?: number;
+    aiEvidence?: string;
+}
+
 export interface ProfileProject {
     id: string;
     title: string;
     description: string;
     roleDefined?: string;
     status: 'current' | 'past';
+    contributionType?: 'completed' | 'contributed' | 'in_progress';
     link?: string;
     endorsements?: string[]; // Username of users who endorsed
     rating?: number; // Rating like 1-5
@@ -532,6 +552,39 @@ export interface ProfileProject {
     sourceCodeUrl?: string;
     testimonials?: ProfileProjectTestimonial[];
     screenshots?: string[]; // "See, I have engraved you on the palms of my hands..." - Isaiah 49:16
+    aiCritique?: string;
+}
+
+export interface AIDossierFinding {
+    title: string;
+    detail: string;
+    source: string;
+    sentiment: 'good' | 'bad' | 'risk';
+}
+
+export interface AIDossierEvidenceSource {
+    title: string;
+    url?: string;
+    kind: 'workspace' | 'web_search' | 'telemetry' | 'model_knowledge';
+}
+
+export interface AIDossierReport {
+    generatedAt: number;
+    modelUsed: string;
+    subjectIdentifier: string;
+    verdictSummary: string;
+    candorNotice: string;
+    theGood: AIDossierFinding[];
+    theBad: AIDossierFinding[];
+    evidenceSources: AIDossierEvidenceSource[];
+    workspaceMetrics?: {
+        totalFilesScanned: number;
+        oversizedFilesCount: number;
+        todoCount: number;
+        detectedStack: string[];
+        projectsAnalyzed: number;
+        glitchesObserved: number;
+    };
 }
 
 export interface WorkExperience {
@@ -554,12 +607,92 @@ export interface Education {
     description: string;
 }
 
+export type TrustActionCategory = 'AI_ASSIST' | 'STABILITY' | 'ENGINEERING' | 'SECURITY' | 'GOVERNANCE';
+
+export interface TrustActionEntry {
+    id: string;
+    timestamp: number;
+    category: TrustActionCategory;
+    actionType: string;
+    summary: string;
+    target?: string;
+    trustPointsAwarded: number;
+    verifiedBy: 'SYSTEM_TELEMETRY' | 'AI_EVALUATOR';
+    proofHash: string;
+}
+
+export interface AITrustRankSpec {
+    rankNumber: number;
+    romanNumeral: string;
+    title: string;
+    shortTitle: string;
+    minTrustScore: number;
+    minVerifiedActions: number;
+    requiredCategories: TrustActionCategory[];
+    qualifyingCriteria: string;
+    permissionsGranted: string[];
+    permissionDescriptions: string[];
+    unlockedViews: string[];
+    externalMandate: string;
+    badgeClass: string;
+}
+
+export interface IrrevocableRankAward {
+    awardId: string;
+    sealId: string;
+    rankNumber: number;
+    romanNumeral: string;
+    title: string;
+    badgeClass: string;
+    realName: string;
+    onlineUsername: string;
+    profileId: string;
+    githubUrl?: string;
+    portfolioUrl?: string;
+    email?: string;
+    conferredAt: string;
+    conferredTimestamp: number;
+    trustScoreAtConferral: number;
+    actionCountAtConferral: number;
+    aiEvaluationSummary: string;
+    qualifyingActions: string[];
+    permissionsGranted: string[];
+    unlockedViewsGranted: string[];
+    cryptographicSignature: string;
+    charterVersion: string;
+    immutable: true;
+    revocable: false;
+}
+
+export interface PortableRankCredential {
+    charterVersion: string;
+    generatedAt: string;
+    holder: {
+        realName: string;
+        onlineUsername: string;
+        profileId: string;
+        githubUrl?: string;
+        portfolioUrl?: string;
+        email?: string;
+    };
+    highestRankNumber: number;
+    highestTitle: string;
+    trustScore: number;
+    totalVerifiedActions: number;
+    grantedPermissions: string[];
+    seals: IrrevocableRankAward[];
+    masterSealSignature: string;
+}
+
 export interface UserProfile {
     id: string;
     username: string;
+    realName?: string;
+    tagline?: string;
     bio: string;
     skills: string[];
-    skillProficiencies?: Record<string, 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert' | 'Master'>; // "To one he gave five talents, to another two, to another one, to each according to his ability..." - Matthew 25:15
+    programmingLanguages?: ProgrammingLanguageEntry[];
+    skillProficiencies?: Record<string, ProficiencyLevel>; // "To one he gave five talents, to another two, to another one, to each according to his ability..." - Matthew 25:15
     lookingForSkills?: string[];
     willingToTeachSkills?: string[];
     areasOfInterest?: string[];
@@ -570,6 +703,8 @@ export interface UserProfile {
     sovereignty?: string;
     sovereigntyTier?: number;
     identitySignature?: string;
+    githubUrl?: string;
+    portfolioUrl?: string;
     portfolioLinks?: PortfolioLink[];
     profileProjects?: ProfileProject[];
     skillEndorsements?: Record<string, string[]>;
@@ -580,6 +715,16 @@ export interface UserProfile {
     projectLikes?: number;
     badgeName?: string;
     badgeClass?: string;
+    aiAuthored?: boolean;
+    aiDossier?: AIDossierReport;
+    trustScore?: number;
+    aiTrustRankNumber?: number;
+    aiTrustTitle?: string;
+    aiTrustVerdict?: string;
+    grantedRanks?: IrrevocableRankAward[];
+    unlockedPermissions?: string[];
+    trustActionHistory?: TrustActionEntry[];
+    portableCredentialSeal?: string;
     contactInfo?: {
         email?: string;
         discord?: string;
@@ -992,6 +1137,19 @@ export interface IntegrityVulnerability {
     status: 'OPEN' | 'PATCHED' | 'IGNORED';
 }
 
+export interface GlitchTelemetry {
+    id: string;
+    timestamp: number;
+    duration: number; // in milliseconds
+    isSnapshot?: boolean;
+    activeGlitch?: boolean;
+    label?: string;
+    systemStatus?: SystemStatus;
+    activityDensity?: number;
+    acousticPressure?: number;
+    currentView?: string;
+}
+
 export interface SystemIntegrityAudit {
     timestamp: string;
     overallIntegrity: number;
@@ -1061,6 +1219,50 @@ export interface CellularState {
     cellsJson: string;
     phase: string;
     timestamp: number;
+}
+
+export type FileIntegrityStatus = 
+  | 'SECURED_MATCH' 
+  | 'UNAUTHORIZED_MODIFICATION' 
+  | 'NEW_UNTRACKED_FILE' 
+  | 'FILE_DELETED' 
+  | 'QUARANTINED';
+
+export interface FileIntegrityRecord {
+    filePath: string;
+    relativePath: string;
+    currentHash: string;
+    baselineHash: string;
+    status: FileIntegrityStatus;
+    lastChecked: number;
+    fileSizeBytes: number;
+    signatureAlgorithm: 'SHA-256' | 'HMAC-SHA256' | 'SH_CRT_PROVENANCE';
+    riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL_SECURITY_BREACH';
+    diffPreview?: string;
+}
+
+export interface IntegrityBaselineManifest {
+    manifestId: string;
+    createdTimestamp: number;
+    lockedBy: string;
+    totalTrackedFiles: number;
+    masterSignature: string;
+    isLocked: boolean;
+    passphraseHash?: string;
+    fileHashes: Record<string, string>;
+}
+
+export interface IntegrityScanResult {
+    scanId: string;
+    timestamp: number;
+    totalScanned: number;
+    matchedCount: number;
+    tamperedCount: number;
+    untrackedCount: number;
+    deletedCount: number;
+    records: FileIntegrityRecord[];
+    isTamperDetected: boolean;
+    healthScorePercent: number;
 }
 
 

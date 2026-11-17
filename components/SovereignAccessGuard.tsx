@@ -173,7 +173,7 @@ export const SovereignAccessGuard: React.FC<SovereignAccessGuardProps> = ({ curr
                       user?.role === 'operator' ||
                       ['sovereign', 'swift', 'oracle', 'weaver', 'open_source', 'maestro'].includes(userId);
 
-  const isOriginator = email.toLowerCase() === 'resurrectionofmoses@gmail.com';
+  const isOriginator = email.toLowerCase() === 'creator@aetheros.local' || email.toLowerCase() === 'admin@aetheros.local';
   
   // Grandfather status check
   const isGrandfathered = isOriginator || 

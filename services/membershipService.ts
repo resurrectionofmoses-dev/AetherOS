@@ -59,9 +59,9 @@ export interface UserMembership {
   webAuthnRawId?: string;
 }
 
-// Default Grandfathered Origins list (e.g. resurrectionofmoses@gmail.com and default local operators)
+// Default Grandfathered Origins list (e.g. creator@aetheros.local and default local operators)
 export const GRANDFATHER_EMAILS = [
-  'resurrectionofmoses@gmail.com',
+  'creator@aetheros.local',
   'admin@aetheros.local',
   'mod@aetheros.local',
   'operator@aetheros.local'

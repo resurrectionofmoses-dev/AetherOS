@@ -64,7 +64,7 @@ export const ActivityLogsView: React.FC = () => {
             return {
               id: `log_legacy_${index}_${dateObj.getTime()}`,
               timestamp: dateObj.toISOString(),
-              userEmail: 'resurrectionofmoses@gmail.com', // fallback default user
+              userEmail: 'admin@aetheros.local', // fallback default user
               role: 'admin',
               machineId: 'NODE-0x3FA2',
               type: 'VIEW_SWITCH',
@@ -97,7 +97,7 @@ export const ActivityLogsView: React.FC = () => {
           {
             id: 'seed_1',
             timestamp: new Date(Date.now() - 3600000 * 24).toISOString(), // 24h ago
-            userEmail: 'resurrectionofmoses@gmail.com',
+            userEmail: 'admin@aetheros.local',
             role: 'admin',
             machineId: 'XPS-NODE-992',
             type: 'ADMIN_ACTION',
@@ -118,7 +118,7 @@ export const ActivityLogsView: React.FC = () => {
           {
             id: 'seed_3',
             timestamp: new Date(Date.now() - 3600000 * 3).toISOString(), // 3h ago
-            userEmail: 'resurrectionofmoses@gmail.com',
+            userEmail: 'admin@aetheros.local',
             role: 'admin',
             machineId: 'XPS-NODE-992',
             type: 'ADMIN_ACTION',
@@ -175,7 +175,7 @@ export const ActivityLogsView: React.FC = () => {
         simulatedEntry = {
           id: `sim_${Date.now()}`,
           timestamp: now.toISOString(),
-          userEmail: Math.random() > 0.4 ? 'resurrectionofmoses@gmail.com' : 'simulated_operator@aetheros.local',
+          userEmail: Math.random() > 0.4 ? 'admin@aetheros.local' : 'simulated_operator@aetheros.local',
           role: Math.random() > 0.4 ? 'admin' : 'operator',
           machineId: `NODE-0x${Math.floor(Math.random() * 0xFFFF).toString(16).toUpperCase()}`,
           type: 'VIEW_SWITCH',
@@ -185,7 +185,7 @@ export const ActivityLogsView: React.FC = () => {
         };
       } else if (type === 'ADMIN_ACTION') {
         const actions = [
-          { msg: 'Modified user sovereignty authorization tier to OMNIPOTENT.', details: { action: 'UPDATE_ROLE', target: 'resurrectionofmoses@gmail.com' } },
+          { msg: 'Modified user sovereignty authorization tier to OMNIPOTENT.', details: { action: 'UPDATE_ROLE', target: 'admin@aetheros.local' } },
           { msg: 'Flushed corrupted memory caches from RT-IPC engine.', details: { action: 'FLUSH_CACHE', target: 'RT-IPC-01' } },
           { msg: 'Engaged cryptographic bypass protocol on sandbox boundary.', details: { action: 'BYPASS_ENGAGE', target: 'SANDBOX' } }
         ];
@@ -194,7 +194,7 @@ export const ActivityLogsView: React.FC = () => {
         simulatedEntry = {
           id: `sim_${Date.now()}`,
           timestamp: now.toISOString(),
-          userEmail: 'resurrectionofmoses@gmail.com',
+          userEmail: 'admin@aetheros.local',
           role: 'admin',
           machineId: 'XPS-NODE-992',
           type: 'ADMIN_ACTION',

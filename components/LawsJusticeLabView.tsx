@@ -13,7 +13,59 @@ export const LawsJusticeLabView: React.FC<LabComponentProps> = ({
   const [activeAccord, setActiveAccord] = useState(governance?.activeAccord || 'MAESTRO_SOLO_v5');
   const [lawLevel, setLawLevel] = useState(governance?.lawLevel || 0.42);
   const [symphonicFreedom, setSymphonicFreedom] = useState<boolean>(governance?.symphonicFreedom ?? true);
-  const [logs, setLogs] = useState<string[]>(["[GOV/CHRIST_ADMIN] Code administered by Christ.", "[GOVERNANCE] Regulatory stack re-initialized.", "[OK] Symphonic Freedom enabled."]);
+  const [logs, setLogs] = useState<string[]>([
+    "[GOV/ACT_2026] Patent Search Transparency & Plain Language Act Enforced.",
+    "[ANTI_THEFT] Provenance & IP Watermark Shields Active ('To keep theft out').",
+    "[GOV/CHRIST_ADMIN] Code administered by Christ.",
+    "[GOVERNANCE] Regulatory stack re-initialized.",
+    "[OK] Symphonic Freedom enabled."
+  ]);
+
+  // Patent Refactoring State (Section 2 Act of 2026)
+  const [patentQueryInput, setPatentQueryInput] = useState('CPC G06F 17/30 NEAR/3 H04L 9/32 ADJ/2 G06N 3/08');
+  const [refactoredOutput, setRefactoredOutput] = useState<{
+    plainEnglish: string;
+    realWorldSystem: string;
+    cpcBreakdown: { code: string; meaning: string }[];
+    antiTheftHash: string;
+    status: string;
+  } | null>({
+    plainEnglish: "A secure distributed computing system that indexes multi-modal logic shards and validates data integrity through cryptographic zero-knowledge proof handshakes.",
+    realWorldSystem: "Deployed in high-throughput network nodes to ensure decentralized search results cannot be spoofed, altered, or intercepted by unauthorized third parties.",
+    cpcBreakdown: [
+      { code: "G06F 17/30", meaning: "Database structures & information retrieval mechanisms" },
+      { code: "H04L 9/32", meaning: "Cryptographic user authentication & digital signature verification" },
+      { code: "G06N 3/08", meaning: "Neural network learning & state-retainment optimization" }
+    ],
+    antiTheftHash: "IP_PROVENANCE_0x03E2_VERIFIED_7a9f4c82b01d",
+    status: "SECTION_2_COMPLIANT"
+  });
+
+  const handleRefactorPatentQuery = () => {
+    if (!patentQueryInput.trim()) return;
+    
+    // Simulate domain-specific plain-English refactoring per Act of 2026
+    const hasCPC = /G06F|H04L|G06N|G06Q|CPC/i.test(patentQueryInput);
+    const hasProximity = /NEAR|ADJ|AND|OR/i.test(patentQueryInput);
+    
+    const hash = 'IP_PROVENANCE_0x03E2_' + Math.random().toString(36).substring(2, 10).toUpperCase();
+
+    setRefactoredOutput({
+      plainEnglish: `An automated, secure architecture designed for ${hasCPC ? 'high-reliability distributed computation and cryptographic data provenance' : 'domain-specific systems'}, translating abstract queries into plain-English human operational steps.`,
+      realWorldSystem: `Implemented directly within AetherOS node clusters to safeguard user intellectual property, eliminate opaque legal jargon, and prevent code theft.`,
+      cpcBreakdown: [
+        { code: "G06F 21/60", meaning: "Data protection & anti-tamper security mechanisms" },
+        { code: "H04L 9/32", meaning: "Cryptographic entity validation & tokenized ownership" }
+      ],
+      antiTheftHash: hash,
+      status: "SECTION_2_COMPLIANT"
+    });
+
+    setLogs(prev => [
+      `[ACT_2026/OK] Refactored patent formula into Plain English. Anti-Theft Hash: ${hash}`,
+      ...prev
+    ].slice(0, 7));
+  };
 
   const updateGov = (newGov: Partial<SystemGovernance>) => {
     if (onSetGovernance && governance) {
@@ -119,6 +171,83 @@ export const LawsJusticeLabView: React.FC<LabComponentProps> = ({
                     >
                         {symphonicFreedom ? 'UNLEASHED' : 'RESTRICTED'}
                     </button>
+                </div>
+
+                {/* PATENT SEARCH TRANSPARENCY & PLAIN LANGUAGE ACT OF 2026 SECTION */}
+                <div className="p-8 bg-black/80 border-4 border-amber-600/60 rounded-[3rem] space-y-6 shadow-2xl relative overflow-hidden">
+                    <div className="flex justify-between items-start border-b-2 border-amber-900/50 pb-4">
+                        <div>
+                            <div className="flex items-center gap-3">
+                                <span className="px-3 py-1 bg-amber-500 text-black font-black text-[9px] uppercase tracking-widest rounded-lg">ACT OF 2026</span>
+                                <h4 className="font-comic-header text-3xl text-white uppercase italic">Patent Search Transparency & Plain Language</h4>
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-1">
+                                Enforcing Section 2: Prohibits bare CPC classification codes, boolean operators, or proximity formulas without immediate plain-English translations and anti-theft provenance tracking.
+                            </p>
+                        </div>
+                        <span className="text-[9px] font-mono text-emerald-400 font-bold px-3 py-1 bg-emerald-950/80 border border-emerald-600 rounded-full flex items-center gap-1.5">
+                            <CheckCircleIcon className="w-3 h-3 text-emerald-400" /> SECTION 2 ACTIVE
+                        </span>
+                    </div>
+
+                    <div className="space-y-4">
+                        <label className="text-[10px] font-black uppercase text-amber-500 tracking-wider block">
+                            Input Patent Syntax / CPC Formula / Query for Plain-English Refactoring & Anti-Theft Watermarking:
+                        </label>
+                        <div className="flex gap-3">
+                            <input 
+                                type="text"
+                                value={patentQueryInput}
+                                onChange={(e) => setPatentQueryInput(e.target.value)}
+                                placeholder="e.g. CPC G06F 17/30 NEAR/3 H04L 9/32"
+                                className="flex-1 bg-black border-2 border-amber-900/80 rounded-xl px-4 py-3 text-xs font-mono text-amber-200 outline-none focus:border-amber-500"
+                            />
+                            <button 
+                                onClick={handleRefactorPatentQuery}
+                                className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-black font-black uppercase text-xs rounded-xl shadow-[4px_4px_0_0_#000] active:translate-y-0.5 transition-all"
+                            >
+                                Refactor & Shield
+                            </button>
+                        </div>
+
+                        {refactoredOutput && (
+                            <div className="p-6 bg-zinc-950 border-2 border-amber-900/40 rounded-2xl space-y-4 font-mono text-xs">
+                                <div className="flex justify-between items-center text-[10px] text-gray-500 border-b border-zinc-800 pb-2">
+                                    <span className="text-amber-400 font-bold uppercase">Plain Language Output (Act §2 Compliant)</span>
+                                    <span className="text-emerald-400 font-bold">Anti-Theft Protection: ACTIVE ('To keep theft out')</span>
+                                </div>
+
+                                <div>
+                                    <span className="text-[10px] text-zinc-500 uppercase block mb-1">Core Underlying Invention (Plain English):</span>
+                                    <p className="text-white leading-relaxed bg-zinc-900/80 p-3 rounded-xl border border-zinc-800">{refactoredOutput.plainEnglish}</p>
+                                </div>
+
+                                <div>
+                                    <span className="text-[10px] text-zinc-500 uppercase block mb-1">Direct Operational System Application:</span>
+                                    <p className="text-amber-200/90 leading-relaxed bg-zinc-900/80 p-3 rounded-xl border border-zinc-800">{refactoredOutput.realWorldSystem}</p>
+                                </div>
+
+                                {refactoredOutput.cpcBreakdown.length > 0 && (
+                                    <div>
+                                        <span className="text-[10px] text-zinc-500 uppercase block mb-2">CPC Classification Translation Breakdown:</span>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                            {refactoredOutput.cpcBreakdown.map((cpc, idx) => (
+                                                <div key={idx} className="p-2.5 bg-black border border-amber-900/30 rounded-lg flex items-center justify-between text-[11px]">
+                                                    <span className="font-bold text-amber-400">{cpc.code}</span>
+                                                    <span className="text-zinc-300 text-[10px] ml-2 text-right">{cpc.meaning}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="pt-2 flex justify-between items-center text-[10px] text-zinc-500 border-t border-zinc-800">
+                                    <span>Cryptographic Provenance Signature: <code className="text-cyan-400">{refactoredOutput.antiTheftHash}</code></span>
+                                    <span className="text-emerald-500 font-bold">100% Anti-Theft Watermarked</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

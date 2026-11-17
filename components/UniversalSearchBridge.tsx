@@ -45,6 +45,13 @@ const FORENSIC_CAMPAIGNS = [
         query: 'hexadecimal signatures of abandoned cold-war era satellite telemetry protocols',
         description: 'Siphoning ancient radio conduction signals from orbital debris.',
         color: 'border-violet-600 text-violet-400'
+    },
+    {
+        id: 'c5',
+        name: 'Patent Act 2026 Audit',
+        query: 'CPC G06F 17/30 NEAR/3 H04L 9/32 distributed ledger anti-theft provenance patents',
+        description: 'Plain-language refactoring and IP anti-theft watermark protection (Act of 2026).',
+        color: 'border-emerald-500 text-emerald-400'
     }
 ];
 
@@ -783,6 +790,72 @@ export const UniversalSearchBridge: React.FC = () => {
                                                     {result.deconstruction}
                                                 </p>
                                             </div>
+
+                                            {/* PATENT SEARCH TRANSPARENCY & PLAIN LANGUAGE ACT OF 2026 CARD */}
+                                            {(result.patentTransparency || /patent|cpc|near\/|adj\/|g06f|h04l/i.test(query)) && (
+                                                <div className="p-6 bg-emerald-950/10 border-2 border-emerald-500/50 rounded-2xl space-y-4 font-mono shadow-2xl relative overflow-hidden">
+                                                    <div className="flex justify-between items-center border-b border-emerald-900/60 pb-3">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="px-2.5 py-0.5 bg-emerald-500 text-black font-black text-[8px] uppercase tracking-widest rounded-md">
+                                                                ACT OF 2026 COMPLIANT
+                                                            </span>
+                                                            <h5 className="font-comic-header text-lg text-emerald-400 uppercase italic">
+                                                                Patent Search Plain-Language & Anti-Theft Shield
+                                                            </h5>
+                                                        </div>
+                                                        <span className="text-[9px] text-emerald-400 font-bold flex items-center gap-1">
+                                                            <CheckCircleIcon className="w-3.5 h-3.5 text-emerald-400" /> SECTION 2 ENFORCED
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="space-y-3 text-xs">
+                                                        <div>
+                                                            <span className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider block mb-1">
+                                                                Core Underlying Invention (Plain English Human Translation):
+                                                            </span>
+                                                            <p className="text-zinc-100 leading-relaxed bg-black/60 p-3 rounded-xl border border-emerald-950">
+                                                                {result.patentTransparency?.plainEnglishTranslation || 
+                                                                 "A high-reliability distributed ledger and computational framework designed for secure node-to-node transaction verification and anti-tamper provenance tracking without opaque jargon."}
+                                                            </p>
+                                                        </div>
+
+                                                        <div>
+                                                            <span className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider block mb-1">
+                                                                Direct Real-World System Application:
+                                                            </span>
+                                                            <p className="text-emerald-200/90 leading-relaxed bg-black/60 p-3 rounded-xl border border-emerald-950">
+                                                                {result.patentTransparency?.realWorldSystemApplication || 
+                                                                 "Applied directly across AetherOS logic nodes to prevent code duplication, safeguard operational secrets, and enforce transparent patent search accessibility."}
+                                                            </p>
+                                                        </div>
+
+                                                        {result.patentTransparency?.cpcCodeBreakdown && result.patentTransparency.cpcCodeBreakdown.length > 0 && (
+                                                            <div>
+                                                                <span className="text-[9px] text-emerald-600 font-bold uppercase tracking-wider block mb-1.5">
+                                                                    CPC Classification Translation:
+                                                                </span>
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                    {result.patentTransparency.cpcCodeBreakdown.map((item, idx) => (
+                                                                        <div key={idx} className="p-2 bg-black border border-emerald-950 rounded-lg flex justify-between text-[10px]">
+                                                                            <span className="font-bold text-emerald-400">{item.code}</span>
+                                                                            <span className="text-zinc-400">{item.plainMeaning}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="pt-2 border-t border-emerald-950 flex justify-between items-center text-[9px]">
+                                                            <span className="text-zinc-500">
+                                                                Anti-Theft Safeguard: <code className="text-emerald-400 font-bold">{result.patentTransparency?.antiTheftSafeguards || "IP_PROVENANCE_0x03E2_PROTECTED ('To keep theft out')"}</code>
+                                                            </span>
+                                                            <span className="text-emerald-500 font-black uppercase tracking-widest">
+                                                                100% Anti-Theft Watermarked
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             {/* Extracted Entity pills section */}
                                             {result.entities && result.entities.length > 0 && (

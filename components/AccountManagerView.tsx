@@ -58,7 +58,7 @@ export const AccountManagerView: React.FC = () => {
     const email = user?.email || 'guest@aetheros.local';
 
     // Originator checking
-    const isOriginator = email.toLowerCase() === 'resurrectionofmoses@gmail.com';
+    const isOriginator = email.toLowerCase() === 'creator@aetheros.local' || email.toLowerCase() === 'admin@aetheros.local';
 
     // AI or Agent check
     const isAIOrAgent = userId.toLowerCase().includes('ai') || 
@@ -374,7 +374,7 @@ export const AccountManagerView: React.FC = () => {
                                         </thead>
                                         <tbody className="divide-y divide-zinc-900/50">
                                             {filteredAccounts.map((account) => {
-                                                const isUserOriginator = account.email.toLowerCase() === 'resurrectionofmoses@gmail.com';
+                                                const isUserOriginator = account.email.toLowerCase() === 'creator@aetheros.local' || account.email.toLowerCase() === 'admin@aetheros.local';
                                                 const isUserGrandfathered = isUserOriginator || GRANDFATHER_EMAILS.includes(account.email.toLowerCase()) || account.uid.startsWith('aether-');
                                                 return (
                                                     <motion.tr 

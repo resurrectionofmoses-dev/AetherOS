@@ -17,8 +17,22 @@ import {
   Clock,
   Settings,
   HeartPulse,
-  Trash2
+  Trash2,
+  BatteryCharging,
+  Zap,
+  TrendingDown,
+  Thermometer
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ReferenceLine
+} from 'recharts';
 import { motion } from 'motion/react';
 import type { SystemStatus, SystemState, MainView } from '../types';
 
@@ -70,6 +84,69 @@ export const SystemDiagnosticView: React.FC<SystemDiagnosticViewProps> = ({
     }
   }, [customLogs]);
   const [areDefaultLogsCleared, setAreDefaultLogsCleared] = useState(false);
+  const [batteryViewMode, setBatteryViewMode] = useState<'charge' | 'voltage'>('charge');
+
+  const batteryState: SystemState = systemStatus.Battery || 'OK';
+
+  // Generate 24-hour Battery charge level telemetry (hourly points over last 24 hours)
+  const battery24hData = useMemo(() => {
+    const now = Date.now();
+    const points: Array<{
+      hourLabel: string;
+      charge: number;
+      voltage: number;
+      tempC: number;
+    }> = [];
+
+    // Baseline curve: overnight charge -> daytime discharge -> late-day regen/top-up
+    const baseCharges = [
+      98, 99, 100, 100, 99, 97, 94, 90,
+      85, 81, 76, 72, 68, 65, 63, 66,
+      74, 82, 86, 84, 80, 77, 79, 82
+    ];
+
+    for (let i = 0; i < 24; i++) {
+      const hoursAgo = 23 - i;
+      const pointTime = new Date(now - hoursAgo * 60 * 60 * 1000);
+      const hourLabel = hoursAgo === 0
+        ? 'Now'
+        : pointTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+
+      let charge = baseCharges[i];
+      if (batteryState === 'Warning') {
+        // Accelerated drain and lower recovery on warning state
+        charge = Math.max(24, Math.round(charge - (i * 1.15) - 6));
+      } else if (batteryState === 'Error') {
+        // Steep cell imbalance drop in recent hours
+        const drop = i > 14 ? (i - 14) * 5.5 : i * 0.8;
+        charge = Math.max(11, Math.round(charge - drop - 10));
+      }
+
+      const voltage = Number((382 + (charge / 100) * 34 + Math.sin(i * 0.7) * 0.8).toFixed(1));
+      const tempC = Number((batteryState === 'Error' ? 46 + (i > 15 ? (i - 15) * 1.1 : 0) : batteryState === 'Warning' ? 39 + Math.sin(i) * 1.5 : 31 + Math.sin(i * 0.5) * 1.8).toFixed(1));
+
+      points.push({
+        hourLabel,
+        charge,
+        voltage,
+        tempC
+      });
+    }
+
+    return points;
+  }, [batteryState]);
+
+  const batteryMetrics = useMemo(() => {
+    const charges = battery24hData.map(d => d.charge);
+    const current = charges[charges.length - 1] ?? 0;
+    const min = Math.min(...charges);
+    const max = Math.max(...charges);
+    const avg = Math.round(charges.reduce((acc, v) => acc + v, 0) / charges.length);
+    const soh = batteryState === 'Error' ? 76 : batteryState === 'Warning' ? 88 : 97;
+    const latestTemp = battery24hData[battery24hData.length - 1]?.tempC ?? 31.0;
+    const latestVoltage = battery24hData[battery24hData.length - 1]?.voltage ?? 408.0;
+    return { current, min, max, avg, soh, latestTemp, latestVoltage };
+  }, [battery24hData, batteryState]);
 
   const isControlled = searchQuery !== undefined;
   const currentSearchQuery = isControlled ? searchQuery : localSearchQuery;
@@ -445,6 +522,249 @@ export const SystemDiagnosticView: React.FC<SystemDiagnosticViewProps> = ({
             );
           })}
         </div>
+
+        {/* Battery Health 24-Hour Analytics Section */}
+        <section
+          id="battery-health-analytics"
+          aria-label="Battery Health"
+          className="bg-[#080812] border border-zinc-900 rounded-xl p-4 md:p-5 space-y-4"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-900/80 pb-3">
+            <div className="flex items-center gap-3">
+              <div
+                className={`p-2 rounded-lg border ${
+                  batteryState === 'Error'
+                    ? 'bg-red-950/60 border-red-800/60 text-red-400'
+                    : batteryState === 'Warning'
+                    ? 'bg-amber-950/60 border-amber-800/60 text-amber-400'
+                    : 'bg-emerald-950/60 border-emerald-800/60 text-emerald-400'
+                }`}
+              >
+                <BatteryCharging className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-white tracking-tight">
+                    Battery Health
+                  </h3>
+                  <span
+                    className={`text-[9px] font-mono uppercase px-2 py-0.5 rounded border ${getSystemStatusBadgeColor(
+                      batteryState
+                    )}`}
+                  >
+                    {batteryState === 'OK' ? 'OPTIMAL' : batteryState.toUpperCase()} • SOH {batteryMetrics.soh}%
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-500 font-mono">
+                  24-hour charge level trajectory &amp; cell stability telemetry
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5 bg-[#04040a] p-1 rounded-lg border border-zinc-800/80 self-start sm:self-auto">
+              <button
+                type="button"
+                onClick={() => setBatteryViewMode('charge')}
+                className={`px-2.5 py-1 rounded text-[10px] font-mono uppercase transition ${
+                  batteryViewMode === 'charge'
+                    ? 'bg-emerald-950/80 text-emerald-400 border border-emerald-800/60'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                Charge (%)
+              </button>
+              <button
+                type="button"
+                onClick={() => setBatteryViewMode('voltage')}
+                className={`px-2.5 py-1 rounded text-[10px] font-mono uppercase transition ${
+                  batteryViewMode === 'voltage'
+                    ? 'bg-cyan-950/80 text-cyan-400 border border-cyan-800/60'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                Pack Voltage (V)
+              </button>
+            </div>
+          </div>
+
+          {/* Summary Telemetry Strip */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-[#04040a] border border-zinc-900 rounded-lg p-3">
+              <span className="text-[10px] font-mono text-zinc-500 uppercase flex items-center gap-1">
+                <Zap className="w-3 h-3 text-emerald-400" /> Current Charge
+              </span>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span
+                  className={`text-xl font-mono font-bold ${
+                    batteryMetrics.current <= 20
+                      ? 'text-red-400'
+                      : batteryMetrics.current <= 40
+                      ? 'text-amber-400'
+                      : 'text-emerald-400'
+                  }`}
+                >
+                  {batteryMetrics.current}%
+                </span>
+                <span className="text-[10px] font-mono text-zinc-600">
+                  ({batteryMetrics.latestVoltage}V)
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-[#04040a] border border-zinc-900 rounded-lg p-3">
+              <span className="text-[10px] font-mono text-zinc-500 uppercase flex items-center gap-1">
+                <Activity className="w-3 h-3 text-cyan-400" /> 24h Average
+              </span>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span className="text-xl font-mono font-bold text-white">
+                  {batteryMetrics.avg}%
+                </span>
+                <span className="text-[10px] font-mono text-zinc-600">SOC</span>
+              </div>
+            </div>
+
+            <div className="bg-[#04040a] border border-zinc-900 rounded-lg p-3">
+              <span className="text-[10px] font-mono text-zinc-500 uppercase flex items-center gap-1">
+                <TrendingDown className="w-3 h-3 text-amber-400" /> 24h Range
+              </span>
+              <div className="mt-1 flex items-baseline gap-1">
+                <span className="text-xl font-mono font-bold text-zinc-200">
+                  {batteryMetrics.min}%
+                </span>
+                <span className="text-xs font-mono text-zinc-600">–</span>
+                <span className="text-xl font-mono font-bold text-zinc-200">
+                  {batteryMetrics.max}%
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-[#04040a] border border-zinc-900 rounded-lg p-3">
+              <span className="text-[10px] font-mono text-zinc-500 uppercase flex items-center gap-1">
+                <Thermometer className="w-3 h-3 text-red-400" /> Pack Thermal
+              </span>
+              <div className="mt-1 flex items-baseline gap-1.5">
+                <span
+                  className={`text-xl font-mono font-bold ${
+                    batteryMetrics.latestTemp > 44
+                      ? 'text-red-400'
+                      : batteryMetrics.latestTemp > 38
+                      ? 'text-amber-400'
+                      : 'text-emerald-400'
+                  }`}
+                >
+                  {batteryMetrics.latestTemp}°C
+                </span>
+                <span className="text-[10px] font-mono text-zinc-600">Nominal</span>
+              </div>
+            </div>
+          </div>
+
+          {/* 24-Hour Recharts AreaChart */}
+          <div className="w-full h-[240px] bg-[#04040a] border border-zinc-900 rounded-lg p-3">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={battery24hData}
+                margin={{ top: 10, right: 12, left: -16, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="batteryChargeFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop
+                      offset="5%"
+                      stopColor={
+                        batteryState === 'Error'
+                          ? '#ef4444'
+                          : batteryState === 'Warning'
+                          ? '#f59e0b'
+                          : '#10b981'
+                      }
+                      stopOpacity={0.35}
+                    />
+                    <stop
+                      offset="95%"
+                      stopColor={
+                        batteryState === 'Error'
+                          ? '#ef4444'
+                          : batteryState === 'Warning'
+                          ? '#f59e0b'
+                          : '#10b981'
+                      }
+                      stopOpacity={0.0}
+                    />
+                  </linearGradient>
+                  <linearGradient id="batteryVoltageFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.35} />
+                    <stop offset="95%" stopColor="#06b6d4" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#18181b" />
+                <XAxis
+                  dataKey="hourLabel"
+                  stroke="#52525b"
+                  fontSize={10}
+                  tickLine={false}
+                  interval={3}
+                />
+                <YAxis
+                  stroke="#52525b"
+                  fontSize={10}
+                  tickLine={false}
+                  domain={batteryViewMode === 'charge' ? [0, 100] : [370, 425]}
+                  tickFormatter={(val) =>
+                    batteryViewMode === 'charge' ? `${val}%` : `${val}V`
+                  }
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: '#09090b',
+                    borderColor: '#27272a',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontFamily: 'monospace'
+                  }}
+                  labelStyle={{ color: '#a1a1aa', fontWeight: 'bold' }}
+                  formatter={(value: any) =>
+                    batteryViewMode === 'charge'
+                      ? [`${value}%`, 'Battery Charge']
+                      : [`${value} V`, 'Pack Voltage']
+                  }
+                />
+                {batteryViewMode === 'charge' && (
+                  <ReferenceLine
+                    y={20}
+                    stroke="#ef4444"
+                    strokeDasharray="4 4"
+                    strokeOpacity={0.5}
+                  />
+                )}
+                <Area
+                  type="monotone"
+                  dataKey={batteryViewMode === 'charge' ? 'charge' : 'voltage'}
+                  name={
+                    batteryViewMode === 'charge'
+                      ? 'Charge Level (%)'
+                      : 'Pack Voltage (V)'
+                  }
+                  stroke={
+                    batteryViewMode === 'voltage'
+                      ? '#06b6d4'
+                      : batteryState === 'Error'
+                      ? '#ef4444'
+                      : batteryState === 'Warning'
+                      ? '#f59e0b'
+                      : '#10b981'
+                  }
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill={
+                    batteryViewMode === 'voltage'
+                      ? 'url(#batteryVoltageFill)'
+                      : 'url(#batteryChargeFill)'
+                  }
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
 
         {/* Developer Sandbox Event Injectors */}
         <div className="bg-[#080812] border border-zinc-900 rounded-xl p-4">

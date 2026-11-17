@@ -8,7 +8,7 @@ import {
     FireIcon, ClockIcon, EyeIcon, OptimizerIcon, VaultIcon,
     GavelIcon, WrenchIcon, BroadcastIcon, ShareIcon, FlagIcon, ZapIcon,
     MessageCircleIcon, BookIcon, AtomIcon, ConfusionIcon, ThumbsUpIcon, TagIcon, DatabaseIcon,
-    MovieIcon, StarIcon, ShirtIcon
+    MovieIcon, StarIcon, ShirtIcon, CheckSquareIcon
 } from './components/icons';
 
 export interface NavItem {
@@ -48,7 +48,7 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
           { view: 'gold_conjunction', text: 'GOLD CONJUNCTION', icon: GemIcon },
           { view: 'shard_store', text: 'SHARD STORE', icon: GemIcon },
           { view: 'conjunction_gates', text: 'CONJUNCTION GATES', icon: SignalIcon },
-          { view: 'projects', text: 'CRAZY PROJECTS', icon: CodeIcon },
+          { view: 'projects', text: 'PROJECT MANAGEMENT', icon: CheckSquareIcon },
           { view: 'unknown_physics_lab' as any, text: 'UNKNOWN PHYSICS', icon: AtomIcon },
           { view: 'logic_pattern_lab' as any, text: 'LOGIC LAB', icon: TerminalIcon },
           { view: 'regex_editor_lab' as any, text: 'REGEX EDITOR LAB', icon: RulesIcon },
@@ -57,6 +57,7 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
           { view: 'sh_crt_loop' as any, text: 'SH-CRT LOOP', icon: ActivityIcon },
           { view: 'medical_synthesis_lab' as any, text: 'MEDICAL SYNTHESIS', icon: ActivityIcon },
           { view: 'user_profile' as any, text: 'USER PROFILE', icon: UserIcon },
+          { view: 'ai_trust_covenant', text: 'AI TRUST COVENANT', icon: ShieldIcon },
           { view: 'project_showcase' as any, text: 'PROJECT SHOWCASE', icon: ShareIcon },
           { view: 'collaborative_editor' as any, text: 'COLLABORATIVE EDITOR', icon: CodeIcon },
           { view: 'reputation_leaderboard' as any, text: 'REPUTATION LEADERBOARD', icon: StarIcon },
@@ -99,6 +100,8 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
           { view: 'singularity_engine', text: 'SINGULARITY', icon: ActivityIcon },
           { view: 'diagnostics', text: 'FORENSIC AUDIT', icon: WrenchIcon },
           { view: 'sovereign_scanner' as any, text: 'COMPLIANCE SCANNER', icon: ShieldIcon },
+          { view: 'secure_by_design' as any, text: 'SECURE BY DESIGN (SbD)', icon: ShieldIcon },
+          { view: 'anti_theft_protection' as any, text: 'ANTI-THEFT CODE GUARD', icon: ShieldIcon },
           { view: 'biometric_intelligence' as any, text: 'BIOMETRIC INTEL', icon: BrainIcon },
           { view: 'card_recovery' as any, text: 'ASSET RECOVERY', icon: VaultIcon },
           { view: 'eurodemux_core' as any, text: 'EURODEMUX CORE', icon: ServerIcon },
@@ -108,6 +111,8 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
           { view: 'quantum_ledger_dashboard' as any, text: 'LEDGER TELEMETRY', icon: ActivityIcon },
           { view: 'main_net' as any, text: 'MAIN NET', icon: ActivityIcon },
           { view: 'hunting_wallet' as any, text: 'HUNTER WALLET CONSOLE', icon: VaultIcon },
+          { view: 'weather_asset_holder' as any, text: 'WEATHER ASSETS & STOCKS', icon: GemIcon },
+          { view: 'lifeline_calculator' as any, text: 'ABUNDAS (QUANTUM NET CALCULATOR)', icon: ActivityIcon },
           { view: 'ecosystem' as any, text: 'ECOSYSTEM', icon: GlobeIcon },
           { view: 'scraper_merchant_store' as any, text: 'SCRAPER MERCHANT STORE', icon: DatabaseIcon },
           { view: 'data_academy' as any, text: 'THE DATA ACADEMY', icon: BookIcon },

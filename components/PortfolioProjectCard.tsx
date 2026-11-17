@@ -82,6 +82,14 @@ export const PortfolioProjectCard: React.FC<PortfolioProjectCardProps> = ({
                 </div>
 
                 <p className="text-xs text-zinc-400 leading-relaxed font-sans">{project.description}</p>
+                {project.aiCritique && (
+                    <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-950/80 px-3 py-2 text-[11px] font-mono text-zinc-300 leading-relaxed">
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-amber-400 block mb-0.5">
+                            AI Assessment
+                        </span>
+                        {project.aiCritique}
+                    </div>
+                )}
             </div>
 
             {/* Technologies */}

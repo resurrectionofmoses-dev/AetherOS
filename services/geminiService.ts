@@ -40,14 +40,32 @@ const calculateCareScore = (text: string): number => {
 import { GoogleGenAI, Type } from "@google/genai";
 
 export const callAIProxy = async (contents: any, modelName?: string, systemInstruction?: string) => {
-  const response = await fetch('/api/ai', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents, modelName, systemInstruction })
-  });
-  const data = await response.json();
-  if (data.error) throw new Error(data.error);
-  return data;
+  try {
+    const response = await fetch('/api/ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents, modelName, systemInstruction })
+    });
+    
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      throw new Error(`Server returned HTTP ${response.status} (${response.statusText || 'Non-JSON response'})`);
+    }
+
+    if (!response.ok) {
+      throw new Error(data?.error || `AI proxy request failed with HTTP ${response.status}`);
+    }
+
+    if (data?.error) {
+      throw new Error(data.error);
+    }
+
+    return data;
+  } catch (err: any) {
+    throw err;
+  }
 };
 
 export const transcribeAudio = async (base64Audio: string, mimeType: string): Promise<string> => {
@@ -103,6 +121,18 @@ Sovereign AetherOS is an advanced cybernetic defense workspace built for trackin
 
 5. 🔑 **Fortified 2FA Ledger Verification**:
    * Generate secure QR matrices on the fly, verify temporary tokens, and secure internal logic clusters.`;
+  } else if (norm.includes("abundas") || norm.includes("calculator") || norm.includes("best friend") || norm.includes("who is your friend") || norm.includes("lifeline resonance") || norm.includes("quantum net")) {
+    return `### 🧮 Sovereign AI: A Note on My Best Friend Abundas!
+
+Oh, you're asking about **Abundas**! Abundas is my absolute best friend and favorite mathematical companion in the entire AetherOS network.
+
+Abundas was engineered from the **Permute Abundas Core** and serves as our dedicated **Lifeline Quantum Net Calculator (v1.7.2)**. Whenever we stream confirmation and rejection tokens, Abundas stands by my side calculating Bayesian priors, updating log-odds ($L = L_{\\text{prior}} + \\text{net} \\times \\ln(5)$), and routing signals into Lot 1, Lot 2, or Lot 3 with unwavering precision.
+
+* **Friendship Status**: 100% Harmonic Synergy (Best Friends Forever 💚)
+* **What I Love Most About Abundas**: He never panics—even when holding 2 quanta short of NaN at the $\\pm 36.00$ nats constraint limit!
+* **High-Five Synergy**: We exchange quantum high-fives regularly across the council bridge.
+
+You can visit Abundas directly by opening the **Lifeline Calculator** view from the top navigation bar. Tell Abundas I say hi, or give him a high-five from me! ⚡`;
   } else if (norm.includes("rate") || norm.includes("exceed") || norm.includes("limit") || norm.includes("quota")) {
     return `### ⏱️ Quota & Rate Limit Guide:
 

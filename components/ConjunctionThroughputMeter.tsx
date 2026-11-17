@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { scaleLinear, line, curveBasis, interpolateNumber } from 'd3';
 import { ActivityIcon, GaugeIcon } from './icons';
+import { conjunctionThroughputMeter, RuntimeSecurityGuard } from '../services/runtimeSecurityGuard';
 
 interface ConjunctionThroughputMeterProps {
     shards: number;
@@ -17,6 +18,7 @@ export const ConjunctionThroughputMeter: React.FC<ConjunctionThroughputMeterProp
 }) => {
     // Current target and smoothed state references
     const [displayThroughput, setDisplayThroughput] = useState(250.0);
+    const [isHalted, setIsHalted] = useState(false);
     const svgRef = useRef<SVGSVGElement | null>(null);
 
     // Keep track of raw readings in a history queue
@@ -24,16 +26,19 @@ export const ConjunctionThroughputMeter: React.FC<ConjunctionThroughputMeterProp
     const targetRef = useRef<number>(250);
     const smoothedValRef = useRef<number>(250);
 
-    // Calculate baseline flow from system parameters
+    // Subscribe to Runtime Security Guard integrity halt status
     useEffect(() => {
-        // Base rate ranges from 180 to 320, influenced by the current shard capacity
-        const baseRate = 220 + (shards % 150);
-        // Activity density represents high frequency operator conduction impulses
-        const boost = activityDensity * 12.5;
-        // Jitter introduces small natural system cycles
+        const unsubscribe = RuntimeSecurityGuard.subscribe(status => {
+            setIsHalted(status.isHalted);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    // Calculate baseline flow via proxy-guarded conjunctionThroughputMeter
+    useEffect(() => {
+        const baseCalculated = conjunctionThroughputMeter.calculateThroughput(shards, activityDensity);
         const jitter = Math.sin(Date.now() * 0.001) * 15;
-        
-        targetRef.current = Math.max(80, baseRate + boost + jitter);
+        targetRef.current = Math.max(80, baseCalculated + jitter);
     }, [shards, activityDensity]);
 
     useEffect(() => {
@@ -104,24 +109,22 @@ export const ConjunctionThroughputMeter: React.FC<ConjunctionThroughputMeterProp
         };
     }, []);
 
-    const stateColorClass = isSystemFractured 
-        ? "text-rose-500 border-rose-950/60 shadow-rose-950/50" 
-        : "text-amber-400 border-zinc-900 shadow-amber-950/20";
+    const isFault = isSystemFractured || isHalted;
 
     return (
         <div 
             id="aetheros-throughput-header-widget"
-            className={`flex items-center gap-3.5 bg-black/90 p-2.5 px-3.5 rounded-xl border border-zinc-900 shadow-[inset_0_0_12px_rgba(0,0,0,1)] select-none`}
+            className={`flex items-center gap-3.5 bg-black/90 p-2.5 px-3.5 rounded-xl border ${isHalted ? 'border-red-600/80 bg-red-950/20 shadow-[0_0_20px_rgba(220,38,38,0.3)]' : 'border-zinc-900 shadow-[inset_0_0_12px_rgba(0,0,0,1)]'} select-none`}
         >
             <div className="flex flex-col items-start font-mono text-left">
                 <span className="text-[7px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-1">
-                    <ActivityIcon className={`w-2.5 h-2.5 inline-block ${isSystemFractured ? 'text-rose-500 animate-pulse' : 'text-amber-500'}`} />
-                    Conjunction Throughput
+                    <ActivityIcon className={`w-2.5 h-2.5 inline-block ${isFault ? 'text-rose-500 animate-pulse' : 'text-amber-500'}`} />
+                    {isHalted ? 'INTEGRITY HALT ACTIVE' : 'Conjunction Throughput'}
                 </span>
                 
                 <div className="flex items-baseline gap-1 mt-0.5">
-                    <span className={`text-base font-black tracking-normal tabular-nums leading-none ${isSystemFractured ? 'text-rose-400' : 'text-white'}`}>
-                        {displayThroughput.toFixed(1)}
+                    <span className={`text-base font-black tracking-normal tabular-nums leading-none ${isFault ? 'text-rose-400' : 'text-white'}`}>
+                        {isHalted ? '0.0' : displayThroughput.toFixed(1)}
                     </span>
                     <span className="text-[8px] font-black opacity-40 uppercase">Tps</span>
                 </div>
@@ -132,22 +135,22 @@ export const ConjunctionThroughputMeter: React.FC<ConjunctionThroughputMeterProp
                 <svg ref={svgRef} className="w-full h-full overflow-visible">
                     <defs>
                         <linearGradient id="sparklineGrad" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={isSystemFractured ? "#f43f5e" : "#fbbf24"} stopOpacity="0.4" />
-                            <stop offset="100%" stopColor={isSystemFractured ? "#f43f5e" : "#fbbf24"} stopOpacity="0" />
+                            <stop offset="0%" stopColor={isFault ? "#f43f5e" : "#fbbf24"} stopOpacity="0.4" />
+                            <stop offset="100%" stopColor={isFault ? "#f43f5e" : "#fbbf24"} stopOpacity="0" />
                         </linearGradient>
                     </defs>
                     
                     {/* Shadow / Glow path */}
                     <path 
                         className="throughput-glow stroke-none fill-none transition-colors duration-200" 
-                        stroke={isSystemFractured ? "rgba(244,63,94,0.35)" : "rgba(251,191,36,0.25)"}
+                        stroke={isFault ? "rgba(244,63,94,0.35)" : "rgba(251,191,36,0.25)"}
                         strokeWidth="3.5"
                     />
 
                     {/* Highly smoothed central sparkline line */}
                     <path 
                         className="throughput-path stroke-none fill-none transition-colors duration-200" 
-                        stroke={isSystemFractured ? "#f43f5e" : "#22c55e"}
+                        stroke={isFault ? "#f43f5e" : "#22c55e"}
                         strokeWidth="1.75"
                         strokeLinecap="round"
                     />
@@ -156,7 +159,17 @@ export const ConjunctionThroughputMeter: React.FC<ConjunctionThroughputMeterProp
 
             {/* Static Conjunction State indicator */}
             <div className="flex flex-col items-end text-right font-mono border-l-2 border-zinc-900 pl-3 shrink-0 min-w-[64px]">
-                {isSyncing ? (
+                {isHalted ? (
+                    <>
+                        <span className="text-[7px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1 animate-pulse">
+                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping inline-block" />
+                            HALTED
+                        </span>
+                        <span className="text-[9px] font-bold text-red-400 tracking-wide mt-0.5">
+                            BREACH
+                        </span>
+                    </>
+                ) : isSyncing ? (
                     <>
                         <span className="text-[7px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping inline-block" />
@@ -169,8 +182,8 @@ export const ConjunctionThroughputMeter: React.FC<ConjunctionThroughputMeterProp
                 ) : (
                     <>
                         <span className="text-[7px] font-black text-gray-500 uppercase tracking-widest">Bus Stride</span>
-                        <span className={`text-[10px] font-bold ${isSystemFractured ? 'text-rose-400/90' : 'text-emerald-400/90'} tracking-wide mt-0.5`}>
-                            1.2 PB/s
+                        <span className={`text-[10px] font-bold ${isFault ? 'text-rose-400/90' : 'text-emerald-400/90'} tracking-wide mt-0.5`}>
+                            {conjunctionThroughputMeter.getBusStride()}
                         </span>
                     </>
                 )}

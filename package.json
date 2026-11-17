@@ -14,7 +14,7 @@
     "hh:deploy": "hardhat run scripts/deploy.js --network localhost"
   },
   "dependencies": {
-    "@google/genai": "^1.35.0",
+    "@google/genai": "^3.4.0",
     "@nomicfoundation/hardhat-toolbox": "^7.0.0",
     "@vitejs/plugin-react": "^5.0.0",
     "d3": "^7.9.0",

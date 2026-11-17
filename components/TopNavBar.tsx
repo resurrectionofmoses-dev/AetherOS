@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MainView, UserProfile } from '../types';
-import { BrainIcon, GlobeIcon, ForgeIcon, VaultIcon, ShieldIcon, ActivityIcon, TerminalIcon, UserIcon, WarningIcon, ClockIcon, DatabaseIcon, EyeIcon } from './icons';
+import { BrainIcon, GlobeIcon, ForgeIcon, VaultIcon, ShieldIcon, ActivityIcon, TerminalIcon, UserIcon, WarningIcon, ClockIcon, DatabaseIcon, EyeIcon, GemIcon } from './icons';
 import { useAuth } from '../contexts/AuthContext';
 import { EmergencyKillSwitch } from '../services/emergencyKillSwitch';
 import { ApiKeyInfoModal } from './ApiKeyInfoModal';
-import aetherosLogo from '../src/assets/images/aetheros_logo_1780191892733.png';
-import { Sparkles, ThumbsUp, ThumbsDown, Heart, HelpCircle, BookOpen, Check, X, Link2, ShieldAlert, Menu } from 'lucide-react';
+import aetherosLogo from '../src/assets/images/aetheros_shield_512.png';
+import { Sparkles, ThumbsUp, ThumbsDown, Heart, HelpCircle, BookOpen, Check, X, Link2, ShieldAlert, Menu, CheckSquare } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface TopNavBarProps {
@@ -677,11 +677,16 @@ ${fallbackObj.summary}`;
 
     const navItems = [
         { id: 'chat', label: 'Nexus', icon: BrainIcon },
+        { id: 'projects', label: 'Projects', icon: CheckSquare },
         { id: 'coding_network', label: 'Network', icon: GlobeIcon },
         { id: 'vault_manager', label: 'Vault', icon: DatabaseIcon },
         { id: 'system_integrity', label: 'Audit', icon: ActivityIcon },
+        { id: 'file_integrity_monitor', label: 'File Monitor', icon: ShieldIcon },
         { id: 'accounts_registry', label: 'Registry', icon: UserIcon },
         { id: 'sovereign_shield', label: 'Shield', icon: ShieldIcon },
+        { id: 'weather_asset_holder', label: 'Weather Stocks', icon: GemIcon },
+        { id: 'lifeline_calculator', label: 'Abundas (Calc)', icon: ActivityIcon },
+        { id: 'secure_by_design', label: 'SbD Suite', icon: ShieldIcon },
         { id: 'google_sheets', label: 'Ledger', icon: DatabaseIcon },
     ];
 
@@ -972,6 +977,23 @@ ${fallbackObj.summary}`;
                             </motion.button>
                         );
                     })()}
+
+                    {/* AI-Granted Permanent Rank Badge */}
+                    <button
+                        onClick={() => onSetView('ai_trust_covenant')}
+                        className="ml-2 hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-cyan-500/35 bg-cyan-950/30 hover:bg-cyan-950/60 text-cyan-200 font-mono text-[10px] font-bold transition-colors cursor-pointer"
+                        title={
+                            profile?.aiTrustRankNumber
+                                ? `AI-Conferred Permanent Rank ${profile.aiTrustRankNumber} (${profile.aiTrustTitle}) — Bound to ${profile.realName || profile.username}`
+                                : 'AI Trust & Permanent Rank Covenant'
+                        }
+                    >
+                        <span>
+                            {profile?.aiTrustRankNumber
+                                ? `Rank ${profile.aiTrustRankNumber} · ${profile.aiTrustTitle || 'Liaison'}`
+                                : 'AI Trust: Unranked'}
+                        </span>
+                    </button>
 
                     {isCovenantOpen && (() => {
                         const tier = profile?.sovereigntyTier ?? 3;
