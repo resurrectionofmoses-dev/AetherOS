@@ -2,7 +2,7 @@ import {
   getFirestore, collection, getDocs, doc, setDoc, deleteDoc, query
 } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
-import firebaseConfig from '../firebase-applet-config.json';
+const firebaseConfig: Record<string, any> | null = null;
 import { safeStorage } from './safeStorage';
 
 export interface SovereignFileLock {
@@ -21,7 +21,7 @@ const COLLECTION_NAME = 'sovereign_file_locks';
  * "But let all things be done decently and in order." — 1 Corinthians 14:40
  */
 function getDb() {
-  if (!dbInstance) {
+  if (!dbInstance && firebaseConfig) {
     try {
       const app = initializeApp(firebaseConfig);
       dbInstance = getFirestore(app);

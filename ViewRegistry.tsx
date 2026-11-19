@@ -139,6 +139,7 @@ import { AntiTheftProtectionView } from './components/AntiTheftProtectionView';
 import { SecureByDesignView } from './components/SecureByDesignView';
 import { WeatherAssetHolderView } from './components/WeatherAssetHolderView';
 import { LifelineCalculatorView } from './components/LifelineCalculatorView';
+import { SovereignProtocolNexusView } from './components/SovereignProtocolNexusView';
 import { v4 as uuidv4 } from 'uuid';
 
 export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
@@ -466,4 +467,11 @@ export const ViewRegistry: Record<string, (props: any) => React.ReactNode> = {
     'sovereign_scroll_console': () => <SovereignScrollConsole />,
     'hunting_wallet': () => <HunterWalletConsole />,
     'activity_logs': () => <ActivityLogsView />,
+    'sovereign_protocol_nexus': (props) => (
+        <SovereignProtocolNexusView
+            isSystemFractured={props.isSystemFractured}
+            bootLogs={props.bootLogs}
+            onNavigateToView={props.onSetView}
+        />
+    ),
 };

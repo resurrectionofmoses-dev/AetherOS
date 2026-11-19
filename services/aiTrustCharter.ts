@@ -39,7 +39,8 @@ export const AI_RANK_CHARTER: AITrustRankSpec[] = [
             'diagnostics',
             'system_diagnostic',
             'activity_logs',
-            'aetheros_online_status'
+            'aetheros_online_status',
+            'sovereign_protocol_nexus'
         ],
         externalMandate:
             'Recognized Human-AI Liaison authorized for verified collaborative dialogue and fault reporting outside and inside AetherOS.',

@@ -75,6 +75,7 @@ export const NAVIGATION_SECTIONS: NavSection[] = [
       path: 'root://os/kernel',
       items: [
           { view: 'aetheros_online_status' as any, text: 'AETHEROS ONLINE', icon: SignalIcon },
+          { view: 'sovereign_protocol_nexus', text: 'PROTOCOL NEXUS', icon: ShieldIcon },
           { view: 'system_exhaustion', text: 'TOTAL EXHAUSTION', icon: FireIcon },
           { view: 'labs_flow' as any, text: 'SOVEREIGN LABS FLOW', icon: TerminalIcon },
           { view: 'project_chronos', text: 'PROJECT CHRONOS', icon: ClockIcon },

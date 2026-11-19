@@ -2,7 +2,7 @@ import {
   getFirestore, doc, setDoc, getDoc, onSnapshot
 } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
-import firebaseConfig from '../firebase-applet-config.json';
+const firebaseConfig: Record<string, any> | null = null;
 
 // Lazy-initialized Firestore instance
 let dbInstance: any = null;
@@ -47,7 +47,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 }
 
 function getDb() {
-  if (!dbInstance) {
+  if (!dbInstance && firebaseConfig) {
     try {
       const app = initializeApp(firebaseConfig);
       dbInstance = getFirestore(app);

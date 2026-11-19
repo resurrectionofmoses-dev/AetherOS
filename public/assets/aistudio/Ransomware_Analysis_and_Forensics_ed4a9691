@@ -1,0 +1,5 @@
+Task,Frequency,Why it Matters
+Network Isolation,IMMEDIATE,"Disconnect from Wi-Fi/Ethernet to stop the ""Exfiltration"" identified in the Firefox logs."
+Offline Scan,Once,Run a scan from a bootable USB (like Windows Defender Offline) since the OS version is compromised.
+Hash Verification,Monthly,"Compare your system files against known ""Clean"" hashes to detect .sentinel tags."
+Vault Audit,Once,Check your browser's saved passwords; they were likely targeted by the Firefox log-dump.

@@ -1,6 +1,8 @@
-import { getFirestore, collection, doc, setDoc } from 'firebase/firestore';
+import { getFirestore, doc, setDoc } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
-import firebaseConfig from '../firebase-applet-config.json' with { type: 'json' };
+
+const rawConfig = process.env.FIREBASE_CONFIG;
+const firebaseConfig = rawConfig ? JSON.parse(rawConfig) : null;
 
 const seedMemories = [
   {
@@ -56,6 +58,10 @@ const seedMemories = [
 ];
 
 async function seed() {
+  if (!firebaseConfig) {
+    console.log('[Sovereign Mode] No external FIREBASE_CONFIG supplied; memories remain sovereignly stored locally.');
+    return;
+  }
   console.log('Initializing Firebase App...');
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);

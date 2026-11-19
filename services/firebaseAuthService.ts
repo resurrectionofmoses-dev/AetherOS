@@ -7,7 +7,7 @@ import {
   User,
   signOut
 } from 'firebase/auth';
-import firebaseConfig from '../firebase-applet-config.json';
+const firebaseConfig: Record<string, any> | null = null;
 
 // Initialize the Firebase app instance safely
 let app: any = null;

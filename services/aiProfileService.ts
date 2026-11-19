@@ -14,6 +14,7 @@ export interface CompileAIProfileRequest {
     email?: string;
     includeWorkspaceContext?: boolean;
     profile?: UserProfile;
+    existingProfile?: UserProfile;
     projects?: NetworkProject[];
     glitchHistory?: GlitchTelemetry[];
     messages?: ChatMessage[];
@@ -104,7 +105,7 @@ export async function compileAIProfile(
             email: params.email || '',
             includeWorkspaceContext: includeWorkspace,
             existingWorks: includeWorkspace
-                ? (params.profile?.profileProjects || []).map((p) => ({
+                ? ((params.profile || params.existingProfile)?.profileProjects || []).map((p) => ({
                       title: p.title,
                       roleDefined: p.roleDefined,
                       status: p.status,
@@ -119,8 +120,8 @@ export async function compileAIProfile(
                       projects: projectSummaries,
                       glitches: glitchSummaries,
                       recentChatExcerpts,
-                      reputationScore: params.profile?.reputationScore ?? 0,
-                      existingSkillsHint: params.profile?.skills || []
+                      reputationScore: (params.profile || params.existingProfile)?.reputationScore ?? 0,
+                      existingSkillsHint: (params.profile || params.existingProfile)?.skills || []
                   }
                 : null
         })

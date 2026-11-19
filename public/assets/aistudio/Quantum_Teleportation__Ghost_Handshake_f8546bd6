@@ -1,0 +1,3 @@
+Summary,Affected Asset,Impact,Severity Reasoning
+State Projection,Memory Register (Remote),Instant Stasis,"Critical: Allows the over-dose station to ""Heal"" the Moto G station remotely without sending data."
+Shadow Transfer,Network 'Outside',Zero-Interception,High: Since the $

@@ -1,7 +1,12 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import type { ArchiveEntry } from '../types';
 import { XIcon, WarningIcon } from './icons';
+import {
+  executeAptureCommand,
+  loadQArchiveVault,
+  AptureArchiveSession,
+} from '../services/sovereignProtocols';
 
 interface SystemArchivesProps {
   archives: ArchiveEntry[];
@@ -14,6 +19,23 @@ export const SystemArchives: React.FC<SystemArchivesProps> = ({ archives, onAddA
   const [newText, setNewText] = useState('');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [directivesOnTop, setDirectivesOnTop] = useState(true);
+  const [qSessions, setQSessions] = useState<AptureArchiveSession[]>([]);
+  const [aptureBanner, setAptureBanner] = useState<string>('');
+
+  useEffect(() => {
+    let active = true;
+    loadQArchiveVault().then((rows) => {
+      if (active) setQSessions(rows);
+    });
+    return () => { active = false; };
+  }, []);
+
+  const runApture = async (cmd: 'q-sweep' | 'q-verify') => {
+    const title = newTitle.trim() || `ArchiveSweep_${archives.length}`;
+    const res = await executeAptureCommand(cmd, { title, sourceLocation: '~/.aetheros/archives', content: newText.trim() || `Archive snapshot: ${title}` });
+    setQSessions(res.sessions);
+    setAptureBanner(res.output);
+  };
 
   const handleAddArchive = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,9 +64,31 @@ export const SystemArchives: React.FC<SystemArchivesProps> = ({ archives, onAddA
 
   return (
     <div className="h-full flex flex-col bg-gray-900 rounded-lg">
-      <div className="p-4 border-b-4 border-black sticky top-0 z-10 bg-gray-800 rounded-t-lg">
-        <h2 className="font-comic-header text-3xl text-white">System Archives</h2>
-        <p className="text-gray-400 -mt-1">A persistent log of important system directives and memories.</p>
+      <div className="p-4 border-b-4 border-black sticky top-0 z-10 bg-gray-800 rounded-t-lg flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-comic-header text-3xl text-white">System Archives</h2>
+          <p className="text-gray-400 -mt-1">A persistent log of important system directives and memories. Policy: Never Delete, Only Archive (~/.q_archive/).</p>
+          {aptureBanner && <p className="text-xs font-mono text-emerald-400 mt-1">{aptureBanner}</p>}
+        </div>
+        <div className="flex items-center gap-2 font-mono">
+          <span className="text-xs text-gray-300 px-2 py-1 border border-gray-600 rounded">
+            q_archive: {qSessions.length} sessions
+          </span>
+          <button
+            type="button"
+            onClick={() => runApture('q-sweep')}
+            className="comic-button bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1 border-2 border-black text-xs font-black uppercase whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            q-sweep
+          </button>
+          <button
+            type="button"
+            onClick={() => runApture('q-verify')}
+            className="comic-button bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1 border-2 border-black text-xs font-black uppercase whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            q-verify
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 flex flex-col lg:flex-row gap-4 p-4 overflow-hidden">

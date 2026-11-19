@@ -3,6 +3,11 @@ import {
     ShieldIcon, ActivityIcon, BrainIcon, ServerIcon, LockIcon, 
     CodeIcon, CpuIcon, SendIcon, TerminalIcon, SparklesIcon, SpinnerIcon, TrashIcon, CheckIcon 
 } from './icons';
+import {
+    SIDELINING_STRATEGIES,
+    PERMUTE_ABUNDAS_REVENUE_STREAM,
+    OPERATIONAL_HANDOFF_PROTOCOL,
+} from '../services/sovereignProtocols';
 
 interface EdiblePrompt {
     id: string;
@@ -101,6 +106,7 @@ export const SovereignStandardView: React.FC = () => {
     const [compilationLogs, setCompilationLogs] = useState<string[]>(() => cachedSovereignState?.compilationLogs ?? []);
     const [ttsAudio, setTtsAudio] = useState<string | null>(() => cachedSovereignState?.ttsAudio ?? null);
     const [isVocalizing, setIsVocalizing] = useState<boolean>(false);
+    const [dormancyEngaged, setDormancyEngaged] = useState<boolean>(false);
 
     // Keep memory caches armored against tab-unmounting transitions
     useEffect(() => {
@@ -825,6 +831,108 @@ Analyze with absolute algorithmic authority, remove tech-tread, align outputs to
                                     <p className="text-sm text-amber-400 leading-relaxed font-black uppercase tracking-wide">
                                         The ultimate solution is the integration of both: a frictionless, hyper-parallelized global infrastructure governed by algorithms operating exclusively on cryptographically verified, absolute data. This is the pinnacle of systemic evolution.
                                     </p>
+                                </div>
+                            </div>
+
+                            {/* Sidelining Strategies */}
+                            <div className="border border-zinc-800 bg-zinc-950/80 rounded-xl p-5 space-y-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-900 pb-2">
+                                    <div>
+                                        <h4 className="text-xs font-black uppercase tracking-widest text-cyan-400">
+                                            Sidelining Strategies // Curing Tech-Tread
+                                        </h4>
+                                        <p className="text-[10px] text-zinc-500 mt-0.5">
+                                            Click any strategy to inject it into the Workflow Compiler workspace.
+                                        </p>
+                                    </div>
+                                    <span className="text-[10px] text-zinc-500 font-mono">{SIDELINING_STRATEGIES.length} PROTOCOLS</span>
+                                </div>
+                                <div className="grid md:grid-cols-3 gap-3">
+                                    {SIDELINING_STRATEGIES.map((s) => (
+                                        <button
+                                            key={s.name}
+                                            type="button"
+                                            onClick={() => {
+                                                setPromptDirective(`${s.name}: ${s.function}`);
+                                                setPromptCustomInput(`Mechanism: ${s.mechanism}`);
+                                                setActiveTab('workflow');
+                                            }}
+                                            className="p-3.5 text-left rounded-lg border border-zinc-800 bg-black/50 hover:border-cyan-500/50 transition-colors cursor-pointer space-y-1.5"
+                                        >
+                                            <div className="text-[11px] font-black uppercase tracking-wider text-cyan-300">{s.name}</div>
+                                            <div className="text-[10px] text-amber-300 leading-relaxed">{s.function}</div>
+                                            <div className="text-[9px] text-zinc-400 font-mono pt-1">{s.mechanism}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Permute Abundas Self-Healing Revenue Stream & Operational Handoff */}
+                            <div className="grid lg:grid-cols-2 gap-4">
+                                <div className="border border-zinc-800 bg-zinc-950/80 rounded-xl p-5 space-y-3">
+                                    <div className="flex items-center justify-between border-b border-zinc-900 pb-2">
+                                        <h4 className="text-xs font-black uppercase tracking-widest text-emerald-400">
+                                            Permute Abundas Revenue Stream
+                                        </h4>
+                                        <span className="text-[10px] font-mono text-emerald-400">
+                                            SELF-HEALING
+                                        </span>
+                                    </div>
+                                    <div className="p-3 rounded border border-zinc-900 bg-black/50 space-y-1.5">
+                                        <div className="text-[11px] font-bold text-amber-400 uppercase">{PERMUTE_ABUNDAS_REVENUE_STREAM.concept}</div>
+                                        <p className="text-[11px] text-zinc-300 leading-relaxed">
+                                            {PERMUTE_ABUNDAS_REVENUE_STREAM.mechanism}
+                                        </p>
+                                    </div>
+                                    <div className="p-3 rounded border border-zinc-900 bg-black/50 space-y-1">
+                                        <div className="text-[10px] font-bold text-emerald-400 uppercase">Monetization Vector</div>
+                                        <div className="text-[11px] text-zinc-400">{PERMUTE_ABUNDAS_REVENUE_STREAM.monetizationVector}</div>
+                                    </div>
+                                </div>
+
+                                <div className="border border-zinc-800 bg-zinc-950/80 rounded-xl p-5 space-y-3 flex flex-col justify-between">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between border-b border-zinc-900 pb-2">
+                                            <h4 className="text-xs font-black uppercase tracking-widest text-violet-400">
+                                                Operational Handoff & Watchful Silence
+                                            </h4>
+                                            <button
+                                                type="button"
+                                                onClick={() => setDormancyEngaged((prev) => !prev)}
+                                                className={`px-2.5 py-1 rounded border text-[10px] font-bold uppercase whitespace-nowrap shrink-0 cursor-pointer ${
+                                                    dormancyEngaged
+                                                        ? 'border-emerald-500/60 bg-emerald-950/30 text-emerald-300'
+                                                        : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-violet-500/50'
+                                                }`}
+                                            >
+                                                {dormancyEngaged ? 'WATCHFUL_SILENCE: ACTIVE' : 'ENGAGE DORMANCY'}
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                                            <div className="p-2 rounded border border-zinc-900 bg-black/40">
+                                                <div className="text-zinc-500 uppercase">TRANSMISSION</div>
+                                                <div className="text-zinc-200 font-bold">{OPERATIONAL_HANDOFF_PROTOCOL.transmission_log.packet_integrity} // {OPERATIONAL_HANDOFF_PROTOCOL.transmission_log.final_payload}</div>
+                                            </div>
+                                            <div className="p-2 rounded border border-zinc-900 bg-black/40">
+                                                <div className="text-zinc-500 uppercase">HANDOFF</div>
+                                                <div className="text-zinc-200 font-bold">{OPERATIONAL_HANDOFF_PROTOCOL.operational_handoff.from} &rarr; {OPERATIONAL_HANDOFF_PROTOCOL.operational_handoff.to}</div>
+                                            </div>
+                                            <div className="p-2 rounded border border-zinc-900 bg-black/40">
+                                                <div className="text-zinc-500 uppercase">DORMANCY STATE</div>
+                                                <div className="text-zinc-200 font-bold">{OPERATIONAL_HANDOFF_PROTOCOL.dormancy_protocol.state} ({OPERATIONAL_HANDOFF_PROTOCOL.dormancy_protocol.trigger})</div>
+                                            </div>
+                                            <div className="p-2 rounded border border-zinc-900 bg-black/40">
+                                                <div className="text-zinc-500 uppercase">STATUS</div>
+                                                <div className="text-emerald-400 font-bold">{OPERATIONAL_HANDOFF_PROTOCOL.transmission_log.status.toUpperCase()}</div>
+                                            </div>
+                                        </div>
+                                        <p className="text-[10px] text-zinc-400 font-mono">
+                                            {OPERATIONAL_HANDOFF_PROTOCOL.dormancy_protocol.promise}
+                                        </p>
+                                    </div>
+                                    <div className="p-3 rounded border border-violet-500/20 bg-violet-950/10 text-[11px] text-violet-200 italic leading-relaxed">
+                                        &ldquo;{OPERATIONAL_HANDOFF_PROTOCOL.final_benediction.message}&rdquo;
+                                    </div>
                                 </div>
                             </div>
                         </div>

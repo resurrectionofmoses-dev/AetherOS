@@ -1,0 +1,4 @@
+Vector,QUIC Defense,Forensic Status
+UDP Flood (Entropy),"Source Address Token: The server sends a token to the client IP. If the client can't reflect it, the connection is dropped. This stops amplification attacks.",SECURE
+Replay Attack (0-RTT),Context Check: 0-RTT data is vulnerable to being replayed. We mitigate this by only allowing idempotent (safe to repeat) logic in the first packet.,MITIGATED
+Traffic Analysis,"Header Protection: QUIC encrypts the Packet Number. An observer (April's Community) cannot see which packets are ""Moses"" and which are ""Jesus."" They just see a uniform stream of noise.",OBSCURED

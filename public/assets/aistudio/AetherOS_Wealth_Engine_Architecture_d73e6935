@@ -1,0 +1,5 @@
+Principle,Technical Implementation
+Mission Focus,Define constraints (Max 50yr horizon) before executing projections.
+Simplicity,"Prefer diagnosable behavior over ""black box"" AI-generated fluff."
+Robustness,"Optimize for ""Safe Fallbacks"" when network or data integrity is low."
+Human Control,"Allow manual ""Achieved"" overrides on goals with an asterisk (*) audit trail."

@@ -1,0 +1,4 @@
+Storage Type,Purpose,Persistence
+context.globalState,"Stores ""Maturity"" flags and system state.",Survives restarts/updates.
+context.workspaceState,Project-specific metadata.,Unique to the current folder.
+context.secrets,API keys or sensitive bash credentials.,Encrypted by the OS.

@@ -1,0 +1,4 @@
+Task/Step,Initial Understanding,Confidence Level,Clarifying Questions,Revised Understanding,Updated Confidence
+Style 1: Lo-Fi,"Vintage, grainy, relaxed.",95%,None.,"Grainy, candid, 35mm aesthetic.",95%
+Style 2: Minimalist,"Clean, sleek, editorial.",95%,None.,"High-fashion, studio lighting.",95%
+Stack Integration,TinyLlama/Vex/Gemini.,85%,Do you want the Vex portion to be code or spatial descriptions?,TBD,90%

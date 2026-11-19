@@ -3,7 +3,7 @@ import {
   query, orderBy, getDoc
 } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
-import firebaseConfig from '../firebase-applet-config.json';
+const firebaseConfig: Record<string, any> | null = null;
 import { CellularState, CellNode } from '../types';
 import { safeStorage } from './safeStorage';
 
@@ -11,7 +11,7 @@ let dbInstance: any = null;
 const COLLECTION_NAME = 'cellular_states';
 
 function getDb() {
-  if (!dbInstance) {
+  if (!dbInstance && firebaseConfig) {
     try {
       const app = initializeApp(firebaseConfig);
       dbInstance = getFirestore(app);

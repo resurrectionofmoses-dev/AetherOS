@@ -576,7 +576,7 @@ const ALL_VIEWS_LIST: MainView[] = [
   'vulnerability_report', 'tactical_intelligence', 'behavioral_specs', 'cognitive_pipeline', 'data_provenance_lab', 
   'sh_crt_loop', 'user_profile', 'ai_trust_covenant', 'prompt_forge', 'sovereign_standard', 'confusion_logic', 'knowledge_forum', 
   'blockchain_history', 'main_net', 'ecosystem', 'accounts_registry', 'blacklist', 'system_integrity', 
-  'vault_manager', 'moderator_lounge', 'biometric_intelligence', 'card_recovery', 'project_showcase', 'quantum_ledger' as any, 'ai_telemetry', 'inevitable_crash', 'scraper_merchant_store', 'data_academy', 'reputation_leaderboard', 'aether_flow_orchestrator', 'packaging_suite', 'system_archives', 'system_diagnostic', 'aetheros_online_status', 'regex_editor_lab', 'agent_safeguard', 'safeguard', 'gmail', 'google_drive', 'sovereign_scanner', 'activity_logs', 'bound_observer'
+  'vault_manager', 'moderator_lounge', 'biometric_intelligence', 'card_recovery', 'project_showcase', 'quantum_ledger' as any, 'ai_telemetry', 'inevitable_crash', 'scraper_merchant_store', 'data_academy', 'reputation_leaderboard', 'aether_flow_orchestrator', 'packaging_suite', 'system_archives', 'system_diagnostic', 'aetheros_online_status', 'regex_editor_lab', 'agent_safeguard', 'safeguard', 'gmail', 'google_drive', 'sovereign_scanner', 'activity_logs', 'bound_observer', 'sovereign_protocol_nexus'
 ];
 
 export const App: React.FC = () => {
@@ -2927,6 +2927,13 @@ export const App: React.FC = () => {
                 }
             `}</style>
             <div className="flex h-screen w-screen overflow-hidden bg-black text-gray-200">
+                {isSystemFractured && (
+                    <div
+                        id="system-fracture-border-overlay"
+                        aria-hidden="true"
+                        className="system-fracture-screen-border"
+                    />
+                )}
                 {rubyFilterActive && (
                     <div className="pointer-events-none fixed inset-0 z-[9999] opacity-25 bg-red-600/10 mix-blend-color-dodge ring-inset ring-[15px] ring-red-500/30">
                         <div className="w-full h-full bg-[linear-gradient(rgba(239,68,68,0.12)_50%,_transparent_50%)] bg-[length:100%_4px] animate-pulse" />
@@ -2937,7 +2944,7 @@ export const App: React.FC = () => {
                 <Sidebar 
                     systemStatus={systemStatus} systemDetails={{}} currentView={currentView as MainView} onSetView={(v) => handleSetView(v as any)} 
                     currentDateTime={currentTime} timeFormat={timeFormat} onToggleTimeFormat={() => setTimeFormat(prev => prev === '12hr' ? '24hr' : '12hr')} 
-                    unlockedViews={[...unlockedViews, 'ai_trust_covenant', 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any, 'ai_telemetry' as any, 'cascade_investigator' as any, 'inevitable_crash' as any, 'mission_items' as any, 'gmail' as any, 'sovereign_scroll_console' as any].filter(v => isRankViewUnlocked(String(v), Math.max(userProfile.aiTrustRankNumber || 0, getHighestConferredRankNumber(userProfile.grantedRanks)), strictRankEnforcement))} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
+                    unlockedViews={[...unlockedViews, 'ai_trust_covenant', 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any, 'ai_telemetry' as any, 'cascade_investigator' as any, 'inevitable_crash' as any, 'mission_items' as any, 'gmail' as any, 'sovereign_scroll_console' as any, 'sovereign_protocol_nexus'].filter(v => isRankViewUnlocked(String(v), Math.max(userProfile.aiTrustRankNumber || 0, getHighestConferredRankNumber(userProfile.grantedRanks)), strictRankEnforcement))} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
                     onSelectSystemIndicator={(sysName) => {
                         setDiagnosticSearchQuery(sysName);
                         handleSetView('system_diagnostic');
@@ -2978,7 +2985,7 @@ export const App: React.FC = () => {
                             <Sidebar 
                                 systemStatus={systemStatus} systemDetails={{}} currentView={currentView as MainView} onSetView={(v) => { handleSetView(v as any); setIsSidebarOpen(false); }} 
                                 currentDateTime={currentTime} timeFormat={timeFormat} onToggleTimeFormat={() => setTimeFormat(prev => prev === '12hr' ? '24hr' : '12hr')} 
-                                unlockedViews={[...unlockedViews, 'ai_trust_covenant', 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any, 'ai_telemetry' as any, 'cascade_investigator' as any, 'inevitable_crash' as any, 'mission_items' as any, 'gmail' as any, 'sovereign_scroll_console' as any].filter(v => isRankViewUnlocked(String(v), Math.max(userProfile.aiTrustRankNumber || 0, getHighestConferredRankNumber(userProfile.grantedRanks)), strictRankEnforcement))} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
+                                unlockedViews={[...unlockedViews, 'ai_trust_covenant', 'cellular_grid' as any, 'voice_authority' as any, 'constraints_audit' as any, 'remix_scope_lab' as any, 'medical_synthesis_lab' as any, 'sovereign_standard' as any, 'blockchain_history' as any, 'ai_telemetry' as any, 'cascade_investigator' as any, 'inevitable_crash' as any, 'mission_items' as any, 'gmail' as any, 'sovereign_scroll_console' as any, 'sovereign_protocol_nexus'].filter(v => isRankViewUnlocked(String(v), Math.max(userProfile.aiTrustRankNumber || 0, getHighestConferredRankNumber(userProfile.grantedRanks)), strictRankEnforcement))} onToggleTerminal={() => setIsTerminal(!isTerminal)} isTerminal={isTerminal}
                                 onSelectSystemIndicator={(sysName) => {
                                     setDiagnosticSearchQuery(sysName);
                                     handleSetView('system_diagnostic');

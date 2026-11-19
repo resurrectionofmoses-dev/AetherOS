@@ -5,6 +5,7 @@ import {
   Timer, History, Cpu, BookOpen, Heart, Sparkles, Clock, ArrowRight, Lock 
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { FASHION_PROMPTING_SPECS } from '../services/sovereignProtocols';
 
 interface Point {
   x: number;
@@ -1048,6 +1049,34 @@ export const ClothingLabView: React.FC = () => {
                 onChange={(e) => setLightAngle(parseInt(e.target.value, 10))}
                 className="w-full accent-amber-500 h-1 bg-neutral-900 rounded-lg cursor-pointer"
               />
+            </div>
+          </div>
+
+          {/* Fashion Prompting Quick Presets */}
+          <div className="w-full max-w-[400px] mt-4 pt-3 border-t border-neutral-900 space-y-2">
+            <div className="flex items-center justify-between text-[10px] font-mono text-neutral-400 uppercase">
+              <span>Fashion Prompting Presets</span>
+              <span className="text-amber-500">95% Confidence</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {FASHION_PROMPTING_SPECS.map((spec) => (
+                <button
+                  key={spec.id}
+                  type="button"
+                  onClick={() => {
+                    setShadowOpacity(spec.presetParams.shadowOpacity);
+                    setLightAngle(spec.presetParams.lightAngle);
+                    setAnisotropy(spec.presetParams.anisotropy);
+                    toast.success(`${spec.step} Applied`, {
+                      description: spec.revisedUnderstanding,
+                    });
+                  }}
+                  className="px-3 py-2 rounded-lg border border-neutral-800 bg-neutral-950 hover:border-amber-500/60 text-left transition-colors cursor-pointer"
+                >
+                  <div className="text-[10px] font-bold text-neutral-200 truncate">{spec.step}</div>
+                  <div className="text-[9px] text-neutral-500 truncate">{spec.revisedUnderstanding} ({spec.confidenceLevel}%)</div>
+                </button>
+              ))}
             </div>
           </div>
         </div>

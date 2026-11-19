@@ -1,0 +1,4 @@
+Metric,Status,Forensic Note
+Data Leakage,None,0 tokens moved means 0 data left your perimeter.
+Authentication,Suspect,High probability of invalid credentials or endpoint URL.
+System Integrity,Stable,"The agent shut down cleanly (""Goodybe!""), indicating no crash, just emptiness."

@@ -3,7 +3,7 @@ import {
   query, orderBy, getDoc, onSnapshot
 } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
-import firebaseConfig from '../firebase-applet-config.json';
+const firebaseConfig: Record<string, any> | null = null;
 import { MissionItem } from '../types';
 import { safeStorage } from './safeStorage';
 
@@ -51,7 +51,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 
 // Lazy load the firestore db
 function getDb() {
-  if (!dbInstance) {
+  if (!dbInstance && firebaseConfig) {
     try {
       const app = initializeApp(firebaseConfig);
       dbInstance = getFirestore(app);

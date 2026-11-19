@@ -1,0 +1,4 @@
+Command,Consequence
+journalctl --vacuum-time=2d,Heal Storage: Deletes all logs older than 2 days to save disk shards.
+journalctl -xe,Quick Trace: Jumps to the end of the log with explanatory help text.
+journalctl -u postfix,Mail Audit: See why Postfix is sending so many failure notifications to root.

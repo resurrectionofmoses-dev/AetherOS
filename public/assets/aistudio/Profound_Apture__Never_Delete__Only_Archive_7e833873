@@ -1,0 +1,4 @@
+Command,Action,Intent
+q-sweep,Moves logs/manifests to ~/.q_archive/,Cleans current view without data loss.
+q-vault,Lists all historical records,Provides an audit trail of system states.
+q-verify,Runs the current seal,Ensures the active logic remains unchanged.

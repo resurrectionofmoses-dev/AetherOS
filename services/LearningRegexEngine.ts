@@ -72,7 +72,9 @@ class LearningRegexEngineService {
       'help': 1.0,
       'love': 1.0,
       'whois': 1.0,
-      'time': 1.0
+      'time': 1.0,
+      'bionics-augmentation': 1.15,
+      'neural-interface-bci': 1.25
     };
     this.feedbackLogs = [];
     
@@ -139,6 +141,22 @@ class LearningRegexEngineService {
         pattern: '\\b(time|clock|date)\\b',
         response: 'By the precision of our clock-cycles, the current cosmic timestamp is: [TIME]! ⏰🛰️',
         intent: 'Time Scan',
+        isActive: true,
+        matchCount: 0
+      },
+      {
+        id: 'bionics-augmentation',
+        pattern: '(bionic[s]?|cyborg[s]?|biomechanic[s]?|augment[s]?|augmentation[s]?|prosthet[ics]{3}?|implant[s]?)',
+        response: 'Bio-Mechanical Augmentation vector intercepted! Routing telemetry through Biological Integrity & Sovereign Vessel safeguard checks at [TIME].',
+        intent: 'Biomechanics & Augmentation Filter',
+        isActive: true,
+        matchCount: 0
+      },
+      {
+        id: 'neural-interface-bci',
+        pattern: '(neural[- ]?interface[s]?|brain[- ]?computer[- ]?interface[s]?|BCI|neuroprosthet[ic]{2}[s]?|brain[- ]?control)',
+        response: 'Neural-Interface / BCI signature flagged! Engaging Sovereign Cognitive Shield—hardware brain-control & neuroprosthetic links remain user-governed.',
+        intent: 'Neural Interface & BCI Shield',
         isActive: true,
         matchCount: 0
       }

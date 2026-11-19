@@ -8,6 +8,7 @@ import {
 } from './icons';
 import { SearchSovereign } from '../services/searchSovereign';
 import { DataPurification } from '../services/dataPurification';
+import { latentGazeSearch, LatentGazeResult } from '../services/latentGazeEngine';
 import type { SovereignSearchResult, SearchProviderStatus, WebShard } from '../types';
 
 const PROVIDERS: SearchProviderStatus[] = [
@@ -74,6 +75,8 @@ export const UniversalSearchBridge: React.FC = () => {
     const [bypassLimits, setBypassLimits] = useState(false);
     const [purificationMode, setPurificationMode] = useState<'off' | 'silver' | 'gold' | 'sovereign'>('silver');
     const [showBlacklist, setShowBlacklist] = useState(false);
+    const [latentGazeResult, setLatentGazeResult] = useState<LatentGazeResult | null>(null);
+    const [gazeFocusDomain, setGazeFocusDomain] = useState<'fishing' | 'security' | 'balanced'>('security');
     
     const getLogsTimeline = () => [
         "ESTABLISHING 0x03E2_SEARCH_NET HANDSHAKE...",
@@ -452,6 +455,67 @@ export const UniversalSearchBridge: React.FC = () => {
                             {isSearching ? <SpinnerIcon className="w-8 h-8 animate-spin" /> : <SearchIcon className="w-8 h-8" />}
                         </button>
                     </form>
+
+                    {/* Latent Gaze 4-Stage Intent Narrowing Bar */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 bg-zinc-950/70 border border-zinc-800 rounded-xl font-mono">
+                        <div className="flex items-center gap-2 text-xs text-zinc-300">
+                            <span className="text-emerald-400 font-bold uppercase tracking-wider">Latent Gaze (temp=0.8)</span>
+                            <span className="text-zinc-500">4-Stage Intent Vector Narrowing</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {(['security', 'fishing', 'balanced'] as const).map((mode) => (
+                                <button
+                                    key={mode}
+                                    type="button"
+                                    onClick={() => setGazeFocusDomain(mode)}
+                                    className={`px-2.5 py-1 rounded border text-[10px] font-bold uppercase whitespace-nowrap shrink-0 cursor-pointer ${
+                                        gazeFocusDomain === mode
+                                            ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300'
+                                            : 'border-zinc-800 bg-black text-zinc-400 hover:border-zinc-600'
+                                    }`}
+                                >
+                                    {mode}
+                                </button>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const vec =
+                                        gazeFocusDomain === 'security'
+                                            ? [0.1, 0.95, 0.2, 0.4, 0.3, 0.2]
+                                            : gazeFocusDomain === 'fishing'
+                                            ? [0.95, 0.1, 0.2, 0.5, 0.2, 0.2]
+                                            : [0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
+                                    const res = latentGazeSearch(query.trim() || 'High-contrast telemetry anomaly artifact', vec);
+                                    setLatentGazeResult(res);
+                                }}
+                                className="px-3 py-1 rounded border border-cyan-500/60 bg-cyan-950/30 hover:bg-cyan-900/40 text-cyan-300 text-[10px] font-black uppercase whitespace-nowrap shrink-0 cursor-pointer"
+                            >
+                                Run Latent Gaze
+                            </button>
+                        </div>
+                    </div>
+
+                    {latentGazeResult && (
+                        <div className="p-4 bg-zinc-950 border border-emerald-500/30 rounded-xl font-mono text-xs space-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="text-emerald-400 font-bold uppercase">
+                                    Stage 4 Best Match ({(latentGazeResult.highestScore * 100).toFixed(1)}% cosine similarity)
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setLatentGazeResult(null)}
+                                    className="text-[10px] text-zinc-400 hover:text-white uppercase cursor-pointer"
+                                >
+                                    Dismiss
+                                </button>
+                            </div>
+                            <div className="text-white font-semibold">{latentGazeResult.bestMatch?.hypothesis}</div>
+                            <div className="text-[11px] text-zinc-400">
+                                Visual Glance: {latentGazeResult.visualFeatures.join(', ')} // Candidates: {latentGazeResult.rawPredictions.length}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Absolute Exploration Protocol strip */}
                     <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-4 bg-zinc-950/60 border border-zinc-900/80 rounded-2xl gap-4">

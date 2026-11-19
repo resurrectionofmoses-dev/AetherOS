@@ -3,12 +3,12 @@ import {
   getFirestore, doc, setDoc, getDoc, collection, getDocs, updateDoc
 } from 'firebase/firestore';
 import { initializeApp } from 'firebase/app';
-import firebaseConfig from '../firebase-applet-config.json';
+const firebaseConfig: Record<string, any> | null = null;
 
 // Initialize Firestore if possible
 let dbInstance: any = null;
 function getDb() {
-  if (!dbInstance) {
+  if (!dbInstance && firebaseConfig) {
     try {
       const app = initializeApp(firebaseConfig);
       dbInstance = getFirestore(app);
