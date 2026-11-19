@@ -41,6 +41,16 @@ export const DiagnosticsCenter: React.FC<DiagnosticsCenterProps> = ({ onSetView,
   const [activeFilter, setActiveFilter] = useState<VehicleSystem | 'All'>('All');
   const [activeTab, setActiveTab] = useState<'CODES' | 'FORENSIC'>('CODES');
 
+  const sortedGlitchHistory = useMemo(
+    () => [...glitchHistory].sort((a, b) => b.timestamp - a.timestamp),
+    [glitchHistory]
+  );
+
+  const chronologicalGlitchHistory = useMemo(
+    () => [...glitchHistory].sort((a, b) => a.timestamp - b.timestamp),
+    [glitchHistory]
+  );
+
   // Primitives for dependency stability
   const engineState = systemStatus?.Engine || 'OK';
   const batteryState = systemStatus?.Battery || 'OK';
@@ -619,20 +629,20 @@ export const DiagnosticsCenter: React.FC<DiagnosticsCenterProps> = ({ onSetView,
                         </button>
                     )}
                 </div>
-                <GlitchLineChart data={glitchHistory} />
+                <GlitchLineChart data={chronologicalGlitchHistory} />
             </div>
             <div className="p-6 bg-black rounded-2xl border border-rose-500/20">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold text-rose-500">Glitch Log</h2>
                     <span className="text-zinc-500 text-xs font-mono">
-                        {glitchHistory.length} {glitchHistory.length === 1 ? 'event' : 'events'} recorded
+                        {sortedGlitchHistory.length} {sortedGlitchHistory.length === 1 ? 'event' : 'events'} recorded • Descending timestamp
                     </span>
                 </div>
                 <div className="space-y-2">
-                    {glitchHistory.length === 0 ? (
+                    {sortedGlitchHistory.length === 0 ? (
                         <p className="text-zinc-600 italic">No glitches recorded.</p>
                     ) : (
-                        glitchHistory.map((glitch, idx) => (
+                        sortedGlitchHistory.map((glitch, idx) => (
                             <div
                                 key={glitch.id}
                                 className={`p-3 rounded-lg text-sm border transition-colors ${

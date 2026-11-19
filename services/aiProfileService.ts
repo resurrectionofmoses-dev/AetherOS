@@ -82,12 +82,15 @@ export async function compileAIProfile(
 
     const glitchSummaries = includeWorkspace
         ? glitches.slice(-15).map((g) => ({
-              reason: g.reason,
-              severity: g.severity,
-              durationMs: g.durationMs,
-              snapshotNote: g.snapshotNote,
+              timestamp: g.timestamp,
+              duration: g.duration,
+              label: g.label,
+              isSnapshot: Boolean(g.isSnapshot),
+              activeGlitch: Boolean(g.activeGlitch),
               activityDensity: g.activityDensity,
-              systemStatus: g.systemStatusSnapshot
+              acousticPressure: g.acousticPressure,
+              currentView: g.currentView,
+              systemStatus: g.systemStatus
           }))
         : [];
 

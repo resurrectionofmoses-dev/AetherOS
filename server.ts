@@ -192,11 +192,14 @@ async function startServer() {
   });
 
   app.post("/api/2fa/verify", async (req, res) => {
-    const { token, secret } = req.body;
+    const { token, secret } = req.body || {};
+    if (typeof token !== 'string' || typeof secret !== 'string' || !token.trim() || !secret.trim()) {
+      return res.status(400).json({ verified: false, error: "Valid token and secret are required." });
+    }
     const verified = speakeasy.totp.verify({
-        secret,
+        secret: secret.trim(),
         encoding: 'base32',
-        token,
+        token: token.trim(),
         window: 1
     });
     
@@ -1139,10 +1142,28 @@ ${JSON.stringify(workspaceScan)}
     }
   });
 
+  const escapeHtmlServer = (val: string) =>
+    String(val || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
   // Localized High-Fidelity Sandbox OAuth Provider UI (rendered in the popup window)
   app.get("/api/auth/sandbox", (req, res) => {
-    const redirectUri = req.query.redirect_uri as string || "/auth/callback";
-    const clientId = req.query.client_id as string || "default";
+    const rawRedirectUri = String(req.query.redirect_uri || "/auth/callback");
+    let safeRedirectUri = "/auth/callback";
+    try {
+      const parsed = new URL(rawRedirectUri, `http://${req.get("host") || "localhost:3000"}`);
+      if (parsed.pathname === "/auth/callback" || parsed.pathname === "/auth/callback/") {
+        safeRedirectUri = parsed.pathname;
+      }
+    } catch {
+      safeRedirectUri = "/auth/callback";
+    }
+    const redirectUri = escapeHtmlServer(safeRedirectUri);
+    const clientId = escapeHtmlServer(String(req.query.client_id || "default").slice(0, 64));
 
     // Returns a beautifully styled, retro/futuristic login screen for the OAuth sandbox
     res.send(`
@@ -1298,8 +1319,8 @@ ${JSON.stringify(workspaceScan)}
 
   // OAuth Callback Handler
   app.get(["/auth/callback", "/auth/callback/"], async (req, res) => {
-    const { code } = req.query;
-    console.log(`[server.ts] OAuth authorization code received: ${code}`);
+    const safeCode = String(req.query.code || "N/A").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 64) || "N/A";
+    console.log(`[server.ts] OAuth authorization code received: ${safeCode}`);
 
     // Return simple HTML page sending success back to the parent iframe and closing itself
     res.send(`
@@ -1348,7 +1369,7 @@ ${JSON.stringify(workspaceScan)}
               // Send postMessage signal back to parent page
               window.opener.postMessage({ 
                 type: 'OAUTH_AUTH_SUCCESS', 
-                code: '${code || "N/A"}',
+                code: ${JSON.stringify(safeCode)},
                 portfolio: {
                   provider: "Coinbase Prime Live",
                   connectedAt: new Date().toISOString(),
@@ -1477,15 +1498,26 @@ ${JSON.stringify(workspaceScan)}
   // Fetch full code content for a specific module under inspection
   app.get("/api/module-content", (req, res) => {
     try {
-      const modulePath = req.query.path as string;
+      const modulePath = String(req.query.path || "").trim();
       if (!modulePath) {
         return res.status(400).json({ success: false, error: "Module path parameter required" });
       }
 
-      // Prevent directory traversal attacks
-      const resolvedPath = path.resolve(process.cwd(), modulePath);
-      if (!resolvedPath.startsWith(process.cwd())) {
+      // Strict path containment check using path.relative (prevents sibling-prefix bypass)
+      const rootDir = path.resolve(process.cwd());
+      const resolvedPath = path.resolve(rootDir, modulePath);
+      const relPath = path.relative(rootDir, resolvedPath);
+      if (!relPath || relPath.startsWith("..") || path.isAbsolute(relPath)) {
         return res.status(403).json({ success: false, error: "Access denied" });
+      }
+
+      // Block hidden files (.env, .git, .aetheros-trust-ledger.json), node_modules, and build artifacts
+      const segments = relPath.split(path.sep);
+      if (
+        segments.some((s) => s.startsWith(".") || s === "node_modules" || s === "dist") ||
+        !/\.(ts|tsx|js|jsx|json|css|html|md|sol)$/i.test(resolvedPath)
+      ) {
+        return res.status(403).json({ success: false, error: "Protected or unsupported module path" });
       }
 
       if (fs.existsSync(resolvedPath) && fs.statSync(resolvedPath).isFile()) {
@@ -1610,9 +1642,18 @@ body {
   });
 
   app.post("/api/collaboration/edit", (req, res) => {
-    const { fileName, content } = req.body;
-    if (!fileName || content === undefined) {
-      return res.status(400).json({ success: false, error: "fileName and content required" });
+    const { fileName, content } = req.body || {};
+    if (
+      typeof fileName !== "string" ||
+      !fileName.trim() ||
+      typeof content !== "string" ||
+      fileName === "__proto__" ||
+      fileName === "constructor" ||
+      fileName === "prototype" ||
+      fileName.includes("/") ||
+      fileName.includes("\\")
+    ) {
+      return res.status(400).json({ success: false, error: "Valid fileName and string content required" });
     }
     collabFiles[fileName] = content;
     res.json({ success: true });
@@ -2143,14 +2184,33 @@ body {
         });
       }
 
-      const safeActions = Array.isArray(actionHistory) ? actionHistory.slice(0, 150) : [];
+      const validCategories = new Set<TrustActionCategory>([
+        "AI_ASSIST",
+        "STABILITY",
+        "ENGINEERING",
+        "SECURITY",
+        "GOVERNANCE"
+      ]);
+      const rawActions = Array.isArray(actionHistory) ? actionHistory.slice(0, 150) : [];
+      const seenActionKeys = new Set<string>();
+      const safeActions: any[] = [];
       const categoriesPresent = new Set<TrustActionCategory>();
       let deterministicActionPoints = 0;
 
-      for (const a of safeActions) {
-        const pts = Math.max(0, Math.min(35, Number(a?.trustPointsAwarded) || 0));
+      for (const a of rawActions) {
+        if (!a || typeof a !== "object") continue;
+        const cat = a.category as TrustActionCategory;
+        const summaryStr = String(a.summary || "").trim();
+        if (!validCategories.has(cat) || !summaryStr) continue;
+        const dedupeKey = String(a.id || `${cat}|${a.actionType || ""}|${summaryStr}|${a.timestamp || ""}`);
+        if (seenActionKeys.has(dedupeKey)) continue;
+        seenActionKeys.add(dedupeKey);
+        safeActions.push(a);
+
+        const rawPts = Number(a.trustPointsAwarded);
+        const pts = Number.isFinite(rawPts) ? Math.max(0, Math.min(35, rawPts)) : 0;
         deterministicActionPoints += pts;
-        if (a?.category) categoriesPresent.add(a.category as TrustActionCategory);
+        categoriesPresent.add(cat);
       }
 
       // Include verified session telemetry contributions if actionHistory is sparse
@@ -2420,6 +2480,18 @@ INSTRUCTIONS:
     }
   });
 
+  function timingSafeEqualHex(a: unknown, b: unknown): boolean {
+    if (typeof a !== "string" || typeof b !== "string") return false;
+    if (a.length === 0 || a.length !== b.length) return false;
+    try {
+      const bufA = Buffer.from(a, "utf8");
+      const bufB = Buffer.from(b, "utf8");
+      return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+    } catch {
+      return false;
+    }
+  }
+
   // 4. External / Portable Credential & Seal Verification endpoint
   app.post("/api/trust/verify", (req, res) => {
     try {
@@ -2438,7 +2510,10 @@ INSTRUCTIONS:
         }
         const { cryptographicSignature, ...unsigned } = found;
         const expected = signAwardPayload(unsigned);
-        const signatureValid = expected === cryptographicSignature;
+        const signatureValid =
+          found.immutable === true &&
+          found.revocable === false &&
+          timingSafeEqualHex(expected, cryptographicSignature);
         return res.json({
           success: true,
           verified: signatureValid,
@@ -2459,8 +2534,9 @@ INSTRUCTIONS:
           });
         }
         const invalidSeals = seals.filter((s) => {
+          if (!s || typeof s !== "object" || s.immutable !== true || s.revocable !== false) return true;
           const { cryptographicSignature, ...unsigned } = s;
-          return signAwardPayload(unsigned) !== cryptographicSignature;
+          return !timingSafeEqualHex(signAwardPayload(unsigned), cryptographicSignature);
         });
 
         const { masterSealSignature, ...unsignedBundle } = credential;
@@ -2468,7 +2544,7 @@ INSTRUCTIONS:
           .createHmac("sha256", TRUST_HMAC_KEY)
           .update(JSON.stringify(unsignedBundle))
           .digest("hex");
-        const masterValid = expectedMaster === masterSealSignature;
+        const masterValid = timingSafeEqualHex(expectedMaster, masterSealSignature);
         const verified = invalidSeals.length === 0 && masterValid;
 
         return res.json({

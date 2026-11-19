@@ -67,7 +67,11 @@ export const LoginView: React.FC = () => {
   // COVENANT OIL CANVAS SYSTEM STATES
   // ==========================================
   const [isCovenantUnlocked, setIsCovenantUnlocked] = useState<boolean>(() => {
-    return !!localStorage.getItem('aetheros_oil_canvas_consecrated');
+    try {
+      return !!localStorage.getItem('aetheros_oil_canvas_consecrated');
+    } catch {
+      return false;
+    }
   });
   const [isDrawing, setIsDrawing] = useState(false);
   const [activePaintColor, setActivePaintColor] = useState('#fbbf24'); // default liquid gold
@@ -204,7 +208,11 @@ export const LoginView: React.FC = () => {
     setTimeout(() => playBeep(1300, 'sine', 0.4), 1000);
 
     setTimeout(() => {
-      localStorage.setItem('aetheros_oil_canvas_consecrated', 'true');
+      try {
+        localStorage.setItem('aetheros_oil_canvas_consecrated', 'true');
+      } catch {
+        // ignore sandboxed storage restriction
+      }
       setIsCovenantUnlocked(true);
       setConsecrating(false);
     }, 1500);
@@ -286,10 +294,11 @@ export const LoginView: React.FC = () => {
       setLoginPasswordInput(cmd);
       const masked = "*".repeat(cmd.length);
 
-      const emailVal = loginEmailInput.trim();
+      const emailVal = loginEmailInput.trim().toLowerCase();
       const passVal = cmd;
 
-      const isMatch = (emailVal === 'admin@aetheros.local' && passVal === 'AetherSovereign2026') ||
+      const isMatch = (emailVal === 'creator@aetheros.local' && (passVal === 'AetherSovereign2026' || passVal === 'Sovereign777' || passVal === 'CreatorPass')) ||
+                      (emailVal === 'admin@aetheros.local' && passVal === 'AetherSovereign2026') ||
                       (emailVal === 'mod@aetheros.local' && passVal === 'GuardianPass') ||
                       (emailVal === 'operator@aetheros.local' && passVal === 'OperatorActive');
 
@@ -480,9 +489,11 @@ export const LoginView: React.FC = () => {
       setCameraError(false);
       setError(null);
       
-      const targetEmail = targetProfileId === 'creator' 
-        ? 'creator@aetheros.local' 
-        : `${targetProfileId}@aetheros.local`;
+      const targetEmail = targetProfileId === 'creator'
+        ? 'creator@aetheros.local'
+        : targetProfileId === 'agent'
+          ? 'admin@aetheros.local'
+          : `${targetProfileId}@aetheros.local`;
         
       logFaceAuthAttempt(
         targetProfileId,
@@ -513,9 +524,11 @@ export const LoginView: React.FC = () => {
       setCameraError(true);
       setScanStatus('IDLE');
       
-      const targetEmail = targetProfileId === 'creator' 
-        ? 'creator@aetheros.local' 
-        : `${targetProfileId}@aetheros.local`;
+      const targetEmail = targetProfileId === 'creator'
+        ? 'creator@aetheros.local'
+        : targetProfileId === 'agent'
+          ? 'admin@aetheros.local'
+          : `${targetProfileId}@aetheros.local`;
         
       logFaceAuthAttempt(
         targetProfileId,
@@ -1061,11 +1074,14 @@ export const LoginView: React.FC = () => {
   };
 
   const completeMfaAuthentication = async (explicitEmail?: string) => {
-    const targetEmail = explicitEmail || loginEmailInput || email || 'admin@aetheros.local';
+    const targetEmail = (explicitEmail || loginEmailInput || email || 'admin@aetheros.local').trim().toLowerCase();
     
-    // Choose password block matched back to standard mock database
-    const targetPass = targetEmail === 'admin@aetheros.local' ? 'AetherSovereign2026' :
-                       targetEmail === 'mod@aetheros.local' ? 'GuardianPass' : 'OperatorActive';
+    // Preserve supplied passphrase or map by normalized account email
+    const targetPass = loginPasswordInput || (
+      targetEmail === 'creator@aetheros.local' ? 'AetherSovereign2026' :
+      targetEmail === 'admin@aetheros.local' ? 'AetherSovereign2026' :
+      targetEmail === 'mod@aetheros.local' ? 'GuardianPass' : 'OperatorActive'
+    );
 
     try {
       setLoading(true);
@@ -1086,10 +1102,11 @@ export const LoginView: React.FC = () => {
     setError(null);
     playBeep(900, 'sine', 0.1);
 
-    const emailVal = email.trim();
+    const emailVal = email.trim().toLowerCase();
     const passVal = password;
 
-    const isMatch = (emailVal === 'admin@aetheros.local' && passVal === 'AetherSovereign2026') ||
+    const isMatch = (emailVal === 'creator@aetheros.local' && (passVal === 'AetherSovereign2026' || passVal === 'Sovereign777' || passVal === 'CreatorPass')) ||
+                    (emailVal === 'admin@aetheros.local' && passVal === 'AetherSovereign2026') ||
                     (emailVal === 'mod@aetheros.local' && passVal === 'GuardianPass') ||
                     (emailVal === 'operator@aetheros.local' && passVal === 'OperatorActive');
 
@@ -1112,11 +1129,11 @@ export const LoginView: React.FC = () => {
 
   const handle2FAVerify = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (twoFactorCode.length !== 6) return;
+    if (loading || !/^\d{6}$/.test(twoFactorCode)) return;
 
     try {
       setLoading(true);
-      await login(loginEmailInput || 'admin@aetheros.local', loginPasswordInput || 'AetherSovereign2026');
+      await login(loginEmailInput || 'creator@aetheros.local', loginPasswordInput || 'AetherSovereign2026');
       playBeep(1200, 'sine', 0.5); // Success chime
     } catch (err: any) {
       playBeep(250, 'sawtooth', 0.35); // Error tone
@@ -1478,7 +1495,7 @@ export const LoginView: React.FC = () => {
                   <div className="grid grid-cols-2 gap-1 bg-zinc-950 p-1 rounded-xl border border-red-900/15">
                     {[
                       { id: 'creator', label: 'Creator', email: 'creator@aetheros.local' },
-                      { id: 'agent', label: 'Sovereign Agent', email: 'gemini@aetheros.local' }
+                      { id: 'agent', label: 'Sovereign Agent', email: 'admin@aetheros.local' }
                     ].map((profile) => {
                       const active = targetProfileId === profile.id;
                       return (
@@ -1548,7 +1565,11 @@ export const LoginView: React.FC = () => {
                   type="button"
                   onClick={() => {
                     playBeep(400, 'sawtooth', 0.2);
-                    localStorage.removeItem('aetheros_oil_canvas_consecrated');
+                    try {
+                      localStorage.removeItem('aetheros_oil_canvas_consecrated');
+                    } catch {
+                      // ignore sandboxed storage restriction
+                    }
                     setIsCovenantUnlocked(false);
                     setHasDrawnSomething(false);
                     setUploadedPainting(null);

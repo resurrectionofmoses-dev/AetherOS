@@ -55,6 +55,17 @@ const getMachineId = () => {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const parseStoredRegistry = (): UserRegistryEntry[] => {
+  try {
+    const raw = safeLocal.getItem('aetheros_user_registry');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Function to sync user to mocked registry
   const syncToRegistry = useCallback((u: User) => {
-    const registry = JSON.parse(safeLocal.getItem('aetheros_user_registry') || '[]');
+    const registry = parseStoredRegistry();
     const existingIdx = registry.findIndex((r: any) => r.uid === u.uid);
     
     // Attempt to guess location from TZ
@@ -91,7 +102,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     const storedUser = safeLocal.getItem('aetheros_user');
-    const registry = JSON.parse(safeLocal.getItem('aetheros_user_registry') || '[]');
+    const registry = parseStoredRegistry();
     setUserRegistry(registry);
 
     if (storedUser) {
@@ -172,10 +183,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, pass: string) => {
     await new Promise(resolve => setTimeout(resolve, 1200));
+    const normalizedEmail = (email || '').trim().toLowerCase();
     
     let mockUser: User | null = null;
 
-    if (email === 'admin@aetheros.local' && pass === 'AetherSovereign2026') {
+    if (normalizedEmail === 'admin@aetheros.local' && pass === 'AetherSovereign2026') {
       mockUser = {
         uid: 'aether-admin-001',
         displayName: 'System Administrator',
@@ -184,7 +196,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         sovereignty: 'CENTRAL_COMMAND'
       };
     } else if (
-      (email.toLowerCase() === 'creator@aetheros.local' || email.toLowerCase() === 'admin@aetheros.local') &&
+      (normalizedEmail === 'creator@aetheros.local' || normalizedEmail === 'admin@aetheros.local') &&
       (pass === 'AetherSovereign2026' || pass === 'Sovereign777' || pass === 'CreatorPass')
     ) {
       mockUser = {
@@ -194,7 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: 'admin',
         sovereignty: 'DIVINE_ORCHESTRATION'
       };
-    } else if (email === 'mod@aetheros.local' && pass === 'GuardianPass') {
+    } else if (normalizedEmail === 'mod@aetheros.local' && pass === 'GuardianPass') {
       mockUser = {
         uid: 'mod-001',
         displayName: 'Lattice Guardian',
@@ -202,7 +214,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: 'moderator',
         sovereignty: 'VIGIL_NETWORK'
       };
-    } else if (email === 'operator@aetheros.local' && pass === 'OperatorActive') {
+    } else if (normalizedEmail === 'operator@aetheros.local' && pass === 'OperatorActive') {
       mockUser = {
         uid: 'op-001',
         displayName: 'Grid Operator',

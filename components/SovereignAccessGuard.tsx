@@ -119,8 +119,13 @@ export const getViewRequiredLevel = (view: string): number => {
 };
 
 // Helper to extract active level from subscription object
-export const getPlanLevel = (plan: string | undefined, status: string | undefined): number => {
+export const getPlanLevel = (
+  plan: string | undefined,
+  status: string | undefined,
+  expiresAt?: number
+): number => {
   if (status !== 'active' || !plan) return 0;
+  if (typeof expiresAt === 'number' && expiresAt > 0 && expiresAt < Date.now()) return 0;
   
   const p = plan.toLowerCase();
   if (p.includes('gold') || p.includes('direct-pass') || p.includes('cosmic') || p.includes('authority')) return 3;
@@ -186,10 +191,18 @@ export const SovereignAccessGuard: React.FC<SovereignAccessGuardProps> = ({ curr
 
   // Get current view requirements and user level
   const requiredLevel = getViewRequiredLevel(currentView);
-  const basePlanLevel = getPlanLevel(subscription?.plan, subscription?.status);
+  const basePlanLevel = getPlanLevel(subscription?.plan, subscription?.status, subscription?.expiresAt);
   
   // Grandfathered lifetime users or Originator automatically receive full Level 3 access (Gold)
   const userPlanLevel = isGrandfathered ? 3 : basePlanLevel;
+
+  useEffect(() => {
+    try {
+      setSessionUnlocked(sessionStorage.getItem(`aether_session_unlocked_${userId}`) === 'true');
+    } catch {
+      setSessionUnlocked(false);
+    }
+  }, [userId]);
 
   // Load User Membership and subscription
   useEffect(() => {
@@ -392,6 +405,7 @@ export const SovereignAccessGuard: React.FC<SovereignAccessGuardProps> = ({ curr
       toast.success("Developer bypass granted. Sovereign validation waived.");
     } catch (err) {
       console.error("[SovereignAccessGuard] Bypass failed:", err);
+      toast.error("Developer bypass persistence failed.");
     } finally {
       setProcessing(false);
     }
@@ -414,6 +428,7 @@ export const SovereignAccessGuard: React.FC<SovereignAccessGuardProps> = ({ curr
       toast.info("Sovereign subscription manually deactivated.");
     } catch (err) {
       console.error("[SovereignAccessGuard] Failed to deactivate:", err);
+      toast.error("Failed to deactivate subscription.");
     } finally {
       setProcessing(false);
     }

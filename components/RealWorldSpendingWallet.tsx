@@ -67,6 +67,61 @@ export const RealWorldSpendingWallet: React.FC = () => {
     const [tradeTypeFilter, setTradeTypeFilter] = useState<'ALL' | 'BUY' | 'SELL' | 'SWAP'>('ALL');
     const [tradeStatusFilter, setTradeStatusFilter] = useState<'ALL' | 'COMPLETED' | 'FAILED'>('ALL');
 
+    const parseStoredArray = (key: string): any[] => {
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch {
+            return [];
+        }
+    };
+
+    const createDefaultReserves = () => ({
+        reserves: [
+            { type: 'energy', subtype: 'solar_power', quantity: 200, unit: 'kWh', cphPerUnit: 1, totalValue: 200, depreciationRate: 50, remainingLifeWeeks: 4 },
+            { type: 'food', subtype: 'grain', quantity: 100, unit: 'kg', cphPerUnit: 5, totalValue: 500, depreciationRate: 100, remainingLifeWeeks: 2 },
+            { type: 'materials', subtype: 'iron_ore', quantity: 300, unit: 'kg', cphPerUnit: 2, totalValue: 600, depreciationRate: 5, remainingLifeWeeks: 200 },
+            { type: 'energy', subtype: 'minted_aether_usd', quantity: 500, unit: 'aetherUSD', cphPerUnit: 1, totalValue: 500, depreciationRate: 0, remainingLifeWeeks: 1000 },
+            { type: 'fiat', subtype: 'fiat_usd', quantity: 2500, unit: 'USD', cphPerUnit: 1, totalValue: 2500, depreciationRate: 0, remainingLifeWeeks: 1000 }
+        ],
+        totalBackedCPH: 4300,
+        cphInCirculation: 1800,
+        cphInStorage: 2500,
+        resourcesExtractedCPH: 4300,
+        resourcesConsumedCPH: 0,
+        valueAddedCPH: 0,
+        depreciationCPH: 0,
+        netResourceBalance: 4300
+    });
+
+    const ensureWalletReserves = () => {
+        try {
+            const saved = localStorage.getItem('aetheros_resource_reserve');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (parsed && Array.isArray(parsed.reserves)) {
+                    return parsed;
+                }
+            }
+        } catch {
+            // recover below
+        }
+        const seeded = createDefaultReserves();
+        try {
+            localStorage.setItem('aetheros_resource_reserve', JSON.stringify(seeded));
+        } catch {
+            // ignore quota limits
+        }
+        return seeded;
+    };
+
+    // Inline confirmation states (avoid blocking window.confirm in sandboxed iframes)
+    const [confirmDisconnectChime, setConfirmDisconnectChime] = useState(false);
+    const [confirmDisconnectCashApp, setConfirmDisconnectCashApp] = useState(false);
+    const [confirmResetWallet, setConfirmResetWallet] = useState(false);
+
     // Chime Pipeline States
     const [chimeLinked, setChimeLinked] = useState<boolean>(() => {
         return localStorage.getItem('aetheros_chime_linked') === 'true';
@@ -79,10 +134,7 @@ export const RealWorldSpendingWallet: React.FC = () => {
     });
     const [chimeTransferAmount, setChimeTransferAmount] = useState<string>('');
     const [chimeDirection, setChimeDirection] = useState<'DEPOSIT' | 'WITHDRAW'>('WITHDRAW');
-    const [chimeLogs, setChimeLogs] = useState<any[]>(() => {
-        const savedLogs = localStorage.getItem('aetheros_chime_logs');
-        return savedLogs ? JSON.parse(savedLogs) : [];
-    });
+    const [chimeLogs, setChimeLogs] = useState<any[]>(() => parseStoredArray('aetheros_chime_logs'));
 
     // Cash App Pipeline States
     const [cashappLinked, setCashappLinked] = useState<boolean>(() => {
@@ -99,10 +151,7 @@ export const RealWorldSpendingWallet: React.FC = () => {
     });
     const [cashappTransferAmount, setCashappTransferAmount] = useState<string>('');
     const [cashappDirection, setCashappDirection] = useState<'DEPOSIT' | 'WITHDRAW'>('WITHDRAW');
-    const [cashappLogs, setCashappLogs] = useState<any[]>(() => {
-        const savedLogs = localStorage.getItem('aetheros_cashapp_logs');
-        return savedLogs ? JSON.parse(savedLogs) : [];
-    });
+    const [cashappLogs, setCashappLogs] = useState<any[]>(() => parseStoredArray('aetheros_cashapp_logs'));
 
     // Chime Auditor States
     const [auditState, setAuditState] = useState<'IDLE' | 'RUNNING' | 'PASSED' | 'FAILED'>('IDLE');
@@ -551,22 +600,27 @@ export const RealWorldSpendingWallet: React.FC = () => {
     };
 
     const handleDisconnectChime = () => {
-        if (window.confirm('Are you sure you want to sever the Chime Bank connection pipeline?')) {
-            localStorage.setItem('aetheros_chime_linked', 'false');
-            setChimeLinked(false);
-            window.dispatchEvent(new CustomEvent('aetheros_chime_pipeline_update'));
-            playBeep(330, 'sawtooth', 0.2);
-            toast.info('Pipeline Severed', {
-                description: 'The secure clearing channel to Chime Bank has been closed.'
-            });
+        if (!confirmDisconnectChime) {
+            setConfirmDisconnectChime(true);
+            setTimeout(() => setConfirmDisconnectChime(false), 4000);
+            return;
         }
+        setConfirmDisconnectChime(false);
+        localStorage.setItem('aetheros_chime_linked', 'false');
+        setChimeLinked(false);
+        window.dispatchEvent(new CustomEvent('aetheros_chime_pipeline_update'));
+        playBeep(330, 'sawtooth', 0.2);
+        toast.info('Pipeline Severed', {
+            description: 'The secure clearing channel to Chime Bank has been closed.'
+        });
     };
 
     const handleChimeTransfer = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isProcessing) return;
         const transferVal = parseFloat(chimeTransferAmount);
-        if (isNaN(transferVal) || transferVal <= 0) {
-            toast.error('Validation Failed', { description: 'Please provide a positive transfer amount.' });
+        if (!Number.isFinite(transferVal) || transferVal <= 0 || transferVal > 1e9) {
+            toast.error('Validation Failed', { description: 'Please provide a positive, finite transfer amount.' });
             return;
         }
 
@@ -583,9 +637,7 @@ export const RealWorldSpendingWallet: React.FC = () => {
         await new Promise(resolve => setTimeout(resolve, 800));
 
         try {
-            const savedReserves = localStorage.getItem('aetheros_resource_reserve');
-            if (!savedReserves) throw new Error("AetherOS resource reserve registry missing.");
-            const currentReserve = JSON.parse(savedReserves);
+            const currentReserve = ensureWalletReserves();
 
             let fiatAsset = currentReserve.reserves.find((r: any) => r.subtype === 'fiat_usd');
             if (!fiatAsset) {
@@ -719,22 +771,27 @@ export const RealWorldSpendingWallet: React.FC = () => {
     };
 
     const handleDisconnectCashApp = () => {
-        if (window.confirm('Are you sure you want to sever the Cash App connection pipeline?')) {
-            localStorage.setItem('aetheros_cashapp_linked', 'false');
-            setCashappLinked(false);
-            window.dispatchEvent(new CustomEvent('aetheros_cashapp_pipeline_update'));
-            playBeep(330, 'sawtooth', 0.2);
-            toast.info('Pipeline Severed', {
-                description: 'The secure clearing channel to Cash App has been closed.'
-            });
+        if (!confirmDisconnectCashApp) {
+            setConfirmDisconnectCashApp(true);
+            setTimeout(() => setConfirmDisconnectCashApp(false), 4000);
+            return;
         }
+        setConfirmDisconnectCashApp(false);
+        localStorage.setItem('aetheros_cashapp_linked', 'false');
+        setCashappLinked(false);
+        window.dispatchEvent(new CustomEvent('aetheros_cashapp_pipeline_update'));
+        playBeep(330, 'sawtooth', 0.2);
+        toast.info('Pipeline Severed', {
+            description: 'The secure clearing channel to Cash App has been closed.'
+        });
     };
 
     const handleCashAppTransfer = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isProcessing) return;
         const transferVal = parseFloat(cashappTransferAmount);
-        if (isNaN(transferVal) || transferVal <= 0) {
-            toast.error('Validation Failed', { description: 'Please provide a positive transfer amount.' });
+        if (!Number.isFinite(transferVal) || transferVal <= 0 || transferVal > 1e9) {
+            toast.error('Validation Failed', { description: 'Please provide a positive, finite transfer amount.' });
             return;
         }
 
@@ -751,9 +808,7 @@ export const RealWorldSpendingWallet: React.FC = () => {
         await new Promise(resolve => setTimeout(resolve, 800));
 
         try {
-            const savedReserves = localStorage.getItem('aetheros_resource_reserve');
-            if (!savedReserves) throw new Error("AetherOS resource reserve registry missing.");
-            const currentReserve = JSON.parse(savedReserves);
+            const currentReserve = ensureWalletReserves();
 
             let fiatAsset = currentReserve.reserves.find((r: any) => r.subtype === 'fiat_usd');
             if (!fiatAsset) {
@@ -1083,14 +1138,15 @@ export const RealWorldSpendingWallet: React.FC = () => {
     // Execute real transaction
     const handleAddTransaction = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isProcessing) return;
         if (!desc.trim() || !merchant.trim() || !amount) {
             toast.error('Validation Failed', { description: 'All transaction fields are required.' });
             return;
         }
 
         const numericAmount = parseFloat(amount);
-        if (isNaN(numericAmount) || numericAmount <= 0) {
-            toast.error('Invalid Amount', { description: 'Please provide a positive transaction value.' });
+        if (!Number.isFinite(numericAmount) || numericAmount <= 0 || numericAmount > 1e9) {
+            toast.error('Invalid Amount', { description: 'Please provide a positive, finite transaction value.' });
             return;
         }
 
@@ -1100,10 +1156,8 @@ export const RealWorldSpendingWallet: React.FC = () => {
         await new Promise(resolve => setTimeout(resolve, 1400));
 
         try {
-            // Read latest reserve state
-            const savedReserves = localStorage.getItem('aetheros_resource_reserve');
-            if (!savedReserves) throw new Error("Resource reserve registry missing.");
-            const currentReserve = JSON.parse(savedReserves);
+            // Read latest reserve state (initializing cleanly if absent)
+            const currentReserve = ensureWalletReserves();
 
             // Calculate raw unit cost
             // Let's find unit price based on realMoneySystem.ts: 
@@ -1215,14 +1269,18 @@ export const RealWorldSpendingWallet: React.FC = () => {
         });
     };
 
-    // Reset standard transaction records to clean seed
+    // Reset standard transaction records to clean seed (two-click confirm avoids blocking iframe dialogs)
     const handleResetWalletData = () => {
-        if (window.confirm("Restore default transaction history and resource budgets? This will align with core system reserves.")) {
-            localStorage.removeItem('aetheros_wallet_transactions');
-            localStorage.removeItem('aetheros_wallet_budgets');
-            loadWalletData();
-            toast.info('Wallet Logs Sanitized', { description: 'Transactions and budget bounds restored.' });
+        if (!confirmResetWallet) {
+            setConfirmResetWallet(true);
+            setTimeout(() => setConfirmResetWallet(false), 4000);
+            return;
         }
+        setConfirmResetWallet(false);
+        localStorage.removeItem('aetheros_wallet_transactions');
+        localStorage.removeItem('aetheros_wallet_budgets');
+        loadWalletData();
+        toast.info('Wallet Logs Sanitized', { description: 'Transactions and budget bounds restored.' });
     };
 
     // Calculate chart analytics
@@ -1654,10 +1712,15 @@ export const RealWorldSpendingWallet: React.FC = () => {
                             </div>
 
                             <button 
+                                type="button"
                                 onClick={handleResetWalletData}
-                                className="text-[8px] font-mono font-bold text-zinc-600 hover:text-red-400 tracking-wider flex items-center justify-center gap-1.5 self-center mt-1"
+                                className={`text-[8px] font-mono font-bold tracking-wider flex items-center justify-center gap-1.5 self-center mt-1 px-2.5 py-1 rounded transition-colors ${
+                                    confirmResetWallet
+                                        ? 'text-red-300 bg-red-950/50 border border-red-500/40'
+                                        : 'text-zinc-600 hover:text-red-400'
+                                }`}
                             >
-                                <Trash2Icon className="w-3 h-3" /> RESET TRANSACTION HISTORY
+                                <Trash2Icon className="w-3 h-3" /> {confirmResetWallet ? 'CONFIRM RESET HISTORY?' : 'RESET TRANSACTION HISTORY'}
                             </button>
                         </div>
 
@@ -2015,14 +2078,6 @@ export const RealWorldSpendingWallet: React.FC = () => {
                     </motion.div>
                 )}
 
-                {activeTab === 'SIMULATOR' && (
-                    <BankTransferSimulator />
-                )}
-
-                {activeTab === 'SWAP' && (
-                    <TokenSwapInterface onSwapSuccess={loadWalletData} />
-                )}
-
                 {activeTab === 'CHIME' && (
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
@@ -2139,10 +2194,15 @@ export const RealWorldSpendingWallet: React.FC = () => {
                                                 <h4 className="text-sm font-bold text-zinc-200">Interactive Fiat Transfer Pipeline</h4>
                                             </div>
                                             <button
+                                                type="button"
                                                 onClick={handleDisconnectChime}
-                                                className="text-[9px] font-mono font-bold text-red-400/80 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 border border-red-500/15 px-2 py-1 rounded-lg transition-all"
+                                                className={`text-[9px] font-mono font-bold px-2 py-1 rounded-lg border transition-all ${
+                                                    confirmDisconnectChime
+                                                        ? 'text-red-200 bg-red-600/30 border-red-400'
+                                                        : 'text-red-400/80 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 border-red-500/15'
+                                                }`}
                                             >
-                                                SEVER PIPELINE
+                                                {confirmDisconnectChime ? 'CONFIRM SEVER?' : 'SEVER PIPELINE'}
                                             </button>
                                         </div>
 
@@ -2482,10 +2542,15 @@ export const RealWorldSpendingWallet: React.FC = () => {
                                                 <h4 className="text-sm font-bold text-zinc-200">Interactive Cash App Clearing</h4>
                                             </div>
                                             <button
+                                                type="button"
                                                 onClick={handleDisconnectCashApp}
-                                                className="text-[9px] font-mono font-bold text-red-400/80 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 border border-red-500/15 px-2 py-1 rounded-lg transition-all"
+                                                className={`text-[9px] font-mono font-bold px-2 py-1 rounded-lg border transition-all ${
+                                                    confirmDisconnectCashApp
+                                                        ? 'text-red-200 bg-red-600/30 border-red-400'
+                                                        : 'text-red-400/80 hover:text-red-400 bg-red-500/5 hover:bg-red-500/10 border-red-500/15'
+                                                }`}
                                             >
-                                                SEVER PIPELINE
+                                                {confirmDisconnectCashApp ? 'CONFIRM SEVER?' : 'SEVER PIPELINE'}
                                             </button>
                                         </div>
 

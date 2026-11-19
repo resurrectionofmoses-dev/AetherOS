@@ -72,6 +72,10 @@ export class RealMoneySystem {
   }
 
   static runExtraction(reserve: ResourceReserve, type: 'energy' | 'materials' | 'food', subtype: string, quantity: number, cphPerUnit: number, unit: string): { reserve: ResourceReserve; moneyCreated: number } {
+    if (!Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(cphPerUnit) || cphPerUnit < 0 || !subtype) {
+      return { reserve, moneyCreated: 0 };
+    }
+
     const existingIndex = reserve.reserves.findIndex(r => r.type === type && r.subtype === subtype);
     const value = quantity * cphPerUnit;
     
@@ -106,24 +110,42 @@ export class RealMoneySystem {
     laborHours: number,
     laborCostPerHour: number
   ): { reserve: ResourceReserve; valueAdded: number; success: boolean; error?: string } {
-    // 1. Verify inputs exist
-    let totalInputCost = 0;
+    if (
+      !Number.isFinite(laborHours) || laborHours < 0 ||
+      !Number.isFinite(laborCostPerHour) || laborCostPerHour < 0 ||
+      !Number.isFinite(output.quantity) || output.quantity <= 0 ||
+      !Number.isFinite(output.cphPerUnit) || output.cphPerUnit < 0 ||
+      !output.subtype
+    ) {
+      return { reserve, valueAdded: 0, success: false, error: 'Invalid transformation parameters' };
+    }
+
+    // 1. Aggregate input quantities per subtype to prevent duplicate-input double-spend
+    const aggregatedInputs = new Map<string, number>();
     for (const input of inputs) {
-      const existing = reserve.reserves.find(r => r.subtype === input.subtype);
-      if (!existing || existing.quantity < input.quantity) {
-        return { reserve, valueAdded: 0, success: false, error: `Insufficient input: ${input.subtype}` };
+      if (!input.subtype || !Number.isFinite(input.quantity) || input.quantity <= 0) {
+        return { reserve, valueAdded: 0, success: false, error: `Invalid input quantity for: ${input.subtype || 'unknown'}` };
       }
-      totalInputCost += input.quantity * existing.cphPerUnit;
+      aggregatedInputs.set(input.subtype, (aggregatedInputs.get(input.subtype) || 0) + input.quantity);
+    }
+
+    let totalInputCost = 0;
+    for (const [subtype, totalRequired] of aggregatedInputs.entries()) {
+      const existing = reserve.reserves.find(r => r.subtype === subtype);
+      if (!existing || existing.quantity < totalRequired) {
+        return { reserve, valueAdded: 0, success: false, error: `Insufficient input: ${subtype}` };
+      }
+      totalInputCost += totalRequired * existing.cphPerUnit;
     }
 
     // 2. Add labor
     const totalLaborCost = laborHours * laborCostPerHour;
     const totalResourceInvested = totalInputCost + totalLaborCost;
 
-    // 3. Subtract inputs from reserves
-    for (const input of inputs) {
-      const existing = reserve.reserves.find(r => r.subtype === input.subtype)!;
-      existing.quantity -= input.quantity;
+    // 3. Subtract inputs from reserves using aggregated totals
+    for (const [subtype, totalRequired] of aggregatedInputs.entries()) {
+      const existing = reserve.reserves.find(r => r.subtype === subtype)!;
+      existing.quantity -= totalRequired;
       existing.totalValue = existing.quantity * existing.cphPerUnit;
     }
 
@@ -161,6 +183,9 @@ export class RealMoneySystem {
   }
 
   static runConsumption(reserve: ResourceReserve, subtype: string, quantity: number): { reserve: ResourceReserve; moneyDestroyed: number; success: boolean; error?: string } {
+    if (!subtype || !Number.isFinite(quantity) || quantity <= 0) {
+      return { reserve, moneyDestroyed: 0, success: false, error: 'Invalid consumption quantity' };
+    }
     const existing = reserve.reserves.find(r => r.subtype === subtype);
     if (!existing || existing.quantity < quantity) {
       return { reserve, moneyDestroyed: 0, success: false, error: `Insufficient resource to consume: ${subtype}` };
@@ -182,12 +207,14 @@ export class RealMoneySystem {
     let totalDepreciated = 0;
     for (const res of reserve.reserves) {
       // e.g. depreciationRate of 50 = 5% decay per week
-      const decayFraction = res.depreciationRate / 1000; // 0.05
+      const decayFraction = Math.max(0, res.depreciationRate) / 1000; // 0.05
       const decayValue = Math.min(res.totalValue, Math.round(res.totalValue * decayFraction));
       
       if (decayValue > 0) {
         res.totalValue -= decayValue;
-        res.quantity = Number((res.totalValue / res.cphPerUnit).toFixed(2));
+        res.quantity = res.cphPerUnit > 0
+          ? Number((res.totalValue / res.cphPerUnit).toFixed(2))
+          : res.quantity;
         totalDepreciated += decayValue;
       }
     }
@@ -203,7 +230,7 @@ export class RealMoneySystem {
   static validateConservation(reserve: ResourceReserve): { isValid: boolean; formulaDiscrepancy: number } {
     // Equation: totalBackedCPH must equal sum of values of currently stored reserves
     const actualSumOfAssets = reserve.reserves.reduce((s, r) => s + r.totalValue, 0);
-    const discrepancy = reserve.totalBackedCPH - actualSumOfAssets;
+    const discrepancy = Number((reserve.totalBackedCPH - actualSumOfAssets).toFixed(6));
     return {
       isValid: discrepancy === 0,
       formulaDiscrepancy: discrepancy

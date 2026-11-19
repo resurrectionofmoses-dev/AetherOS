@@ -34,16 +34,33 @@ export const TokenSwapInterface: React.FC<TokenSwapInterfaceProps> = ({ onSwapSu
   const [isSwapping, setIsSwapping] = useState<boolean>(false);
 
   const consoleEndRef = useRef<HTMLDivElement>(null);
+  const isSwappingRef = useRef<boolean>(false);
+
+  const parseSafeNonNegative = (raw: string | null, fallback: number): number => {
+    if (!raw) return fallback;
+    const n = Number.parseFloat(raw);
+    return Number.isFinite(n) && n >= 0 ? n : fallback;
+  };
 
   // 1. Initial State Loading
   useEffect(() => {
     const savedAeth = localStorage.getItem('aetheros_aeth_balance');
     const savedEth = localStorage.getItem('aetheros_eth_balance');
-    if (savedAeth) setAethBalance(parseFloat(savedAeth));
-    else localStorage.setItem('aetheros_aeth_balance', '1500.00');
+    if (savedAeth !== null) {
+      const safeAeth = parseSafeNonNegative(savedAeth, 1500.0);
+      setAethBalance(safeAeth);
+      localStorage.setItem('aetheros_aeth_balance', safeAeth.toFixed(2));
+    } else {
+      localStorage.setItem('aetheros_aeth_balance', '1500.00');
+    }
 
-    if (savedEth) setEthBalance(parseFloat(savedEth));
-    else localStorage.setItem('aetheros_eth_balance', '0.00');
+    if (savedEth !== null) {
+      const safeEth = parseSafeNonNegative(savedEth, 0.0);
+      setEthBalance(safeEth);
+      localStorage.setItem('aetheros_eth_balance', safeEth.toFixed(2));
+    } else {
+      localStorage.setItem('aetheros_eth_balance', '0.00');
+    }
 
     validateBtcAddress(targetAddress);
   }, []);
@@ -171,24 +188,33 @@ export const TokenSwapInterface: React.FC<TokenSwapInterfaceProps> = ({ onSwapSu
 
   // 4. Executing Swap
   const handleSwapExecute = async () => {
+    if (isSwappingRef.current || isSwapping) return;
     if (!pipelineSecure) {
       toast.error('Execution Blocked', { description: 'You must run the Pipeline Sanitizer tests before committing funds.' });
       return;
     }
     const amount = parseFloat(swapAmount);
-    if (isNaN(amount) || amount <= 0 || amount > aethBalance) {
+    if (!Number.isFinite(amount) || amount <= 0 || amount > aethBalance) {
       toast.error('Invalid Amount');
       return;
     }
 
+    isSwappingRef.current = true;
     setIsSwapping(true);
     
     // Simulate smart contract state transition on-chain
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
     try {
-      const newAeth = aethBalance - amount;
-      const newEth = ethBalance + amount;
+      const latestAeth = parseSafeNonNegative(localStorage.getItem('aetheros_aeth_balance'), aethBalance);
+      const latestEth = parseSafeNonNegative(localStorage.getItem('aetheros_eth_balance'), ethBalance);
+      if (amount > latestAeth) {
+        toast.error('Insufficient Balance', { description: 'Balance changed before settlement.' });
+        return;
+      }
+
+      const newAeth = Number((latestAeth - amount).toFixed(6));
+      const newEth = Number((latestEth + amount).toFixed(6));
 
       // Persist new balances
       localStorage.setItem('aetheros_aeth_balance', newAeth.toFixed(2));
@@ -198,9 +224,12 @@ export const TokenSwapInterface: React.FC<TokenSwapInterfaceProps> = ({ onSwapSu
 
       // Record transaction into RealWorldSpendingWallet history
       const savedTx = localStorage.getItem('aetheros_wallet_transactions');
-      let txList = [];
+      let txList: any[] = [];
       if (savedTx) {
-        try { txList = JSON.parse(savedTx); } catch {}
+        try {
+          const parsed = JSON.parse(savedTx);
+          if (Array.isArray(parsed)) txList = parsed;
+        } catch {}
       }
 
       const txHash = '0x' + Array.from({length: 64}, () => Math.floor(Math.random()*16).toString(16)).join('');
@@ -223,9 +252,12 @@ export const TokenSwapInterface: React.FC<TokenSwapInterfaceProps> = ({ onSwapSu
 
       // Also record to trading transaction history
       const savedTrading = localStorage.getItem('aether_wallet_tx_history');
-      let tradeList = [];
+      let tradeList: any[] = [];
       if (savedTrading) {
-        try { tradeList = JSON.parse(savedTrading); } catch {}
+        try {
+          const parsed = JSON.parse(savedTrading);
+          if (Array.isArray(parsed)) tradeList = parsed;
+        } catch {}
       }
 
       const newTrade = {
@@ -253,6 +285,7 @@ export const TokenSwapInterface: React.FC<TokenSwapInterfaceProps> = ({ onSwapSu
     } catch (err: any) {
       toast.error('Bridge Error', { description: err.message || 'Failed to complete transaction.' });
     } finally {
+      isSwappingRef.current = false;
       setIsSwapping(false);
     }
   };

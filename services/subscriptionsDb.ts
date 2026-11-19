@@ -67,52 +67,107 @@ export interface UserSubscription {
   updatedAt: number;
 }
 
+const LOCAL_SUB_PREFIX = 'aetheros_subscription_';
+const localListeners = new Map<string, Set<(sub: UserSubscription | null) => void>>();
+
+function readLocalSubscription(userId: string): UserSubscription | null {
+  try {
+    const raw = localStorage.getItem(`${LOCAL_SUB_PREFIX}${userId}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? (parsed as UserSubscription) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalSubscription(sub: UserSubscription): void {
+  try {
+    localStorage.setItem(`${LOCAL_SUB_PREFIX}${sub.userId}`, JSON.stringify(sub));
+  } catch {
+    // ignore storage quota restrictions
+  }
+  const listeners = localListeners.get(sub.userId);
+  if (listeners) {
+    listeners.forEach((cb) => cb(sub));
+  }
+}
+
 export const subscriptionsDb = {
   async getSubscription(userId: string): Promise<UserSubscription | null> {
     const db = getDb();
-    if (!db) return null;
-    
-    try {
-      const docRef = doc(db, COLLECTION_NAME, userId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        return docSnap.data() as UserSubscription;
+    if (db) {
+      try {
+        const docRef = doc(db, COLLECTION_NAME, userId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data() as UserSubscription;
+          writeLocalSubscription(data);
+          return data;
+        }
+      } catch (error) {
+        console.warn('[AetherOS Database] Firestore getSubscription failed, reading local cache:', error);
       }
-      return null;
-    } catch (error) {
-      handleFirestoreError(error, OperationType.GET, `${COLLECTION_NAME}/${userId}`);
     }
+    return readLocalSubscription(userId);
   },
 
   async saveSubscription(sub: UserSubscription): Promise<void> {
+    // Always persist locally first and notify active subscribers immediately
+    writeLocalSubscription(sub);
+
     const db = getDb();
     if (!db) return;
-    
+
     try {
       const docRef = doc(db, COLLECTION_NAME, sub.userId);
       await setDoc(docRef, sub);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `${COLLECTION_NAME}/${sub.userId}`);
+      console.warn('[AetherOS Database] Firestore saveSubscription failed, local subscription remains active:', error);
     }
   },
 
   subscribeToStatus(userId: string, callback: (sub: UserSubscription | null) => void, onError?: (err: any) => void) {
+    if (!localListeners.has(userId)) {
+      localListeners.set(userId, new Set());
+    }
+    localListeners.get(userId)!.add(callback);
+
+    const cached = readLocalSubscription(userId);
+    if (cached) {
+      callback(cached);
+    }
+
     const db = getDb();
     if (!db) {
-      callback(null);
-      return () => {};
+      if (!cached) callback(null);
+      return () => {
+        localListeners.get(userId)?.delete(callback);
+      };
     }
 
     const docRef = doc(db, COLLECTION_NAME, userId);
-    return onSnapshot(docRef, (docSnap) => {
+    const unsubscribeFirestore = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
-        callback(docSnap.data() as UserSubscription);
+        const data = docSnap.data() as UserSubscription;
+        try {
+          localStorage.setItem(`${LOCAL_SUB_PREFIX}${userId}`, JSON.stringify(data));
+        } catch {
+          // ignore
+        }
+        callback(data);
       } else {
-        callback(null);
+        callback(readLocalSubscription(userId));
       }
     }, (error) => {
-      console.error("[AetherOS Subscriptions Subscription Error]:", error);
+      console.warn("[AetherOS Subscriptions Subscription Fallback]:", error);
+      callback(readLocalSubscription(userId));
       if (onError) onError(error);
     });
+
+    return () => {
+      localListeners.get(userId)?.delete(callback);
+      unsubscribeFirestore();
+    };
   }
 };

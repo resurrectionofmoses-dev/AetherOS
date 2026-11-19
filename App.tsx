@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { AndroidTransition } from './components/AndroidTransition';
 import { v4 as uuidv4 } from 'uuid';
@@ -617,6 +617,10 @@ export const App: React.FC = () => {
     const [isDeepStasisDebugOpen, setIsDeepStasisDebugOpen] = useState(false);
     const [stasisRemainingTime, setStasisRemainingTime] = useState(8);
     const [glitchHistory, setGlitchHistory] = useState<GlitchTelemetry[]>([]);
+    const sortedGlitchHistory = useMemo(
+        () => [...glitchHistory].sort((a, b) => b.timestamp - a.timestamp),
+        [glitchHistory]
+    );
     const konamiCodeRef = useRef<string[]>([]);
 
     const acousticThresholdRef = useRef(80.0);
@@ -1391,6 +1395,10 @@ export const App: React.FC = () => {
     const [unlockedViews, setUnlockedViews] = useState<MainView[]>(ALL_VIEWS_LIST);
     const [strictRankEnforcement, setStrictRankEnforcement] = useState<boolean>(() => getStrictEnforcementPreference());
     const [conjunctionProgress, setConjunctionProgress] = useState<ConjunctionProgress>({ level: 5, shards: 99999, unlockedViews: ALL_VIEWS_LIST, globalAdrenaline: 100 });
+    const shardsRef = useRef<number>(conjunctionProgress.shards);
+    useEffect(() => {
+        shardsRef.current = conjunctionProgress.shards;
+    }, [conjunctionProgress.shards]);
     const [sisters, setSisters] = useState<SistersState>({ aethera: { active: false }, logica: { active: false }, sophia: { active: false } });
     const [purchasedItems, setPurchasedItems] = useState<string[]>([]);
     const [rubyFilterActive, setRubyFilterActive] = useState<boolean>(false);
@@ -2160,10 +2168,11 @@ export const App: React.FC = () => {
             attachedFiles: attachedFiles.map(f => f.name) 
         };
         
+        const placeholderTime = new Date();
         setMessages(prev => [...prev, newMessage, { 
             sender: 'model', 
             content: '', 
-            timestamp: new Date(), 
+            timestamp: placeholderTime, 
             seat: activeSeat,
             channelId: currentChannel 
         }]);
@@ -2175,10 +2184,16 @@ export const App: React.FC = () => {
                 const result = await sendMessageSovereign(chatRef.current, text, attachedFiles);
                 
                 setMessages(prev => {
+                    const idx = prev.findIndex(m => m.sender === 'model' && m.timestamp === placeholderTime);
+                    const targetIdx = idx !== -1 ? idx : prev.length - 1;
+                    if (targetIdx < 0) return prev;
                     const newMsgs = [...prev];
-                    newMsgs[newMsgs.length - 1].content = result.text;
-                    newMsgs[newMsgs.length - 1].groundingSources = result.sources;
-                    newMsgs[newMsgs.length - 1].careScore = result.careScore;
+                    newMsgs[targetIdx] = {
+                        ...newMsgs[targetIdx],
+                        content: result.text,
+                        groundingSources: result.sources,
+                        careScore: result.careScore
+                    };
                     return newMsgs;
                 });
 
@@ -2202,8 +2217,14 @@ export const App: React.FC = () => {
             });
 
             setMessages(prev => {
+                const idx = prev.findIndex(m => m.sender === 'model' && m.timestamp === placeholderTime);
+                const targetIdx = idx !== -1 ? idx : prev.length - 1;
+                if (targetIdx < 0) return prev;
                 const newMsgs = [...prev];
-                newMsgs[newMsgs.length - 1].content = "Quantization fail. The Sovereign Bridge has collapsed. Please check your API fuel levels or try again later.";
+                newMsgs[targetIdx] = {
+                    ...newMsgs[targetIdx],
+                    content: "Quantization fail. The Sovereign Bridge has collapsed. Please check your API fuel levels or try again later."
+                };
                 return newMsgs;
             });
         } finally {
@@ -2356,7 +2377,11 @@ export const App: React.FC = () => {
                 isLoading,
                 activeSeat,
                 onSetActiveSeat: setActiveSeat,
-                onActionReward: (shards: number) => setConjunctionProgress(prev => ({ ...prev, shards: prev.shards + shards })),
+                onActionReward: (delta: number) => {
+                    if (!Number.isFinite(delta) || delta === 0) return;
+                    shardsRef.current = Math.max(0, shardsRef.current + delta);
+                    setConjunctionProgress(prev => ({ ...prev, shards: Math.max(0, prev.shards + delta) }));
+                },
                 onSetView: handleSetView,
                 unlockedViews,
                 setUnlockedViews,
@@ -2388,11 +2413,11 @@ export const App: React.FC = () => {
                 setAgents,
                 shards: conjunctionProgress.shards,
                 onPurchase: (cost: number) => {
-                    if (conjunctionProgress.shards >= cost) {
-                        setConjunctionProgress(prev => ({ ...prev, shards: prev.shards - cost }));
-                        return true;
-                    }
-                    return false;
+                    if (!Number.isFinite(cost) || cost <= 0) return false;
+                    if (shardsRef.current < cost) return false;
+                    shardsRef.current = Math.max(0, shardsRef.current - cost);
+                    setConjunctionProgress(prev => ({ ...prev, shards: Math.max(0, prev.shards - cost) }));
+                    return true;
                 },
                 onIgniteSister: (name: keyof SistersState) => {
                     setSisters(prev => ({
@@ -3219,7 +3244,10 @@ export const App: React.FC = () => {
                                 onRemediate={handleRemediateSequence}
                             />
                         )}
-                        <GlitchTelemetryOverlay glitchHistory={glitchHistory} />
+                        <GlitchTelemetryOverlay
+                            glitchHistory={sortedGlitchHistory}
+                            isSystemFractured={isSystemFractured}
+                        />
                         {isSystemFractured && (
                             <button
                                 onClick={handleExportBreachData}

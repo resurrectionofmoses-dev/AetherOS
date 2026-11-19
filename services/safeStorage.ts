@@ -122,7 +122,8 @@ const CRYPTO_ENGINE = {
 
       return new TextDecoder().decode(decryptedArr);
     } catch (e) {
-      return jsonPkg;
+      // Fail closed: decryption failure (wrong passphrase or tampered ciphertext) must return null
+      return null;
     }
   }
 };
@@ -280,17 +281,19 @@ export const safeStorage = {
     }
   },
   removeItem: (key: string): void => {
+    delete memoryStorage[key];
     try {
       localStorage.removeItem(key);
     } catch (e) {
-      delete memoryStorage[key];
+      // Suppress storage access restriction
     }
   },
   clear: (): void => {
+    Object.keys(memoryStorage).forEach(k => delete memoryStorage[k]);
     try {
       localStorage.clear();
     } catch (e) {
-      Object.keys(memoryStorage).forEach(k => delete memoryStorage[k]);
+      // Suppress storage access restriction
     }
   }
 };

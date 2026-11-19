@@ -57,11 +57,13 @@ export const GlitchLineChart: React.FC<GlitchLineChartProps> = ({ data }) => {
         }
 
         try {
-            // Filter valid telemetry items with real timestamps and durations
-            const validData = data.filter(d => 
-                d && typeof d.timestamp === 'number' && !isNaN(d.timestamp) &&
-                typeof d.duration === 'number' && !isNaN(d.duration)
-            );
+            // Filter valid telemetry items with real timestamps and durations, sorted chronologically for plotting
+            const validData = data
+                .filter(d => 
+                    d && typeof d.timestamp === 'number' && !isNaN(d.timestamp) &&
+                    typeof d.duration === 'number' && !isNaN(d.duration)
+                )
+                .sort((a, b) => a.timestamp - b.timestamp);
 
             if (validData.length === 0) return;
 

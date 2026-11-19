@@ -22,15 +22,19 @@ export interface DividendPool {
 
 export class DividendSystem {
   static calculateShares(baseValueCPH: number, qualityBonus: number, impactBonus: number): number {
+    const safeBase = Number.isFinite(baseValueCPH) ? Math.max(0, baseValueCPH) : 0;
+    const safeQuality = Number.isFinite(qualityBonus) ? Math.max(0, Math.min(1000, qualityBonus)) : 0;
+    const safeImpact = Number.isFinite(impactBonus) ? Math.max(0, Math.min(1000, impactBonus)) : 0;
+
     // baseValueCPH of 10 CPH = 1 base share
-    const baseShares = baseValueCPH / 10;
+    const baseShares = safeBase / 10;
     
     // Multipliers mapping precisely:
     // Quality: 0 -> 1.0x, 500 -> 1.5x, 1000 -> 2.0x => 1.0 + (quality / 1000)
-    const qualityMultiplier = 1.0 + (Math.max(0, Math.min(1000, qualityBonus)) / 1000);
+    const qualityMultiplier = 1.0 + (safeQuality / 1000);
     
     // Impact: 0 -> 1.0x, 500 -> 2.0x, 1000 -> 3.0x => 1.0 + (impact * 2 / 1000)
-    const impactMultiplier = 1.0 + (Math.max(0, Math.min(1000, impactBonus)) * 2 / 1000);
+    const impactMultiplier = 1.0 + (safeImpact * 2 / 1000);
 
     const rawShares = baseShares * qualityMultiplier * impactMultiplier;
     return Number(rawShares.toFixed(2));
@@ -50,9 +54,9 @@ export class DividendSystem {
       agentId,
       agentName,
       taskDescription,
-      baseValueCPH,
-      qualityBonus,
-      impactBonus,
+      baseValueCPH: Number.isFinite(baseValueCPH) ? Math.max(0, baseValueCPH) : 0,
+      qualityBonus: Number.isFinite(qualityBonus) ? Math.max(0, Math.min(1000, qualityBonus)) : 0,
+      impactBonus: Number.isFinite(impactBonus) ? Math.max(0, Math.min(1000, impactBonus)) : 0,
       timestamp: new Date(),
       sharesEarned
     };
@@ -62,13 +66,17 @@ export class DividendSystem {
     contributions: ContributionRecord[],
     currentPoolRevenueCPH: number
   ): DividendPool {
-    const totalSharesDistributed = contributions.reduce((sum, c) => sum + c.sharesEarned, 0);
+    const safePoolRevenue = Number.isFinite(currentPoolRevenueCPH) ? Math.max(0, currentPoolRevenueCPH) : 0;
+    const totalSharesDistributed = contributions.reduce((sum, c) => {
+      const shares = Number.isFinite(c.sharesEarned) ? Math.max(0, c.sharesEarned) : 0;
+      return sum + shares;
+    }, 0);
     const payoutPerShareCPH = totalSharesDistributed > 0 
-      ? Number((currentPoolRevenueCPH / totalSharesDistributed).toFixed(2))
+      ? Number((safePoolRevenue / totalSharesDistributed).toFixed(2))
       : 0;
 
     return {
-      totalRevenueCPH: currentPoolRevenueCPH,
+      totalRevenueCPH: safePoolRevenue,
       totalSharesDistributed: Number(totalSharesDistributed.toFixed(2)),
       payoutPerShareCPH,
       distributionDate: new Date(),

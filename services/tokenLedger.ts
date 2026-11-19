@@ -22,9 +22,12 @@ export class TokenLedger {
    * Initializing the 'Genesis Block' for our session.
    */
   public startSession(sessionId: string, budgetValue: number = CONTINUITY_CONFIG.DEFAULT_SESSION_BUDGET): void {
+    const safeBudget = Number.isFinite(budgetValue) && budgetValue > 0
+      ? budgetValue
+      : CONTINUITY_CONFIG.DEFAULT_SESSION_BUDGET;
     if (!this.sessions[sessionId]) {
       this.sessions[sessionId] = {
-        budget: budgetValue,
+        budget: safeBudget,
         entries: [],
         cumulative: 0,
         exhausted: false,
@@ -40,7 +43,8 @@ export class TokenLedger {
   public predictExhaustion(sessionId: string, estimatedTokens: number): boolean {
     const s = this.sessions[sessionId];
     if (!s) return false;
-    return (s.cumulative + estimatedTokens) >= s.budget;
+    const safeEstimate = Number.isFinite(estimatedTokens) ? Math.max(0, estimatedTokens) : 0;
+    return (s.cumulative + safeEstimate) >= s.budget;
   }
 
   /**
@@ -75,14 +79,16 @@ export class TokenLedger {
     }
 
     const s = this.sessions[sessionId];
-    const turnTotal = tokensIn + tokensOut;
+    const safeIn = Number.isFinite(tokensIn) ? Math.max(0, tokensIn) : 0;
+    const safeOut = Number.isFinite(tokensOut) ? Math.max(0, tokensOut) : 0;
+    const turnTotal = safeIn + safeOut;
 
     // ABUNDANCE CHECK: If this turn would blow the budget, we should have forecasted.
     // Here we enforce the protocol after recording.
     s.entries.push({
       turn_id: turnId,
-      in: tokensIn,
-      out: tokensOut,
+      in: safeIn,
+      out: safeOut,
       cumulative: s.cumulative + turnTotal
     });
 

@@ -234,6 +234,19 @@ export const ShardStoreView: React.FC<ShardStoreViewProps> = ({
     };
 
     const handleManifest = (item: StoreItem) => {
+        if (purchasingId !== null) {
+            addLog(`BUSY: Transaction already in progress. Await completion before queuing [${item.name}].`);
+            return;
+        }
+        if (isItemOwned(item.id)) {
+            addLog(`NOTICE: [${item.name}] is already active in your neural inventory.`);
+            return;
+        }
+        if (!Number.isFinite(item.cost) || item.cost <= 0) {
+            playSynthesisBeep('error');
+            addLog(`ERROR: INVALID COST CONFIGURATION FOR [${item.name}].`);
+            return;
+        }
         if (shards < item.cost) {
             playSynthesisBeep('error');
             addLog(`ERROR: INSUFFICIENT SHARDS FOR [${item.name}]. REQUIRED: ${item.cost}, HAVE: ${shards}`);
@@ -245,6 +258,11 @@ export const ShardStoreView: React.FC<ShardStoreViewProps> = ({
         addLog(`TRANSACTION STARTED: MANIFESTING ${item.name.toUpperCase()} via TRANS-DECAY CONDUIT...`);
 
         setTimeout(() => {
+            if (isItemOwned(item.id)) {
+                addLog(`NOTICE: [${item.name}] already active; skipping duplicate debit.`);
+                setPurchasingId(null);
+                return;
+            }
             const success = onPurchase(item.cost);
             if (success) {
                 playSynthesisBeep('success');
@@ -577,9 +595,9 @@ export const ShardStoreView: React.FC<ShardStoreViewProps> = ({
                                             ) : (
                                                 <button 
                                                     onClick={() => handleManifest(item)}
-                                                    disabled={!canAfford || isProcessing}
+                                                    disabled={!canAfford || purchasingId !== null}
                                                     className={`vista-button w-full py-3 font-black uppercase tracking-[0.2em] rounded-xl border-4 border-black shadow-[4px_4px_0_0_#000] active:translate-y-0.5 transition-all flex items-center justify-center gap-2 text-xs ${
-                                                        canAfford ? 'bg-amber-600 text-black hover:bg-amber-500' : 'bg-zinc-800 text-gray-600 opacity-50 cursor-not-allowed'
+                                                        canAfford && purchasingId === null ? 'bg-amber-600 text-black hover:bg-amber-500' : 'bg-zinc-800 text-gray-600 opacity-50 cursor-not-allowed'
                                                     }`}
                                                 >
                                                     {isProcessing ? (
